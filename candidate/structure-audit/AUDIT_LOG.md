@@ -198,3 +198,12 @@ Nothing is half-written. State on disk:
   version=1.2.0, IMPORTED_BOUNDARY_READY protectedChunks=5865 protectedChunksV2=6074, GEAR_READY, STRUCTURES_READY; Done in 3.2 s; no new errors.
 - 2026-09-24 owner: drop the 98% handoff rule; work until the usage limit.
 - 09-24 09:43 PAUSED by owner. Gear Phase 2 and B61/recalibration jobs stopped before any edits (canonical sources unchanged since the 3.26.0/1.2.0 deploy; plugins/update empty). Live: HorrorBiomes 3.26.0, importer 1.2.0, JasprGear phase 1.
+- 09-24 10:53 Cloud prep: GAME is now a git repo (allowlist .gitignore, .gitattributes '* -text', CLAUDE.md); server/.git renamed to server/.git-eaglercraft-template (template clone, reversible). 1 commit, 601 files, secrets/worlds/player data excluded (scanned). Waiting for owner to create a private GitHub repo.
+- 2026-09-24 11:50 DEPLOYED Survivor Gear Phase 2 (cloud session PR branch claude/gear-phase2, commit 6d750db) with ONE restart, 0 players online:
+  JasprGear 2.0.0 rebuilt locally from the reviewed source with JDK 17 (md5 67d17915b29c5b159636535d25aa6684; class bytes differ from the
+  cloud JDK 21 jar only by compiler codegen) + site classes.js (md5 8798ec86...), assets.epk (md5 f224e540...), client.html, jaspr-client.js
+  (versions 20260924-gear2); client builders re-run locally reproduce both byte-for-byte. Local test server (all live Jaspr* plugins minus
+  VoiceChat/WorldReset, port 25597): GEAR_SELFTEST PASS checks=612 failures=0. Live: GEAR_READY items=15 consumables=5 statuses=5, Done 2.77 s,
+  no new errors (EaglerXServer ForceAliveListener + AuthMe GeoLite warnings pre-existing), 3310 status running, 3200 health 200, site serves
+  new versions. Backups: .runtime/plugin-backup-20260924-114952-JasprGear, .runtime/site-backup-20260924-114952-gear2. Not yet play-tested
+  by a real Eaglercraft client on the live server.

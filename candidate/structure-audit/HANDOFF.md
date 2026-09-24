@@ -33,5 +33,5 @@ backtrack; stop and hand off when either usage bar reaches 98%. Never create GAM
      (0 of 5,430 terrain-fit positions in 40 scanned cells). Only fixable by letting buried-room shafts yield to it.
    - The secondary-grid multipliers for the 23 big designs were calibrated on counts of 3-30 per 96k box (noisy,
      1.1-2.3x of 1.0.0); recalibrate with probe\calib3.py if an exact 1.5x matters.
-   - GEAR_UPDATE.md still says nothing calls GearApi.rollLoot from structure loot (now stale).
+   - Survivor Gear Phase 2 LIVE 2026-09-24 11:50 (JasprGear 2.0.0; see AUDIT_LOG). Next gear work: Phase 3 (mutations, Creative gear column, worn models).
    - Buried set pieces' risers are not traced (their whole footprint counts as riser zone for big imported designs).
