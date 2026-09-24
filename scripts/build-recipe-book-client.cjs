@@ -1,9 +1,11 @@
 'use strict';
 /* Adds the EasierCrafting port to the deployed TeaVM client.
  *
- * Writes only candidate/recipe-book-client/. Pins the exact pre-extension SHA256, asserts
+ * Writes only candidate/recipe-book-client/. First install: pins the exact pre-extension SHA256, asserts
  * every anchor count, requires each anchor to be consumed by its own edit so a second run
  * cannot double-apply, and verifies byte-for-byte reversal before the candidate is accepted.
+ * Later module changes: `node scripts/build-recipe-book-client.cjs --upgrade` on the deployed client,
+ * then `node scripts/build-gear-client.cjs` with GEAR_CLIENT_SOURCE=candidate/recipe-book-client/classes.js.
  */
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 
@@ -122,10 +124,41 @@ function unpatch() {
   return apply(patched, edits(module, ammoEntry(patched) || ''), true);
 }
 
-if (require.main === module) {
+/* Upgrade the module inside an already patched client (site/classes.js as deployed): the module is
+ * the one region from its first line up to the zoom declaration it was inserted before. Everything
+ * outside that region stays byte-identical, the four screen hooks must still be there, and the
+ * result must parse. Older builds carried the gear builder's recipe block inside the region; it goes
+ * with it (the panel now reads the complete server export). Run the gear builder afterwards. */
+function upgrade(source = SOURCE) {
+  const input = fs.readFileSync(source, 'latin1');
+  const module = fs.readFileSync(MODULE, 'latin1');
+  if (/[^\x00-\x7f]/.test(module)) throw new Error('module must be ASCII');
+  const HEAD = '/* EasierCrafting for JasperCraft -- a port of Giselbaer', TAIL = '\nvar JasprZoomKeyDescription = null, JasprZoomKeyLabel = null;';
+  if (count(input, HEAD) !== 1 || count(input, TAIL) !== 1) throw new Error('module region not found exactly once');
+  const start = input.indexOf(HEAD), end = input.indexOf(TAIL);
+  if (end < start) throw new Error('module region out of order');
+  const body = module.endsWith('\n') ? module.slice(0, -1) : module;
+  const result = input.slice(0, start) + body + input.slice(end);
+  if (result.slice(0, start) !== input.slice(0, start) || result.slice(start + body.length) !== input.slice(end)) throw new Error('outside the module changed');
+  for (const hook of ['JasprRecipeBookInit(a,1,3,0,10)', 'JasprRecipeBookInit(a,1,2,0,9)', 'JasprRecipeBookClick(a,b,c,d)', 'JasprRecipeBookKeyTyped(a,b,c)'])
+    if (count(result, hook) !== 1) throw new Error('screen hook missing: ' + hook);
+  if (count(result, 'case 90:JasprRecipeBookDraw(a,b,c)') !== 2) throw new Error('draw hooks missing');
+  new (require('node:vm').Script)(Buffer.from(result, 'latin1').toString('utf8'), {filename: 'classes.js'});
+  const dir = path.join(ROOT, 'candidate', 'recipe-book-client');
+  fs.mkdirSync(dir, {recursive: true});
+  fs.writeFileSync(path.join(dir, 'classes.js'), Buffer.from(result, 'latin1'));
+  const info = {stage: 'easiercrafting-port-v2', source: path.relative(ROOT, source), sourceSha256: sha(input), sha256: sha(result),
+    replacedBytes: end - start, moduleBytes: body.length, bytes: Buffer.byteLength(result, 'latin1')};
+  fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(info, null, 2) + '\n');
+  return info;
+}
+
+if (require.main === module && process.argv.includes('--upgrade')) {
+  console.log(JSON.stringify(upgrade(), null, 2));
+} else if (require.main === module) {
   const out = build();
   console.log('Candidate only: ' + path.join(out.dir, 'classes.js'));
   console.log('SHA256 ' + out.sha256);
   console.log('bytes  ' + out.bytes);
 }
-module.exports = {build, unpatch, sha, BASE};
+module.exports = {build, unpatch, upgrade, sha, BASE};

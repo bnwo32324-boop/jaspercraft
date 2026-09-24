@@ -65,9 +65,6 @@ const EDITS = [
    'case 0:$p=90;case 90:JasprGearDraw(a,b,c);if(B()){break _;}$p=1;case 1:CD();if(B()){break _;}d=KZU.data;$p=2;case 2:Qu();if(B()){break _;}e=d[KWg];if(!e.b9W)return;'],
   ['case 10:Fog(a,b,c);if(B()){break _;}return;',
    'case 10:Fog(a,b,c);if(B()){break _;}$p=97;case 97:JasprGearTooltip(a,b,c);if(B()){break _;}return;'],
-  // Phase 3: EasierCrafting groups gear recipes under their own heading.
-  ['supply: "Supplies", artifact: "Relics"',
-   'supply: "Supplies", artifact: "Relics", gear: "Survivor Gear" /*JASPR_GEAR_RB_LABEL*/'],
   ['function JasprCreativeTabAllows(a,b){',
    'function JasprCreativeTabAllows(a,b){if(b===\'gear\')return a===KQL;'],
   ['/* JASPR_STATS_KEYBIND_BEGIN */', null], // module insertion point (handled below)
@@ -104,6 +101,12 @@ function moduleBlock(catalog) {
   return BEGIN + '\n' + body + (body.endsWith('\n') ? '' : '\n') + END + '\n';
 }
 
+// Phase 3 builds also added gear recipes and a heading to the EasierCrafting table; since 3.2.0 the
+// panel reads the server's complete recipe export (scripts/sync-recipe-table.cjs), so these are only
+// removed from an older client, never added.
+const LEGACY = [['supply: "Supplies", artifact: "Relics"',
+  'supply: "Supplies", artifact: "Relics", gear: "Survivor Gear" /*JASPR_GEAR_RB_LABEL*/']];
+
 function strip(text) {
   // Remove a previous build of this extension (any version of the module/catalogue content).
   let out = text;
@@ -127,7 +130,7 @@ function strip(text) {
     if (ce < 0 || count(out, CAT_BEGIN) !== 1) throw new Error('corrupt previous catalogue block');
     out = out.slice(0, cb) + out.slice(ce + CAT_END.length);
   }
-  for (const [from, to] of EDITS) if (to && count(out, to) === 1) out = out.split(to).join(from);
+  for (const [from, to] of EDITS.concat(LEGACY)) if (to && count(out, to) === 1) out = out.split(to).join(from);
   return out;
 }
 
@@ -146,14 +149,6 @@ function apply(input, catalog) {
   if (close < 0 || close > lineEnd) throw new Error('catalogue must end on its own line');
   const entries = catalogEntries(catalog);
   out = out.slice(0, close + 1) + CAT_BEGIN + ',' + entries.join(',') + CAT_END + out.slice(close + 1);
-  // Phase 3: gear recipes in the EasierCrafting table (same fenced-literal technique).
-  const tstart = out.indexOf('var JasprBlueprintTable = [');
-  if (tstart < 0 || count(out, 'var JasprBlueprintTable = [') !== 1) throw new Error('recipe table anchor');
-  const tclose = out.indexOf('}];', tstart), tlineEnd = out.indexOf('\n', tstart);
-  if (tclose < 0 || tclose > tlineEnd) throw new Error('recipe table must end on its own line');
-  const recipes = (catalog.recipes || []).map(r => ascii(JSON.stringify(r)));
-  if (!recipes.length) throw new Error('catalog has no recipes (rebuild the plugin: GearExport)');
-  out = out.slice(0, tclose + 1) + RB_BEGIN + ',' + recipes.join(',') + RB_END + out.slice(tclose + 1);
   return out;
 }
 
@@ -161,22 +156,13 @@ function build() {
   const raw = fs.readFileSync(SOURCE, 'latin1');
   const catalog = JSON.parse(fs.readFileSync(CATALOG, 'utf8'));
   const base = strip(raw);
-  if (base.includes('JasprGear')) throw new Error('unexpected JasprGear residue after strip');
+  // The EasierCrafting recipe table legitimately names gear results; everything else must be gone.
+  if (base.replace(/^var JasprRecipeTable = .*$/m, '').includes('JasprGear')) throw new Error('unexpected JasprGear residue after strip');
   const result = apply(base, catalog);
   const restored = strip(result);
   if (restored !== base) throw new Error('reversal did not restore the unpatched client byte for byte');
   if (strip(apply(result === base ? base : restored, catalog)) !== base) throw new Error('rebuild not stable');
   new vm.Script(Buffer.from(result, 'latin1').toString('utf8'), {filename: 'classes.js'}); // parses
-  // The EasierCrafting table must still be one valid literal carrying every gear recipe.
-  const tableLine = line => { const i = line.indexOf('var JasprBlueprintTable = ['); return line.slice(i + 26, line.indexOf('\n', i)).replace(/;\s*$/, ''); };
-  const table = JSON.parse(tableLine(result).split(RB_BEGIN).join('').split(RB_END).join(''));
-  const baseTable = JSON.parse(tableLine(base));
-  if (table.length !== baseTable.length + (catalog.recipes || []).length) throw new Error('recipe table size');
-  for (const r of catalog.recipes || []) {
-    const got = table.find(t => t.id === r.id);
-    if (!got || JSON.stringify(got) !== JSON.stringify(r)) throw new Error('recipe missing or altered: ' + r.id);
-    for (const row of r.shape) for (const ch of row) if (ch !== '.' && !r.keys[ch]) throw new Error('recipe key ' + ch + ' ' + r.id);
-  }
   return {raw, base, result, catalog};
 }
 
@@ -189,7 +175,7 @@ if (require.main === module) {
   const manifest = {stage: 'survivor-gear-v3', source: path.relative(ROOT, SOURCE), sourceSha256: sha(raw),
     unpatchedSha256: sha(base), sha256: sha(result), bytes: Buffer.byteLength(result, 'latin1'),
     addedBytes: Buffer.byteLength(result, 'latin1') - Buffer.byteLength(base, 'latin1'), edits: EDITS.length + 1,
-    catalogueEntries: catalog.items.length + (catalog.consumables || []).length + (catalog.backpacks || []).length, recipes: (catalog.recipes || []).length,
+    catalogueEntries: catalog.items.length + (catalog.consumables || []).length + (catalog.backpacks || []).length,
     hud: 'Ewc state 190 (JasprGearHud)', worn: 'Eyq state 95 (JasprGearWorn)', creative: 'Gzj state 90, Chu state 97',
     keys: {arc: 'G (34)', dodge: 'H (35)', magnet: 'J (36)', mutate: 'R (19)'}, channel: catalog.channel};
   fs.writeFileSync(path.join(path.dirname(target), 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');

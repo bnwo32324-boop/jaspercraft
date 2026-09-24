@@ -1,0 +1,6 @@
+name: JasprRecipeExport
+version: 1.0.0
+main: chat.jaspr.recipeexport.RecipeExport
+author: Jaspr
+description: Build-time tool only (never deployed). Dumps every crafting recipe the server registers to plugins/JasprRecipeExport/recipes.json.
+load: POSTWORLD
