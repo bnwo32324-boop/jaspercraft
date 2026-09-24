@@ -207,6 +207,11 @@ Nothing is half-written. State on disk:
   no new errors (EaglerXServer ForceAliveListener + AuthMe GeoLite warnings pre-existing), 3310 status running, 3200 health 200, site serves
   new versions. Backups: .runtime/plugin-backup-20260924-114952-JasprGear, .runtime/site-backup-20260924-114952-gear2. Not yet play-tested
   by a real Eaglercraft client on the live server.
+- 2026-09-24 13:25 DEPLOYED JasprApocalypse 3.6.1 (owner request): in CREATIVE, left-clicking a waypoint in the waypoint menu teleports
+  there (also sets it tracked); survival unchanged (left = track). Lore says "Left: teleport" in Creative. Built as a PATCH of the live
+  3.6.0 jar (only WaypointMenu*.class + plugin.yml replaced) because the JasprApocalypse source has undeployed drift (Ruins restoreRails,
+  SiegeRules) - a full rebuild would ship that too. Test server load clean; live APOCALYPSE_READY 3.6.1, 0 players, one restart.
+  Backup .runtime/plugin-backup-20260924-132510-JasprApocalypse.
 - 2026-09-24 PR (cloud, not deployed) Gear loot pass: JasprGear 3.1.0 (GearApi.CHANCE 0.4/0.6/1/1.5/2.5/4% by tier 0-5, a prefix of the
   old 3-25% band so seeds that still roll a trinket roll the same one; boss drops; Nether Star + diamond/emerald block recipes),
   JasprHorrorBiomes 3.27.0 (jaspr_boss scoreboard tag on Containment + encounter bosses; ExpeditionLoot.fold now rolls gear at tier 3;
