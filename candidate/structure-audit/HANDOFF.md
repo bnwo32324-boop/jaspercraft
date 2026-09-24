@@ -4,6 +4,45 @@ GAME = C:\Users\AM\Documents\Eaglercraft-1.12.2-Tailscale, SA = GAME\candidate\s
 Owner prefs: concise; low tokens; Sonnet for inspection, Opus for engineering; don't ask questions; never
 backtrack; stop and hand off when either usage bar reaches 98%. Never create GAME\.runtime\maintenance-mode.
 
+## CLOUD CHECKPOINT 2026-09-24 ~22:00 CDT (branch claude/awesome-cannon-fidcbt, PR #4) - resume here
+PR #4 holds, all DONE and tested in the cloud (jars committed in server/plugins): Gear loot pass (JasprGear 3.1.0,
+HB 3.27.0, importer 1.2.1), Backpacks (JasprGear 3.2.0, 5 tiers, in the Creative gear column), EasierCrafting rebuild
+(client only, classes.js?v=20260924-gear6). Merging PR #4 as it stands ships those and is safe.
+
+OPEN: owner request "All structures universally should spawn 1.5x whatever their current spawn rate is."
+Source committed, jars NOT installed in server/plugins (deliberately: needs the steps below first).
+- JasprHorrorBiomes 3.28.0 (server/custom-plugins/JasprHorrorBiomes, build: scripts/build-horror-biomes.sh):
+  additive tier-2 layer behind new boundary jaspr-rates-v2 (only chunks generated after the upgrade): tertiary
+  set-piece lattice (Megaliths C_CELL3/C_SALT3, per-kind calibrated), room lattice D (Dungeons D_CELL_D/D_SALT_D),
+  vanilla spawner-room attempts 39->59, catalogue grids v8/v10/v9 (StructurePlanner tier2*, salt +50000),
+  tier-2 sanctuaries (StructureRates.sanctuary2). Old layers never consult tier 2 -> no existing site moves.
+  Verified: tests/java/chat/jaspr/biomes/StructureRatesProbe.java (seed 3127727864271777472, chunks 400..3400):
+  old-layer fingerprints identical to 3.27.0; set pieces 65,610->98,477, rooms 301,092->452,370, sanctuaries
+  207->314, catalogue 3,559->5,306 (1.49x); all tier-2 sites recognised (0 ERROR). Fresh test world, 1600 chunks:
+  spawner rooms 40->62, 8.9->9.4 ms/chunk, RATES_V2_BOUNDARY_READY, no SEVERE.
+- JasprImportedWorldgen 1.3.0 (patch sources server/custom-plugins/JasprImportedWorldgen/patch, build:
+  scripts/patch-imported-worldgen.sh = 1.2.0 jar + patched classes, needs the HB 3.28 candidate jar first):
+  grid 3 (26x26-chunk cells, jaspr-imported-v3.boundary, receipts cells3-<uid>), yields to grids 1/2; ClaimGuard
+  treats every HB tier-2 site as a claim (reflection, SEVERE IMPORTED_GENERATION_REFUSED if missing). Refuses
+  HB < 3.28 -> DEPLOY BOTH TOGETHER. Probe (fresh ground): 13,113 -> 19,991 sites (1.525x); small designs median
+  1.59x; big designs 369 -> 318 (1.5x unreachable). Cloud counts used a catalogue rebuilt from census.csv
+  (waterline/anchors guessed) and synthetic piece files, so they are approximate. Upgrade test on one world:
+  old receipts/boundaries byte-identical, /where finds grid 1/2/3 sites, 0 SEVERE.
+NEXT (main agent on the PC):
+ 1. Fix known gap: HB tier-2 admission does not know imported receipts decided before 1.3.0 but not yet built
+    (~20% of those could get a tier-2 site inside their footprint, later overwritten by the import). Make HB
+    tier-2 (StructureRates.permits2 path) also yield to plan boxes in plugins/JasprImportedWorldgen/cells-* and
+    cells2-*, keeping old layers untouched; re-run StructureRatesProbe (old hashes must stay identical).
+ 2. Port the five patch classes (CellPlanner, CellLedger, Admission, ClaimGuard, ImportedWorldgenPlugin; keep
+    GearLoot picks -> return n > 0) into C:\Users\AM\Documents\JasperCraft-Threefold-Structures-20260923,
+    rebuild 1.3.0 against HB 3.28 with the real catalogue, recheck counts with SA\work\r-gear probe\run_imp.sh.
+ 3. Test server with all live plugins (READY: HORROR_BIOMES_READY 3.28.0, RATES_V2_BOUNDARY_READY,
+    IMPORTED_ASSETS_READY 1.3.0 grids=48+41+26, IMPORTED_BOUNDARY_READY ... protectedChunksV3=), then commit both
+    jars to server/plugins in ONE commit and deploy together.
+ Scratch evidence from the cloud session is gone with its container; everything needed is in git.
+ Also still unanswered by the owner (offered earlier): Containment boss re-farm/glow, lowering mob drops,
+ a key to open backpacks.
+
 ## DONE and LIVE
 - Structure audit complete: JasprHorrorBiomes repairs (SA\FINAL_REPORT.md, SA\audit-state.json).
 - Testing Grounds w4 / stg-10 installed in GAME\site.
@@ -37,5 +76,4 @@ backtrack; stop and hand off when either usage bar reaches 98%. Never create GAM
    - Gear loot pass (JasprGear 3.1.0 + JasprHorrorBiomes 3.27.0 + JasprImportedWorldgen 1.2.1, versions gear4; stacked on Phase 3): bosses always drop a trinket, every chest of every generator rolls 0.4-4% by tier, trinket recipes need a Nether Star + diamond/emerald blocks. See GEAR_UPDATE.md "Loot and bosses". The committed importer jar is a one-class patch of 1.2.0: apply the same change to the PC importer source (chat.jaspr.imported.GearLoot.picks -> `return n > 0;`, see server/custom-plugins/JasprImportedWorldgen/patch/) before its next rebuild, or that rebuild silently reverts it.
    - Backpacks (JasprGear 3.2.0, versions gear5, same PR branch claude/awesome-cannon-fidcbt): five tiers (18-54 slots, leather recipes rising in cost), right-click to open, contents in plugins/JasprGear/backpacks/<uuid>.pack; a 3-5% backpack band in GearApi.rollLoot (every structure chest) plus vanilla loot-table containers. See GEAR_UPDATE.md "Backpacks".
    - EasierCrafting panel rebuilt on a full server recipe export (client only, classes.js?v=20260924-gear6): all vanilla + plugin recipes, grid-size aware, shift-crafting, blueprint-safe clicks. See EASIERCRAFTING_UPDATE.md; re-export with scripts/export-recipes.sh whenever a plugin's recipes change.
-   - Structures 1.5x again (owner 2026-09-24, same PR branch): JasprHorrorBiomes 3.28.0 + JasprImportedWorldgen 1.3.0, DEPLOY BOTH TOGETHER (the importer's ClaimGuard must know HB tier-2 sites). HB: new boundary jaspr-rates-v2 (chunks generated after the upgrade), tier-2 layer = tertiary set-piece lattice, room lattice D, vanilla spawner-room attempts 39->59, catalogue grids v8/v10/v9 (salt +50000), tier-2 sanctuaries. Older layers never consult tier 2, so no old site moves (per-layer fingerprints identical to 3.27.0: tests/java/chat/jaspr/biomes/StructureRatesProbe.java, seed 3127727864271777472, 48k box). Counts old->new: set pieces 65,610->98,477, rooms 301,092->452,370, sanctuaries 207->314, catalogue 3,559->5,306 (1.49x); test server 1600 fresh chunks: spawner rooms 40->62, 8.9->9.4 ms/chunk, no errors. Importer: grid 3 (jaspr-imported-v3.boundary); the committed jar is built from patch/ sources over 1.2.1 - port patch/ into the PC importer source before its next rebuild.
    - Buried set pieces' risers are not traced (their whole footprint counts as riser zone for big imported designs).

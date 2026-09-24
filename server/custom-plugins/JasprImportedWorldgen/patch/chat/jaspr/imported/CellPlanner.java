@@ -26,16 +26,19 @@ public final class CellPlanner {
     public static final int SECONDARY_ATTEMPTS = 32;
     /*
      * 1.3.0 (owner: "all structures universally should spawn 1.5x whatever their current spawn rate is"): grid 3,
-     * a third lattice of CELL3_CHUNKS-chunk cells with a salt of its own, planned like grid 2 (same attempts, big
-     * designs search the whole cell) on ground new in 1.3.0 only (jaspr-imported-v3.boundary), yielding to every
-     * grid-1 and grid-2 plan and to every HorrorBiomes site of every tier. TERTIARY_CODEX and TERTIARY_WEIGHTS are
-     * calibrated so that on fresh ground grid 3 adds half of what grids 1+2 build, per collection and per design
-     * as far as the probe resolves it.
+     * a third lattice of CELL3_CHUNKS-chunk cells with a salt of its own, planned like grid 2 (weighted design
+     * factors, big designs search the whole cell) but with TERTIARY_ATTEMPTS positions, on ground new in 1.3.0 only
+     * (jaspr-imported-v3.boundary), yielding to every grid-1 and grid-2 plan and to every HorrorBiomes site of every
+     * tier. CELL3_CHUNKS, TERTIARY_ATTEMPTS, TERTIARY_CODEX and TERTIARY_WEIGHTS are calibrated (importer rates
+     * probe, seed 3127727864271777472, 6,000 x 6,000 fresh chunks from chunk 400,400, HorrorBiomes 3.28.0) so that
+     * grids 1+2+3 build 1.5x what 1.2.1 grids 1+2 built there with HorrorBiomes 3.27.0, per collection and per
+     * design as far as the probe resolves it. glm:B44 (32 chunks wide) never fits a grid-3 cell: weight 0.
      */
-    public static final int CELL3_CHUNKS = 40;
+    public static final int CELL3_CHUNKS = 26;
     private static final long SALT3 = 6504695737208287283L;
-    static final double TERTIARY_CODEX = 0.7367;
-    static final String TERTIARY_WEIGHTS = "codex:cbd_001=0.287,codex:cbd_002=0.268,codex:cbd_003=0.879,codex:cbd_004=0.225,codex:cbd_005=0.236,codex:cbd_007=0.375,codex:cbd_008=0.348,codex:cbd_009=0.554,codex:cbd_010=0.304,codex:cbd_011=0.861,codex:cbd_012=0.198,codex:cbd_013=0.232,codex:cbd_014=1.059,codex:cbd_015=0.542,codex:cbd_016=0.76,codex:cbd_017=0.639,codex:cbd_018=2.341,codex:cbd_019=0.672,codex:cbd_020=0.648,codex:cbd_021=0.336,codex:cbd_022=0.206,codex:cbd_023=0.24,codex:cbd_024=2.227,codex:cbd_025=0.384,codex:cbd_026=0.302,codex:cbd_027=0.189,codex:cbd_028=0.379,codex:cbd_029=0.304,codex:cbd_030=0.05,codex:cbd_031=2.7,codex:cbd_032=0.237,codex:cbd_033=0.183,codex:cbd_034=0.483,codex:cbd_035=0.635,codex:cbd_036=0.418,codex:cbd_037=0.393,codex:cbd_038=1.437,codex:cbd_039=0.64,codex:cbd_040=0.417,codex:cbd_041=2.78,codex:cbd_042=0.986,codex:cbd_043=0.271,codex:cbd_044=0.327,codex:cbd_045=1.967,codex:cbd_046=0.579,codex:cbd_047=1.638,codex:cbd_048=3.141,codex:cbd_049=2.51,codex:cbd_050=0.32,codex:cbd_051=0.774,codex:cbd_052=2.529,codex:cbd_053=1.521,codex:cbd_054=0.05,codex:cbd_055=1.519,codex:cbd_056=1.927,codex:cbd_057=2.421,codex:cbd_058=0.527,codex:cbd_059=0.31,codex:cbd_060=0.98,codex:cbd_061=1.312,codex:cbd_062=1.962,codex:cbd_063=0.601,codex:cbd_064=0.934,codex:cbd_065=0.05,codex:cbd_066=1.641,codex:cbd_067=1.491,codex:cbd_068=0.491,codex:cbd_069=3.041,codex:cbd_070=1.053,codex:cbd_071=0.519,codex:cbd_072=0.345,codex:cbd_073=1.521,codex:cbd_074=0.242,codex:cbd_075=1.643,codex:cbd_076=1.267,codex:cbd_077=2.415,codex:cbd_078=1.651,codex:cbd_079=0.78,codex:cbd_080=1.338,codex:cbd_081=0.388,codex:cbd_082=2.629,codex:cbd_083=0.74,codex:cbd_084=0.84,codex:cbd_085=0.218,codex:cbd_086=2.597,codex:cbd_087=1.959,codex:cbd_088=0.651,codex:cbd_089=1.273,codex:cbd_090=1.445,codex:cbd_091=0.949,codex:cbd_093=0.737,codex:cbd_094=0.415,codex:cbd_095=0.264,codex:cbd_096=0.509,codex:cbd_097=0.695,codex:cbd_100=0.609,codex:cbd_101=0.058,glm:B01=0.941,glm:B04=0.734,glm:B05=0.389,glm:B06=1.187,glm:B07=2.429,glm:B10=1.393,glm:B13=2.477,glm:B14=0.848,glm:B15=6.11,glm:B16=0.836,glm:B19=0.925,glm:B20=1.209,glm:B21=0.869,glm:B24=0.853,glm:B25=0.978,glm:B26=0.887,glm:B27=0.888,glm:B30=0.853,glm:B31=0.702,glm:B32=0.65,glm:B33=4.492,glm:B35=0.457,glm:B36=2.251,glm:B37=0.893,glm:B38=0.827,glm:B39=0.961,glm:B40=2.397,glm:B49=1.361,glm:B50=0.714,glm:B51=1.303,glm:B53=2.469,glm:B55=0.759,glm:B56=1.164,glm:B57=1.139,glm:B61=1.507,glm:B62=0.957,glm:B67=1.703,glm:B73=0.664,glm:B74=0.745,glm:B75=0.77,glm:B76=1.32,glm:B77=0.853,glm:B78=0.668";
+    static final double TERTIARY_CODEX = 0.819;
+    public static final int TERTIARY_ATTEMPTS = 192;
+    static final String TERTIARY_WEIGHTS = "codex:cbd_001=0.224,codex:cbd_002=0.203,codex:cbd_003=1.146,codex:cbd_004=0.211,codex:cbd_005=0.23,codex:cbd_007=0.231,codex:cbd_008=0.241,codex:cbd_009=0.406,codex:cbd_010=0.284,codex:cbd_011=1.183,codex:cbd_012=0.155,codex:cbd_013=0.266,codex:cbd_014=1.873,codex:cbd_015=0.53,codex:cbd_016=0.807,codex:cbd_017=0.639,codex:cbd_018=2.797,codex:cbd_019=0.672,codex:cbd_020=0.678,codex:cbd_021=0.33,codex:cbd_022=0.216,codex:cbd_023=0.273,codex:cbd_024=2.945,codex:cbd_025=0.252,codex:cbd_026=0.244,codex:cbd_027=0.235,codex:cbd_028=0.212,codex:cbd_029=0.223,codex:cbd_030=0.05,codex:cbd_031=4.941,codex:cbd_032=0.461,codex:cbd_033=0.638,codex:cbd_034=0.483,codex:cbd_035=2.567,codex:cbd_036=0.322,codex:cbd_037=1.601,codex:cbd_038=1.433,codex:cbd_039=0.375,codex:cbd_040=1.144,codex:cbd_041=4.903,codex:cbd_042=1.78,codex:cbd_043=0.271,codex:cbd_044=0.24,codex:cbd_045=3.259,codex:cbd_046=0.814,codex:cbd_047=2.614,codex:cbd_048=8.557,codex:cbd_049=4.736,codex:cbd_050=0.22,codex:cbd_051=0.903,codex:cbd_052=6.307,codex:cbd_053=2.222,codex:cbd_054=0.118,codex:cbd_055=4.216,codex:cbd_056=3.241,codex:cbd_057=2.465,codex:cbd_058=0.547,codex:cbd_059=0.31,codex:cbd_060=1.389,codex:cbd_061=1.188,codex:cbd_062=2.749,codex:cbd_063=0.624,codex:cbd_064=1.223,codex:cbd_065=0.197,codex:cbd_066=2.136,codex:cbd_067=1.591,codex:cbd_068=0.484,codex:cbd_069=4.522,codex:cbd_070=1.703,codex:cbd_071=1.417,codex:cbd_072=1.423,codex:cbd_073=1.579,codex:cbd_074=0.242,codex:cbd_075=3.05,codex:cbd_076=1.385,codex:cbd_077=4.241,codex:cbd_078=2.32,codex:cbd_079=0.829,codex:cbd_080=2.489,codex:cbd_081=0.388,codex:cbd_082=4.208,codex:cbd_083=0.855,codex:cbd_084=0.763,codex:cbd_085=0.393,codex:cbd_086=4.531,codex:cbd_087=2.659,codex:cbd_088=0.63,codex:cbd_089=1.918,codex:cbd_090=1.602,codex:cbd_091=0.801,codex:cbd_093=0.516,codex:cbd_094=0.427,codex:cbd_095=0.291,codex:cbd_096=0.336,codex:cbd_097=0.582,codex:cbd_100=0.534,codex:cbd_101=0.058,glm:B01=1.001,glm:B04=0.811,glm:B05=0.429,glm:B06=1.058,glm:B07=2.429,glm:B10=0.871,glm:B13=3.557,glm:B14=0.764,glm:B15=6.11,glm:B16=0.978,glm:B19=0.912,glm:B20=1.054,glm:B21=0.774,glm:B24=0.838,glm:B25=1.042,glm:B26=0.985,glm:B27=0.883,glm:B30=0.751,glm:B31=0.683,glm:B32=0.763,glm:B33=7.931,glm:B35=0.53,glm:B36=2.769,glm:B37=0.746,glm:B38=0.768,glm:B39=0.967,glm:B40=12,glm:B44=0,glm:B49=1.001,glm:B50=0.842,glm:B51=3.409,glm:B53=3.698,glm:B55=0.781,glm:B56=1.197,glm:B57=1.525,glm:B61=1.507,glm:B62=6.118,glm:B67=1.555,glm:B73=0.536,glm:B74=0.716,glm:B75=0.695,glm:B76=3.389,glm:B77=0.929,glm:B78=0.728";
     private static final Map<String, Double> TERTIARY = new HashMap<String, Double>();
     private final List<SiteSpec> glm;
     private final List<SiteSpec> codex;
@@ -59,7 +62,7 @@ public final class CellPlanner {
     }
 
     public Plan chooseTertiary(long seed, int cellX, int cellZ, Ground ground) {
-        return this.choose(seed, cellX, cellZ, ground, CELL3_CHUNKS, SALT3, 2, SECONDARY_ATTEMPTS);
+        return this.choose(seed, cellX, cellZ, ground, CELL3_CHUNKS, SALT3, 2, TERTIARY_ATTEMPTS);
     }
 
     /** The plan of lattice 0, 1 or 2. */
@@ -79,6 +82,9 @@ public final class CellPlanner {
         int spanX = cell - 4 - site.widthChunks();
         int spanZ = cell - 4 - site.depthChunks();
         if (spanX < 0 || spanZ < 0) {
+            if (lattice == 2) {
+                return null;                // grid 3: a design wider than its cell is never planned there (weight 0)
+            }
             throw new IllegalStateException("Catalog entry exceeds cell: " + site.id);
         }
         for (int i = 0; i < attempts; ++i) {
