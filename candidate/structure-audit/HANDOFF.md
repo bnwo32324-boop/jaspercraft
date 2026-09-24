@@ -77,3 +77,16 @@ NEXT (main agent on the PC):
    - Backpacks (JasprGear 3.2.0, versions gear5, same PR branch claude/awesome-cannon-fidcbt): five tiers (18-54 slots, leather recipes rising in cost), right-click to open, contents in plugins/JasprGear/backpacks/<uuid>.pack; a 3-5% backpack band in GearApi.rollLoot (every structure chest) plus vanilla loot-table containers. See GEAR_UPDATE.md "Backpacks".
    - EasierCrafting panel rebuilt on a full server recipe export (client only, classes.js?v=20260924-gear6): all vanilla + plugin recipes, grid-size aware, shift-crafting, blueprint-safe clicks. See EASIERCRAFTING_UPDATE.md; re-export with scripts/export-recipes.sh whenever a plugin's recipes change.
    - Buried set pieces' risers are not traced (their whole footprint counts as riser zone for big imported designs).
+
+## PENDING OWNER REQUEST (2026-09-24 evening): full world regeneration
+- Owner: "Regenerate the entire world; keep ALL my player data without exception (level, XP, every item with full NBT,
+  backpacks AND their contents, gear slots); that's the only thing to preserve; everything else regenerate. Quick world backup first."
+- Tool: scripts/reset-horror-terrain.cjs (copies+verifies protected files, moves terrain to world-resets/ = backup). Needs a new
+  epoch (add 'rare-v8'; current is rare-v7) and requires .runtime/maintenance-mode + stopped server (owner rule normally forbids
+  maintenance-mode: get explicit OK, keep it brief, remove after).
+- Owner's player data = world/playerdata/<uuid>.dat (+stats, advancements), plugins/JasprGear/players/<uuid>.* (gear slots,
+  vitals, mutation), backpack storage (check JasprGear 3.2.0: item NBT vs plugin file), Apocalypse life checkpoints/ranks, AuthMe
+  account (keep or owner can't log in). Verify owner inventory + backpack contents after restart.
+- OPEN QUESTIONS asked of owner: other players' data too? (tool keeps all by default); regenerate the Fold (jaspr_backrooms)
+  and reset other plugin data (waypoints, graves, turrets, loot journals) - "everything else" suggests yes, but not accounts.
+- Deferred to after the weekly usage reset (Sat 2026-09-26 09:00).
