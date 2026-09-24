@@ -7,6 +7,8 @@
 !/CLAUDE.md
 !/*.md
 !/deployment-manifest.json
+!/Deploy JasperCraft.bat
+!/Undo last deploy.bat
 !/scripts/
 !/server-tools/
 !/client-mods/
@@ -24,6 +26,7 @@
 !/server/plugins/
 /server/plugins/*
 !/server/plugins/Jaspr*.jar
+!/server/plugins/TestServerControl.jar
 
 !/candidate/
 /candidate/*
