@@ -23,6 +23,7 @@ public final class GearExport {
         for (GearItem item : GearItem.values()) out.add(recipe("gear_" + item.id, item.shape, item.ingredientMap()));
         for (GearConsumable item : GearConsumable.values())
             if (item.shape != null) out.add(recipe("gear_" + item.id, item.shape, item.ingredientMap()));
+        for (GearBackpack item : GearBackpack.values()) out.add(recipe("gear_" + item.id, item.shape, item.ingredientMap()));
         return out;
     }
 
@@ -96,6 +97,20 @@ public final class GearExport {
             supplies.add(o);
         }
         root.add("consumables", supplies);
+        JsonArray packs = new JsonArray(); // 3.2.0 backpacks
+        for (GearBackpack item : GearBackpack.values()) {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", item.id);
+            o.addProperty("title", item.title);
+            o.addProperty("model", item.model);
+            o.addProperty("tier", item.tier);
+            o.addProperty("slots", item.slots());
+            o.addProperty("lootWeight", item.lootWeight);
+            o.addProperty("recipe", GearPlugin.recipeText(item));
+            o.addProperty("snbt", GearItems.canonicalTag(item).toString());
+            packs.add(o);
+        }
+        root.add("backpacks", packs);
         JsonArray statuses = new JsonArray();
         for (GearStatus s : GearStatus.values()) {
             JsonObject o = new JsonObject();

@@ -80,12 +80,18 @@ function catalogEntries(catalog) {
       model: item.model, color: color, snbt: item.snbt,
       search: ['gear supply consumable survivor adrenaline', item.id.replace(/_/g, ' '), item.title, item.inspiredBy].join(' ').toLowerCase()}));
   });
+  const packs = (catalog.backpacks || []).map(item => {
+    const color = '\u00a7' + 'fabd6'[item.tier - 1];
+    return ascii(JSON.stringify({id: 'gear_' + item.id, title: item.title, category: 'gear', material: 'minecraft:stone_hoe',
+      model: item.model, color: color, snbt: item.snbt,
+      search: ['gear backpack bag pack storage survivor', item.id.replace(/_/g, ' '), item.title, item.slots + ' slots'].join(' ').toLowerCase()}));
+  });
   return catalog.items.map(item => {
     const color = '§' + ({1: 'a', 2: 'a', 3: 'b', 4: 'd', 5: '6'})[item.rank || 1];
     return ascii(JSON.stringify({id: 'gear_' + item.id, title: item.title, category: 'gear', material: 'minecraft:stone_hoe',
       model: item.model, color: color, snbt: item.snbt,
       search: ['gear trinket bauble survivor', item.id.replace(/_/g, ' '), item.title, item.type.toLowerCase(), item.inspiredBy].join(' ').toLowerCase()}));
-  }).concat(supplies);
+  }).concat(supplies, packs);
 }
 
 function moduleBlock(catalog) {
@@ -183,7 +189,7 @@ if (require.main === module) {
   const manifest = {stage: 'survivor-gear-v3', source: path.relative(ROOT, SOURCE), sourceSha256: sha(raw),
     unpatchedSha256: sha(base), sha256: sha(result), bytes: Buffer.byteLength(result, 'latin1'),
     addedBytes: Buffer.byteLength(result, 'latin1') - Buffer.byteLength(base, 'latin1'), edits: EDITS.length + 1,
-    catalogueEntries: catalog.items.length + (catalog.consumables || []).length, recipes: (catalog.recipes || []).length,
+    catalogueEntries: catalog.items.length + (catalog.consumables || []).length + (catalog.backpacks || []).length, recipes: (catalog.recipes || []).length,
     hud: 'Ewc state 190 (JasprGearHud)', worn: 'Eyq state 95 (JasprGearWorn)', creative: 'Gzj state 90, Chu state 97',
     keys: {arc: 'G (34)', dodge: 'H (35)', magnet: 'J (36)', mutate: 'R (19)'}, channel: catalog.channel};
   fs.writeFileSync(path.join(path.dirname(target), 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');

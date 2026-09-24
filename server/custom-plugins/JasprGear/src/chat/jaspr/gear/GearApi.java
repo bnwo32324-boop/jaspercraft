@@ -24,6 +24,11 @@ public final class GearApi {
     static final double[] CHANCE = {0.004, 0.006, 0.010, 0.015, 0.025, 0.040};
     /** Phase 2: extra chance, above the trinket band, that the chest receives one consumable. */
     static final double[] SUPPLY_CHANCE = {0.06, 0.08, 0.10, 0.12, 0.14, 0.16};
+    /**
+     * 3.2.0: extra chance, above the supply band, that the chest receives one backpack. Which backpack is
+     * picked by GearBackpack.lootWeight (satchel 50%, rucksack 25%, field pack 14%, expedition 8%, frame 3%).
+     */
+    static final double[] BACKPACK_CHANCE = {0.030, 0.034, 0.038, 0.042, 0.046, 0.050};
 
     private GearApi() {}
 
@@ -42,21 +47,26 @@ public final class GearApi {
      * Full Restore from tier 3, Adrenaline Crystal from tier 4; rarer ones weigh more in harder
      * tiers). The trinket band and its nextInt pick are unchanged, so every seed that rolled a
      * trinket before still rolls the same trinket.
+     *
+     * 3.2.0: a roll that misses both may land in the backpack band just above them (3-5% by tier) and
+     * return one backpack; the two lower bands are untouched.
      */
     public static ItemStack rollLoot(Random random, int tier) {
         Object pick = pickAny(random, tier);
         if (pick instanceof GearItem) return GearItems.create((GearItem) pick);
         if (pick instanceof GearConsumable) return GearItems.create((GearConsumable) pick);
+        if (pick instanceof GearBackpack) return GearItems.create((GearBackpack) pick);
         return null;
     }
 
-    /** GearItem, GearConsumable or null. */
+    /** GearItem, GearConsumable, GearBackpack or null. */
     static Object pickAny(Random random, int tier) {
         if (random == null) return null;
         int t = Math.max(0, Math.min(5, tier));
         double roll = random.nextDouble();
         if (roll < CHANCE[t]) return pickGear(random, t);
         if (roll < CHANCE[t] + SUPPLY_CHANCE[t]) return pickSupply(random, t);
+        if (roll < CHANCE[t] + SUPPLY_CHANCE[t] + BACKPACK_CHANCE[t]) return pickBackpack(random);
         return null;
     }
 
@@ -76,6 +86,17 @@ public final class GearApi {
             if (roll < 0) return c;
         }
         return null;
+    }
+
+    static GearBackpack pickBackpack(Random random) {
+        int total = 0;
+        for (GearBackpack b : GearBackpack.values()) total += b.lootWeight;
+        int roll = random.nextInt(total);
+        for (GearBackpack b : GearBackpack.values()) {
+            roll -= b.lootWeight;
+            if (roll < 0) return b;
+        }
+        return GearBackpack.SATCHEL;
     }
 
     private static GearItem pickGear(Random random, int t) {
@@ -114,12 +135,26 @@ public final class GearApi {
         return random == null ? null : GearItems.create(all[random.nextInt(all.length)]);
     }
 
-    /** Fresh canonical item for a gear or consumable id, or null when the id is unknown. */
+    /** Fresh canonical item for a gear, consumable or backpack id, or null when the id is unknown. */
     public static ItemStack create(String gearId) {
         GearItem item = GearItem.byId(gearId);
         if (item != null) return GearItems.create(item);
         GearConsumable use = GearConsumable.byId(gearId);
-        return use == null ? null : GearItems.create(use);
+        if (use != null) return GearItems.create(use);
+        GearBackpack pack = GearBackpack.byId(gearId);
+        return pack == null ? null : GearItems.create(pack);
+    }
+
+    /** True for a genuine backpack (any tier, opened or not). */
+    public static boolean isBackpack(ItemStack stack) {
+        return GearItems.backpack(stack) != null;
+    }
+
+    /** Backpack ids, tier 1 first. */
+    public static List<String> backpackIds() {
+        List<String> out = new ArrayList<String>();
+        for (GearBackpack b : GearBackpack.values()) out.add(b.id);
+        return Collections.unmodifiableList(out);
     }
 
     /** True for a genuine Phase 2 consumable (Adrenaline Candy, Field Bandage, ...). */

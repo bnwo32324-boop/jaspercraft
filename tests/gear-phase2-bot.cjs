@@ -41,21 +41,39 @@ function join(name, hello) {
 }
 const fx = bot => (bot.hud && bot.hud.fx || []).map(f => f[0]);
 async function until(fn, ms = 4000) { const end = Date.now() + ms; while (Date.now() < end) { if (fn()) return true; await sleep(100); } return fn(); }
+// A use aimed at a block within reach is a block click, never "air": face open air first.
+async function aimAtAir(bot) {
+  for (const pitch of [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4])
+    for (let k = 0; k < 8; k++) {
+      await bot.look(bot.entity.yaw + k * Math.PI / 4, pitch, true);
+      if (!bot.blockAtCursor(6)) return true;
+    }
+  return false;
+}
 async function holdAndUse(bot, predicate) {
   await sleep(300);
   const item = bot.inventory.items().find(predicate);
   if (!item) return false;
   await bot.equip(item, 'hand');
   await sleep(300);
+  const yaw = bot.entity.yaw, pitch = bot.entity.pitch;
+  await aimAtAir(bot);
   bot.activateItem();
   await sleep(700);
+  await bot.look(yaw, pitch, true);
   return true;
 }
 const byModel = model => i => i.name === 'stone_hoe' && i.metadata === model;
 
 async function main() {
   const bot = await join('GearBot', 'hello 2');
-  console_('op GearBot'); console_('gamemode survival GearBot'); console_('gear effect GearBot clear');
+  // A closed stone room in the sky, built in Creative: near some spawn spots the H dodge dash carried the bot
+  // over a drop, and the fall killed it (items and all).
+  console_('op GearBot'); console_('gamemode creative GearBot'); console_('minecraft:tp GearBot 460 201 460');
+  await sleep(2500);
+  console_('fill 450 200 450 470 205 470 stone 0 hollow'); console_('minecraft:tp GearBot 460 201 460');
+  await sleep(1000);
+  console_('gamemode survival GearBot'); console_('gear effect GearBot clear');
   console_('difficulty 1'); // peaceful would heal 1/s and hide bleeding
   await until(() => bot.hud);
   check(bot.states >= 1, 'hello 2: slot state received');

@@ -42,13 +42,25 @@ function join(name, hello) {
   });
 }
 const byModel = model => i => i.name === 'stone_hoe' && i.metadata === model;
+// A use aimed at a block within reach is a block click, never "air": face open air first.
+async function aimAtAir(bot) {
+  for (const pitch of [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4])
+    for (let k = 0; k < 8; k++) {
+      await bot.look(bot.entity.yaw + k * Math.PI / 4, pitch, true);
+      if (!bot.blockAtCursor(6)) return true;
+    }
+  return false;
+}
 async function use(bot, model) {
   const item = bot.inventory.items().find(byModel(model));
   if (!item) return false;
   await bot.equip(item, 'hand');
   await sleep(300);
+  const yaw = bot.entity.yaw, pitch = bot.entity.pitch;
+  await aimAtAir(bot);
   bot.activateItem();
   await sleep(700);
+  await bot.look(yaw, pitch, true);
   return true;
 }
 const wornOf = (bot, other) => { const e = bot.worn && bot.worn.p.find(x => x[0] === other.entity.id); return e ? e[1] : null; };

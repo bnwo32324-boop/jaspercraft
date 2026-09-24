@@ -342,7 +342,7 @@
       window.eaglercraftXOpts = {
         demoMode: false,
         container: "game_frame",
-        assetsURI: "assets.epk?build=20260924-gear3",
+        assetsURI: "assets.epk?build=20260924-gear5",
         localesURI: "lang/",
         worldsDB: "eaglercraft_1122_tailscale_worlds",
         resourcePacksDB: "eaglercraft_1122_tailscale_resourcepacks",

@@ -151,6 +151,16 @@ const LIQUID = {purge_serum: 'zZ', mutagen_burrower: 'nB', mutagen_stalker: 'cu'
   mutagen_scavenger: 'gv', mutagen_brute: 'Rr', mutagen_charger: 'Yy', mutagen_wyrm: 'Pp'};
 for (const [id, [main, shade]] of Object.entries(LIQUID)) ART[id] = FLASK.map(row => row.replace(/[Xx]/g, c => c === 'X' ? main : shade));
 
+// 3.2.0 backpacks: one pack template (handle, flap, buckle, front pocket), recoloured per tier.
+// X main, x shade, Y flap highlight, b pocket seam.
+const PACK = [
+  '................', '......0000......', '.....0h00h0.....', '...0000000000...', '..0XYYYYYYYYX0..', '.0XYYYYYYYYYYX0.',
+  '.0XXXXX55XXXXX0.', '.0XxxxX55XxxxX0.', '.0XxxxxxxxxxxX0.', '.0XxbbbbbbbbxX0.', '.0XxbxxYYxxbxX0.', '.0XxbxxxxxxbxX0.',
+  '.0XxbbbbbbbbxX0.', '.0XxxxxxxxxxxX0.', '..000000000000..', '................'];
+const PACK_COLORS = {satchel: 'nBNb', rucksack: 'VvgB', field_pack: 'Sskf', expedition_pack: 'Uui1', frame_pack: 'Rro2'};
+for (const [id, [main, shade, flap, seam]] of Object.entries(PACK_COLORS))
+  ART[id] = PACK.map(row => row.replace(/[XxYb]/g, c => ({X: main, x: shade, Y: flap, b: seam})[c]));
+
 const table = Array.from({length: 256}, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
 function crc32(buf) { let c = 0xffffffff; for (const b of buf) c = table[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
 function chunk(type, data) {
@@ -190,6 +200,12 @@ function build() {
     bands.push([item.model, `item/jaspr_gear_${item.id}`]);
   }
   for (const item of catalog.consumables || []) {
+    assert.ok(ART[item.id], 'missing art for ' + item.id);
+    files.set(`assets/minecraft/textures/items/jaspr_gear_${item.id}.png`, png(item.id, ART[item.id]));
+    files.set(`assets/minecraft/models/item/jaspr_gear_${item.id}.json`, json({parent: 'item/generated', textures: {layer0: `items/jaspr_gear_${item.id}`}}));
+    bands.push([item.model, `item/jaspr_gear_${item.id}`]);
+  }
+  for (const item of catalog.backpacks || []) {
     assert.ok(ART[item.id], 'missing art for ' + item.id);
     files.set(`assets/minecraft/textures/items/jaspr_gear_${item.id}.png`, png(item.id, ART[item.id]));
     files.set(`assets/minecraft/models/item/jaspr_gear_${item.id}.json`, json({parent: 'item/generated', textures: {layer0: `items/jaspr_gear_${item.id}`}}));

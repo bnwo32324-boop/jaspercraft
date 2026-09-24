@@ -50,6 +50,7 @@ final class GearSelfTest {
             hud();
             mutations();
             bosses();
+            backpacks();
         } catch (Throwable t) {
             failures.add("exception " + t);
         }
@@ -566,5 +567,128 @@ final class GearSelfTest {
         out[0] = (byte) body.length;
         System.arraycopy(body, 0, out, 1, body.length);
         return out;
+    }
+
+    /** 3.2.0 backpacks: sizes, identity, recipe prices, loot band, storage round trip, vanilla loot fill. */
+    private void backpacks() throws Exception {
+        GearBackpack[] all = GearBackpack.values();
+        check(all.length == 5, "five backpack tiers");
+        check(GearBackpack.SATCHEL.slots() == 18, "tier 1 = 18 slots, half the 36-slot inventory");
+        int weights = 0;
+        java.util.Map<String, Integer> value = new java.util.HashMap<String, Integer>();
+        value.put("LEATHER", 1); value.put("STRING", 1); value.put("CHEST", 2); value.put("IRON_INGOT", 3); value.put("GOLD_INGOT", 4);
+        value.put("DIAMOND", 10); value.put("IRON_BLOCK", 27); value.put("GOLD_BLOCK", 36); value.put("SHULKER_SHELL", 40); value.put("DIAMOND_BLOCK", 90);
+        int lastCost = 0;
+        for (int i = 0; i < all.length; i++) {
+            GearBackpack b = all[i];
+            weights += b.lootWeight;
+            check(b.tier == i + 1 && b.slots() == 18 + 9 * i && b.slots() <= 54, "size by tier " + b.id);
+            check(i == 0 || b.lootWeight < all[i - 1].lootWeight, "higher tier rarer in chests " + b.id);
+            check(GearBackpack.byId(b.id) == b && GearItem.byId(b.id) == null && GearConsumable.byId(b.id) == null, "unique id " + b.id);
+            int cost = 0, leather = 0;
+            boolean known = true;
+            java.util.Map<Character, String> key = b.ingredientMap();
+            for (String row : b.shape) for (char ch : row.toCharArray()) {
+                String m = key.get(ch);
+                if (m == null) continue;
+                if (!value.containsKey(m)) { known = false; continue; }
+                cost += value.get(m);
+                if (m.equals("LEATHER")) leather++;
+            }
+            check(known && leather >= 4, "leather backpack recipe " + b.id);
+            check(i > 0 || cost <= 8, "tier 1 is cheap (leather and string) " + cost);
+            check(cost > lastCost, "recipe cost rises with tier " + b.id + " " + cost);
+            lastCost = cost;
+            ItemStack item = GearItems.create(b);
+            check(GearItems.backpack(item) == b && GearItems.identify(item) == null && GearItems.consumable(item) == null
+                && !GearItems.isIcon(item), "backpack identity " + b.id);
+            check(GearItems.packUuid(item) == null, "canonical backpack has no uuid " + b.id);
+            UUID u = UUID.randomUUID();
+            ItemStack stamped = GearItems.withPackUuid(item, u);
+            check(u.equals(GearItems.packUuid(stamped)) && GearItems.backpack(stamped) == b, "uuid stamp " + b.id);
+            check(item.getType().getMaxStackSize() == 1, "backpacks never stack");
+            check(GearApi.isBackpack(GearApi.create(b.id)) && GearApi.backpackIds().contains(b.id), "api backpack " + b.id);
+            boolean found = false;
+            for (org.bukkit.inventory.Recipe r : Bukkit.getRecipesFor(item)) if (GearItems.backpack(r.getResult()) == b) found = true;
+            check(found, "backpack recipe registered " + b.id);
+        }
+        check(weights == 100, "backpack loot weights are percentages");
+        check(plugin.packRecipeCount() == all.length, "backpack recipes " + plugin.packRecipeCount());
+        // No other recipe shares a backpack pattern.
+        java.util.Map<String, String> mine = new java.util.HashMap<String, String>();
+        java.util.List<org.bukkit.inventory.ShapedRecipe> others = new ArrayList<org.bukkit.inventory.ShapedRecipe>();
+        for (java.util.Iterator<org.bukkit.inventory.Recipe> it = Bukkit.recipeIterator(); it.hasNext(); ) {
+            org.bukkit.inventory.Recipe r = it.next();
+            if (!(r instanceof org.bukkit.inventory.ShapedRecipe)) continue;
+            GearBackpack b = GearItems.backpack(r.getResult());
+            if (b != null) mine.put(b.id, pattern((org.bukkit.inventory.ShapedRecipe) r, false));
+            else others.add((org.bukkit.inventory.ShapedRecipe) r);
+        }
+        int clashes = 0;
+        for (org.bukkit.inventory.ShapedRecipe o : others)
+            for (java.util.Map.Entry<String, String> m : mine.entrySet())
+                if (samePattern(m.getValue(), pattern(o, false)) || samePattern(m.getValue(), pattern(o, true))) {
+                    clashes++; failures.add("backpack recipe clash " + m.getKey() + " vs " + o.getResult().getType());
+                }
+        check(mine.size() == all.length && clashes == 0, "no other recipe shares a backpack pattern");
+        // Loot: a band above trinkets and supplies; the lower bands keep every draw.
+        for (int tier = 0; tier <= 5; tier++) {
+            int n = 60000, packs = 0, outside = 0;
+            int[] byTier = new int[6];
+            double low = GearApi.CHANCE[tier] + GearApi.SUPPLY_CHANCE[tier];
+            for (int seed = 0; seed < n; seed++) {
+                java.util.Random a = new java.util.Random(seed * 7919L + tier), b = new java.util.Random(seed * 7919L + tier);
+                double d = a.nextDouble();
+                Object pick = GearApi.pickAny(b, tier);
+                if (!(pick instanceof GearBackpack)) continue;
+                packs++;
+                byTier[((GearBackpack) pick).tier]++;
+                if (d < low || d >= low + GearApi.BACKPACK_CHANCE[tier]) outside++;
+            }
+            double rate = packs / (double) n, expect = GearApi.BACKPACK_CHANCE[tier];
+            check(Math.abs(rate - expect) < 4 * Math.sqrt(expect * (1 - expect) / n) + 0.0005, "backpack rate tier " + tier + " = " + rate);
+            check(outside == 0, "backpacks only in their own band tier " + tier);
+            check(byTier[1] > byTier[2] && byTier[2] > byTier[3] && byTier[3] > byTier[4] && byTier[4] > byTier[5] && byTier[5] > 0,
+                "higher-tier backpacks rarer, all possible, tier " + tier);
+            check(tier == 0 || GearApi.BACKPACK_CHANCE[tier] >= GearApi.BACKPACK_CHANCE[tier - 1], "backpack chance never falls with difficulty");
+        }
+        ItemStack rolled = null;
+        java.util.Random r = new java.util.Random(99L);
+        for (int i = 0; i < 2000 && rolled == null; i++) { ItemStack x = GearApi.rollLoot(r, 0); if (GearApi.isBackpack(x)) rolled = x; }
+        check(rolled != null && GearItems.packUuid(rolled) == null, "rollLoot returns real, unopened backpacks");
+        // Storage round trip, including a corrupt file (moved aside, never deleted).
+        GearBackpacks packs = plugin.backpacks;
+        UUID id = UUID.randomUUID();
+        Inventory inv = packs.inventory(id, GearBackpack.RUCKSACK);
+        check(inv != null && inv.getSize() == 27 && GearBackpacks.isPack(inv), "fresh rucksack window 27");
+        inv.setItem(0, new ItemStack(org.bukkit.Material.COBBLESTONE, 64));
+        inv.setItem(26, GearItems.create(GearItem.RAZOR_CLAWS));
+        java.io.File dir = packs.dir;
+        dir.mkdirs();
+        Files.write(packs.file(id).toPath(), GearBackpacks.encodeText(inv.getContents()).getBytes(StandardCharsets.UTF_8));
+        ItemStack[] back = packs.load(id);
+        check(back[0] != null && back[0].getAmount() == 64 && GearItems.identify(back[26]) == GearItem.RAZOR_CLAWS && back[1] == null, "pack file round trip");
+        check(packs.inventory(id, GearBackpack.RUCKSACK) == inv, "one live inventory per backpack");
+        UUID bad = UUID.randomUUID();
+        Files.write(packs.file(bad).toPath(), "garbage".getBytes(StandardCharsets.UTF_8));
+        Inventory fresh = packs.inventory(bad, GearBackpack.SATCHEL);
+        java.io.File[] aside = dir.listFiles((d, name) -> name.startsWith(bad + ".pack.corrupt-"));
+        check(fresh != null && fresh.firstEmpty() == 0 && aside != null && aside.length == 1, "corrupt pack moved aside");
+        if (aside != null) for (java.io.File f : aside) f.delete();
+        packs.file(id).delete();
+        packs.forget(id);
+        packs.forget(bad);
+        // Vanilla loot-table fill: one roll into an empty slot of the live inventory.
+        final double hit = GearApi.CHANCE[GearBackpacks.VANILLA_TIER] + GearApi.SUPPLY_CHANCE[GearBackpacks.VANILLA_TIER] + 0.001;
+        java.util.Random forced = new java.util.Random(5L) { @Override public double nextDouble() { return hit; } };
+        Inventory chest = Bukkit.createInventory(null, 27);
+        chest.setItem(0, new ItemStack(org.bukkit.Material.BREAD, 3));
+        ItemStack added = packs.vanillaFill(chest, forced);
+        int count = 0;
+        for (ItemStack x : chest.getContents()) if (GearApi.isBackpack(x)) count++;
+        check(GearApi.isBackpack(added) && count == 1 && chest.getItem(0).getType() == org.bukkit.Material.BREAD, "vanilla loot chest gets a backpack roll");
+        Inventory full = Bukkit.createInventory(null, 9);
+        for (int i = 0; i < 9; i++) full.setItem(i, new ItemStack(org.bukkit.Material.DIRT));
+        check(packs.vanillaFill(full, forced) == null, "full vanilla chest left alone");
     }
 }

@@ -9,8 +9,9 @@ JasprHorrorBiomes are untouched. No world reset.
 Phase status: **Phase 1 (slots, UI, 15 trinkets, textures, mechanics, loot API), Phase 2 (status
 effects, Adrenaline + HUD bar, ability costs, consumables) and Phase 3 (nine races as mutations,
 Creative gear column, worn trinkets on player models, gear recipes in EasierCrafting) are done**,
-plus the 3.1.0 loot pass (boss drops, trinkets in every dungeon chest, very expensive recipes) -
-see the Phase 2, Phase 3 and 3.1.0 sections below and "Remaining" at the end.
+plus the 3.1.0 loot pass (boss drops, trinkets in every dungeon chest, very expensive recipes) and
+3.2.0 backpacks (five tiers, cheap leather to expensive, in every loot chest) - see the Phase 2,
+Phase 3, 3.1.0 and 3.2.0 sections below and "Remaining" at the end.
 
 ## Playing
 
@@ -337,6 +338,60 @@ hard one, crafting a very expensive last resort.
   ordinary zombie drops none. Phase 2 bots 28/28 (+2/2) and Phase 3 bots 22/22 (+1/1).
 - The existing repo tests fail in the same places as on the base commit.
 
+## Backpacks (JasprGear 3.2.0, 2026-09-24)
+
+Five backpack tiers that work like most backpack mods: keep one anywhere in your inventory,
+**right-click it** (in either hand, or on the item in your inventory screen with an empty cursor)
+and a chest-style window opens; put things in, take things out. Tier 1 holds 18 slots, half the
+36-slot player inventory, and each tier adds a row.
+
+| Backpack (`id`) | Tier | Slots | Recipe (rows, `.` empty) | Share of chest backpacks |
+| --- | --- | --- | --- | --- |
+| Leather Satchel (`satchel`) | 1 | 18 | `SLS / L.L / LLL`: 6 leather, 2 string | 50% |
+| Rucksack (`rucksack`) | 2 | 27 | `SLS / ICI / LLL`: 5 leather, 2 string, 2 iron ingots, chest | 25% |
+| Field Pack (`field_pack`) | 3 | 36 | `LiL / gCg / LLL`: 5 leather, iron block, 2 gold ingots, chest | 14% |
+| Expedition Pack (`expedition_pack`) | 4 | 45 | `LDL / GCG / LDL`: 4 leather, 2 diamonds, 2 gold blocks, chest | 8% |
+| Hauler's Frame Pack (`frame_pack`) | 5 | 54 | `LdL / HCH / LdL`: 4 leather, 2 diamond blocks, 2 shulker shells, chest | 3% |
+
+- **Loot**: `GearApi.rollLoot` gained a backpack band above the trinket and supply bands: 3.0 / 3.4 /
+  3.8 / 4.2 / 4.6 / 5.0% per chest for tiers 0-5, then the tier shares above, so the Frame Pack is
+  about 0.1-0.15% per chest. Every chest of every generator already rolls once (see the 3.1.0
+  section); the two lower bands keep every draw. **Vanilla loot-table containers** (chests and chest
+  minecarts that fill from a vanilla loot table when first opened; this world generates none today)
+  now roll it once too, at tier 1, into a free slot.
+- **Storage**: contents live in `plugins/JasprGear/backpacks/<uuid>.pack` (Base64 SNBT per slot,
+  same atomic writer as the gear files), never inside the item. The uuid is stamped into the item
+  the first time it is opened. Moving, dropping, dying with or copying the item can never duplicate
+  its contents; two people opening one backpack share one live inventory. Saved on close, every 30 s
+  while open and on every world save; an unreadable file is moved aside, never overwritten.
+- **Rules**: backpacks never go inside backpacks (click, shift-click, number key and drag are
+  refused; the item stays on your cursor). Right-clicking doors, chests and other interactive blocks
+  still uses the block. The stone-hoe carrier never tills. Creative: open it from your hand (the
+  Creative inventory screen is client-side).
+- Items: model 30-34 on the unbreakable stone-hoe carrier, own 16x16 art (one pack template,
+  recoloured per tier), identity `JasprGearPack:{id[,uuid]}`. In the Creative gear catalogue, the
+  EasierCrafting panel, `/gear recipes`, `/gear give <player> backpacks|<id>`.
+- `/gear status` adds `packsOpened packSaves packRefused packsStamped packsLive vanillaRolls vanillaItems`;
+  log lines `GEAR_PACK_LOAD_FAILED`, `GEAR_VANILLA_LOOT item=...`.
+- Versions: `classes.js?v=20260924-gear5`, `jaspr-client.js?build=20260924-gear5`,
+  `assets.epk?build=20260924-gear5`; plugin 3.2.0.
+
+### 3.2.0 verification (2026-09-24, cloud, Linux)
+
+- Test server with every live Jaspr jar: no errors, **GEAR_SELFTEST PASS, 1090 checks**. New checks:
+  sizes (tier 1 = 18), rising recipe cost, rarer higher tiers, recipes registered with no pattern
+  clash, identity and uuid stamping, backpack band rate per tier (60,000 rolls each) and that it never
+  touches the trinket/supply draws, pack file round trip, corrupt file moved aside, vanilla fill.
+- `tests/gear-backpack-bot.cjs` **13/13 + 1/1 after a restart**: crafts a Leather Satchel at a
+  crafting table from leather and string; right-click in hand opens 18 slots; shift-click stores
+  cobblestone; a backpack is refused inside a backpack (shift-click and cursor); right-click in the
+  inventory screen reopens it with the cobblestone; the Frame Pack opens with 54 slots; 60 vanilla
+  loot-table chests all fill and get Survivor Gear rolls (60 rolls, one each); contents survive a restart.
+- Phase 2 28/28 (+2/2), Phase 3 22/22 (+1/1), boss drops 3/3, browser client (HUD, worn gear,
+  Creative column) PASS. Test fixes: the Phase 2 bot now plays in a closed stone room (the H dodge
+  dash could carry it over a drop near some spawn spots), and bots aim at open air before a
+  right-click (a use aimed at a block within reach is a block click, not an "air" use).
+
 ## How it works
 
 - **Items**: an unbreakable, flag-hidden **stone hoe** whose damage value selects the texture
@@ -374,7 +429,7 @@ applied/refused/cured, bleed ticks, locked moves/hits, supplies used, HUD packet
 `GEAR_MUTATION` (from/to), `GEAR_MUTATE` (admin), and `/gear status` adds worn packets sent,
 Creative moves, mutations/purges, mutation abilities, prospects, scrounges, grounded flights. `/gear status` (op/console) prints counters (equips,
 drops, arcs, blinks, absorbed hits, climbs, brakes, save failures). Console-only: `gear peek
-<player|uuid>`, `gear open <player>`, `gear selftest`, `gear give <player|*> <id|all>` (also op).
+<player|uuid>`, `gear open <player>`, `gear selftest`, `gear give <player|*> <id|all|supplies|backpacks>` (also op).
 Browser: `window.JasprGearDiagnostics.status()` (counters only, no identities). No passwords,
 tokens or IPs are logged.
 
@@ -389,7 +444,8 @@ tokens or IPs are logged.
   proves byte-for-byte reversal; parses the result).
 - Tests: `scripts/gear-preview.cjs` (loopback Paper on 25597 + static page),
   `scripts/gear-cdp-probe.cjs` (disposable headless Chrome driver), `tests/gear-phase2-bot.cjs` and
-  `tests/gear-phase3-bot.cjs` (mineflayer end-to-end), `tests/gear-hud-browser.cjs` (HUD, worn
+  `tests/gear-phase3-bot.cjs`, `tests/gear-boss-bot.cjs`, `tests/gear-backpack-bot.cjs` (mineflayer
+  end-to-end), `tests/gear-hud-browser.cjs` (HUD, worn
   gear and Creative column in the real client, headless Chromium).
 
 ## Adding a trinket
@@ -422,3 +478,5 @@ tokens or IPs are logged.
   importer's PC source still needs the `GearLoot.picks` change (see the 3.1.0 section).
 - A live play-test on the real server (worn-gear placement on real skins, Sprite flight feel,
   ability balance).
+- Backpacks open from a hand or the inventory screen; there is no key to open one without touching
+  it (some mods have one) - easy to add on a free key if wanted.

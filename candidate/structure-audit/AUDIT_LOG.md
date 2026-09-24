@@ -218,3 +218,7 @@ Nothing is half-written. State on disk:
   nothing placed or recognised changes), JasprImportedWorldgen 1.2.1 (1.2.0 jar + recompiled GearLoot: every chest rolls, was ~2+tier per
   design; PC source still needs the same change). Test server with all live Jaspr jars: GEAR_SELFTEST PASS 994, probe PASS 100,807,
   gear bots 28+22+3 pass.
+- 2026-09-24 PR (cloud, not deployed) Backpacks: JasprGear 3.2.0 (5 tiers, 18/27/36/45/54 slots; recipes from 6 leather + 2 string up
+  to diamond blocks + shulker shells; GearApi.BACKPACK_CHANCE 3.0-5.0% by tier above the supply band, tier shares 50/25/14/8/3%;
+  vanilla loot-table containers roll GearApi once at tier 1; contents on disk by uuid). No structure/placement change. Test server:
+  GEAR_SELFTEST PASS 1090, gear-backpack-bot 13/13 + restart 1/1, phase2/phase3/boss bots and browser client pass.

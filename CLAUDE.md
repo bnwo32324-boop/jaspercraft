@@ -44,6 +44,7 @@ double-clicks `Deploy JasperCraft.bat` on the PC (manual one-click deployer, see
 - Status and open work: `candidate/structure-audit/HANDOFF.md`, `candidate/structure-audit/AUDIT_LOG.md`
 - Structure audit: `candidate/structure-audit/FINAL_REPORT.md`, `CONVENTIONS.md`, `OWNER_CRITERIA.md`
 - Survivor Gear (trinkets): `GEAR_UPDATE.md` (Phases 1-3 done: trinkets; status effects, "Adrenaline" + HUD,
-  consumables; 9 races as mutations, Creative-screen gear column, trinkets on player models). Cloud builds:
+  consumables; 9 races as mutations, Creative-screen gear column, trinkets on player models; 3.1 boss drops and
+  loot; 3.2 five backpack tiers). Cloud builds:
   `bash scripts/build-gear-plugin.sh`, then `node scripts/build-gear-pack.cjs` and `node scripts/build-gear-client.cjs`.
 - Everything else: `MODDING_NOTES.md` and the `*_UPDATE.md` files.

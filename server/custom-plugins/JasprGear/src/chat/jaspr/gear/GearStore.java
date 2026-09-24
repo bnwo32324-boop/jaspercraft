@@ -156,9 +156,19 @@ final class GearStore {
         return out.toString().getBytes(StandardCharsets.UTF_8);
     }
 
+    /** 3.2.0 backpacks: any file in any folder, through the same ordered, atomic writer. */
+    void writeAsync(final File folder, final String name, final byte[] data) {
+        writer.execute(() -> writeFile(folder, name, data, name));
+    }
+
     private void write(UUID uuid, byte[] data, String ext) {
-        File target = new File(dir, uuid.toString() + ext);
-        File temp = new File(dir, uuid.toString() + ext + ".tmp");
+        writeFile(dir, uuid.toString() + ext, data, uuid.toString());
+    }
+
+    private void writeFile(File folder, String name, byte[] data, String who) {
+        if (!folder.isDirectory() && !folder.mkdirs()) log.warning("GEAR_STORE_DIR_FAILED path=" + folder.getName());
+        File target = new File(folder, name);
+        File temp = new File(folder, name + ".tmp");
         try {
             try (FileOutputStream out = new FileOutputStream(temp)) {
                 out.write(data);
@@ -172,7 +182,7 @@ final class GearStore {
             writes++;
         } catch (IOException | RuntimeException e) {
             failures++;
-            log.warning("GEAR_SAVE_FAILED player=" + uuid + " error=" + e.getClass().getSimpleName());
+            log.warning("GEAR_SAVE_FAILED player=" + who + " error=" + e.getClass().getSimpleName());
         }
     }
 

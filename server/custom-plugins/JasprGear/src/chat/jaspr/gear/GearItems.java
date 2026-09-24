@@ -18,6 +18,8 @@ public final class GearItems {
     public static final String ICON_TAG = "JasprGearIcon";
     /** Phase 2 consumables: JasprGearUse:{id, doses}. Never carries the JasprGear compound. */
     public static final String USE_TAG = "JasprGearUse";
+    /** Backpacks: JasprGearPack:{id[, uuid]}. The uuid names the contents file, stamped on first open. */
+    public static final String PACK_TAG = "JasprGearPack";
     public static final String CARRIER = "minecraft:stone_hoe";
     public static final int ICON_BASE_MODEL = 40;
     private static final char S = '§';
@@ -66,6 +68,60 @@ public final class GearItems {
     }
 
     public static ItemStack create(GearConsumable item) { return fromTag(canonicalTag(item)); }
+
+    /** Canonical (never opened, so no uuid yet) backpack. */
+    public static NBTTagCompound canonicalTag(GearBackpack item) {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setBoolean("Unbreakable", true);
+        tag.setInt("HideFlags", 63);
+        NBTTagCompound display = new NBTTagCompound();
+        display.setString("Name", S + String.valueOf(item.color()) + item.title);
+        NBTTagList lore = new NBTTagList();
+        lore.add(new NBTTagString(S + "8Backpack - right-click to open"));
+        lore.add(new NBTTagString(S + "7" + item.slots() + " slots (tier " + item.tier + ")"));
+        lore.add(new NBTTagString(S + "7Right-click it in your inventory too"));
+        display.set("Lore", lore);
+        tag.set("display", display);
+        NBTTagCompound pack = new NBTTagCompound();
+        pack.setString("id", item.id);
+        tag.set(PACK_TAG, pack);
+        return wrap(item.model, tag);
+    }
+
+    public static ItemStack create(GearBackpack item) { return fromTag(canonicalTag(item)); }
+
+    /** The backpack carried by this stack, or null. Never trusts names or lore. */
+    public static GearBackpack backpack(ItemStack stack) {
+        if (empty(stack) || stack.getType() != Material.STONE_HOE) return null;
+        try {
+            net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(stack);
+            if (nms == null || !nms.hasTag()) return null;
+            NBTTagCompound tag = nms.getTag();
+            if (!tag.hasKeyOfType(PACK_TAG, 10) || tag.hasKey(TAG) || tag.hasKey(USE_TAG)) return null;
+            return GearBackpack.byId(tag.getCompound(PACK_TAG).getString("id"));
+        } catch (RuntimeException error) {
+            return null;
+        }
+    }
+
+    /** The contents uuid of a backpack stack, or null when it was never opened (or is no valid uuid). */
+    public static java.util.UUID packUuid(ItemStack stack) {
+        if (backpack(stack) == null) return null;
+        String raw = CraftItemStack.asNMSCopy(stack).getTag().getCompound(PACK_TAG).getString("uuid");
+        try { return raw.isEmpty() ? null : java.util.UUID.fromString(raw); }
+        catch (IllegalArgumentException bad) { return null; }
+    }
+
+    /** Copy of a backpack stack carrying this contents uuid (display, anvil names etc. kept). */
+    public static ItemStack withPackUuid(ItemStack stack, java.util.UUID uuid) {
+        net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(stack);
+        NBTTagCompound tag = nms.getTag();
+        NBTTagCompound pack = tag.getCompound(PACK_TAG);
+        pack.setString("uuid", uuid.toString());
+        tag.set(PACK_TAG, pack);
+        nms.setTag(tag);
+        return CraftItemStack.asBukkitCopy(nms);
+    }
 
     /** The consumable carried by this stack, or null. Never trusts names or lore. */
     public static GearConsumable consumable(ItemStack stack) {
