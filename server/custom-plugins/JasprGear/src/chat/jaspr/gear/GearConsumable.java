@@ -27,7 +27,19 @@ public enum GearConsumable {
         null, null),
     ADRENALINE_CRYSTAL("adrenaline_crystal", "Adrenaline Crystal", 20, 4, 1, 4, 1, "Mana Crystal",
         new String[]{"Permanently +10 max adrenaline", "Stacks up to +100"},
-        null, null);
+        null, null),
+    // Phase 3: mutagens (one per mutation) and the Purge Serum. Flat loot weights, tier 4+.
+    PURGE_SERUM("purge_serum", "Purge Serum", 21, 2, 1, 2, 2, "Restore (race reset)",
+        new String[]{"Purges your mutation", "Back to baseline human"},
+        new String[]{"GMG", " B "}, "G=GOLD_NUGGET,M=MILK_BUCKET,B=GLASS_BOTTLE", GearMutation.BASELINE),
+    MUTAGEN_BURROWER(GearMutation.BURROWER, 22),
+    MUTAGEN_STALKER(GearMutation.STALKER, 23),
+    MUTAGEN_FERAL(GearMutation.FERAL, 24),
+    MUTAGEN_SPRITE(GearMutation.SPRITE, 25),
+    MUTAGEN_SCAVENGER(GearMutation.SCAVENGER, 26),
+    MUTAGEN_BRUTE(GearMutation.BRUTE, 27),
+    MUTAGEN_CHARGER(GearMutation.CHARGER, 28),
+    MUTAGEN_WYRM(GearMutation.WYRM, 29);
 
     public final String id;
     public final String title;
@@ -40,6 +52,8 @@ public enum GearConsumable {
     public final String[] effects;
     public final String[] shape;
     public final String ingredients;
+    /** Serums only: the mutation this grants (BASELINE for the Purge Serum), else null. */
+    final GearMutation mutation;
 
     GearConsumable(String id, String title, int model, int rarity, int doses, int minTier, int lootWeight,
                    String inspiredBy, String[] effects, String[] shape, String ingredients) {
@@ -54,6 +68,29 @@ public enum GearConsumable {
         this.effects = effects;
         this.shape = shape;
         this.ingredients = ingredients;
+        this.mutation = null;
+    }
+
+    GearConsumable(String id, String title, int model, int rarity, int doses, int minTier, int lootWeight,
+                   String inspiredBy, String[] effects, String[] shape, String ingredients, GearMutation mutation) {
+        this.id = id;
+        this.title = title;
+        this.model = model;
+        this.rarity = rarity;
+        this.doses = doses;
+        this.minTier = minTier;
+        this.lootWeight = lootWeight;
+        this.inspiredBy = inspiredBy;
+        this.effects = effects;
+        this.shape = shape;
+        this.ingredients = ingredients;
+        this.mutation = mutation;
+    }
+
+    /** A mutagen: loot only, tier 4+, weight 1, rarity 4. */
+    GearConsumable(GearMutation m, int model) {
+        this("mutagen_" + m.id, m.title + " Mutagen", model, 4, 1, 4, 1, m.inspiredBy + " race",
+            new String[]{"Mutates you into a " + m.title, m.effects[0], "One mutation at a time"}, null, null, m);
     }
 
     /** Same colours as trinket ranks: 1-2 green, 3 aqua, 4 light purple, 5 gold. */
@@ -62,6 +99,7 @@ public enum GearConsumable {
     /** Loot weight at a tier: rarer supplies gain weight in harder tiers, none below minTier. */
     int weight(int tier) {
         if (tier < minTier) return 0;
+        if (mutation != null) return lootWeight; // serums stay rare in every tier
         return lootWeight + (rarity >= 2 ? Math.max(0, tier - minTier) : 0);
     }
 

@@ -18,7 +18,8 @@ const PALETTE = {
   v: [39, 74, 26], V: [76, 138, 42], g: [155, 224, 74], G: [217, 255, 138], p: [58, 29, 79], P: [122, 63, 168], m: [201, 133, 240],
   s: [94, 84, 66], S: [138, 125, 98], k: [181, 167, 132], w: [217, 200, 168], f: [74, 50, 32], F: [122, 86, 52], e: [165, 124, 79],
   x: [0, 0, 0], i: [111, 168, 220], I: [184, 220, 245], h: [90, 106, 120], H: [143, 163, 181], j: [201, 214, 224],
-  a: [55, 55, 55, 190], A: [55, 55, 55, 90]
+  a: [55, 55, 55, 190], A: [55, 55, 55, 90],
+  q: [240, 140, 200], Q: [168, 66, 138], z: [236, 240, 244], Z: [168, 178, 190]
 };
 
 const ART = {
@@ -140,6 +141,15 @@ ART.adrenaline_crystal = [
   '................', '.......00.......', '......0mm0......', '.....0mCmP0.....', '....0mCmmPP0....', '....0mmmmPP0....',
   '...0mCmmmPPp0...', '...0mmmmmPPp0...', '...0mmmmPPpp0...', '...0mmmmPPpp0...', '....0mmPPpp0....', '....0mmPPpp0....',
   '.....0mPpp0.....', '......0Pp0......', '.......00.......', '................'];
+
+// Phase 3 serums: one stoppered flask, liquid recoloured per mutation (X main, x shade).
+const FLASK = [
+  '................', '......0000......', '......0FF0......', '.....0FffF0.....', '.....05II50.....', '.....05II50.....',
+  '....05IIII50....', '...05XXXXXX50...', '..05XXXXXXXX50..', '..05XCXXXXXx50..', '..05XXXXXXXx50..', '..05xXXXXXxx50..',
+  '...05xxxxxx50...', '....05555550....', '.....000000.....', '................'];
+const LIQUID = {purge_serum: 'zZ', mutagen_burrower: 'nB', mutagen_stalker: 'cu', mutagen_feral: 'or', mutagen_sprite: 'qQ',
+  mutagen_scavenger: 'gv', mutagen_brute: 'Rr', mutagen_charger: 'Yy', mutagen_wyrm: 'Pp'};
+for (const [id, [main, shade]] of Object.entries(LIQUID)) ART[id] = FLASK.map(row => row.replace(/[Xx]/g, c => c === 'X' ? main : shade));
 
 const table = Array.from({length: 256}, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
 function crc32(buf) { let c = 0xffffffff; for (const b of buf) c = table[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }

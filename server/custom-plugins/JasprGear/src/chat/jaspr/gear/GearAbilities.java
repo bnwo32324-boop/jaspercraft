@@ -193,7 +193,7 @@ final class GearAbilities implements Listener {
         }
     }
 
-    private static void armReady(GearProfile prof, String name, long at) { prof.readyName = name; prof.readyAt = at; }
+    static void armReady(GearProfile prof, String name, long at) { prof.readyName = name; prof.readyAt = at; }
 
     static String pips(double charge) {
         int full = (int) Math.floor(charge + 1e-6);
@@ -218,7 +218,7 @@ final class GearAbilities implements Listener {
 
         if (worn.contains(GearItem.THERMAL_GOGGLES) && p.isSneaking() && p.isOnGround() && still) {
             prof.sneakTicks += 2;
-            if (prof.sneakTicks >= 20 && now >= prof.scanReady) { prof.scanReady = now + SCAN_MS; scan(p, prof); }
+            if (prof.sneakTicks >= 20 && now >= prof.scanReady) { prof.scanReady = now + SCAN_MS; scan(p, prof, 8, "Thermal scan"); }
         } else prof.sneakTicks = 0;
 
         if (worn.contains(GearItem.TEDDY_BEAR) && p.isSneaking() && p.isOnGround() && still) {
@@ -264,7 +264,7 @@ final class GearAbilities implements Listener {
 
     private static double square(double v) { return v * v; }
 
-    private static boolean facingWall(Player p) {
+    static boolean facingWall(Player p) {
         Location loc = p.getLocation();
         double yaw = Math.toRadians(loc.getYaw());
         double dx = -Math.sin(yaw) * 0.55, dz = Math.cos(yaw) * 0.55;
@@ -347,10 +347,11 @@ final class GearAbilities implements Listener {
         }
     }
 
-    private void scan(Player p, GearProfile prof) {
+    /** Nearest ore within r blocks (Thermal Goggles: 8, Burrower's Seismic Sense: 12). */
+    void scan(Player p, GearProfile prof, int r, String label) {
         Location at = p.getLocation();
         World w = at.getWorld();
-        int bx = at.getBlockX(), by = at.getBlockY(), bz = at.getBlockZ(), r = 8;
+        int bx = at.getBlockX(), by = at.getBlockY(), bz = at.getBlockZ();
         Block best = null;
         double bestD = Double.MAX_VALUE;
         for (int dx = -r; dx <= r; dx++) for (int dy = -r; dy <= r; dy++) for (int dz = -r; dz <= r; dz++) {
@@ -363,10 +364,10 @@ final class GearAbilities implements Listener {
             if (d < bestD) { bestD = d; best = b; }
         }
         p.getWorld().playSound(at, Sound.BLOCK_NOTE_HAT, 0.4f, 1.8f);
-        if (best == null) { bar(p, ChatColor.GOLD + "Thermal scan: " + ChatColor.GRAY + "no " + ("any".equals(prof.scanFilter) ? "ore" : prof.scanFilter + " ore") + " within 8m"); return; }
+        if (best == null) { bar(p, ChatColor.GOLD + label + ": " + ChatColor.GRAY + "no " + ("any".equals(prof.scanFilter) ? "ore" : prof.scanFilter + " ore") + " within " + r + "m"); return; }
         int dy = best.getY() - by;
         String vertical = dy > 1 ? ", " + dy + " up" : dy < -1 ? ", " + (-dy) + " down" : "";
-        bar(p, ChatColor.GOLD + "Thermal scan: " + ChatColor.WHITE + oreName(best.getType()) + ChatColor.GRAY + " "
+        bar(p, ChatColor.GOLD + label + ": " + ChatColor.WHITE + oreName(best.getType()) + ChatColor.GRAY + " "
             + Math.round(Math.sqrt(bestD)) + "m " + direction(p, best.getLocation().add(0.5, 0.5, 0.5)) + vertical);
     }
 
@@ -507,7 +508,7 @@ final class GearAbilities implements Listener {
         return true;
     }
 
-    private static boolean targetable(Player p, Entity e) {
+    static boolean targetable(Player p, Entity e) {
         return e != p && (hostile(e) || (e instanceof Player && p.getWorld().getPVP() && ((Player) e).getGameMode() != GameMode.SPECTATOR));
     }
 

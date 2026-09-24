@@ -11,6 +11,43 @@ import com.google.gson.JsonObject;
 public final class GearExport {
     private GearExport() {}
 
+    /**
+     * EasierCrafting (recipe panel) entries in its own JasprBlueprintTable format: id is the
+     * Creative-catalogue id ("gear_" + item id), keys carry the registry tag ("glass_pane:0"),
+     * the display SNBT and the game's own item name. Built from the same shapes the server
+     * registers, through the real item registry, so the panel cannot drift from the recipes.
+     */
+    static JsonArray recipes() {
+        net.minecraft.server.v1_12_R1.DispenserRegistry.c();
+        JsonArray out = new JsonArray();
+        for (GearItem item : GearItem.values()) out.add(recipe("gear_" + item.id, item.shape, item.ingredientMap()));
+        for (GearConsumable item : GearConsumable.values())
+            if (item.shape != null) out.add(recipe("gear_" + item.id, item.shape, item.ingredientMap()));
+        return out;
+    }
+
+    private static JsonObject recipe(String id, String[] shape, java.util.Map<Character, String> ingredients) {
+        JsonObject o = new JsonObject();
+        o.addProperty("id", id);
+        JsonArray rows = new JsonArray();
+        for (String row : shape) rows.add(row.replace(' ', '.'));
+        o.add("shape", rows);
+        JsonObject keys = new JsonObject();
+        for (java.util.Map.Entry<Character, String> e : ingredients.entrySet()) {
+            String[] parts = e.getValue().split(":");
+            int data = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+            net.minecraft.server.v1_12_R1.Item nms = org.bukkit.craftbukkit.v1_12_R1.util.CraftMagicNumbers.getItem(org.bukkit.Material.valueOf(parts[0]));
+            net.minecraft.server.v1_12_R1.ItemStack stack = new net.minecraft.server.v1_12_R1.ItemStack(nms, 1, data);
+            JsonObject k = new JsonObject();
+            k.addProperty("tag", net.minecraft.server.v1_12_R1.Item.REGISTRY.b(nms).getKey() + ":" + data);
+            k.addProperty("snbt", stack.save(new net.minecraft.server.v1_12_R1.NBTTagCompound()).toString());
+            k.addProperty("name", stack.getName());
+            keys.add(String.valueOf(e.getKey()), k);
+        }
+        o.add("keys", keys);
+        return o;
+    }
+
     public static void main(String[] args) throws java.io.IOException {
         JsonObject root = new JsonObject();
         root.addProperty("channel", GearPlugin.CHANNEL);
@@ -71,6 +108,17 @@ public final class GearExport {
         }
         root.add("statuses", statuses);
         root.addProperty("hudProtocol", 2);
+        root.addProperty("wornProtocol", 3);
+        JsonArray muts = new JsonArray();
+        for (GearMutation m : GearMutation.values()) {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", m.id);
+            o.addProperty("title", m.title);
+            o.addProperty("inspiredBy", m.inspiredBy);
+            muts.add(o);
+        }
+        root.add("mutations", muts);
+        root.add("recipes", recipes());
         byte[] bytes = root.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
         if (args.length > 0) java.nio.file.Files.write(java.nio.file.Paths.get(args[0]), bytes);
         else System.out.write(bytes);

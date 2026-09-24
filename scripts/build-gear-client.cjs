@@ -16,6 +16,7 @@ const MODULE = path.join(ROOT, 'client-mods', 'gear-teavm.js');
 const CATALOG = path.join(ROOT, 'candidate', 'gear', 'gear-catalog.json');
 const BEGIN = '/* JASPR_GEAR_V1_BEGIN */', END = '/* JASPR_GEAR_V1_END */';
 const CAT_BEGIN = '/*JASPR_GEAR_CAT_BEGIN*/', CAT_END = '/*JASPR_GEAR_CAT_END*/';
+const RB_BEGIN = '/*JASPR_GEAR_RB_BEGIN*/', RB_END = '/*JASPR_GEAR_RB_END*/';
 const sha = s => crypto.createHash('sha256').update(Buffer.from(s, 'latin1')).digest('hex');
 const ascii = s => s.replace(/[\u0080-￿]/g, ch => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0'));
 
@@ -56,6 +57,17 @@ const EDITS = [
   // Phase 2 HUD: GuiIngame.renderGameOverlay, after renderPotionEffects (font f, scaled d x e).
   ['GEJ(a,c);if(B()){break _;}k=a.dfA;$p=43;',
    'GEJ(a,c);if(B()){break _;}$p=190;case 190:JasprGearHud(a,d,e,f);if(B()){break _;}k=a.dfA;$p=43;'],
+  // Phase 3: worn gear on player models (LayerCustomHead.doRenderLayer, before the head item).
+  ['case 0:Dt();j=KtI;$p=1;case 1:$z=b.yI(j);',
+   'case 0:$p=95;case 95:JasprGearWorn(a,b);if(B()){break _;}Dt();j=KtI;$p=1;case 1:$z=b.yI(j);'],
+  // Phase 3: the gear column on the Creative inventory tab (foreground layer; tooltip after vanilla's).
+  ['case 0:$p=1;case 1:CD();if(B()){break _;}d=KZU.data;$p=2;case 2:Qu();if(B()){break _;}e=d[KWg];if(!e.b9W)return;',
+   'case 0:$p=90;case 90:JasprGearDraw(a,b,c);if(B()){break _;}$p=1;case 1:CD();if(B()){break _;}d=KZU.data;$p=2;case 2:Qu();if(B()){break _;}e=d[KWg];if(!e.b9W)return;'],
+  ['case 10:Fog(a,b,c);if(B()){break _;}return;',
+   'case 10:Fog(a,b,c);if(B()){break _;}$p=97;case 97:JasprGearTooltip(a,b,c);if(B()){break _;}return;'],
+  // Phase 3: EasierCrafting groups gear recipes under their own heading.
+  ['supply: "Supplies", artifact: "Relics"',
+   'supply: "Supplies", artifact: "Relics", gear: "Survivor Gear" /*JASPR_GEAR_RB_LABEL*/'],
   ['function JasprCreativeTabAllows(a,b){',
    'function JasprCreativeTabAllows(a,b){if(b===\'gear\')return a===KQL;'],
   ['/* JASPR_STATS_KEYBIND_BEGIN */', null], // module insertion point (handled below)
@@ -97,6 +109,12 @@ function strip(text) {
     if (out[end] === '\n') end++;
     out = out.slice(0, b) + out.slice(end);
   }
+  const rb = out.indexOf(RB_BEGIN);
+  if (rb >= 0) {
+    const re = out.indexOf(RB_END, rb);
+    if (re < 0 || count(out, RB_BEGIN) !== 1) throw new Error('corrupt previous recipe block');
+    out = out.slice(0, rb) + out.slice(re + RB_END.length);
+  }
   const cb = out.indexOf(CAT_BEGIN);
   if (cb >= 0) {
     const ce = out.indexOf(CAT_END, cb);
@@ -122,6 +140,14 @@ function apply(input, catalog) {
   if (close < 0 || close > lineEnd) throw new Error('catalogue must end on its own line');
   const entries = catalogEntries(catalog);
   out = out.slice(0, close + 1) + CAT_BEGIN + ',' + entries.join(',') + CAT_END + out.slice(close + 1);
+  // Phase 3: gear recipes in the EasierCrafting table (same fenced-literal technique).
+  const tstart = out.indexOf('var JasprBlueprintTable = [');
+  if (tstart < 0 || count(out, 'var JasprBlueprintTable = [') !== 1) throw new Error('recipe table anchor');
+  const tclose = out.indexOf('}];', tstart), tlineEnd = out.indexOf('\n', tstart);
+  if (tclose < 0 || tclose > tlineEnd) throw new Error('recipe table must end on its own line');
+  const recipes = (catalog.recipes || []).map(r => ascii(JSON.stringify(r)));
+  if (!recipes.length) throw new Error('catalog has no recipes (rebuild the plugin: GearExport)');
+  out = out.slice(0, tclose + 1) + RB_BEGIN + ',' + recipes.join(',') + RB_END + out.slice(tclose + 1);
   return out;
 }
 
@@ -135,6 +161,16 @@ function build() {
   if (restored !== base) throw new Error('reversal did not restore the unpatched client byte for byte');
   if (strip(apply(result === base ? base : restored, catalog)) !== base) throw new Error('rebuild not stable');
   new vm.Script(Buffer.from(result, 'latin1').toString('utf8'), {filename: 'classes.js'}); // parses
+  // The EasierCrafting table must still be one valid literal carrying every gear recipe.
+  const tableLine = line => { const i = line.indexOf('var JasprBlueprintTable = ['); return line.slice(i + 26, line.indexOf('\n', i)).replace(/;\s*$/, ''); };
+  const table = JSON.parse(tableLine(result).split(RB_BEGIN).join('').split(RB_END).join(''));
+  const baseTable = JSON.parse(tableLine(base));
+  if (table.length !== baseTable.length + (catalog.recipes || []).length) throw new Error('recipe table size');
+  for (const r of catalog.recipes || []) {
+    const got = table.find(t => t.id === r.id);
+    if (!got || JSON.stringify(got) !== JSON.stringify(r)) throw new Error('recipe missing or altered: ' + r.id);
+    for (const row of r.shape) for (const ch of row) if (ch !== '.' && !r.keys[ch]) throw new Error('recipe key ' + ch + ' ' + r.id);
+  }
   return {raw, base, result, catalog};
 }
 
@@ -144,10 +180,12 @@ if (require.main === module) {
   const target = outIndex > 0 ? process.argv[outIndex + 1] : path.join(ROOT, 'candidate', 'gear-client', 'classes.js');
   fs.mkdirSync(path.dirname(target), {recursive: true});
   fs.writeFileSync(target, Buffer.from(result, 'latin1'));
-  const manifest = {stage: 'survivor-gear-v2', source: path.relative(ROOT, SOURCE), sourceSha256: sha(raw),
+  const manifest = {stage: 'survivor-gear-v3', source: path.relative(ROOT, SOURCE), sourceSha256: sha(raw),
     unpatchedSha256: sha(base), sha256: sha(result), bytes: Buffer.byteLength(result, 'latin1'),
     addedBytes: Buffer.byteLength(result, 'latin1') - Buffer.byteLength(base, 'latin1'), edits: EDITS.length + 1,
-    catalogueEntries: catalog.items.length + (catalog.consumables || []).length, hud: 'Ewc state 190 (JasprGearHud)', keys: {arc: 'G (34)', dodge: 'H (35)', magnet: 'J (36)'}, channel: catalog.channel};
+    catalogueEntries: catalog.items.length + (catalog.consumables || []).length, recipes: (catalog.recipes || []).length,
+    hud: 'Ewc state 190 (JasprGearHud)', worn: 'Eyq state 95 (JasprGearWorn)', creative: 'Gzj state 90, Chu state 97',
+    keys: {arc: 'G (34)', dodge: 'H (35)', magnet: 'J (36)', mutate: 'R (19)'}, channel: catalog.channel};
   fs.writeFileSync(path.join(path.dirname(target), 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log(JSON.stringify(manifest, null, 2));
 }

@@ -74,6 +74,7 @@ final class GearVitals implements Listener {
     static boolean free(Player p) { return p.getGameMode() == GameMode.CREATIVE; }
 
     static double regenPerSecond(Player p, GearProfile prof, long now) {
+        if (prof.mutation == GearMutation.SPRITE && p != null && p.isFlying() && GearMutations.survival(p)) return 0.0; // flight is paid for
         double r = REGEN_PER_SECOND;
         if (prof.has(GearStatus.INVIGORATED, now)) r *= 2.0;
         if (p.getFoodLevel() <= 6) r *= 0.5; // running on empty
@@ -337,6 +338,12 @@ final class GearVitals implements Listener {
         if (prof.adrenaline < 0) return false;
         int max = prof.maxAdrenaline();
         Location at = p.getLocation();
+        if (item.mutation != null) { // Phase 3 serums: mutagens and the Purge Serum
+            if (!plugin.mutations.inject(p, prof, item.mutation)) return false;
+            used++;
+            pushHud(p, prof);
+            return true;
+        }
         switch (item) {
             case ADRENALINE_CANDY: {
                 if (prof.adrenaline >= max - 0.5) { GearAbilities.bar(p, ChatColor.GRAY + "Adrenaline is already full"); return false; }
@@ -403,6 +410,7 @@ final class GearVitals implements Listener {
         root.addProperty("on", p == null || (p.getGameMode() != GameMode.SPECTATOR && !p.isDead()));
         root.addProperty("a", (int) Math.floor(Math.max(0, prof.adrenaline) + 1e-6));
         root.addProperty("m", prof.maxAdrenaline());
+        if (prof.mutation != GearMutation.BASELINE) root.addProperty("mu", prof.mutation.title);
         JsonArray fx = new JsonArray();
         for (Map.Entry<GearStatus, Long> e : prof.status.entrySet()) {
             long left = e.getValue() - now;

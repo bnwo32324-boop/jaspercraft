@@ -48,6 +48,7 @@ final class GearSelfTest {
             vitals();
             vitalsStore();
             hud();
+            mutations();
         } catch (Throwable t) {
             failures.add("exception " + t);
         }
@@ -277,7 +278,7 @@ final class GearSelfTest {
             check(found, "consumable recipe " + c.id);
             recipes++;
         }
-        check(recipes == 2, "two supply recipes (candy, bandage)");
+        check(recipes == 3, "three supply recipes (candy, bandage, purge serum)");
         check(GearConsumable.byId("ADRENALINE_CANDY") == GearConsumable.ADRENALINE_CANDY && GearConsumable.byId("nope") == null, "consumable byId");
     }
 
@@ -407,6 +408,56 @@ final class GearSelfTest {
         check(!root.has("slots") && json.length() < 400, "hud packet is small and never a slot packet");
         check("hello 2".equals(GearPlugin.decode(varString("hello 2"))), "decode hello 2");
         check("click 3 0 1".equals(GearPlugin.decode(varString("click 3 0 1"))), "decode click");
+    }
+
+    // ================================================================ Phase 3
+
+    private void mutations() throws Exception {
+        check(GearMutation.values().length == 9 && GearMutation.values()[0] == GearMutation.BASELINE, "nine races, baseline first");
+        java.util.Set<UUID> uuids = new java.util.HashSet<UUID>();
+        java.util.Set<String> ids = new java.util.HashSet<String>();
+        int serums = 0;
+        for (GearMutation m : GearMutation.values()) {
+            check(ids.add(m.id) && GearMutation.byId(m.id) == m && GearMutation.byId(m.id.toUpperCase(java.util.Locale.ROOT)) == m, "mutation id " + m.id);
+            check(m == GearMutation.BASELINE ? m.ability == null && m.modifiers().isEmpty() : m.ability != null && m.cost > 0 && m.cost <= GearVitals.BASE_MAX
+                && m.cooldownMs >= 4000 && !m.modifiers().isEmpty(), "mutation shape " + m.id);
+            check(m.effects.length >= 1 && m.effects.length <= 3 && m.title.length() <= 16, "mutation lore " + m.id);
+            for (org.bukkit.attribute.AttributeModifier mod : m.modifiers().values()) check(uuids.add(mod.getUniqueId()), "unique modifier " + m.id + " " + mod.getName());
+            if (m.modifiers().containsKey(Attribute.GENERIC_MAX_HEALTH))
+                check(20 + m.modifiers().get(Attribute.GENERIC_MAX_HEALTH).getAmount() >= 12, "never below 6 hearts " + m.id);
+        }
+        for (GearConsumable c : GearConsumable.values()) {
+            if (c.mutation == null) continue;
+            serums++;
+            ItemStack stack = GearItems.create(c);
+            check(GearItems.consumable(stack) == c && GearItems.identify(stack) == null && c.doses == 1, "serum item " + c.id);
+            check(c.mutation == GearMutation.BASELINE ? c == GearConsumable.PURGE_SERUM : c.id.equals("mutagen_" + c.mutation.id), "serum maps to mutation " + c.id);
+            check(c.weight(5) == c.lootWeight && c.weight(c.minTier - 1) == 0, "serum flat rare weight " + c.id);
+        }
+        check(serums == 9, "8 mutagens + purge serum");
+        check(GearMutation.byId("nope") == null, "unknown mutation");
+        // Persistence: the mutation and the worn-gear visibility ride in the vitals file.
+        File dir = new File(plugin.getDataFolder(), "selftest-mutation-" + System.nanoTime());
+        GearStore store = new GearStore(dir, plugin.getLogger());
+        GearProfile a = new GearProfile(UUID.randomUUID());
+        a.adrenaline = 50;
+        a.mutation = GearMutation.WYRM;
+        a.showWorn = false;
+        store.saveVitalsNow(a);
+        GearProfile b = new GearProfile(a.uuid);
+        store.loadVitals(b, System.currentTimeMillis());
+        check(b.mutation == GearMutation.WYRM && !b.showWorn, "mutation persists");
+        Files.write(store.vitalsFile(a.uuid).toPath(), "jaspr-vitals 1\nadrenaline=5\nmutation=martian\n".getBytes(StandardCharsets.UTF_8));
+        store.loadVitals(b, System.currentTimeMillis());
+        check(b.mutation == GearMutation.BASELINE && b.showWorn, "unknown mutation falls back to baseline");
+        for (File f : dir.listFiles()) Files.deleteIfExists(f.toPath());
+        Files.deleteIfExists(dir.toPath());
+        GearProfile hudProf = new GearProfile(UUID.randomUUID());
+        hudProf.adrenaline = 10;
+        hudProf.mutation = GearMutation.FERAL;
+        check(GearVitals.hudJson(null, hudProf, System.currentTimeMillis()).contains("\"mu\":\"Feral\""), "hud carries the mutation");
+        hudProf.mutation = GearMutation.BASELINE;
+        check(!GearVitals.hudJson(null, hudProf, System.currentTimeMillis()).contains("\"mu\""), "baseline sends no mutation");
     }
 
     private static byte[] varString(String s) {

@@ -1,13 +1,13 @@
 name: JasprGear
-version: 2.0.0
+version: 3.0.0
 main: chat.jaspr.gear.GearPlugin
 author: Jaspr
 softdepend: [AuthMe]
-description: Survivor Gear - seven trinket slots, fifteen trinkets, adrenaline, status effects and supplies, browser inventory panel and HUD.
+description: Survivor Gear - seven trinket slots, fifteen trinkets, adrenaline, status effects, supplies, mutations, browser inventory panel, HUD and worn-gear models.
 commands:
   gear:
     description: Open your Survivor Gear slots, list worn gear, or use gear abilities.
-    usage: /gear [list|vitals|recipes|scan|arc|dodge|magnet|help]
+    usage: /gear [list|vitals|mutation|ability|show|recipes|scan|arc|dodge|magnet|help]
     aliases: [trinkets, kit]
 permissions:
   jasprgear.admin:

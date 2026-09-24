@@ -1,4 +1,4 @@
-# Survivor Gear (trinket slots) - Phases 1 and 2
+# Survivor Gear (trinket slots) - Phases 1 to 3
 
 Seven Baubles-style trinket slots in the real survival inventory, fifteen apocalyptic trinkets
 with their own 16x16 pixel art, real mechanics, recipes, rare mob drops and a structure-loot API.
@@ -6,9 +6,10 @@ Design parity target: xzeroair *Trinkets and Baubles* 0.33.4 (behaviour referenc
 was copied from it or from Baubles). New plugin `JasprGear`; JasprApocalypse and
 JasprHorrorBiomes are untouched. No world reset.
 
-Phase status: **Phase 1 (slots, UI, 15 trinkets, textures, mechanics, loot API) is done.
-Phase 2 (status effects, Adrenaline + HUD bar, ability costs, consumables) is done** - see
-"Phase 2" below. Phase 3 (mutations / races) is not started - see "Remaining" at the end.
+Phase status: **Phase 1 (slots, UI, 15 trinkets, textures, mechanics, loot API), Phase 2 (status
+effects, Adrenaline + HUD bar, ability costs, consumables) and Phase 3 (nine races as mutations,
+Creative gear column, worn trinkets on player models, gear recipes in EasierCrafting) are done** -
+see the Phase 2 and Phase 3 sections below and "Remaining" at the end.
 
 ## Playing
 
@@ -199,6 +200,95 @@ capped at 5%): candy, bandage or a stim. `/gear give <player> supplies|<id>`.
 - Not done in the cloud: the live server and the real EaglerXServer path (a local session should
   deploy the jar, `classes.js`, `assets.epk`, `client.html`, `jaspr-client.js` and play-test).
 
+## Phase 3: Mutations, worn gear on players, Creative column, recipe panel (JasprGear 3.0.0, 2026-09-24)
+
+Design reference: the Trinkets mod's nine races (Human, Dwarf, Elf, Faelis, Fairy, Goblin, Titan,
+Taurus, Dragon) - no code copied. **No size changes** (the browser client and the server cannot
+agree on a resized player safely) and **no night vision** (the mod's Dwarf/Faelis sight is left out).
+
+### Mutations
+
+One mutation per survivor, permanent until purged, kept through death. **R** (Controls: "Gear:
+Mutation Ability", remappable; `/gear ability` for mobile) fires the active ability, which spends
+adrenaline like G/H/J and is locked by Paralysis. `/gear mutation` explains yours; `/gear vitals`
+lists it too; the HUD shows its name above the status tags.
+
+| Mutation (id) | Race | Passive | R ability (cost, cooldown) |
+| --- | --- | --- | --- |
+| Baseline (`baseline`) | Human | none | - |
+| Burrower (`burrower`) | Dwarf | -10% speed, +2 melee, +2 armor; never suffocates, half damage from falling blocks; 20% of ores mined without Silk Touch drop one extra | Seismic Sense: nearest ore within 12 m (15, 8 s) |
+| Stalker (`stalker`) | Elf | +10% speed, +20% attack speed; arrows fly 25% faster and hit 20% harder | Fade: hostiles farther than 4 m lose you and cannot target you for 8 s (30, 20 s) |
+| Feral (`feral`) | Faelis | +15% speed, -2 hearts; climbs walls like the Razor Claws; +3 bare-handed damage; -50% fall; higher jumps | Pounce: leap forward, no fall damage for 2.5 s, next hit +4 (15, 4 s) |
+| Sprite (`sprite`) | Fairy | Flight (double-tap jump) that costs 2 adrenaline/s with no regen while flying, grounded at 0; no fall damage; -3 hearts; half melee damage | Mending Mist: 6 s, heals you and players within 5 m 1 HP/s and closes wounds (30, 15 s) |
+| Scavenger (`scavenger`) | Goblin | +15% speed, -2 hearts, +2 luck (better chest/fishing loot); 20% of kills drop one extra ordinary drop | Rummage: 35% a supply, 35% scrap (nuggets, string, gunpowder, arrows) (30, 60 s) |
+| Brute (`brute`) | Titan | +4 hearts, +30% melee, -20% attack speed, +50% knockback resistance, -5% speed; sinks in water | Ground Slam: 4 damage and knock-back to hostiles within 4 m (30, 10 s) |
+| Charger (`charger`) | Taurus | +3 hearts, +2 melee, -5% speed; -10% melee damage taken | Stampede: 1.2 s charge, 5 damage and knock-back to each foe in the way (25, 8 s) |
+| Wyrm (`wyrm`) | Dragon | +2 hearts, +1 melee; immune to fire, -50% lava | Fire Breath: 6 m, 35 degree cone, sets foes alight and 3 damage (30, 6 s) |
+
+- **Serums** (right-click; same stone-hoe carrier, models 21-29, own flask art): 8 **Mutagens**
+  (`mutagen_<id>`, loot tier 4+, weight 1 each) and the **Purge Serum** (`purge_serum`, loot
+  tier 2+, recipe `GMG / .B.`: gold nuggets, milk bucket, glass bottle). A Mutagen only works on a
+  Baseline survivor ("Purge your X mutation first"); Purge only works on a mutated one. The mod's
+  Restore resets race; here the Purge Serum does that job.
+- Ability damage never re-triggers on-hit gear; targets are hostiles, plus players when PvP is on.
+- Attribute modifiers use fixed UUIDs (`jaspr-gear:mutation:<id>:<ATTRIBUTE>`) and, unlike
+  trinket modifiers, stay on the player while offline (a Brute must not log in with its extra hearts
+  clamped away). Sprite flight is revoked on quit/shutdown/purge and only when the plugin granted it.
+- Persisted in the `.vitals` file (`mutation=`, `showworn=`); unknown ids fall back to Baseline.
+- Admin (op/console): `gear mutate <player> <id>` (purges first if needed).
+
+### Worn gear on player models
+
+- Clients that say **`hello 3`** receive `{"v":1,"t":"worn","p":[[entityId,[7 slot ids]],...]}`: a
+  full snapshot on any equip/unequip/death/join/quit/world or mode change and every 10 s. Players in
+  spectator and those with **`/gear show off`** are left out (`/gear show on` restores; persisted).
+- The browser draws each piece as a small item sprite pinned to the model part: goggles/headsets
+  over the eyes, vest on the chest, pendant at the collar, belt at the waist, rings on the hands,
+  charm at the hip. It follows head/body/arm movement and sneaking, sits in front of armor, and also
+  shows on the inventory doll. Hook: LayerCustomHead.doRenderLayer (Eyq state 95); a render fault
+  disables only this feature.
+
+### Creative inventory gear column
+
+- On the Creative screen's **Survival Inventory** tab the same seven-slot column sits right of the
+  window, with tooltips. Creative keeps its cursor on the client, so a click sends
+  `cput <slot> <cursor SNBT>` (item on the cursor) or `ctake <slot> <shift>`; the server checks
+  Creative mode, genuine gear, the slot type and one item, and sends the new cursor back with a
+  vanilla window -1 set-slot packet without touching its own cursor (closing the screen can never drop
+  a copy). Creative players can already create any item, so accepting their SNBT grants nothing new.
+  Survival clicks are unchanged; `cput`/`ctake` from a survival player are refused.
+
+### EasierCrafting
+
+- The 15 trinket recipes and the Candy, Bandage and Purge Serum recipes are appended to the panel's
+  compiled table under a new **Survivor Gear** heading, generated by `GearExport` from the recipe
+  table the server registers (real registry ids, damage values and item names), inside a fenced
+  `JASPR_GEAR_RB` block; the builder proves the table still parses and holds every recipe exactly.
+
+### Wire and versions
+
+- Client says `hello 3` (HUD packets need 2+, worn packets 3+). Phase 1/2 clients and servers keep
+  working: older clients never get the newer packets, older servers ignore the newer hello.
+- Versions: `classes.js?v=20260924-gear3`, `jaspr-client.js?build=20260924-gear3`,
+  `assets.epk?build=20260924-gear3`; plugin 3.0.0.
+
+### Phase 3 verification (2026-09-24, cloud, Linux)
+
+- Paper test server: loads cleanly, **GEAR_SELFTEST PASS, 855 checks** (adds the mutation table,
+  unique modifier UUIDs, no mutation below 6 hearts, serum mapping and rarity, mutation/show
+  persistence and fallback, HUD mutation field).
+- `tests/gear-phase3-bot.cjs` **22/22**: worn packets seen by a second client and hidden/shown with
+  `/gear show`; Brute health 28 then 20 after purge; second mutagen refused; Sprite flight granted
+  and revoked; R abilities spend adrenaline; Creative `ctake`/`cput` incl. slot typing and the
+  survival refusal; mutation survives a server restart (1/1). Phase 2 bot suite still 28/28 (+2/2).
+- `tests/gear-hud-browser.cjs` (real client, headless Chromium): HUD as before, worn gear drawn on
+  the player model and inventory doll, gear column on the Creative Survival Inventory tab, both
+  Creative click paths (empty cursor and item on the cursor) with no errors.
+- Builder: 19 edits + 3 fenced blocks, byte-for-byte reversal, parse, recipe-table check; assets:
+  35 selector bands (264 states), 5874 unrelated EPK entries byte-identical.
+- Not verified here: the live server and EaglerXServer, and how the pieces look on many skins
+  (positions are tuned for the default 4-pixel arms; slim arms still hold the rings).
+
 ## How it works
 
 - **Items**: an unbreakable, flag-hidden **stone hoe** whose damage value selects the texture
@@ -232,7 +322,9 @@ item), `GEAR_DEATH_DROP`, `GEAR_DEATH_RESTORED`, `GEAR_MOB_DROP`, `GEAR_XP_BANK`
 `GEAR_LAST_STAND`, `GEAR_SAVE_FAILED`, `GEAR_LOAD_FAILED`, `GEAR_NET_RATE_LIMIT`,
 `GEAR_SELFTEST PASS|FAIL`, `GEAR_STOPPED`; Phase 2: `GEAR_CONSUME`, `GEAR_CRYSTAL`,
 `GEAR_VITALS_LOAD_FAILED`, `GEAR_EFFECT` (admin), and `/gear status` adds adrenaline spent, statuses
-applied/refused/cured, bleed ticks, locked moves/hits, supplies used, HUD packets sent. `/gear status` (op/console) prints counters (equips,
+applied/refused/cured, bleed ticks, locked moves/hits, supplies used, HUD packets sent; Phase 3:
+`GEAR_MUTATION` (from/to), `GEAR_MUTATE` (admin), and `/gear status` adds worn packets sent,
+Creative moves, mutations/purges, mutation abilities, prospects, scrounges, grounded flights. `/gear status` (op/console) prints counters (equips,
 drops, arcs, blinks, absorbed hits, climbs, brakes, save failures). Console-only: `gear peek
 <player|uuid>`, `gear open <player>`, `gear selftest`, `gear give <player|*> <id|all>` (also op).
 Browser: `window.JasprGearDiagnostics.status()` (counters only, no identities). No passwords,
@@ -248,8 +340,9 @@ tokens or IPs are logged.
   `JASPR_GEAR_V1` and `JASPR_GEAR_CAT` blocks; strips and regenerates itself on a patched client;
   proves byte-for-byte reversal; parses the result).
 - Tests: `scripts/gear-preview.cjs` (loopback Paper on 25597 + static page),
-  `scripts/gear-cdp-probe.cjs` (disposable headless Chrome driver), `tests/gear-phase2-bot.cjs`
-  (mineflayer end-to-end), `tests/gear-hud-browser.cjs` (HUD render in headless Chromium).
+  `scripts/gear-cdp-probe.cjs` (disposable headless Chrome driver), `tests/gear-phase2-bot.cjs` and
+  `tests/gear-phase3-bot.cjs` (mineflayer end-to-end), `tests/gear-hud-browser.cjs` (HUD, worn
+  gear and Creative column in the real client, headless Chromium).
 
 ## Adding a trinket
 
@@ -273,10 +366,11 @@ tokens or IPs are logged.
 - Asset merge: 5874 unrelated EPK entries byte-identical, 264 selector states checked.
 - Client build: reversal restores the unpatched `classes.js` byte for byte; the result parses.
 
-## Remaining (not in Phase 1)
+## Remaining
 
-- Phase 3: the nine races as mutation serums/race baubles (abilities; size changes only if the
-  client and server can agree safely).
-- Gear column inside the Creative inventory screen, gear recipes in the EasierCrafting panel,
-  visible worn-trinket models on players.
-- Structure loot: the worldgen owners still need to call `GearApi.rollLoot` from their loot code.
+- Race size changes (tiny Sprite, huge Brute): left out on purpose until the client and server can
+  agree on a resized player safely.
+- Structure loot is wired in (JasprHorrorBiomes 3.26.0, JasprImportedWorldgen 1.2.0); since Phase 2
+  `rollLoot` also returns supplies and serums, so those chests now hold them too.
+- A live play-test on the real server (worn-gear placement on real skins, Sprite flight feel,
+  ability balance).

@@ -24,6 +24,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.craftbukkit.v1_12_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
@@ -65,6 +66,11 @@ import org.bukkit.plugin.messaging.PluginMessageListener;
 public final class GearPlugin extends JavaPlugin implements Listener, PluginMessageListener, TabCompleter {
     public static final String CHANNEL = "jaspr:gear";
     static final int PROTOCOL = 1;
+    /** hello 2: HUD packets; hello 3: worn-gear packets and the Creative gear column (cput/ctake). */
+    static final int HUD_PROTOCOL = 2, WORN_PROTOCOL = 3;
+    static final int MAX_CREATIVE_SNBT = 6000;
+    private boolean wornDirty;
+    private int wornSent, creativeMoves;
 
     private final Map<UUID, GearProfile> profiles = new HashMap<UUID, GearProfile>();
     private final Map<Player, List<ItemStack>> deathDrops = new IdentityHashMap<Player, List<ItemStack>>();
@@ -72,6 +78,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
     GearStore store;
     GearAbilities abilities;
     GearVitals vitals;
+    GearMutations mutations;
     private int tick, recipes, equips, unequips, mobDrops, supplyDrops, deathDropCount, hellos, rejected;
     private int supplyRecipes;
     private Method authGetter, authCheck, spawnerCheck;
@@ -83,10 +90,12 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         store = new GearStore(new File(getDataFolder(), "players"), getLogger());
         abilities = new GearAbilities(this);
         vitals = new GearVitals(this);
+        mutations = new GearMutations(this);
         registerRecipes();
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(abilities, this);
         getServer().getPluginManager().registerEvents(vitals, this);
+        getServer().getPluginManager().registerEvents(mutations, this);
         getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
         getCommand("gear").setExecutor(this);
         getCommand("gear").setTabCompleter(this);
@@ -94,22 +103,26 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         getServer().getScheduler().runTaskTimer(this, () -> {
             tick += 2;
             long now = System.currentTimeMillis();
+            if (wornDirty || tick % 200 == 0) { wornDirty = false; broadcastWorn(); }
             for (Player p : getServer().getOnlinePlayers()) {
                 GearProfile prof = profiles.get(p.getUniqueId());
-                if (prof != null) { abilities.fastTick(p, prof, now, tick); vitals.fast(p, prof, now); }
+                if (prof != null) { abilities.fastTick(p, prof, now, tick); vitals.fast(p, prof, now); mutations.fast(p, prof, now, tick); }
             }
             if (tick % 20 == 0) {
                 for (Player p : getServer().getOnlinePlayers()) {
                     GearProfile prof = profiles.get(p.getUniqueId());
-                    if (prof != null) { abilities.apply(p, prof); abilities.slowTick(p, prof, now); vitals.second(p, prof, now); }
+                    if (prof != null) {
+                        abilities.apply(p, prof); abilities.slowTick(p, prof, now); vitals.second(p, prof, now);
+                        mutations.apply(p, prof); mutations.second(p, prof, now);
+                    }
                 }
                 vitals.mobSecond(now);
             }
         }, 20L, 2L);
         getServer().getScheduler().runTaskTimer(this, () -> vitals.tick(System.currentTimeMillis()), 20L, 1L);
         getLogger().info("GEAR_READY items=" + GearItem.values().length + " consumables=" + GearConsumable.values().length
-            + " statuses=" + GearStatus.values().length + " slots=" + GearType.SLOT_COUNT
-            + " recipes=" + recipes + " channel=" + CHANNEL + " protocol=" + PROTOCOL);
+            + " statuses=" + GearStatus.values().length + " mutations=" + GearMutation.values().length + " slots=" + GearType.SLOT_COUNT
+            + " recipes=" + recipes + " supplyRecipes=" + supplyRecipes + " channel=" + CHANNEL + " protocol=" + PROTOCOL);
         if (Boolean.getBoolean("jaspr.gear.selftest")) getServer().getScheduler().runTask(this, () -> new GearSelfTest(this).run(getServer().getConsoleSender()));
     }
 
@@ -120,6 +133,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             if (prof == null) continue;
             abilities.clear(p, prof);
             vitals.clear(p);
+            mutations.clear(p, prof);
             if (p.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder) p.closeInventory();
         }
         for (GearProfile prof : profiles.values()) {
@@ -181,7 +195,13 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         prof.capable = false;
         prof.magnet = false;
         vitals.resume(prof, System.currentTimeMillis());
-        getServer().getScheduler().runTask(this, () -> { if (p.isOnline()) { abilities.apply(p, prof); vitals.speed(p, prof, System.currentTimeMillis()); } });
+        getServer().getScheduler().runTask(this, () -> {
+            if (!p.isOnline()) return;
+            abilities.apply(p, prof);
+            vitals.speed(p, prof, System.currentTimeMillis());
+            mutations.apply(p, prof);
+            wornDirty = true;
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -191,9 +211,11 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         abilities.clear(e.getPlayer(), prof);
         abilities.forget(prof.uuid);
         vitals.clear(e.getPlayer());
+        mutations.clear(e.getPlayer(), prof);
         prof.capable = false;
         saveLater(prof);
         vitals.suspend(prof, System.currentTimeMillis());
+        wornDirty = true;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -210,9 +232,11 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             if (!p.isOnline()) return;
             GearProfile prof = profile(p);
             abilities.apply(p, prof);
+            mutations.apply(p, prof);
             sendState(p, prof);
             prof.hudSig = null;
             vitals.pushHud(p, prof);
+            wornDirty = true;
         });
     }
 
@@ -264,6 +288,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         abilities.apply(p, prof);
         sendState(p, prof);
         refreshMenu(p, prof);
+        wornDirty = true;
     }
 
     private boolean equipStack(Player p, GearProfile prof, ItemStack stack) {
@@ -479,8 +504,8 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             return;
         }
         String text = decode(data);
-        if (text == null || text.length() > 64) { rejected++; return; }
-        String[] parts = text.split(" ");
+        if (text == null || (text.length() > 64 && !(text.startsWith("cput ") && text.length() <= MAX_CREATIVE_SNBT + 16))) { rejected++; return; }
+        String[] parts = text.split(" ", text.startsWith("cput ") ? 3 : 0);
         try {
             switch (parts[0]) {
                 case "hello":
@@ -491,6 +516,14 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
                     sendState(p, prof);
                     prof.hudSig = null;
                     vitals.pushHud(p, prof); // protocol 2+: adrenaline bar and status HUD
+                    if (prof.protocol >= WORN_PROTOCOL) sendWorn(p);
+                    wornDirty = true;
+                    break;
+                case "cput":
+                case "ctake":
+                    if (parts.length < 3 || !usable(p) || p.getGameMode() != GameMode.CREATIVE) { rejected++; sendState(p, prof); return; }
+                    creative(p, prof, parts[0].equals("cput"), Integer.parseInt(parts[1]), parts[2]);
+                    sendState(p, prof);
                     break;
                 case "click":
                     if (parts.length < 4 || !usable(p) || p.getGameMode() == GameMode.CREATIVE
@@ -499,7 +532,9 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
                     sendState(p, prof);
                     break;
                 case "key":
-                    if (parts.length >= 2 && usable(p)) abilities.key(p, prof, parts[1]);
+                    if (parts.length >= 2 && usable(p)) {
+                        if ("mutate".equals(parts[1])) mutations.key(p, prof); else abilities.key(p, prof, parts[1]);
+                    }
                     break;
                 default:
                     rejected++;
@@ -510,7 +545,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
     }
 
     static String decode(byte[] data) {
-        if (data == null || data.length < 1 || data.length > 300) return null;
+        if (data == null || data.length < 1 || data.length > MAX_CREATIVE_SNBT * 3 + 32) return null;
         int value = 0, shift = 0, at = 0;
         while (true) {
             if (at >= data.length || shift > 28) return null;
@@ -561,6 +596,97 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         }
     }
 
+    // ------------------------------------------------------------------ Creative gear column (Phase 3)
+
+    /**
+     * The Creative screen keeps its cursor on the client, so the client sends the cursor item itself
+     * ("cput <slot> <snbt>") or asks for a worn item ("ctake <slot> <shift>"). Creative players can
+     * already create any item, so accepting their SNBT grants nothing new; it must still be genuine
+     * gear that fits the slot. The new cursor goes back with a vanilla set-slot packet (window -1)
+     * without touching the server-side cursor, so closing the screen can never drop a copy.
+     */
+    void creative(Player p, GearProfile prof, boolean put, int slot, String arg) {
+        if (slot < 0 || slot >= GearType.SLOT_COUNT) { rejected++; return; }
+        ItemStack current = prof.slots[slot];
+        if (put) {
+            ItemStack stack;
+            try { stack = GearItems.fromSnbt(arg); } catch (Exception e) { stack = null; }
+            GearItem item = GearItems.identify(stack);
+            if (item == null || stack.getAmount() != 1 || !item.type.fits(slot)) {
+                GearAbilities.bar(p, ChatColor.RED + "Only " + GearType.SLOTS[slot].label.toLowerCase(Locale.ROOT) + " or any-slot gear fits there");
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BASS, 0.6f, 0.6f);
+                rejected++;
+                return;
+            }
+            prof.slots[slot] = stack;
+            sendCursor(p, current);
+            creativeMoves++;
+            changed(p, prof, true, slot, stack);
+            return;
+        }
+        if (GearItems.empty(current)) return;
+        if ("1".equals(arg)) {
+            if (!p.getInventory().addItem(current.clone()).isEmpty()) { GearAbilities.bar(p, ChatColor.RED + "Your inventory is full"); return; }
+        } else {
+            sendCursor(p, current);
+        }
+        prof.slots[slot] = null;
+        creativeMoves++;
+        changed(p, prof, false, slot, current);
+    }
+
+    private void sendCursor(Player p, ItemStack stack) {
+        net.minecraft.server.v1_12_R1.ItemStack nms = GearItems.empty(stack)
+            ? net.minecraft.server.v1_12_R1.ItemStack.a : CraftItemStack.asNMSCopy(stack);
+        ((CraftPlayer) p).getHandle().playerConnection.sendPacket(new net.minecraft.server.v1_12_R1.PacketPlayOutSetSlot(-1, -1, nms));
+    }
+
+    // ------------------------------------------------------------------ worn gear on player models (Phase 3)
+
+    /**
+     * {"v":1,"t":"worn","p":[[entityId,["capacitor_belt",...]],...]}: every online player showing
+     * gear (not in spectator, /gear show on). Canonical ids only; the client draws its own copies.
+     * A full snapshot each time (a handful of players), on any change and every 10 seconds.
+     */
+    String wornJson() {
+        JsonObject root = new JsonObject();
+        root.addProperty("v", PROTOCOL);
+        root.addProperty("t", "worn");
+        JsonArray list = new JsonArray();
+        for (Player other : getServer().getOnlinePlayers()) {
+            GearProfile prof = profiles.get(other.getUniqueId());
+            if (prof == null || !prof.showWorn || other.getGameMode() == GameMode.SPECTATOR || other.isDead()) continue;
+            JsonArray ids = new JsonArray();
+            for (ItemStack stack : prof.slots) {
+                GearItem item = GearItems.identify(stack);
+                ids.add(item == null ? "" : item.id);
+            }
+            if (prof.empty()) continue;
+            JsonArray one = new JsonArray();
+            one.add(other.getEntityId());
+            one.add(ids);
+            list.add(one);
+        }
+        root.add("p", list);
+        return root.toString();
+    }
+
+    private void sendWorn(Player p) {
+        if (sendRaw(p, wornJson())) wornSent++;
+    }
+
+    private void broadcastWorn() {
+        String json = null;
+        for (Player p : getServer().getOnlinePlayers()) {
+            GearProfile prof = profiles.get(p.getUniqueId());
+            if (prof == null || !prof.capable || prof.protocol < WORN_PROTOCOL) continue;
+            if (json == null) json = wornJson();
+            if (sendRaw(p, json)) wornSent++;
+        }
+    }
+
+    void markWorn() { wornDirty = true; }
+
     // ------------------------------------------------------------------ death, drops, crafting
 
     @EventHandler(priority = EventPriority.NORMAL)
@@ -584,6 +710,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         saveLater(prof);
         sendState(p, prof);
         getLogger().info("GEAR_DEATH_DROP player=" + p.getUniqueId() + " items=" + added.size());
+        wornDirty = true;
     }
 
     /** If a later handler turned keepInventory on, the drops are discarded: put the gear back. */
@@ -604,6 +731,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             else if (present) e.getDrops().add(stack);
         }
         saveLater(prof);
+        wornDirty = true;
         getLogger().info("GEAR_DEATH_RESTORED player=" + e.getEntity().getUniqueId() + " items=" + restored);
     }
 
@@ -629,7 +757,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         getLogger().info("GEAR_MOB_DROP item=" + pick.id + " mob=" + dead.getType().name() + " killer=" + dead.getKiller().getUniqueId());
     }
 
-    private boolean spawned(LivingEntity entity) {
+    boolean spawned(LivingEntity entity) {
         if (spawnerMissing) return false;
         try {
             if (spawnerCheck == null) spawnerCheck = entity.getClass().getMethod("fromMobSpawner");
@@ -718,8 +846,9 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             if (p != null && !p.hasPermission("jasprgear.admin")) { sender.sendMessage(ChatColor.RED + "Not allowed."); return true; }
             sender.sendMessage("GEAR_STATUS profiles=" + profiles.size() + " recipes=" + recipes + " equips=" + equips
                 + " unequips=" + unequips + " mobDrops=" + mobDrops + " supplyDrops=" + supplyDrops + " deathDrops=" + deathDropCount
-                + " hellos=" + hellos + " rejected=" + rejected + " writes=" + store.writes + " saveFailures=" + store.failures
-                + " " + abilities.metrics() + " " + vitals.metrics());
+                + " hellos=" + hellos + " rejected=" + rejected + " wornSent=" + wornSent + " creativeMoves=" + creativeMoves
+                + " writes=" + store.writes + " saveFailures=" + store.failures
+                + " " + abilities.metrics() + " " + vitals.metrics() + " " + mutations.metrics());
             return true;
         }
         if (sub.equals("open") && p == null && args.length > 1) {
@@ -762,6 +891,19 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             if (args.length > 3) try { seconds = Math.max(1, Math.min(600, Long.parseLong(args[3]))); } catch (NumberFormatException ex) { seconds = 10; }
             boolean ok = vitals.apply(target, status, seconds * 1000L, false);
             sender.sendMessage("GEAR_EFFECT player=" + target.getUniqueId() + " status=" + status.id + " applied=" + ok);
+            return true;
+        }
+        if (sub.equals("mutate")) {
+            if (p != null && !p.hasPermission("jasprgear.admin")) { sender.sendMessage(ChatColor.RED + "Not allowed."); return true; }
+            if (args.length < 3) { sender.sendMessage("Usage: /gear mutate <player> <baseline|burrower|stalker|feral|sprite|scavenger|brute|charger|wyrm>"); return true; }
+            Player target = getServer().getPlayerExact(args[1]);
+            GearMutation m = GearMutation.byId(args[2]);
+            if (target == null || m == null) { sender.sendMessage("No such player or mutation."); return true; }
+            GearProfile tp = profile(target);
+            if (tp.mutation != GearMutation.BASELINE && m != GearMutation.BASELINE) mutations.inject(target, tp, GearMutation.BASELINE);
+            boolean ok = m == tp.mutation || mutations.inject(target, tp, m);
+            vitals.pushHud(target, tp);
+            sender.sendMessage("GEAR_MUTATE player=" + target.getUniqueId() + " mutation=" + tp.mutation.id + " ok=" + ok);
             return true;
         }
         if (sub.equals("give")) {
@@ -813,10 +955,29 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             case "magnet":
                 abilities.key(p, prof, sub);
                 return true;
+            case "show": {
+                String mode = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : (prof.showWorn ? "off" : "on");
+                prof.showWorn = !mode.equals("off");
+                prof.vitalsDirty = true;
+                store.saveVitalsAsync(prof);
+                wornDirty = true;
+                p.sendMessage(ChatColor.GOLD + "Worn gear is now " + (prof.showWorn ? ChatColor.GREEN + "visible" : ChatColor.RED + "hidden")
+                    + ChatColor.GRAY + " to other browser players (/gear show on|off)");
+                return true;
+            }
+            case "ability":
+            case "surge":
+                mutations.key(p, prof);
+                return true;
+            case "mutation":
+                p.sendMessage(mutations.describe(prof));
+                for (String line : prof.mutation.effects) p.sendMessage(ChatColor.GRAY + " " + line);
+                return true;
             case "vitals":
             case "effects":
             case "adrenaline":
                 p.sendMessage(vitals.describe(p, prof));
+                p.sendMessage(mutations.describe(prof));
                 p.sendMessage(ChatColor.GRAY + "Costs: arc " + GearVitals.COST_ARC + ", dodge " + GearVitals.COST_DODGE + ", blink "
                     + GearVitals.COST_BLINK + ", ender chest " + GearVitals.COST_CHEST + ", repel " + GearVitals.COST_REPEL
                     + ", magnet on " + GearVitals.COST_MAGNET);
@@ -858,7 +1019,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             default:
                 p.sendMessage(ChatColor.GOLD + "Survivor Gear" + ChatColor.GRAY + " - 7 slots: neck, ring, ring, belt, head, body, charm.");
                 p.sendMessage(ChatColor.GRAY + "/gear - open the gear menu (browser players also see the slots in their inventory, E)");
-                p.sendMessage(ChatColor.GRAY + "/gear list | vitals | recipes [id] | bank | scan <ore|any> | arc | dodge | magnet");
+                p.sendMessage(ChatColor.GRAY + "/gear list | vitals | mutation | ability | show on|off | recipes [id] | bank | scan <ore|any> | arc | dodge | magnet");
                 p.sendMessage(ChatColor.GRAY + "Abilities spend adrenaline (it refills over time); supplies: right-click to use");
                 p.sendMessage(ChatColor.GRAY + "Keys: G arc shot, H dodge/blink (sneak: ender chest), J magnet (sneak: repel)");
                 return true;
@@ -869,7 +1030,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> out = new ArrayList<String>();
         if (args.length == 1) {
-            for (String s : Arrays.asList("help", "list", "vitals", "recipes", "bank", "scan", "arc", "dodge", "magnet"))
+            for (String s : Arrays.asList("help", "list", "vitals", "mutation", "ability", "show", "recipes", "bank", "scan", "arc", "dodge", "magnet"))
                 if (s.startsWith(args[0].toLowerCase(Locale.ROOT))) out.add(s);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("recipes")) {
             for (GearItem item : GearItem.values()) if (item.id.startsWith(args[1].toLowerCase(Locale.ROOT))) out.add(item.id);

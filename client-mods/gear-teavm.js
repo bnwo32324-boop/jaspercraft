@@ -22,10 +22,31 @@
  * (adrenaline a/m and active statuses fx [[id, seconds]]) drawn as a bar right of the hotbar (never
  * over the hotbar, offhand slot, attack indicator or chat, and hidden while any screen is open).
  * A Phase 1 server simply never sends them, and slot packets stay protocol 1.
+ *
+ * Phase 3 ("hello 3"): {"t":"worn"} packets list every visible player's worn gear by entity id
+ * (Entity.cu); JasprGearWorn draws each piece as a small item sprite pinned to the model part
+ * (LayerCustomHead.doRenderLayer Eyq state 95: layer.cH_ head renderer, .ddy its ModelBiped with
+ * lA head / k_ body / gM right arm / f3 left arm; FFZ postRender, Eu0/ECi push/pop, DPm translate,
+ * Gc9 rotate, FWM scale, CnB ItemRenderer.renderItem with TransformType NONE LxM). The Creative
+ * inventory tab (ABp, KWg selected tab === KWh.vP inventory tab) gets the same gear column
+ * (Gzj state 90, tooltip Chu state 97); Creative keeps its cursor on the client, so a click sends
+ * "cput <slot> <cursor SNBT>" (Ce/BMe new NBTTagCompound, Ga9 writeToNBT, Ent toString) or
+ * "ctake <slot> <shift>" and the server answers with a window -1 set-slot for the new cursor.
+ * R is the mutation ability key ("key mutate").
  */
 var JasprGear = (function () {
   "use strict";
-  var PROTOCOL = 1, HELLO = 2, COUNT = 7, PANEL_W = 26, PANEL_H = 134;
+  var PROTOCOL = 1, HELLO = 3, COUNT = 7, PANEL_W = 26, PANEL_H = 134, MAX_CREATIVE_SNBT = 6000;
+  // Where each slot's piece sits on the model (part space, blocks; y grows down, -z is the front).
+  // Order: neck, ring, ring, belt, head, body, charm.
+  var PLACE = [
+    {part: "body", x: 0.0, y: 0.13, z: -0.205, ry: 0, s: 0.26},
+    {part: "right", x: -0.08, y: 0.58, z: 0.0, ry: 90, s: 0.16},
+    {part: "left", x: 0.08, y: 0.58, z: 0.0, ry: -90, s: 0.16},
+    {part: "body", x: 0.0, y: 0.62, z: -0.19, ry: 0, s: 0.5},
+    {part: "head", x: 0.0, y: -0.26, z: -0.3, ry: 0, s: 0.55},
+    {part: "body", x: 0.0, y: 0.36, z: -0.195, ry: 0, s: 0.55},
+    {part: "body", x: 0.29, y: 0.64, z: 0.0, ry: -90, s: 0.28}];
   // Status labels/colours (ARGB) by wire id; unknown ids still show, in grey.
   var STATUS = {bleed: ["Bleed", 0xFFFF5555], ice: ["Ice Res", 0xFF7FE8FF], vigor: ["Vigor", 0xFF7CFF6B],
     volt: ["Volt Res", 0xFFFFE45C], para: ["Paralysed", 0xFFE08CFF]};
@@ -34,7 +55,9 @@ var JasprGear = (function () {
   var seen = false, connection = null, helloAt = 0, helloTries = 0, queue = [], press = null;
   var disabled = false, failure = null, channel = null;
   var hud = null, hudOff = false, hudFailure = null, strings = {}, stringCount = 0;
-  var stats = {received: 0, rejected: 0, sent: 0, clicks: 0, keys: 0, builds: 0, buildErrors: 0, hellos: 0, hud: 0, hudFrames: 0};
+  var worn = {}, wornStacks = {}, wornTried = {}, wornSnbt = null, wornOff = false, wornFailure = null, creativeClick = null;
+  var stats = {received: 0, rejected: 0, sent: 0, clicks: 0, keys: 0, builds: 0, buildErrors: 0, hellos: 0, hud: 0, hudFrames: 0,
+    worn: 0, wornDrawn: 0, creativeClicks: 0};
 
   function blank() { return ["", "", "", "", "", "", ""]; }
   function nulls() { return [null, null, null, null, null, null, null]; }
@@ -49,11 +72,16 @@ var JasprGear = (function () {
   function empty(stack) {
     return !stack || stack === Ktg || stack.rA === null || stack.rA === undefined || !!stack.bg_;
   }
-  function inventory(gui) { return !!gui && gui instanceof APz; }
+  // The Creative screen shows the column only on its survival-inventory tab.
+  function creative(gui) {
+    try { return !!gui && typeof ABp !== "undefined" && gui instanceof ABp && KWh !== null && KWg === KWh.vP; }
+    catch (ignored) { return false; }
+  }
+  function inventory(gui) { return !!gui && (gui instanceof APz || creative(gui)); }
 
-  // Right of the 176px window; left of it when the screen is too narrow.
+  // Right of the window (176px survival, 195px Creative); left of it when the screen is too narrow.
   function layout(gui) {
-    var left = gui.is | 0, width = gui.q | 0, x0 = 179;
+    var left = gui.is | 0, width = gui.q | 0, x0 = (gui instanceof APz ? 176 : 195) + 3;
     if (left + x0 + PANEL_W > width) {
       if (gui.clo === 0) return null;
       x0 = -PANEL_W - 3;
@@ -123,7 +151,8 @@ var JasprGear = (function () {
       if (i >= 0 && (button === 0 || button === 1) && queue.length < 8) {
         var shift = false;
         try { shift = !!(Jz(42) || Jz(54)); } catch (ignored) { }
-        queue.push("click " + i + " " + button + " " + (shift ? 1 : 0));
+        if (gui instanceof APz) queue.push("click " + i + " " + button + " " + (shift ? 1 : 0));
+        else creativeClick = {slot: i, shift: shift}; // resolved by JasprGearDraw, which can read the cursor
         stats.clicks++;
       }
       return true;
@@ -142,6 +171,7 @@ var JasprGear = (function () {
       if (disabled || typeof text !== "string" || text.length > 40000) { stats.rejected++; return; }
       var packet = JSON.parse(text);
       if (packet && packet.t === "hud") { receiveHud(packet); return; }
+      if (packet && packet.t === "worn") { receiveWorn(packet); return; }
       if (!packet || packet.v !== PROTOCOL || !Array.isArray(packet.slots) || packet.slots.length !== COUNT) { stats.rejected++; return; }
       for (var i = 0; i < COUNT; i++) {
         var s = packet.slots[i];
@@ -163,8 +193,99 @@ var JasprGear = (function () {
       if (!Array.isArray(f) || typeof f[0] !== "string" || f[0].length > 16 || typeof f[1] !== "number") { stats.rejected++; return; }
       list.push({id: f[0], seconds: Math.max(0, Math.min(9999, f[1] | 0))});
     }
-    hud = {on: packet.on !== false, a: Math.min(a, m) | 0, m: m | 0, fx: list};
+    var mu = typeof packet.mu === "string" && packet.mu.length <= 16 ? packet.mu : null;
+    hud = {on: packet.on !== false, a: Math.min(a, m) | 0, m: m | 0, fx: list, mu: mu};
     stats.hud++;
+  }
+
+  function receiveWorn(packet) {
+    if (packet.v !== PROTOCOL || !Array.isArray(packet.p) || packet.p.length > 500) { stats.rejected++; return; }
+    var next = {};
+    for (var i = 0; i < packet.p.length; i++) {
+      var e = packet.p[i];
+      if (!Array.isArray(e) || typeof e[0] !== "number" || !Array.isArray(e[1]) || e[1].length !== COUNT) { stats.rejected++; return; }
+      var ids = [];
+      for (var j = 0; j < COUNT; j++) {
+        var id = e[1][j];
+        if (typeof id !== "string" || id.length > 40) { stats.rejected++; return; }
+        ids.push(id);
+      }
+      next[e[0] | 0] = ids;
+    }
+    worn = next;
+    stats.worn++;
+  }
+
+  // Canonical gear SNBT by id, from the Creative catalogue compiled into this client.
+  function snbtFor(id) {
+    if (wornSnbt === null) {
+      wornSnbt = {};
+      try {
+        if (typeof JasprCreativeCatalog !== "undefined")
+          for (var i = 0; i < JasprCreativeCatalog.length; i++) {
+            var c = JasprCreativeCatalog[i];
+            if (c && typeof c.id === "string" && c.id.indexOf("gear_") === 0) wornSnbt[c.id.slice(5)] = c.snbt;
+          }
+      } catch (ignored) { }
+    }
+    return wornSnbt[id] || null;
+  }
+  function nextWornBuild() {
+    if (wornOff) return null;
+    for (var key in worn) {
+      if (!Object.prototype.hasOwnProperty.call(worn, key)) continue;
+      var ids = worn[key];
+      for (var i = 0; i < ids.length; i++) {
+        var id = ids[i];
+        if (!id || wornTried[id]) continue;
+        wornTried[id] = true;
+        var snbt = snbtFor(id);
+        if (snbt) return {id: id, snbt: snbt};
+      }
+    }
+    return null;
+  }
+  function wornBuilt(request, stack) {
+    if (stack) { wornStacks[request.id] = stack; stats.builds++; } else stats.buildErrors++;
+  }
+  // The pieces to draw on this entity: its worn ids that have a built stack, each with its model part.
+  function wornPlan(layer, entity) {
+    try {
+      if (wornOff || !entity || !layer) return null;
+      var ids = worn[entity.cu | 0];
+      if (!ids) return null;
+      var head = layer.cH_, model = head ? head.ddy : null;
+      if (!model || !model.lA || !model.k_) return null;
+      var items = [];
+      for (var i = 0; i < COUNT; i++) {
+        var stack = ids[i] ? wornStacks[ids[i]] : null;
+        if (!stack) continue;
+        var P = PLACE[i], part = P.part === "head" ? model.lA : P.part === "body" ? model.k_ : P.part === "right" ? model.gM : model.f3;
+        if (!part) continue;
+        items.push({part: part, stack: stack, x: P.x, y: P.y, z: P.z, ry: P.ry, s: P.s});
+      }
+      if (!items.length) return null;
+      stats.wornDrawn++;
+      return {items: items};
+    } catch (error) { wornDie("plan", error); return null; }
+  }
+  function wornDie(where, error) {
+    if (wornOff) return;
+    wornOff = true;
+    wornFailure = where + ": " + (error && error.message ? error.message : String(error));
+    try { if ($rt_globals.console) $rt_globals.console.warn("[JasperCraft gear] worn models disabled -- " + wornFailure); } catch (ignored) { }
+  }
+
+  // Creative column: the pending click becomes cput (cursor SNBT) or ctake once the cursor is read.
+  function creativePending() { return disabled || !seen ? null : creativeClick; }
+  function creativeDone(snbt) {
+    var c = creativeClick;
+    creativeClick = null;
+    if (!c || queue.length >= 8) return;
+    if (snbt === null) queue.push("ctake " + c.slot + " " + (c.shift ? 1 : 0));
+    else if (typeof snbt === "string" && snbt.length <= MAX_CREATIVE_SNBT && snbt.charAt(0) === "{") queue.push("cput " + c.slot + " " + snbt);
+    else return;
+    stats.creativeClicks++;
   }
 
   // Java strings for the HUD, cached (a handful of distinct labels per second).
@@ -202,12 +323,14 @@ var JasprGear = (function () {
       }
       var label = (room >= 60 ? "ADR " + hud.a + "/" + hud.m : "ADR " + hud.a);
       texts.push({text: jstr(label), x: x0, y: h - 19, color: 0xFFFFB347 | 0});
-      for (var i = 0; i < hud.fx.length && i < 5; i++) {
+      var row = 0;
+      for (var i = 0; i < hud.fx.length && i < 5; i++, row++) {
         var f = hud.fx[i], def = STATUS[f.id] || [f.id, 0xFFAAAAAA];
         var line = def[0] + " " + f.seconds + "s", s = jstr(line);
         if (textWidth(font, s, line) > room) { line = def[0].slice(0, 4) + " " + f.seconds; s = jstr(line); }
-        texts.push({text: s, x: x0, y: h - 29 - 10 * i, color: def[1] | 0});
+        texts.push({text: s, x: x0, y: h - 29 - 10 * row, color: def[1] | 0});
       }
+      if (hud.mu) texts.push({text: jstr(hud.mu), x: x0, y: h - 29 - 10 * row, color: 0xFFC9C0B0 | 0}); // mutation, topmost
       stats.hudFrames++;
       return {rects: rects, texts: texts};
     } catch (error) { hudDie("plan", error); return null; }
@@ -245,7 +368,7 @@ var JasprGear = (function () {
       var t = Date.now();
       if (net !== connection) {
         connection = net; seen = false; queue = []; press = null; helloTries = 0; helloAt = t + 1000;
-        slots = blank(); builtFrom = blank(); stacks = nulls(); hud = null;
+        slots = blank(); builtFrom = blank(); stacks = nulls(); hud = null; worn = {}; creativeClick = null;
       }
       if (!seen && helloTries < 3 && t >= helloAt) {
         helloTries++; helloAt = t + 5000; stats.hellos++;
@@ -263,31 +386,37 @@ var JasprGear = (function () {
 
   return {
     plan: plan, tooltip: tooltip, mouseDown: mouseDown, mouseUp: mouseUp, receive: receive, hud: hudPlan, hudDie: hudDie,
+    wornPlan: wornPlan, nextWornBuild: nextWornBuild, wornBuilt: wornBuilt, wornDie: wornDie,
+    creativePending: creativePending, creativeDone: creativeDone, empty: empty,
     nextBuild: nextBuild, built: built, outgoing: outgoing, queueKey: queueKey, die: die,
     enabled: function () { return !disabled && seen; },
     channel: function () { if (channel === null) channel = $rt_str("jaspr:gear"); return channel; },
     sent: function () { stats.sent++; },
     status: function () {
-      var worn = 0;
-      for (var i = 0; i < COUNT; i++) if (slots[i] !== "") worn++;
-      return {protocol: PROTOCOL, serverSeen: seen, disabled: disabled, failure: failure, worn: worn, queued: queue.length,
+      var wornSlots = 0;
+      for (var i = 0; i < COUNT; i++) if (slots[i] !== "") wornSlots++;
+      return {protocol: PROTOCOL, serverSeen: seen, disabled: disabled, failure: failure, worn: wornSlots, queued: queue.length,
         received: stats.received, rejected: stats.rejected, sent: stats.sent, clicks: stats.clicks, keys: stats.keys,
         hellos: stats.hellos, builds: stats.builds, buildErrors: stats.buildErrors,
         hud: hud ? {shown: hud.on, adrenaline: hud.a, max: hud.m, statuses: hud.fx.map(function (f) { return f.id; })} : null,
-        hudPackets: stats.hud, hudFrames: stats.hudFrames, hudDisabled: hudOff, hudFailure: hudFailure};
+        hudPackets: stats.hud, hudFrames: stats.hudFrames, hudDisabled: hudOff, hudFailure: hudFailure,
+        mutation: hud ? hud.mu : null, wornPlayers: Object.keys(worn).length, wornPackets: stats.worn, wornStacks: Object.keys(wornStacks).length,
+        wornDrawn: stats.wornDrawn, wornDisabled: wornOff, wornFailure: wornFailure, creativeClicks: stats.creativeClicks};
     }
   };
 }());
 
 /* Native KeyBindings (Controls-remappable, saved with the account options): G arc shot,
- * H dodge / blink (sneak: remote ender chest), J magnet (sneak: repel). Only while playing. */
+ * H dodge / blink (sneak: remote ender chest), J magnet (sneak: repel), R mutation ability.
+ * Only while playing. */
 var JasprGearKeys = (function () {
   "use strict";
   var defs = [
     {field: "$jasprGearArc", key: "key.jaspr.gear.arc", label: "Gear: Arc Shot", code: 34, action: "arc"},
     {field: "$jasprGearDodge", key: "key.jaspr.gear.dodge", label: "Gear: Dodge / Blink", code: 35, action: "dodge"},
-    {field: "$jasprGearMagnet", key: "key.jaspr.gear.magnet", label: "Gear: Magnet", code: 36, action: "magnet"}];
-  var names = [], held = [false, false, false], last = [0, 0, 0], pressed = 0;
+    {field: "$jasprGearMagnet", key: "key.jaspr.gear.magnet", label: "Gear: Magnet", code: 36, action: "magnet"},
+    {field: "$jasprGearMutate", key: "key.jaspr.gear.mutate", label: "Gear: Mutation Ability", code: 19, action: "mutate"}];
+  var names = [], held = [false, false, false, false], last = [0, 0, 0, 0], pressed = 0;
   function description(i) {
     if (!names[i]) { var s = $rt_str(defs[i].key); s.$jasprGearLabel = $rt_str(defs[i].label); names[i] = s; }
     return names[i];
@@ -329,7 +458,7 @@ var JasprGearKeys = (function () {
     } catch (ignored) { }
   }
   return {defs: defs, description: description, key: key, poll: poll,
-    status: function () { return {keys: "G/H/J", pressed: pressed}; }};
+    status: function () { return {keys: "G/H/J/R", pressed: pressed}; }};
 }());
 
 function JasprGearMouseDown(a, b, c, d) { return JasprGear.mouseDown(a, b, c, d) ? 1 : 0; }
@@ -434,13 +563,32 @@ function JasprGearPrepare(a) {
   Ds().s(a, b, c, d, $p);
 }
 
-// GuiInventory foreground (E3x state 93): matrix already at guiLeft/guiTop. DRw (the key-bind
-// tick) does not run while a screen is open, so queued clicks are flushed from here first.
+// GuiInventory foreground (E3x state 93) and the Creative screen's (Gzj state 90): matrix already
+// at guiLeft/guiTop. DRw (the key-bind tick) does not run while a screen is open, so queued clicks
+// are flushed from here first. A pending Creative click reads the client-side cursor here (states
+// 7-10: its SNBT via a fresh NBTTagCompound) because mouseClicked itself must not suspend.
 function JasprGearDraw(a, b, c) {
-  var d, e, f, $p = 0;
-  if (FX()) { var $T = Ds(); $p = $T.l(); f = $T.l(); e = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); a = $T.l(); }
+  var d, e, f, g, $p = 0, $z;
+  if (FX()) { var $T = Ds(); $p = $T.l(); g = $T.l(); f = $T.l(); e = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); a = $T.l(); }
   _:while (true) { switch ($p) {
     case 0:
+      $p = 7;
+    case 7:
+      g = JasprGear.creativePending();
+      if (g === null) { $p = 6; continue _; }
+      d = a.j && a.j.v && a.j.v.bx ? a.j.v.bx.fH : null;
+      if (JasprGear.empty(d)) { JasprGear.creativeDone(null); $p = 6; continue _; }
+      e = new Ce;
+      $p = 8;
+    case 8:
+      BMe(e); if (B()) break _;
+      $p = 9;
+    case 9:
+      Ga9(d, e); if (B()) break _;
+      $p = 10;
+    case 10:
+      $z = Ent(e); if (B()) break _;
+      JasprGear.creativeDone($rt_ustr($z));
       $p = 6;
     case 6:
       JasprGearTick(a.j); if (B()) break _;
@@ -472,7 +620,7 @@ function JasprGearDraw(a, b, c) {
       continue _;
     default: FT();
   } }
-  Ds().s(a, b, c, d, e, f, $p);
+  Ds().s(a, b, c, d, e, f, g, $p);
 }
 
 // GuiInventory.drawScreen (EXw state 97): native item tooltip over a gear slot.
@@ -499,6 +647,9 @@ function JasprGearHud(a, b, c, d) {
   if (FX()) { var $T = Ds(); $p = $T.l(); g = $T.l(); f = $T.l(); e = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); a = $T.l(); }
   _:while (true) { switch ($p) {
     case 0:
+      $p = 6;
+    case 6:
+      JasprGearPrepareWorn(); if (B()) break _; // at most one worn-gear stack built per frame
       e = JasprGear.hud(a, b, c, d);
       if (e === null) return;
       f = 0;
@@ -524,6 +675,88 @@ function JasprGearHud(a, b, c, d) {
     case 5:
       CFh(1.0, 1.0, 1.0, 1.0); if (B()) break _;
       return;
+    default: FT();
+  } }
+  Ds().s(a, b, c, d, e, f, g, $p);
+}
+
+// Builds one ItemStack for worn-gear rendering from its catalogue SNBT (called once per frame).
+function JasprGearPrepareWorn() {
+  var b, c, d, $p = 0, $z;
+  if (FX()) { var $T = Ds(); $p = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); }
+  _:while (true) { switch ($p) {
+    case 0:
+      b = JasprGear.nextWornBuild();
+      if (b === null) return;
+      c = null;
+      $p = 1;
+    case 1:
+      try { $z = E0F($rt_str(b.snbt)); if (B()) break _; c = $z; } catch ($e) { c = null; }
+      if (c === null) { JasprGear.wornBuilt(b, null); return; }
+      d = new Bk;
+      $p = 2;
+    case 2:
+      try { BH8(d, c); if (B()) break _; } catch ($e) { d = null; }
+      JasprGear.wornBuilt(b, d);
+      return;
+    default: FT();
+  } }
+  Ds().s(b, c, d, $p);
+}
+
+// LayerCustomHead.doRenderLayer (Eyq state 95), before the vanilla head item: a is the layer, b the
+// entity. Each worn piece: push; the model's sneak offset; follow its part; place; render; pop.
+function JasprGearWorn(a, b) {
+  var c, d, e, f, g, $p = 0, $z;
+  if (FX()) { var $T = Ds(); $p = $T.l(); g = $T.l(); f = $T.l(); e = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); a = $T.l(); }
+  _:while (true) { switch ($p) {
+    case 0:
+      c = JasprGear.wornPlan(a, b);
+      if (c === null) return;
+      $p = 1;
+    case 1:
+      $z = b.q1(); if (B()) break _;
+      d = $z ? 1 : 0;
+      $p = 2;
+    case 2:
+      $z = E32(); if (B()) break _;
+      e = $z.a66;
+      f = 0;
+      $p = 3;
+    case 3:
+      CFh(1.0, 1.0, 1.0, 1.0); if (B()) break _;
+      $p = 4;
+    case 4:
+      if (f >= c.items.length) return;
+      g = c.items[f];
+      $p = 5;
+    case 5:
+      Eu0(); if (B()) break _;
+      if (!d) { $p = 7; continue _; }
+      $p = 6;
+    case 6:
+      DPm(0.0, 0.2, 0.0); if (B()) break _;
+      $p = 7;
+    case 7:
+      FFZ(g.part, 0.0625); if (B()) break _;
+      $p = 8;
+    case 8:
+      DPm(g.x, g.y, g.z); if (B()) break _;
+      $p = 9;
+    case 9:
+      Gc9(180.0 + g.ry, 0.0, 1.0, 0.0); if (B()) break _;
+      $p = 10;
+    case 10:
+      FWM(g.s, -g.s, -g.s); if (B()) break _;
+      $p = 11;
+    case 11:
+      H_(); CnB(e, b, g.stack, LxM); if (B()) break _;
+      $p = 12;
+    case 12:
+      ECi(); if (B()) break _;
+      f = f + 1 | 0;
+      $p = 4;
+      continue _;
     default: FT();
   } }
   Ds().s(a, b, c, d, e, f, g, $p);

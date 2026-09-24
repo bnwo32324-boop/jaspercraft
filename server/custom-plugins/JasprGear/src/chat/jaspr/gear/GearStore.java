@@ -72,6 +72,8 @@ final class GearStore {
         StringBuilder out = new StringBuilder(VITALS_HEADER).append('\n');
         out.append("adrenaline=").append(Math.round(Math.max(0, profile.adrenaline) * 100.0) / 100.0).append('\n');
         out.append("crystals=").append(profile.crystals).append('\n');
+        out.append("mutation=").append(profile.mutation.id).append('\n');
+        out.append("showworn=").append(profile.showWorn ? 1 : 0).append('\n');
         for (java.util.Map.Entry<GearStatus, Long> e : profile.status.entrySet()) {
             long left = e.getValue() - now;
             if (left > 0) out.append("status.").append(e.getKey().id).append('=').append(left).append('\n');
@@ -89,6 +91,8 @@ final class GearStore {
     void loadVitals(GearProfile profile, long now) {
         profile.status.clear();
         profile.crystals = 0;
+        profile.mutation = GearMutation.BASELINE;
+        profile.showWorn = true;
         profile.adrenaline = profile.maxAdrenaline();
         File file = vitalsFile(profile.uuid);
         if (!file.isFile()) return;
@@ -97,6 +101,8 @@ final class GearStore {
             if (lines.isEmpty() || !VITALS_HEADER.equals(lines.get(0).trim())) throw new IOException("bad header");
             double adrenaline = -1;
             int crystals = 0;
+            GearMutation mutation = GearMutation.BASELINE;
+            boolean showWorn = true;
             java.util.Map<GearStatus, Long> status = new java.util.EnumMap<GearStatus, Long>(GearStatus.class);
             for (int n = 1; n < lines.size(); n++) {
                 String line = lines.get(n).trim();
@@ -105,6 +111,8 @@ final class GearStore {
                 String key = line.substring(0, eq), value = line.substring(eq + 1);
                 if (key.equals("adrenaline")) adrenaline = Double.parseDouble(value);
                 else if (key.equals("crystals")) crystals = Integer.parseInt(value);
+                else if (key.equals("mutation")) { GearMutation m = GearMutation.byId(value); if (m != null) mutation = m; }
+                else if (key.equals("showworn")) showWorn = !value.equals("0");
                 else if (key.startsWith("status.")) {
                     GearStatus s = GearStatus.byId(key.substring(7));
                     long left = Long.parseLong(value);
@@ -115,6 +123,8 @@ final class GearStore {
             profile.crystals = Math.max(0, Math.min(GearVitals.MAX_CRYSTALS, crystals));
             profile.adrenaline = adrenaline < 0 ? profile.maxAdrenaline() : Math.min(profile.maxAdrenaline(), adrenaline);
             profile.status.putAll(status);
+            profile.mutation = mutation;
+            profile.showWorn = showWorn;
         } catch (Exception e) {
             File aside = new File(dir, profile.uuid + ".vitals.corrupt-" + System.currentTimeMillis());
             boolean moved = file.renameTo(aside);

@@ -54,6 +54,15 @@ final class GearProfile {
     String hudSig;
     boolean vitalsDirty;
 
+    // Phase 3 (persisted in UUID.vitals): the survivor's mutation and whether others see worn gear.
+    GearMutation mutation = GearMutation.BASELINE;
+    boolean showWorn = true;
+    // Transient mutation state.
+    boolean grantedFlight;
+    long abilityReady, fadeUntil, pounceUntil, mistUntil, chargeUntil;
+    boolean pounceArmed;
+    final java.util.Set<UUID> chargeHit = new java.util.HashSet<UUID>();
+
     GearProfile(UUID uuid) { this.uuid = uuid; }
 
     int maxAdrenaline() { return GearVitals.BASE_MAX + GearVitals.CRYSTAL_BONUS * Math.max(0, Math.min(GearVitals.MAX_CRYSTALS, crystals)); }

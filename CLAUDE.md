@@ -27,6 +27,7 @@ pulls, verifies and deploys.
 ## Key docs
 - Status and open work: `candidate/structure-audit/HANDOFF.md`, `candidate/structure-audit/AUDIT_LOG.md`
 - Structure audit: `candidate/structure-audit/FINAL_REPORT.md`, `CONVENTIONS.md`, `OWNER_CRITERIA.md`
-- Survivor Gear (trinkets): `GEAR_UPDATE.md` (Phase 2: status effects, "Adrenaline" resource + HUD, consumables;
-  Phase 3: 9 races as mutations, Creative-screen gear column, trinkets on player models)
+- Survivor Gear (trinkets): `GEAR_UPDATE.md` (Phases 1-3 done: trinkets; status effects, "Adrenaline" + HUD,
+  consumables; 9 races as mutations, Creative-screen gear column, trinkets on player models). Cloud builds:
+  `bash scripts/build-gear-plugin.sh`, then `node scripts/build-gear-pack.cjs` and `node scripts/build-gear-client.cjs`.
 - Everything else: `MODDING_NOTES.md` and the `*_UPDATE.md` files.
