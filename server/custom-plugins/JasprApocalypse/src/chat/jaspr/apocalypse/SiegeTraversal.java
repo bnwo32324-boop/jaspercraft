@@ -106,7 +106,7 @@ public final class SiegeTraversal {
                     || Math.abs(at.getX()-s.step.getX()-.5)>.22 || Math.abs(at.getZ()-s.step.getZ()-.5)>.22) s.cancel();
             else {
                 // Jump first, wait until the entire body has physically cleared the future block.
-                z.setVelocity(new Vector(0,z.getVelocity().getY(),0));
+                halt(z);
                 if(at.getY()>=s.step.getY()+1.001 && budget.edits>0) {
                     Block b=s.step.getBlock();
                     if(b.getType()==Material.AIR && vacant(z,b)) {
@@ -217,7 +217,9 @@ public final class SiegeTraversal {
         s.cancel(); s.column=null; s.sessionUntil=0; s.transferUntil=0;
         s.columnTicks=0; s.detourTicks=0; s.placed=0; s.baseY=at.getY(); saveCount(z,s);
     }
-    static void halt(Zombie z) { z.setVelocity(new Vector(0,z.getVelocity().getY(),0)); }
+    // Only when it is actually moving sideways: setVelocity marks the entity dirty and sends a velocity packet to
+    // every tracking player, so re-halting a stopped zombie each tick flooded clients (~20 packets/s per zombie).
+    static void halt(Zombie z) { Vector v=z.getVelocity(); if(Math.abs(v.getX())>1.0E-3||Math.abs(v.getZ())>1.0E-3) z.setVelocity(new Vector(0,v.getY(),0)); }
     /** Daylight pace for the hard-coded chase velocities, which no attribute reaches. */
     private static double pace(Zombie z) { return SiegeRules.daylightFactor(z.getWorld()); }
 }
