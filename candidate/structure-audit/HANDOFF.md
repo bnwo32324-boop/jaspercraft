@@ -90,3 +90,8 @@ NEXT (main agent on the PC):
 - OPEN QUESTIONS asked of owner: other players' data too? (tool keeps all by default); regenerate the Fold (jaspr_backrooms)
   and reset other plugin data (waypoints, graves, turrets, loot journals) - "everything else" suggests yes, but not accounts.
 - Deferred to after the weekly usage reset (Sat 2026-09-26 09:00).
+- OWNER ANSWERS (2026-09-24): regenerate the Fold (jaspr_backrooms) too; ALL players keep their player data (not just the owner);
+  maintenance-mode shutdown for the reset is approved. Keep accounts/logins. Everything else (terrain, structures, loot journals,
+  waypoints, graves, turrets, boundaries) regenerates. Note the tool deliberately protects jaspr_backrooms and all plugin data:
+  it must be changed for the Fold and for plugin world-state, while still keeping per-player plugin data (JasprGear players/,
+  backpacks, Apocalypse ranks/life checkpoints, AuthMe, skins/SSO).
