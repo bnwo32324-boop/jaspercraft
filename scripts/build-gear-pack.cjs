@@ -107,6 +107,40 @@ const ART = {
 // The Necrotic Ring is the ring template re-forged in dark iron with a bone-white stone.
 ART.necrotic_ring = ART.tritium_ring.map(row => row.replace(/[gGHjh]/g, c => ({g: 'p', G: 'w', H: '3', j: '4', h: '2'})[c]));
 
+// Phase 2 consumables (pills, bandage, auto-injector, energy drink, crystal ampoule).
+const PILL = ['HYH', 'YoR', 'HRH'];
+ART.adrenaline_candy = [
+  '................', '................', '................', '................', '.00000000000000.', '.0jjjjjjjjjjjj0.',
+  ...PILL.map(p => '.0j' + p + 'j' + p + 'j' + p + '0.'),
+  '.0jjjjjjjjjjjj0.', '.0RRRRRRRRRRRR0.', '.0jHjHjHjHjHjH0.', '.00000000000000.', '................', '................', '................'];
+ART.field_bandage = [
+  '................', '................', '..000000000000..', '.0' + '555555555555' + '0.',
+  '.0' + '55555RR55555' + '0.', '.0' + '55555RR55555' + '0.', 'w0' + '55RRRRRRRR55' + '0w', 'w0' + '55RRRRRRRR55' + '0w',
+  '.0' + '55555RR55555' + '0.', '.0' + '55555RR55555' + '0.', '.0' + '555555555555' + '0.', '.0' + 'kkkkkkkkkkkk' + '0.',
+  '..000000000000..', '................', '................', '................'];
+ART.stim_reagent = (() => {
+  // A diagonal auto-injector: blue grip, green stim window, orange safety tip, steel needle.
+  const g = Array.from({length: 16}, () => Array(16).fill('.'));
+  const body = ['UiU', 'UiU', 'UiU', 'uUu', 'jjj', 'gGg', 'gGg', 'gGg', 'jjj', 'oYo', 'oYo'];
+  body.forEach(([shade, hi, core], i) => { const x = 1 + i, y = 13 - i; g[y][x] = core; g[y][x + 1] = shade; g[y - 1][x] = hi; });
+  g[2][12] = '4'; g[1][13] = '5'; g[0][14] = '5';
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    if (g[y][x] !== '.') continue;
+    const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const c = (g[y + dy] || [])[x + dx]; return c && c !== '.' && c !== '0' && '45'.indexOf(c) < 0; });
+    if (near) g[y][x] = '0';
+  }
+  return g.map(row => row.join(''));
+})();
+ART.full_restore = [
+  '................', '.....000000.....', '....04555540....', '....03444430....',
+  '....0' + '322221' + '0....', '....0' + '3222Y1' + '0....', '....0' + '322YY1' + '0....', '....0' + '32YYY1' + '0....',
+  '....0' + '3YYY21' + '0....', '....0' + '3YY221' + '0....', '....0' + '3Y2221' + '0....', '....0' + 'gGGGGg' + '0....',
+  '....0' + '322221' + '0....', '....03444430....', '.....000000.....', '................'];
+ART.adrenaline_crystal = [
+  '................', '.......00.......', '......0mm0......', '.....0mCmP0.....', '....0mCmmPP0....', '....0mmmmPP0....',
+  '...0mCmmmPPp0...', '...0mmmmmPPp0...', '...0mmmmPPpp0...', '...0mmmmPPpp0...', '....0mmPPpp0....', '....0mmPPpp0....',
+  '.....0mPpp0.....', '......0Pp0......', '.......00.......', '................'];
+
 const table = Array.from({length: 256}, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
 function crc32(buf) { let c = 0xffffffff; for (const b of buf) c = table[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
 function chunk(type, data) {
@@ -140,6 +174,12 @@ function build() {
   const bands = []; // [damage, model]
   const json = v => Buffer.from(JSON.stringify(v, null, 2) + '\n');
   for (const item of catalog.items) {
+    assert.ok(ART[item.id], 'missing art for ' + item.id);
+    files.set(`assets/minecraft/textures/items/jaspr_gear_${item.id}.png`, png(item.id, ART[item.id]));
+    files.set(`assets/minecraft/models/item/jaspr_gear_${item.id}.json`, json({parent: 'item/generated', textures: {layer0: `items/jaspr_gear_${item.id}`}}));
+    bands.push([item.model, `item/jaspr_gear_${item.id}`]);
+  }
+  for (const item of catalog.consumables || []) {
     assert.ok(ART[item.id], 'missing art for ' + item.id);
     files.set(`assets/minecraft/textures/items/jaspr_gear_${item.id}.png`, png(item.id, ART[item.id]));
     files.set(`assets/minecraft/models/item/jaspr_gear_${item.id}.json`, json({parent: 'item/generated', textures: {layer0: `items/jaspr_gear_${item.id}`}}));

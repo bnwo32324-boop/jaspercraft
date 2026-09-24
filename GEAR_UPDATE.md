@@ -1,4 +1,4 @@
-# Survivor Gear (trinket slots) - Phase 1
+# Survivor Gear (trinket slots) - Phases 1 and 2
 
 Seven Baubles-style trinket slots in the real survival inventory, fifteen apocalyptic trinkets
 with their own 16x16 pixel art, real mechanics, recipes, rare mob drops and a structure-loot API.
@@ -6,9 +6,9 @@ Design parity target: xzeroair *Trinkets and Baubles* 0.33.4 (behaviour referenc
 was copied from it or from Baubles). New plugin `JasprGear`; JasprApocalypse and
 JasprHorrorBiomes are untouched. No world reset.
 
-Phase status: **Phase 1 (slots, UI, 15 trinkets, textures, mechanics, loot API) is done.**
-Phase 2 (status effects, adrenaline resource, consumables, HUD bar) and Phase 3 (mutations /
-races) are not started - see "Remaining" at the end.
+Phase status: **Phase 1 (slots, UI, 15 trinkets, textures, mechanics, loot API) is done.
+Phase 2 (status effects, Adrenaline + HUD bar, ability costs, consumables) is done** - see
+"Phase 2" below. Phase 3 (mutations / races) is not started - see "Remaining" at the end.
 
 ## Playing
 
@@ -98,6 +98,107 @@ Rows top to bottom, `.` = empty.
     `public static String gearId(ItemStack)`, `public static int rank(String gearId)`,
     `public static java.util.List<String> ids()`.
 
+## Phase 2: Adrenaline, status effects, supplies (JasprGear 2.0.0, 2026-09-24)
+
+Reference for behaviour: the Trinkets mod's potions and mana items (design only, no code copied).
+Everything is server-side and real: no vanilla potion stands in for a status, and nothing glows
+or gives night vision.
+
+### Adrenaline (the mod's mana)
+
+- Max **100**, +10 per Adrenaline Crystal (up to +100 = 200). New survivors start full.
+- Refills **2/s**; doubled while Invigorated, halved while food is at 3 drumsticks or less.
+  Adrenaline rush: real hits taken add 1 per damage point (max 5 per hit; bleeding does not count).
+- Ability costs, paid only when the ability actually fires (after its cooldown check; Creative is
+  free): **G Arc Shot 25, H Dodge 15, H Blink 30, sneak+H ender chest 10, sneak+J repel 20,
+  J magnet on 5** (off is free). Too little: an action-bar line says how much is needed.
+- Persisted per player in `plugins/JasprGear/players/<uuid>.vitals` (`jaspr-vitals 1`: adrenaline,
+  crystals, remaining status time). It is a separate file so a Phase 1 jar (rollback) never sees
+  unknown keys in `.gear`; unknown keys are ignored, an unreadable file is renamed
+  `*.vitals.corrupt-<time>` and the player starts with defaults. Written on quit, shutdown,
+  crystal use and at most once a minute while it changes.
+- `/gear vitals` (aliases `effects`, `adrenaline`) prints adrenaline, regen, crystals, statuses and costs.
+- Fixed on the way: shutdown no longer overwrites a `.gear` file that could not be read (Phase 1 saved
+  every profile on disable, ignoring the "never overwrite" flag).
+
+### Status effects
+
+| Status (wire id) | What it does | Sources | Ends early |
+| --- | --- | --- | --- |
+| Bleeding (`bleed`) | 1 damage per second (players and mobs) | Razor Claws (20%, 4 s, as in Phase 1); hostile melee on a player (4%, 5 s, `status.mob-bleed-chance`) | Field Bandage, Full Restore, Regeneration (potion, golden apple, beacon), death |
+| Ice Resistance (`ice`) | Slowness is stripped (JasprRPG Frost, strays, potions); stray arrows deal half | Full Restore (90 s); mushroom/rabbit/beetroot stew (60 s) | - |
+| Invigorated (`vigor`) | +10% move speed (fixed-UUID attribute modifier, removed exactly), adrenaline regen x2 | Stim Reagent (45 s); waking with the Worn Teddy Bear (2 min) | - |
+| Lightning Resistance (`volt`) | Lightning damage -80%, fire from it put out, shocks cannot paralyse | Full Restore (90 s) | - |
+| Paralysis (`para`) | Cannot move (falling and looking still work), attack, shoot, prime (creepers) or use G/H/J; at most 3 s, then 3 s immunity | Lightning strikes (2 s); Arc Shot main bolt (30%: mobs 1.5 s, players 0.75 s) | Full Restore |
+
+Mobs only take Bleeding and Paralysis (at most 256 tracked; paralysed mobs are held at the spot).
+Player statuses pause while offline and are cleared on death. `gear effect <player>
+<bleed|ice|vigor|volt|para|clear> [seconds]` (op/console) applies one for testing.
+
+### Supplies (consumables)
+
+Right-click to use (doors and chests still open; never works as a hoe; Creative keeps the item).
+Same unbreakable stone-hoe carrier and damage-band textures as the trinkets (models 16-20), but
+identity is a separate `JasprGearUse:{id,doses}` compound, so a supply is never gear and gear is
+never a supply. Refused as crafting ingredients like gear.
+
+| Supply (id) | Theme | Effect | Doses | Found |
+| --- | --- | --- | --- | --- |
+| Adrenaline Candy (`adrenaline_candy`) | blister of caffeine chews | +20 adrenaline (refused when full) | 3 | anywhere; recipe `SRS / .P.` (sugar, redstone, paper) |
+| Field Bandage (`field_bandage`) | gauze pad | stops Bleeding, heals 1 heart | 2 | anywhere; recipe `PSP` (paper, string) |
+| Stim Reagent (`stim_reagent`) | auto-injector | +50 adrenaline, Invigorated 45 s | 1 | loot tier 2+ |
+| Full Restore (`full_restore`) | energy drink | full adrenaline, +3 hearts, cures Bleeding and Paralysis, Ice + Lightning Resistance 90 s | 1 | loot tier 3+ |
+| Adrenaline Crystal (`adrenaline_crystal`) | crystal ampoule | +10 max adrenaline for good (10 at most) | 1 | loot tier 4+ (rarest) |
+
+Divergence from the mod, on purpose: its Mana Reagent removes a crystal and poisons you and its
+Restore resets your race; here the Stim Reagent and Full Restore are field medicine.
+
+Loot: `GearApi.rollLoot` keeps the trinket band exactly (every seed that rolled a trinket still
+rolls the same one - proven over 240,000 seeds against the Phase 1 algorithm). A roll that misses it
+may land in a new supply band just above: 6, 8, 10, 12, 14, 16% per chest for tiers 0-5, rarer
+supplies weighing more in harder tiers. Callers draw gear last, so the one extra `nextInt` on a
+supply hit moves nothing that is placed. Also `GearApi.isConsumable`, `consumableIds`, and
+`create(id)` accepts supply ids. Mob drops: 1% per hostile killed by a player (`drops.supply-chance`,
+capped at 5%): candy, bandage or a stim. `/gear give <player> supplies|<id>`.
+
+### HUD and wire
+
+- A Phase 2 client says `hello 2`; the server then sends `{"v":1,"t":"hud","on":..,"a":72,"m":110,
+  "fx":[["bleed",4]]}` whenever a shown number changes (at most about once a second, plus
+  immediately on spend/use). Slot packets stay protocol 1, so Phase 1 clients (`hello 1`) never get
+  HUD packets and Phase 1 servers simply never send them.
+- The browser draws a 64 px bar with `ADR 72/110` above it and up to five status tags stacked above
+  that, 31 px right of the hotbar - clear of the hotbar, a right-side offhand slot, the hotbar attack
+  indicator, hearts/food and chat - and hidden while any screen (chat, inventory, menus) is open or
+  when the screen is too narrow. Hook: `GuiIngame.renderGameOverlay` (Ewc state 190, after the
+  potion icons) -> `JasprGearHud`, inside the same fenced `JASPR_GEAR_V1` block; the builder's
+  reversal/parse proofs cover it. A HUD fault disables only the HUD, never the panel.
+- Non-HUD clients get action-bar notices when a status starts or ends, and `/gear vitals`.
+- Versions: `classes.js?v=20260924-gear2`, `jaspr-client.js?build=20260924-gear2`,
+  `assets.epk?build=20260924-gear2`.
+
+### Phase 2 verification (2026-09-24, cloud, Linux)
+
+- Build: `bash scripts/build-gear-plugin.sh` (javac --release 8), `node scripts/build-gear-pack.cjs`
+  (5874 unrelated EPK entries byte-identical, 26 bands, 264 selector states), `node
+  scripts/build-gear-client.cjs` (reversal byte-for-byte, parses; re-running it on the patched
+  `site/classes.js` reproduces it exactly; CR count unchanged).
+- Paper 1.12.2 test server from `candidate/structure-audit/testserver-template`: loads with no errors,
+  **GEAR_SELFTEST PASS, 612 checks** (Phase 1 checks plus supplies, dose handling, loot parity and
+  supply gating/rates, adrenaline math, status table, offline parking, vitals file round trip /
+  corrupt file / unknown keys, HUD packet). Also loads cleanly next to JasprHorrorBiomes 3.26.0.
+- `tests/gear-phase2-bot.cjs` (mineflayer client vs the test server): **28/28** - hello 2 + HUD,
+  equip, dodge cost, paralysis locks movement and abilities, bleeding damages, bandage cures and
+  loses a dose, candy, stim + speed modifier, crystal (max 110), Full Restore, lightning resisted vs
+  paralysing, hello-1 client gets no HUD; after a server restart the crystal and adrenaline persist (2/2).
+- `tests/gear-hud-browser.cjs` (headless Chromium, real patched client in the client-side Testing
+  Grounds world, loopback stubs only): HUD drawn every frame with no errors, low-bar colour, hidden
+  while chat is open.
+- Pre-existing, unrelated test failures (same on the base branch): `creative-catalogue.test.cjs`
+  (stats hook anchor), `release-preservation.test.cjs` #3-4, `ping-overlay.test.cjs` #1.
+- Not done in the cloud: the live server and the real EaglerXServer path (a local session should
+  deploy the jar, `classes.js`, `assets.epk`, `client.html`, `jaspr-client.js` and play-test).
+
 ## How it works
 
 - **Items**: an unbreakable, flag-hidden **stone hoe** whose damage value selects the texture
@@ -129,7 +230,9 @@ Rows top to bottom, `.` = empty.
 Console/log events: `GEAR_READY`, `GEAR_CLIENT_HELLO`, `GEAR_EQUIP`/`GEAR_UNEQUIP` (uuid, slot,
 item), `GEAR_DEATH_DROP`, `GEAR_DEATH_RESTORED`, `GEAR_MOB_DROP`, `GEAR_XP_BANK`,
 `GEAR_LAST_STAND`, `GEAR_SAVE_FAILED`, `GEAR_LOAD_FAILED`, `GEAR_NET_RATE_LIMIT`,
-`GEAR_SELFTEST PASS|FAIL`, `GEAR_STOPPED`. `/gear status` (op/console) prints counters (equips,
+`GEAR_SELFTEST PASS|FAIL`, `GEAR_STOPPED`; Phase 2: `GEAR_CONSUME`, `GEAR_CRYSTAL`,
+`GEAR_VITALS_LOAD_FAILED`, `GEAR_EFFECT` (admin), and `/gear status` adds adrenaline spent, statuses
+applied/refused/cured, bleed ticks, locked moves/hits, supplies used, HUD packets sent. `/gear status` (op/console) prints counters (equips,
 drops, arcs, blinks, absorbed hits, climbs, brakes, save failures). Console-only: `gear peek
 <player|uuid>`, `gear open <player>`, `gear selftest`, `gear give <player|*> <id|all>` (also op).
 Browser: `window.JasprGearDiagnostics.status()` (counters only, no identities). No passwords,
@@ -138,13 +241,15 @@ tokens or IPs are logged.
 ## Files
 
 - Server: `server/custom-plugins/JasprGear/` (src, resources), build `scripts/build-gear-plugin.ps1`
+  (Linux/cloud: `scripts/build-gear-plugin.sh`)
   (also writes `candidate/gear/gear-catalog.json` with the exact canonical SNBT via `GearExport`).
 - Assets: `scripts/build-gear-pack.cjs` -> `candidate/gear/assets.epk`, `candidate/gear/pack/`.
 - Client: `client-mods/gear-teavm.js`, `scripts/build-gear-client.cjs` (fenced
   `JASPR_GEAR_V1` and `JASPR_GEAR_CAT` blocks; strips and regenerates itself on a patched client;
   proves byte-for-byte reversal; parses the result).
 - Tests: `scripts/gear-preview.cjs` (loopback Paper on 25597 + static page),
-  `scripts/gear-cdp-probe.cjs` (disposable headless Chrome driver).
+  `scripts/gear-cdp-probe.cjs` (disposable headless Chrome driver), `tests/gear-phase2-bot.cjs`
+  (mineflayer end-to-end), `tests/gear-hud-browser.cjs` (HUD render in headless Chromium).
 
 ## Adding a trinket
 
@@ -170,9 +275,6 @@ tokens or IPs are logged.
 
 ## Remaining (not in Phase 1)
 
-- Phase 2: the mod's status effects (Bleed is implemented as a trinket effect; Ice Resistance,
-  Invigorated, Lightning Resistance, Paralysis as effects), an adrenaline/stamina resource with
-  HUD bar, consumables (Mana Candy/Crystal/Reagent/Restore counterparts) and ability costs.
 - Phase 3: the nine races as mutation serums/race baubles (abilities; size changes only if the
   client and server can agree safely).
 - Gear column inside the Creative inventory screen, gear recipes in the EasierCrafting panel,

@@ -1,6 +1,8 @@
 package chat.jaspr.gear;
 
+import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.bukkit.inventory.ItemStack;
@@ -38,7 +40,28 @@ final class GearProfile {
     int rateCount;
     boolean rateWarned;
 
+    // Phase 2 vitals (persisted in UUID.vitals by GearStore, separately from the gear file).
+    /** Current adrenaline; negative until loaded, then 0..maxAdrenaline(). */
+    double adrenaline = -1;
+    /** Adrenaline Crystals used (each +10 max). */
+    int crystals;
+    /** Active custom statuses: absolute expiry, epoch milliseconds (remaining time is persisted). */
+    final Map<GearStatus, Long> status = new EnumMap<GearStatus, Long>(GearStatus.class);
+    // Transient vitals state.
+    long paraImmuneUntil, useReady, vitalsNotedAt;
+    /** Remaining status time while offline (offline time does not count). */
+    final Map<GearStatus, Long> parked = new EnumMap<GearStatus, Long>(GearStatus.class);
+    String hudSig;
+    boolean vitalsDirty;
+
     GearProfile(UUID uuid) { this.uuid = uuid; }
+
+    int maxAdrenaline() { return GearVitals.BASE_MAX + GearVitals.CRYSTAL_BONUS * Math.max(0, Math.min(GearVitals.MAX_CRYSTALS, crystals)); }
+
+    boolean has(GearStatus s, long now) {
+        Long until = status.get(s);
+        return until != null && until > now;
+    }
 
     Set<GearItem> worn() {
         Set<GearItem> out = EnumSet.noneOf(GearItem.class);

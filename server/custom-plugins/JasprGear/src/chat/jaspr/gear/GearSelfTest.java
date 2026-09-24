@@ -17,7 +17,8 @@ import org.bukkit.inventory.ItemStack;
 /**
  * Player-free runtime checks against real Paper classes: identity/NBT, slot rules, recipes,
  * persistence round trip including a corrupt file, effect totals, menu rendering and the
- * panel wire format. Run with -Djaspr.gear.selftest=true or "gear selftest" on the console.
+ * panel wire format; Phase 2 consumables, loot parity with Phase 1, adrenaline math, vitals
+ * persistence and the HUD packet. Run with -Djaspr.gear.selftest=true or "gear selftest" on the console.
  */
 final class GearSelfTest {
     private final GearPlugin plugin;
@@ -42,6 +43,11 @@ final class GearSelfTest {
             wire();
             loot();
             bank();
+            supplies();
+            lootParity();
+            vitals();
+            vitalsStore();
+            hud();
         } catch (Throwable t) {
             failures.add("exception " + t);
         }
@@ -210,7 +216,7 @@ final class GearSelfTest {
         check(GearApi.pickLoot(null, 5) == null, "null random");
         ItemStack loot = null;
         java.util.Random r = new java.util.Random(7L);
-        for (int i = 0; i < 200 && loot == null; i++) loot = GearApi.rollLoot(r, 5);
+        for (int i = 0; i < 400 && loot == null; i++) { ItemStack x = GearApi.rollLoot(r, 5); if (GearApi.isGear(x)) loot = x; }
         check(loot != null && GearApi.isGear(loot), "rollLoot returns real gear");
         for (GearItem item : GearItem.values()) {
             check(GearApi.isGear(GearApi.create(item.id)) && item.id.equals(GearApi.gearId(GearApi.create(item.id))), "api create " + item.id);
@@ -230,6 +236,177 @@ final class GearSelfTest {
         ItemStack emptied = GearItems.withStoredXp(journal, 0);
         check(GearItems.storedXp(emptied) == 0 && !emptied.getItemMeta().getLore().get(emptied.getItemMeta().getLore().size() - 1).contains("Stored"), "journal empties");
         check(GearItems.storedXp(GearItems.create(GearItem.RIOT_VEST)) == 0, "non-journal has no bank");
+    }
+
+    // ================================================================ Phase 2
+
+    private void supplies() throws Exception {
+        java.util.Set<Integer> models = new java.util.HashSet<Integer>();
+        for (GearItem g : GearItem.values()) models.add(g.model);
+        for (GearConsumable c : GearConsumable.values()) {
+            ItemStack stack = GearItems.create(c);
+            check(GearItems.consumable(stack) == c, "consumable identify " + c.id);
+            check(GearItems.identify(stack) == null && !GearItems.isIcon(stack) && !GearApi.isGear(stack), "consumable is not gear " + c.id);
+            check(GearApi.isConsumable(stack) && GearApi.create(c.id) != null && GearItems.consumable(GearApi.create(c.id)) == c, "api consumable " + c.id);
+            check(stack.getType() == org.bukkit.Material.STONE_HOE && stack.getDurability() == c.model, "consumable model " + c.id);
+            check(models.add(c.model) && c.model >= 16 && c.model < GearItems.ICON_BASE_MODEL, "unique consumable model " + c.id);
+            check(stack.getItemMeta().isUnbreakable(), "consumable unbreakable " + c.id);
+            ItemStack back = GearItems.fromSnbt(GearItems.toSnbt(stack));
+            check(back != null && GearItems.consumable(back) == c && back.isSimilar(stack), "consumable snbt " + c.id);
+            check(GearItems.doses(stack) == c.doses, "full doses " + c.id);
+            ItemStack cur = stack;
+            for (int left = c.doses - 1; left >= 1; left--) {
+                cur = GearItems.afterDose(cur);
+                check(cur != null && GearItems.consumable(cur) == c && GearItems.doses(cur) == left, "dose " + left + " " + c.id);
+                java.util.List<String> lore = cur.getItemMeta().getLore();
+                check(lore.get(lore.size() - 1).endsWith("Doses: " + left + "/" + c.doses), "dose lore " + c.id);
+            }
+            check(GearItems.afterDose(cur) == null, "last dose used up " + c.id);
+            check(c.effects.length >= 1 && c.effects.length <= 3, "consumable lore size " + c.id);
+            check(c.minTier >= 0 && c.minTier <= 5 && c.weight(c.minTier) > 0 && (c.minTier == 0 || c.weight(c.minTier - 1) == 0), "tier gate " + c.id);
+        }
+        ItemStack plain = new ItemStack(org.bukkit.Material.STONE_HOE, 1, (short) 16);
+        check(GearItems.consumable(plain) == null && GearItems.doses(plain) == 0, "untagged hoe is not a consumable");
+        check(GearItems.consumable(GearItems.create(GearItem.RIOT_VEST)) == null, "gear is not a consumable");
+        int recipes = 0;
+        for (GearConsumable c : GearConsumable.values()) {
+            if (c.shape == null) continue;
+            boolean found = false;
+            for (org.bukkit.inventory.Recipe r : Bukkit.getRecipesFor(GearItems.create(c)))
+                if (GearItems.consumable(r.getResult()) == c) found = true;
+            check(found, "consumable recipe " + c.id);
+            recipes++;
+        }
+        check(recipes == 2, "two supply recipes (candy, bandage)");
+        check(GearConsumable.byId("ADRENALINE_CANDY") == GearConsumable.ADRENALINE_CANDY && GearConsumable.byId("nope") == null, "consumable byId");
+    }
+
+    /** The Phase 1 roll, verbatim: Phase 2 must give the same trinket for every seed that rolled one. */
+    private static GearItem legacyRoll(java.util.Random random, int tier) {
+        double[] chance = {0.03, 0.05, 0.08, 0.12, 0.18, 0.25};
+        int t = Math.max(0, Math.min(5, tier));
+        if (random.nextDouble() >= chance[t]) return null;
+        List<GearItem> pool = new ArrayList<GearItem>();
+        List<Integer> weights = new ArrayList<Integer>();
+        int total = 0;
+        for (GearItem item : GearItem.values()) {
+            if (!GearApi.eligible(item.rank, t)) continue;
+            int w = GearApi.lootWeight(item.rank, t);
+            pool.add(item); weights.add(w); total += w;
+        }
+        int roll = random.nextInt(total);
+        for (int i = 0; i < pool.size(); i++) { roll -= weights.get(i); if (roll < 0) return pool.get(i); }
+        return pool.get(pool.size() - 1);
+    }
+
+    private void lootParity() {
+        for (int tier = 0; tier <= 5; tier++) {
+            int mismatch = 0, supplies = 0, n = 40000;
+            int[] byItem = new int[GearConsumable.values().length];
+            for (int seed = 0; seed < n; seed++) {
+                java.util.Random a = new java.util.Random(seed * 31L + tier), b = new java.util.Random(seed * 31L + tier);
+                GearItem old = legacyRoll(a, tier);
+                Object now = GearApi.pickAny(b, tier);
+                if (old != null ? now != old : now instanceof GearItem) mismatch++;
+                if (old != null && a.nextLong() != b.nextLong()) mismatch++; // same draws consumed when a trinket rolls
+                if (now instanceof GearConsumable) { supplies++; byItem[((GearConsumable) now).ordinal()]++; }
+            }
+            check(mismatch == 0, "phase 1 trinket parity tier " + tier + " mismatches=" + mismatch);
+            double rate = supplies / (double) n, expect = GearApi.SUPPLY_CHANCE[tier];
+            check(Math.abs(rate - expect) < 0.012, "supply rate tier " + tier + " = " + rate);
+            for (GearConsumable c : GearConsumable.values())
+                check(tier >= c.minTier ? byItem[c.ordinal()] > 0 : byItem[c.ordinal()] == 0, "supply gating " + c.id + " tier " + tier);
+            if (tier == 5) check(byItem[GearConsumable.ADRENALINE_CRYSTAL.ordinal()] < byItem[GearConsumable.ADRENALINE_CANDY.ordinal()], "crystal rarest");
+        }
+        java.util.Random r = new java.util.Random(11L);
+        ItemStack supply = null;
+        for (int i = 0; i < 400 && supply == null; i++) { ItemStack x = GearApi.rollLoot(r, 5); if (GearApi.isConsumable(x)) supply = x; }
+        check(supply != null, "rollLoot returns real consumables");
+        check(GearApi.consumableIds().size() == GearConsumable.values().length, "api consumable ids");
+    }
+
+    private void vitals() {
+        GearProfile prof = new GearProfile(UUID.randomUUID());
+        check(prof.maxAdrenaline() == 100, "base max 100");
+        prof.adrenaline = 50;
+        check(close(GearVitals.gain(prof, 30), 30) && close(prof.adrenaline, 80), "gain");
+        check(close(GearVitals.gain(prof, 500), 20) && close(prof.adrenaline, 100), "gain caps at max");
+        check(close(GearVitals.gain(prof, -500), -100) && close(prof.adrenaline, 0), "never negative");
+        prof.crystals = 3;
+        check(prof.maxAdrenaline() == 130, "crystals raise max");
+        prof.crystals = 99;
+        check(prof.maxAdrenaline() == GearVitals.BASE_MAX + GearVitals.CRYSTAL_BONUS * GearVitals.MAX_CRYSTALS, "crystal cap");
+        long now = System.currentTimeMillis();
+        prof.status.put(GearStatus.BLEED, now + 3000);
+        prof.status.put(GearStatus.PARALYSIS, now - 1);
+        check(prof.has(GearStatus.BLEED, now) && !prof.has(GearStatus.PARALYSIS, now) && !prof.has(GearStatus.INVIGORATED, now), "status expiry");
+        check(GearVitals.COST_ARC > GearVitals.COST_DODGE && GearVitals.COST_BLINK >= GearVitals.COST_ARC && GearVitals.COST_MAGNET < GearVitals.COST_CHEST, "cost order");
+        check(GearVitals.COST_BLINK <= GearVitals.BASE_MAX && GearVitals.REGEN_PER_SECOND > 0, "abilities affordable");
+        check(GearStatus.PARALYSIS.maxMs <= 3000 && GearStatus.PARALYSIS.harmful && GearStatus.BLEED.harmful && !GearStatus.INVIGORATED.harmful, "status table");
+        check(GearStatus.byId("volt") == GearStatus.LIGHTNING_RESISTANCE && GearStatus.byId("lightning_resistance") == GearStatus.LIGHTNING_RESISTANCE && GearStatus.byId("x") == null, "status ids");
+        java.util.Set<String> ids = new java.util.HashSet<String>();
+        for (GearStatus s : GearStatus.values()) check(ids.add(s.id) && s.id.length() <= 8, "status id " + s.id);
+        GearProfile parked = new GearProfile(UUID.randomUUID());
+        parked.adrenaline = 10;
+        parked.status.put(GearStatus.ICE_RESISTANCE, now + 50_000);
+        plugin.vitals.suspend(parked, now);
+        check(parked.status.isEmpty() && parked.parked.get(GearStatus.ICE_RESISTANCE) == 50_000L, "offline time parked");
+        plugin.vitals.resume(parked, now + 3_600_000L);
+        check(parked.parked.isEmpty() && parked.status.get(GearStatus.ICE_RESISTANCE) == now + 3_600_000L + 50_000L, "resumed after offline hour");
+    }
+
+    private void vitalsStore() throws Exception {
+        File dir = new File(plugin.getDataFolder(), "selftest-vitals-" + System.nanoTime());
+        GearStore store = new GearStore(dir, plugin.getLogger());
+        long now = System.currentTimeMillis();
+        GearProfile a = new GearProfile(UUID.randomUUID());
+        a.crystals = 2;
+        a.adrenaline = 73.25;
+        a.status.put(GearStatus.INVIGORATED, now + 40_000);
+        a.status.put(GearStatus.BLEED, now - 5); // expired: not written
+        a.parked.put(GearStatus.ICE_RESISTANCE, 12_000L);
+        store.saveVitalsNow(a);
+        check(store.vitalsFile(a.uuid).isFile() && !new File(dir, a.uuid + ".vitals.tmp").exists(), "vitals atomic write");
+        check(!store.file(a.uuid).exists(), "vitals never touch the gear file");
+        GearProfile b = new GearProfile(a.uuid);
+        store.loadVitals(b, now);
+        check(b.crystals == 2 && close(b.adrenaline, 73.25) && b.maxAdrenaline() == 120, "vitals round trip");
+        Long vigor = b.status.get(GearStatus.INVIGORATED), ice = b.status.get(GearStatus.ICE_RESISTANCE);
+        check(vigor != null && Math.abs(vigor - (now + 40_000)) < 2000 && ice != null && ice == now + 12_000L && !b.status.containsKey(GearStatus.BLEED), "status time round trip");
+        GearProfile fresh = new GearProfile(UUID.randomUUID());
+        store.loadVitals(fresh, now);
+        check(close(fresh.adrenaline, 100) && fresh.crystals == 0 && fresh.status.isEmpty(), "new survivor starts full");
+        Files.write(store.vitalsFile(fresh.uuid).toPath(), "jaspr-vitals 1\nadrenaline=5\nfuture.key=1\nstatus.unknown=9\nstatus.para=999999\n".getBytes(StandardCharsets.UTF_8));
+        store.loadVitals(fresh, now);
+        check(close(fresh.adrenaline, 5) && fresh.status.get(GearStatus.PARALYSIS) == now + GearStatus.PARALYSIS.maxMs, "unknown keys ignored, durations capped");
+        Files.write(store.vitalsFile(fresh.uuid).toPath(), "garbage".getBytes(StandardCharsets.UTF_8));
+        store.loadVitals(fresh, now);
+        File[] aside = dir.listFiles((d, n) -> n.startsWith(fresh.uuid + ".vitals.corrupt-"));
+        check(close(fresh.adrenaline, 100) && aside != null && aside.length == 1, "corrupt vitals preserved aside");
+        GearProfile unloaded = new GearProfile(UUID.randomUUID());
+        store.saveVitalsAsync(unloaded);
+        store.flush();
+        check(!store.vitalsFile(unloaded.uuid).exists(), "never-loaded vitals are not written");
+        for (File f : dir.listFiles()) Files.deleteIfExists(f.toPath());
+        Files.deleteIfExists(dir.toPath());
+    }
+
+    private void hud() {
+        GearProfile prof = new GearProfile(UUID.randomUUID());
+        prof.adrenaline = 42.9;
+        prof.crystals = 1;
+        long now = System.currentTimeMillis();
+        prof.status.put(GearStatus.BLEED, now + 4200);
+        prof.status.put(GearStatus.ICE_RESISTANCE, now - 10);
+        String json = GearVitals.hudJson(null, prof, now);
+        com.google.gson.JsonObject root = new com.google.gson.JsonParser().parse(json).getAsJsonObject();
+        check("hud".equals(root.get("t").getAsString()) && root.get("v").getAsInt() == GearPlugin.PROTOCOL, "hud type");
+        check(root.get("a").getAsInt() == 42 && root.get("m").getAsInt() == 110 && root.get("on").getAsBoolean(), "hud numbers");
+        com.google.gson.JsonArray fx = root.getAsJsonArray("fx");
+        check(fx.size() == 1 && "bleed".equals(fx.get(0).getAsJsonArray().get(0).getAsString()) && fx.get(0).getAsJsonArray().get(1).getAsInt() == 5, "hud statuses");
+        check(!root.has("slots") && json.length() < 400, "hud packet is small and never a slot packet");
+        check("hello 2".equals(GearPlugin.decode(varString("hello 2"))), "decode hello 2");
+        check("click 3 0 1".equals(GearPlugin.decode(varString("click 3 0 1"))), "decode click");
     }
 
     private static byte[] varString(String s) {

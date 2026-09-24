@@ -4,3 +4,8 @@ drops:
   hostile-chance: 0.0035
   # Zombies are the apocalypse's main scavengers: slightly higher (0.5%). Capped at 5% in code.
   zombie-chance: 0.005
+  # Phase 2: chance that a hostile mob killed by a player drops one supply (candy, bandage, rarely a stim). Capped at 5%.
+  supply-chance: 0.01
+status:
+  # Phase 2: chance that a hostile melee hit opens a wound (Bleeding, 1 damage/s for 5 s). Capped at 25%.
+  mob-bleed-chance: 0.04

@@ -14,16 +14,27 @@
  * D49 drawRect, FkM renderItemAndEffectIntoGUI, a.dIt renderToolTip, E0F JsonToNBT, BH8 ItemStack(NBT),
  * AKy/BgN CPacketCustomPayload, Iu/Lg PacketBuffer, Fru Unpooled.buffer, FuF writeString,
  * Cyr handleCustomPayload (CRh readString), DRw runTick, B$i GameSettings.<init>, BPd KeyBinding.
+ * Phase 2 HUD: Ewc GuiIngame.renderGameOverlay (a.ds mc, mc.cj currentScreen; d/e scaled
+ * width/height, f FontRenderer), FgQ drawStringWithShadow, CA getStringWidth, CFh GlStateManager.color.
  * Every suspending call below has its own saved state; plain-JS entry points never suspend.
+ *
+ * Phase 2: the client says "hello 2"; a Phase 2 server then also sends small {"t":"hud"} packets
+ * (adrenaline a/m and active statuses fx [[id, seconds]]) drawn as a bar right of the hotbar (never
+ * over the hotbar, offhand slot, attack indicator or chat, and hidden while any screen is open).
+ * A Phase 1 server simply never sends them, and slot packets stay protocol 1.
  */
 var JasprGear = (function () {
   "use strict";
-  var PROTOCOL = 1, COUNT = 7, PANEL_W = 26, PANEL_H = 134;
+  var PROTOCOL = 1, HELLO = 2, COUNT = 7, PANEL_W = 26, PANEL_H = 134;
+  // Status labels/colours (ARGB) by wire id; unknown ids still show, in grey.
+  var STATUS = {bleed: ["Bleed", 0xFFFF5555], ice: ["Ice Res", 0xFF7FE8FF], vigor: ["Vigor", 0xFF7CFF6B],
+    volt: ["Volt Res", 0xFFFFE45C], para: ["Paralysed", 0xFFE08CFF]};
   var ICONS = __JASPR_GEAR_ICONS__;
   var slots = blank(), builtFrom = blank(), stacks = nulls(), icons = nulls(), iconTried = falses();
   var seen = false, connection = null, helloAt = 0, helloTries = 0, queue = [], press = null;
   var disabled = false, failure = null, channel = null;
-  var stats = {received: 0, rejected: 0, sent: 0, clicks: 0, keys: 0, builds: 0, buildErrors: 0, hellos: 0};
+  var hud = null, hudOff = false, hudFailure = null, strings = {}, stringCount = 0;
+  var stats = {received: 0, rejected: 0, sent: 0, clicks: 0, keys: 0, builds: 0, buildErrors: 0, hellos: 0, hud: 0, hudFrames: 0};
 
   function blank() { return ["", "", "", "", "", "", ""]; }
   function nulls() { return [null, null, null, null, null, null, null]; }
@@ -130,6 +141,7 @@ var JasprGear = (function () {
     try {
       if (disabled || typeof text !== "string" || text.length > 40000) { stats.rejected++; return; }
       var packet = JSON.parse(text);
+      if (packet && packet.t === "hud") { receiveHud(packet); return; }
       if (!packet || packet.v !== PROTOCOL || !Array.isArray(packet.slots) || packet.slots.length !== COUNT) { stats.rejected++; return; }
       for (var i = 0; i < COUNT; i++) {
         var s = packet.slots[i];
@@ -139,6 +151,72 @@ var JasprGear = (function () {
       seen = true;
       stats.received++;
     } catch (error) { stats.rejected++; }
+  }
+
+  function receiveHud(packet) {
+    var a = packet.a, m = packet.m, fx = packet.fx;
+    if (packet.v !== PROTOCOL || typeof a !== "number" || typeof m !== "number" || !(m > 0) || m > 10000 || a < 0
+        || !Array.isArray(fx) || fx.length > 8) { stats.rejected++; return; }
+    var list = [];
+    for (var i = 0; i < fx.length; i++) {
+      var f = fx[i];
+      if (!Array.isArray(f) || typeof f[0] !== "string" || f[0].length > 16 || typeof f[1] !== "number") { stats.rejected++; return; }
+      list.push({id: f[0], seconds: Math.max(0, Math.min(9999, f[1] | 0))});
+    }
+    hud = {on: packet.on !== false, a: Math.min(a, m) | 0, m: m | 0, fx: list};
+    stats.hud++;
+  }
+
+  // Java strings for the HUD, cached (a handful of distinct labels per second).
+  function jstr(text) {
+    var s = strings[text];
+    if (s === undefined) {
+      if (stringCount > 256) { strings = {}; stringCount = 0; }
+      s = strings[text] = $rt_str(text);
+      stringCount++;
+    }
+    return s;
+  }
+  function textWidth(font, s, text) {
+    try { if (typeof CA === "function") return CA(font, s) | 0; } catch (ignored) { }
+    return text.length * 6;
+  }
+
+  // Adrenaline bar + status tags, right of the hotbar (x from centre+122: clear of the 182px hotbar,
+  // a right-side offhand slot (29px) and the hotbar attack indicator). Nothing when too narrow.
+  function hudPlan(gui, width, height, font) {
+    try {
+      if (hudOff || disabled || !hud || !hud.on || !gui || !font) return null;
+      var mc = gui.ds;
+      if (!mc || mc.cj !== null) return null; // any open screen (chat, inventory, menus): hidden
+      var w = width | 0, h = height | 0, x0 = (w / 2 | 0) + 91 + 31, room = w - x0 - 3;
+      if (room < 34 || h < 60) return null;
+      var W = Math.min(64, room), rects = [], texts = [], frac = hud.m > 0 ? Math.max(0, Math.min(1, hud.a / hud.m)) : 0;
+      var fill = frac >= 0.5 ? 0xFFFF9A2E : frac >= 0.25 ? 0xFFFFC23D : 0xFFE0402E;
+      var barY = h - 9, fw = Math.round((W - 2) * frac);
+      rects.push({x: x0, y: barY, x2: x0 + W, y2: barY + 5, color: 0xC0000000 | 0});
+      rects.push({x: x0 + 1, y: barY + 1, x2: x0 + W - 1, y2: barY + 4, color: 0xFF3A2616 | 0});
+      if (fw > 0) {
+        rects.push({x: x0 + 1, y: barY + 1, x2: x0 + 1 + fw, y2: barY + 4, color: fill | 0});
+        rects.push({x: x0 + 1, y: barY + 1, x2: x0 + 1 + fw, y2: barY + 2, color: 0x60FFFFFF | 0});
+      }
+      var label = (room >= 60 ? "ADR " + hud.a + "/" + hud.m : "ADR " + hud.a);
+      texts.push({text: jstr(label), x: x0, y: h - 19, color: 0xFFFFB347 | 0});
+      for (var i = 0; i < hud.fx.length && i < 5; i++) {
+        var f = hud.fx[i], def = STATUS[f.id] || [f.id, 0xFFAAAAAA];
+        var line = def[0] + " " + f.seconds + "s", s = jstr(line);
+        if (textWidth(font, s, line) > room) { line = def[0].slice(0, 4) + " " + f.seconds; s = jstr(line); }
+        texts.push({text: s, x: x0, y: h - 29 - 10 * i, color: def[1] | 0});
+      }
+      stats.hudFrames++;
+      return {rects: rects, texts: texts};
+    } catch (error) { hudDie("plan", error); return null; }
+  }
+  function hudDie(where, error) {
+    if (hudOff) return;
+    hudOff = true;
+    hudFailure = where + ": " + (error && error.message ? error.message : String(error));
+    try { if ($rt_globals.console) $rt_globals.console.warn("[JasperCraft gear] HUD disabled -- " + hudFailure); } catch (ignored) { }
   }
 
   function nextBuild() {
@@ -167,11 +245,11 @@ var JasprGear = (function () {
       var t = Date.now();
       if (net !== connection) {
         connection = net; seen = false; queue = []; press = null; helloTries = 0; helloAt = t + 1000;
-        slots = blank(); builtFrom = blank(); stacks = nulls();
+        slots = blank(); builtFrom = blank(); stacks = nulls(); hud = null;
       }
       if (!seen && helloTries < 3 && t >= helloAt) {
         helloTries++; helloAt = t + 5000; stats.hellos++;
-        return {net: net, text: "hello " + PROTOCOL};
+        return {net: net, text: "hello " + HELLO};
       }
       if (queue.length) return {net: net, text: queue.shift()};
       return null;
@@ -184,7 +262,7 @@ var JasprGear = (function () {
   }
 
   return {
-    plan: plan, tooltip: tooltip, mouseDown: mouseDown, mouseUp: mouseUp, receive: receive,
+    plan: plan, tooltip: tooltip, mouseDown: mouseDown, mouseUp: mouseUp, receive: receive, hud: hudPlan, hudDie: hudDie,
     nextBuild: nextBuild, built: built, outgoing: outgoing, queueKey: queueKey, die: die,
     enabled: function () { return !disabled && seen; },
     channel: function () { if (channel === null) channel = $rt_str("jaspr:gear"); return channel; },
@@ -194,7 +272,9 @@ var JasprGear = (function () {
       for (var i = 0; i < COUNT; i++) if (slots[i] !== "") worn++;
       return {protocol: PROTOCOL, serverSeen: seen, disabled: disabled, failure: failure, worn: worn, queued: queue.length,
         received: stats.received, rejected: stats.rejected, sent: stats.sent, clicks: stats.clicks, keys: stats.keys,
-        hellos: stats.hellos, builds: stats.builds, buildErrors: stats.buildErrors};
+        hellos: stats.hellos, builds: stats.builds, buildErrors: stats.buildErrors,
+        hud: hud ? {shown: hud.on, adrenaline: hud.a, max: hud.m, statuses: hud.fx.map(function (f) { return f.id; })} : null,
+        hudPackets: stats.hud, hudFrames: stats.hudFrames, hudDisabled: hudOff, hudFailure: hudFailure};
     }
   };
 }());
@@ -410,6 +490,43 @@ function JasprGearTooltip(a, b, c) {
     default: FT();
   } }
   Ds().s(a, b, c, d, $p);
+}
+
+// GuiIngame.renderGameOverlay (Ewc state 190, right after the potion icons): a GuiIngame,
+// b scaled width, c scaled height, d FontRenderer. Rects first, then text, then the colour reset.
+function JasprGearHud(a, b, c, d) {
+  var e, f, g, $p = 0;
+  if (FX()) { var $T = Ds(); $p = $T.l(); g = $T.l(); f = $T.l(); e = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); a = $T.l(); }
+  _:while (true) { switch ($p) {
+    case 0:
+      e = JasprGear.hud(a, b, c, d);
+      if (e === null) return;
+      f = 0;
+      $p = 1;
+    case 1:
+      if (f >= e.rects.length) { f = 0; $p = 3; continue _; }
+      g = e.rects[f];
+      $p = 2;
+    case 2:
+      D49(g.x, g.y, g.x2, g.y2, g.color); if (B()) break _;
+      f = f + 1 | 0;
+      $p = 1;
+      continue _;
+    case 3:
+      if (f >= e.texts.length) { $p = 5; continue _; }
+      g = e.texts[f];
+      $p = 4;
+    case 4:
+      FgQ(d, g.text, g.x, g.y, g.color); if (B()) break _;
+      f = f + 1 | 0;
+      $p = 3;
+      continue _;
+    case 5:
+      CFh(1.0, 1.0, 1.0, 1.0); if (B()) break _;
+      return;
+    default: FT();
+  } }
+  Ds().s(a, b, c, d, e, f, g, $p);
 }
 
 if (typeof window !== "undefined" && window) {

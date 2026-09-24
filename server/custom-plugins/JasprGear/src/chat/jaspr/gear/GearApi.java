@@ -19,25 +19,60 @@ import org.bukkit.inventory.ItemStack;
 public final class GearApi {
     /** Chance that one chest receives a trinket, by tier 0..5. */
     private static final double[] CHANCE = {0.03, 0.05, 0.08, 0.12, 0.18, 0.25};
+    /** Phase 2: extra chance, above the trinket band, that the chest receives one consumable. */
+    static final double[] SUPPLY_CHANCE = {0.06, 0.08, 0.10, 0.12, 0.14, 0.16};
 
     private GearApi() {}
 
     /**
      * One loot roll for a chest. tier 0 = trivial (vanilla-style/dungeon rooms), 1..5 = structure
      * difficulty (catalogue tiers I-V; set-piece chests pass depth tier + 1). Returns null most of
-     * the time. Uses ONLY the passed Random, in a fixed order (nextDouble, then nextInt), so the
-     * result is deterministic for a seeded Random. Rank 1-2 at any tier, rank 3 needs tier 3+,
-     * rank 4 needs tier 4+, rank 5 only at tier 5 (lowest weight).
+     * the time. Uses ONLY the passed Random, in a fixed order (nextDouble, then nextInt only when
+     * something is returned), so the result is deterministic for a seeded Random. Rank 1-2 at any
+     * tier, rank 3 needs tier 3+, rank 4 needs tier 4+, rank 5 only at tier 5 (lowest weight).
+     *
+     * Phase 2: a roll that misses the trinket band may land in the supply band just above it and
+     * return one consumable (Adrenaline Candy and Field Bandage anywhere, Stim Reagent from tier 2,
+     * Full Restore from tier 3, Adrenaline Crystal from tier 4; rarer ones weigh more in harder
+     * tiers). The trinket band and its nextInt pick are unchanged, so every seed that rolled a
+     * trinket before still rolls the same trinket.
      */
     public static ItemStack rollLoot(Random random, int tier) {
-        GearItem pick = pickLoot(random, tier);
-        return pick == null ? null : GearItems.create(pick);
+        Object pick = pickAny(random, tier);
+        if (pick instanceof GearItem) return GearItems.create((GearItem) pick);
+        if (pick instanceof GearConsumable) return GearItems.create((GearConsumable) pick);
+        return null;
     }
 
-    static GearItem pickLoot(Random random, int tier) {
+    /** GearItem, GearConsumable or null. */
+    static Object pickAny(Random random, int tier) {
         if (random == null) return null;
         int t = Math.max(0, Math.min(5, tier));
-        if (random.nextDouble() >= CHANCE[t]) return null;
+        double roll = random.nextDouble();
+        if (roll < CHANCE[t]) return pickGear(random, t);
+        if (roll < CHANCE[t] + SUPPLY_CHANCE[t]) return pickSupply(random, t);
+        return null;
+    }
+
+    /** The trinket part of a roll (null when the roll gave a consumable or nothing). */
+    static GearItem pickLoot(Random random, int tier) {
+        Object pick = pickAny(random, tier);
+        return pick instanceof GearItem ? (GearItem) pick : null;
+    }
+
+    static GearConsumable pickSupply(Random random, int t) {
+        int total = 0;
+        for (GearConsumable c : GearConsumable.values()) total += c.weight(t);
+        if (total <= 0) return null;
+        int roll = random.nextInt(total);
+        for (GearConsumable c : GearConsumable.values()) {
+            roll -= c.weight(t);
+            if (roll < 0) return c;
+        }
+        return null;
+    }
+
+    private static GearItem pickGear(Random random, int t) {
         List<GearItem> pool = new ArrayList<GearItem>();
         List<Integer> weights = new ArrayList<Integer>();
         int total = 0;
@@ -67,10 +102,24 @@ public final class GearApi {
         return rank == 3 ? 3 : rank == 4 ? 2 : 1;
     }
 
-    /** Fresh canonical item for a gear id, or null when the id is unknown. */
+    /** Fresh canonical item for a gear or consumable id, or null when the id is unknown. */
     public static ItemStack create(String gearId) {
         GearItem item = GearItem.byId(gearId);
-        return item == null ? null : GearItems.create(item);
+        if (item != null) return GearItems.create(item);
+        GearConsumable use = GearConsumable.byId(gearId);
+        return use == null ? null : GearItems.create(use);
+    }
+
+    /** True for a genuine Phase 2 consumable (Adrenaline Candy, Field Bandage, ...). */
+    public static boolean isConsumable(ItemStack stack) {
+        return GearItems.consumable(stack) != null;
+    }
+
+    /** Consumable ids in catalogue order. */
+    public static List<String> consumableIds() {
+        List<String> out = new ArrayList<String>();
+        for (GearConsumable c : GearConsumable.values()) out.add(c.id);
+        return Collections.unmodifiableList(out);
     }
 
     /** True for a genuine gear item (identity is the NBT tag, never the name). */

@@ -4,7 +4,6 @@ import com.destroystokyo.paper.event.player.PlayerJumpEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -64,13 +63,13 @@ final class GearAbilities implements Listener {
     static final long ARC_MS = 6000, DODGE_MS = 4000, BLINK_MS = 6000, CHEST_MS = 10000, REPEL_MS = 8000,
         SCAN_MS = 3000, THREAT_MS = 2500, TRACKER_MS = 4000, LEECH_MS = 1000, PHASE_BLINK_MS = 10000,
         GYRO_MS = 4000, VEST_IDLE_MS = 5000, LAST_STAND_MS = 20L * 60L * 1000L;
+    static final double ARC_PARALYSIS_CHANCE = 0.30;
     static final double VEST_MAX = 6.0;
     static final int HOVER_LIMIT_TICKS = 240;
 
     private final GearPlugin plugin;
     private final Random random = new Random();
     private final Map<GearItem, Map<Attribute, AttributeModifier>> modifiers = new EnumMap<GearItem, Map<Attribute, AttributeModifier>>(GearItem.class);
-    private final Map<UUID, Integer> bleeding = new HashMap<UUID, Integer>();
     private final Map<UUID, Long> fallGrace = new HashMap<UUID, Long>();
     boolean arcing;
     int arcs, chains, discharges, dodges, blinks, absorbed, glances, lastStands, bleeds, climbs, brakes, rests;
@@ -139,7 +138,7 @@ final class GearAbilities implements Listener {
         prof.restTicks = 0;
     }
 
-    private static void setModifier(Player p, Attribute attribute, AttributeModifier modifier, boolean want) {
+    static void setModifier(Player p, Attribute attribute, AttributeModifier modifier, boolean want) {
         AttributeInstance inst = p.getAttribute(attribute);
         if (inst == null) return;
         AttributeModifier present = null;
@@ -397,47 +396,43 @@ final class GearAbilities implements Listener {
         return a < 70 ? "ahead-" + side : a > 110 ? "behind-" + side : side;
     }
 
-    /** Global, once a second: bleeding ticks (1 damage, bounded set). */
-    void secondTick(long now) {
-        if (bleeding.isEmpty()) return;
-        Iterator<Map.Entry<UUID, Integer>> it = bleeding.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<UUID, Integer> e = it.next();
-            Entity entity = plugin.getServer().getEntity(e.getKey());
-            if (!(entity instanceof LivingEntity) || entity.isDead() || e.getValue() <= 0) { it.remove(); continue; }
-            LivingEntity victim = (LivingEntity) entity;
-            e.setValue(e.getValue() - 1);
-            victim.getWorld().spawnParticle(Particle.REDSTONE, victim.getLocation().add(0, 1, 0), 6, 0.25, 0.4, 0.25, 0);
-            victim.damage(1.0);
-        }
-    }
-
     // ================================================================ keys (G / H / J, or /gear arc|dodge|magnet)
 
+    /**
+     * Active abilities. Phase 2: each one spends adrenaline (GearVitals.COST_*) only when it
+     * actually fires, after the cooldown check; paralysis locks them all. Creative is free.
+     */
     void key(Player p, GearProfile prof, String action) {
         if (!active(p)) return;
         Set<GearItem> worn = prof.worn();
         long now = System.currentTimeMillis();
+        GearVitals vitals = plugin.vitals;
         if ("arc".equals(action)) {
             if (!worn.contains(GearItem.CAPACITOR_BELT)) { bar(p, ChatColor.GRAY + "Arc Shot needs a Capacitor Belt"); return; }
             if (now < prof.arcReady) { cooldown(p, "Arc Shot", prof.arcReady - now); return; }
-            if (arc(p)) { prof.arcReady = now + ARC_MS; armReady(prof, "Arc Shot", prof.arcReady); }
+            if (!vitals.afford(p, prof, GearVitals.COST_ARC, "Arc Shot")) return;
+            if (arc(p)) { prof.arcReady = now + ARC_MS; armReady(prof, "Arc Shot", prof.arcReady); vitals.spend(p, prof, GearVitals.COST_ARC); }
             else bar(p, ChatColor.GRAY + "Arc Shot: no hostile in your sights (16m)");
         } else if ("dodge".equals(action)) {
             if (worn.contains(GearItem.PHASE_HEADSET)) {
                 if (p.isSneaking()) {
                     if (now < prof.chestReady) { cooldown(p, "Remote ender chest", prof.chestReady - now); return; }
+                    if (!vitals.afford(p, prof, GearVitals.COST_CHEST, "Remote ender chest")) return;
                     prof.chestReady = now + CHEST_MS;
                     p.openInventory(p.getEnderChest());
                     p.playSound(p.getLocation(), Sound.BLOCK_ENDERCHEST_OPEN, 0.6f, 1.2f);
+                    vitals.spend(p, prof, GearVitals.COST_CHEST);
                     return;
                 }
                 if (now < prof.blinkReady) { cooldown(p, "Blink", prof.blinkReady - now); return; }
                 if (wet(p)) { bar(p, ChatColor.DARK_AQUA + "Phase Headset shorted out - dry off first"); return; }
-                if (blink(p)) { prof.blinkReady = now + BLINK_MS; armReady(prof, "Blink", prof.blinkReady); }
+                if (!vitals.afford(p, prof, GearVitals.COST_BLINK, "Blink")) return;
+                if (blink(p)) { prof.blinkReady = now + BLINK_MS; armReady(prof, "Blink", prof.blinkReady); vitals.spend(p, prof, GearVitals.COST_BLINK); }
                 else bar(p, ChatColor.GRAY + "Blink: no room in that direction");
             } else if (worn.contains(GearItem.CAPACITOR_BELT)) {
                 if (now < prof.dodgeReady) { cooldown(p, "Dodge", prof.dodgeReady - now); return; }
+                if (!vitals.afford(p, prof, GearVitals.COST_DODGE, "Dodge")) return;
+                vitals.spend(p, prof, GearVitals.COST_DODGE);
                 prof.dodgeReady = now + DODGE_MS;
                 armReady(prof, "Dodge", prof.dodgeReady);
                 Vector dir = p.getLocation().getDirection().setY(0);
@@ -454,10 +449,16 @@ final class GearAbilities implements Listener {
             if (!worn.contains(GearItem.SCRAP_MAGNET)) { bar(p, ChatColor.GRAY + "Needs a Scrap Magnet"); return; }
             if (p.isSneaking()) {
                 if (now < prof.repelReady) { cooldown(p, "Repel pulse", prof.repelReady - now); return; }
+                if (!vitals.afford(p, prof, GearVitals.COST_REPEL, "Repel pulse")) return;
+                vitals.spend(p, prof, GearVitals.COST_REPEL);
                 prof.repelReady = now + REPEL_MS;
                 armReady(prof, "Repel pulse", prof.repelReady);
                 repel(p);
             } else {
+                if (!prof.magnet) {
+                    if (!vitals.afford(p, prof, GearVitals.COST_MAGNET, "Scrap Magnet")) return;
+                    vitals.spend(p, prof, GearVitals.COST_MAGNET);
+                }
                 prof.magnet = !prof.magnet;
                 bar(p, ChatColor.GOLD + "Scrap Magnet: " + (prof.magnet ? ChatColor.GREEN + "ON" : ChatColor.RED + "OFF"));
                 p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, prof.magnet ? 1.4f : 0.8f);
@@ -488,6 +489,9 @@ final class GearAbilities implements Listener {
         if (best == null) return false;
         zap(p, eye, best, 4.0);
         arcs++;
+        // Phase 2: the main bolt may lock the target up (short, shock: Lightning Resistance stops it).
+        if (!best.isDead() && random.nextDouble() < ARC_PARALYSIS_CHANCE)
+            plugin.vitals.apply(best, GearStatus.PARALYSIS, best instanceof Player ? 750L : 1500L, true);
         // Chain lightning: up to two more hostiles within 5 blocks of the first target.
         List<LivingEntity> hit = new ArrayList<LivingEntity>();
         hit.add(best);
@@ -750,8 +754,8 @@ final class GearAbilities implements Listener {
             }
             if (random.nextDouble() < 0.15) target.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 80, 0), true);
         }
-        if (worn.contains(GearItem.RAZOR_CLAWS) && random.nextDouble() < 0.20 && bleeding.size() < 256) {
-            bleeding.put(target.getUniqueId(), 4);
+        // Bleeding is a Phase 2 status now (GearVitals): same 1 damage/s for 4 s, also shown to players.
+        if (worn.contains(GearItem.RAZOR_CLAWS) && random.nextDouble() < 0.20 && plugin.vitals.apply(target, GearStatus.BLEED, 4000L, false)) {
             bleeds++;
         }
         if (worn.contains(GearItem.CAPACITOR_BELT) && random.nextDouble() < 0.12) {
@@ -791,6 +795,7 @@ final class GearAbilities implements Listener {
         if (p.getSleepTicks() < 100 && time > 2000 && time < 23000) return;
         p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 600, 0, true, false), true);
         p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 2400, 0, true, false), true);
+        plugin.vitals.apply(p, GearStatus.INVIGORATED, 120_000L, false); // Phase 2: wake up Invigorated (2 min)
         bar(p, ChatColor.GOLD + "Well Rested" + ChatColor.GRAY + " - hugged the bear all night");
     }
 
@@ -864,6 +869,6 @@ final class GearAbilities implements Listener {
     String metrics() {
         return "arcs=" + arcs + " chains=" + chains + " discharges=" + discharges + " dodges=" + dodges + " blinks=" + blinks
             + " absorbed=" + absorbed + " glances=" + glances + " lastStands=" + lastStands + " bleeds=" + bleeds
-            + " climbs=" + climbs + " brakes=" + brakes + " rests=" + rests + " bleeding=" + bleeding.size();
+            + " climbs=" + climbs + " brakes=" + brakes + " rests=" + rests + " bleeding=" + plugin.vitals.trackedMobs();
     }
 }

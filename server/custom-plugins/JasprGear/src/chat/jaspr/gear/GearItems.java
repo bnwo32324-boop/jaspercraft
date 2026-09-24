@@ -16,6 +16,8 @@ import org.bukkit.inventory.ItemStack;
 public final class GearItems {
     public static final String TAG = "JasprGear";
     public static final String ICON_TAG = "JasprGearIcon";
+    /** Phase 2 consumables: JasprGearUse:{id, doses}. Never carries the JasprGear compound. */
+    public static final String USE_TAG = "JasprGearUse";
     public static final String CARRIER = "minecraft:stone_hoe";
     public static final int ICON_BASE_MODEL = 40;
     private static final char S = '§';
@@ -37,6 +39,77 @@ public final class GearItems {
         gear.setString("id", item.id);
         tag.set(TAG, gear);
         return wrap(item.model, tag);
+    }
+
+    /** Canonical consumable with its full dose count. */
+    public static NBTTagCompound canonicalTag(GearConsumable item) {
+        return consumableTag(item, item.doses);
+    }
+
+    static NBTTagCompound consumableTag(GearConsumable item, int doses) {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setBoolean("Unbreakable", true);
+        tag.setInt("HideFlags", 63);
+        NBTTagCompound display = new NBTTagCompound();
+        display.setString("Name", S + String.valueOf(item.color()) + item.title);
+        NBTTagList lore = new NBTTagList();
+        lore.add(new NBTTagString(S + "8Consumable - right-click to use"));
+        for (String line : item.effects) lore.add(new NBTTagString(S + "7" + line));
+        if (item.doses > 1) lore.add(new NBTTagString(S + "6Doses: " + doses + "/" + item.doses));
+        display.set("Lore", lore);
+        tag.set("display", display);
+        NBTTagCompound use = new NBTTagCompound();
+        use.setString("id", item.id);
+        if (item.doses > 1) use.setInt("doses", doses);
+        tag.set(USE_TAG, use);
+        return wrap(item.model, tag);
+    }
+
+    public static ItemStack create(GearConsumable item) { return fromTag(canonicalTag(item)); }
+
+    /** The consumable carried by this stack, or null. Never trusts names or lore. */
+    public static GearConsumable consumable(ItemStack stack) {
+        if (empty(stack) || stack.getType() != Material.STONE_HOE) return null;
+        try {
+            net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(stack);
+            if (nms == null || !nms.hasTag()) return null;
+            NBTTagCompound tag = nms.getTag();
+            if (!tag.hasKeyOfType(USE_TAG, 10) || tag.hasKey(TAG)) return null;
+            return GearConsumable.byId(tag.getCompound(USE_TAG).getString("id"));
+        } catch (RuntimeException error) {
+            return null;
+        }
+    }
+
+    /** Doses left in a consumable stack (1 for single-use items, 0 for anything else). */
+    public static int doses(ItemStack stack) {
+        GearConsumable item = consumable(stack);
+        if (item == null) return 0;
+        if (item.doses <= 1) return 1;
+        int left = CraftItemStack.asNMSCopy(stack).getTag().getCompound(USE_TAG).getInt("doses");
+        return Math.max(1, Math.min(item.doses, left <= 0 ? item.doses : left));
+    }
+
+    /** The stack after one dose: a copy with fewer doses (custom name kept), or null when used up. */
+    public static ItemStack afterDose(ItemStack stack) {
+        GearConsumable item = consumable(stack);
+        if (item == null) return stack;
+        int left = doses(stack) - 1;
+        if (left <= 0) return null;
+        net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(stack);
+        NBTTagCompound tag = nms.getTag();
+        NBTTagCompound use = tag.getCompound(USE_TAG);
+        use.setInt("doses", left);
+        tag.set(USE_TAG, use);
+        NBTTagCompound display = tag.getCompound("display");
+        NBTTagList old = display.getList("Lore", 8), lore = new NBTTagList();
+        String marker = S + "6Doses: ";
+        for (int i = 0; i < old.size(); i++) if (!old.getString(i).startsWith(marker)) lore.add(new NBTTagString(old.getString(i)));
+        lore.add(new NBTTagString(marker + left + "/" + item.doses));
+        display.set("Lore", lore);
+        tag.set("display", display);
+        nms.setTag(tag);
+        return CraftItemStack.asBukkitCopy(nms);
     }
 
     /** Empty-slot hint icon. Never issued to inventories; shown in the /gear menu and panel. */

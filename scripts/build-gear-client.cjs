@@ -53,18 +53,27 @@ const EDITS = [
    'case 0:if(JasprGearMouseDown(a,b,c,d))return;$p=92;case 92:JasprRecipeBookClick(a,b,c,d);'],
   ['switch($p){case 0:if(JasprUiRepairDue()){$p=991;continue _;}$p=1;case 1:$z=FBP(a,b,c);',
    'switch($p){case 0:if(JasprGearMouseUp(a,b,c,d))return;if(JasprUiRepairDue()){$p=991;continue _;}$p=1;case 1:$z=FBP(a,b,c);'],
+  // Phase 2 HUD: GuiIngame.renderGameOverlay, after renderPotionEffects (font f, scaled d x e).
+  ['GEJ(a,c);if(B()){break _;}k=a.dfA;$p=43;',
+   'GEJ(a,c);if(B()){break _;}$p=190;case 190:JasprGearHud(a,d,e,f);if(B()){break _;}k=a.dfA;$p=43;'],
   ['function JasprCreativeTabAllows(a,b){',
    'function JasprCreativeTabAllows(a,b){if(b===\'gear\')return a===KQL;'],
   ['/* JASPR_STATS_KEYBIND_BEGIN */', null], // module insertion point (handled below)
 ];
 
 function catalogEntries(catalog) {
+  const supplies = (catalog.consumables || []).map(item => {
+    const color = '§' + ({1: 'a', 2: 'a', 3: 'b', 4: 'd', 5: '6'})[item.rarity || 1];
+    return ascii(JSON.stringify({id: 'gear_' + item.id, title: item.title, category: 'gear', material: 'minecraft:stone_hoe',
+      model: item.model, color: color, snbt: item.snbt,
+      search: ['gear supply consumable survivor adrenaline', item.id.replace(/_/g, ' '), item.title, item.inspiredBy].join(' ').toLowerCase()}));
+  });
   return catalog.items.map(item => {
     const color = '§' + ({1: 'a', 2: 'a', 3: 'b', 4: 'd', 5: '6'})[item.rank || 1];
     return ascii(JSON.stringify({id: 'gear_' + item.id, title: item.title, category: 'gear', material: 'minecraft:stone_hoe',
       model: item.model, color: color, snbt: item.snbt,
       search: ['gear trinket bauble survivor', item.id.replace(/_/g, ' '), item.title, item.type.toLowerCase(), item.inspiredBy].join(' ').toLowerCase()}));
-  });
+  }).concat(supplies);
 }
 
 function moduleBlock(catalog) {
@@ -135,10 +144,10 @@ if (require.main === module) {
   const target = outIndex > 0 ? process.argv[outIndex + 1] : path.join(ROOT, 'candidate', 'gear-client', 'classes.js');
   fs.mkdirSync(path.dirname(target), {recursive: true});
   fs.writeFileSync(target, Buffer.from(result, 'latin1'));
-  const manifest = {stage: 'survivor-gear-v1', source: path.relative(ROOT, SOURCE), sourceSha256: sha(raw),
+  const manifest = {stage: 'survivor-gear-v2', source: path.relative(ROOT, SOURCE), sourceSha256: sha(raw),
     unpatchedSha256: sha(base), sha256: sha(result), bytes: Buffer.byteLength(result, 'latin1'),
     addedBytes: Buffer.byteLength(result, 'latin1') - Buffer.byteLength(base, 'latin1'), edits: EDITS.length + 1,
-    catalogueEntries: catalog.items.length, keys: {arc: 'G (34)', dodge: 'H (35)', magnet: 'J (36)'}, channel: catalog.channel};
+    catalogueEntries: catalog.items.length + (catalog.consumables || []).length, hud: 'Ewc state 190 (JasprGearHud)', keys: {arc: 'G (34)', dodge: 'H (35)', magnet: 'J (36)'}, channel: catalog.channel};
   fs.writeFileSync(path.join(path.dirname(target), 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log(JSON.stringify(manifest, null, 2));
 }
