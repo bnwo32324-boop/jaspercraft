@@ -1,0 +1,50 @@
+# Character progression for JasperCraft.
+#
+# Two systems, both open to every player: stats you train with experience levels, and weapons and
+# armour that level up through use and earn ability tokens.
+
+stats:
+  enabled: true
+
+  # Upgrade prices follow the original curve: the cost of the level after your current one is
+  # (current^1.6 + 6 + current) experience levels. Level 0 to 1 costs 6; level 9 to 10 costs 51.
+  # This multiplier scales that whole curve without changing its shape.
+  cost-multiplier: 1.0
+
+  # Scales what every stat level is worth. 0 makes stats purchasable but inert; 2 doubles the
+  # benefit of every level.
+  bonus-multiplier: 1.0
+
+  # Scales every stat's level cap.
+  cap-multiplier: 1.0
+
+  # Dying wipes every stat back to zero and you buy them again from scratch.
+  reset-on-death: true
+
+  # Extra maximum health per level of the Health stat, in half-hearts.
+  health-per-level: 2.0
+
+armaments:
+  enabled: true
+
+  # Highest level a single item can reach.
+  max-level: 10
+
+  # Experience an item needs for its first level, and the factor each level multiplies that by.
+  # At the defaults, level 1 costs 50 and level 9 costs a little over 1300.
+  level-1-experience: 50
+  experience-multiplier: 1.6
+
+  # Ability tokens granted each time an item levels up. Tokens are the only currency abilities
+  # accept, so this is what paces the whole system.
+  tokens-per-level: 1
+
+  # Chance that an eligible item is enhanced when crafted or picked up.
+  enhance-chance: 0.35
+
+  # Chance for gear pulled out of the creative menu. Defaults to certain, so spawning a weapon in
+  # creative always gives you something enhanced to test with.
+  enhance-chance-creative: 1.0
+
+  # Whether armour can be enhanced as well as weapons.
+  armor: true

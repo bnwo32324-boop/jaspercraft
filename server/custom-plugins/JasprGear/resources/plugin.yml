@@ -1,0 +1,15 @@
+name: JasprGear
+version: 1.0.0
+main: chat.jaspr.gear.GearPlugin
+author: Jaspr
+softdepend: [AuthMe]
+description: Survivor Gear - seven typed trinket slots, fifteen apocalyptic trinkets, browser inventory panel.
+commands:
+  gear:
+    description: Open your Survivor Gear slots, list worn gear, or use gear abilities.
+    usage: /gear [list|recipes|scan|arc|dodge|magnet|help]
+    aliases: [trinkets, kit]
+permissions:
+  jasprgear.admin:
+    description: Give gear and read gear diagnostics.
+    default: op

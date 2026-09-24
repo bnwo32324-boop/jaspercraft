@@ -1,0 +1,10 @@
+/* Explicit visual-viewport dimensions handle Safari's delayed rotation/toolbar resize. */
+/* Keep width tied to the browser viewport, never to our previous measurement:
+   a pixel width here makes Chromium retain the old landscape layout on rotation. */
+html.jaspr-mobile-viewport{width:100%!important;max-width:100vw;height:var(--jaspr-viewport-height,100%)!important}
+html.jaspr-mobile-client{overflow:hidden}
+html.jaspr-mobile-viewport body#game_frame{width:100%!important;height:100%!important;max-width:100%;overflow:hidden}
+html.jaspr-mobile-viewport.jaspr-touch-menu body#game_frame{height:calc(100% - 48px - env(safe-area-inset-bottom))!important}
+html.jaspr-mobile-viewport body.playing #game-host{width:100%;height:var(--jaspr-viewport-height,100dvh);bottom:auto}
+@media(pointer:coarse){html.jaspr-mobile-viewport body.playing #game-host{height:calc(var(--jaspr-viewport-height,100dvh) - 56px - env(safe-area-inset-top))}}
+html.jaspr-mobile-viewport #game-host iframe{min-width:0;min-height:0;max-width:100%;max-height:100%}

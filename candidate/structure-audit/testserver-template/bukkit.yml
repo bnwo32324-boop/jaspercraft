@@ -1,0 +1,28 @@
+# structure-audit capture test server. Autosave and chunk GC are off: the capture harness decides
+# when chunks load and unloads them without saving, so every capture is a fresh generation.
+settings:
+  allow-end: false
+  warn-on-overload: false
+  permissions-file: permissions.yml
+  update-folder: update
+  plugin-profiling: false
+  connection-throttle: 4000
+  query-plugins: false
+  deprecated-verbose: default
+  shutdown-message: Server closed
+spawn-limits:
+  monsters: 0
+  animals: 0
+  water-animals: 0
+  ambient: 0
+chunk-gc:
+  period-in-ticks: 0
+  load-threshold: 0
+ticks-per:
+  animal-spawns: 400
+  monster-spawns: 1
+  autosave: 0
+aliases: now-in-commands.yml
+worlds:
+  world:
+    generator: JasprHorrorBiomes

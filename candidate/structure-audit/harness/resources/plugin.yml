@@ -1,0 +1,6 @@
+name: JasprCaptureHarness
+version: 1.0
+main: jaspr.audit.harness.CaptureHarness
+load: STARTUP
+depend: [JasprHorrorBiomes]
+description: Structure-audit capture harness. TEST SERVERS ONLY - never install on the live server.

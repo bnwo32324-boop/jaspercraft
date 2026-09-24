@@ -1,0 +1,16 @@
+# structure-audit capture test server (minimal; Spigot fills in the defaults).
+config-version: 11
+settings:
+  timeout-time: 600
+  restart-on-crash: false
+  netty-threads: 1
+  bungeecord: false
+  save-user-cache-on-stop-only: true
+stats:
+  disable-saving: true
+advancements:
+  disable-saving: true
+world-settings:
+  default:
+    verbose: false
+    view-distance: 3

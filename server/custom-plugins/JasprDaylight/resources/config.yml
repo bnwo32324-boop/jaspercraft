@@ -1,0 +1,17 @@
+daylight:
+  # The universal law. Off restores normal mob speed at all hours.
+  enabled: true
+  # Walking speed while the sun is up, as a fraction of normal. 0.5 is half.
+  speed-multiplier: 0.5
+  # Night runs between these two clock values; everything else counts as day.
+  # These match the window the rest of the server already treats as night.
+  night-start: 12500
+  night-end: 23500
+  # A thunderstorm darkens the sky. Set true to let mobs run at full speed under one.
+  storms-count-as-night: false
+  # A horse carrying a player is transport, not a threat. Set false to slow it too.
+  exempt-ridden-mounts: true
+  # Tamed wolves, cats and untidden horses. Off by default: the law is universal.
+  exempt-tamed: false
+  # Apply in the Nether and the End as well, driven by the overworld clock.
+  all-worlds: true

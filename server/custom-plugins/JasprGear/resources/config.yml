@@ -1,0 +1,6 @@
+# Survivor Gear (JasprGear). Gear itself is defined in code; see GEAR_UPDATE.md.
+drops:
+  # Chance that a hostile mob killed by a player drops one random trinket (0.35%).
+  hostile-chance: 0.0035
+  # Zombies are the apocalypse's main scavengers: slightly higher (0.5%). Capped at 5% in code.
+  zombie-chance: 0.005

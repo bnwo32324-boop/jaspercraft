@@ -1,0 +1,26 @@
+name: TestServerControl
+version: 3.2.0
+main: local.eagler.testserver.TestServerControlPlugin
+depend: [AuthMe, EaglercraftXServer]
+author: OpenAI
+description: Connection-bound Jaspr SSO, signed administrative identity, and always-on lifecycle.
+commands:
+  creative:
+    description: Change your own game mode to Creative.
+    usage: /creative
+    permission: testserver.mode
+  survival:
+    description: Change your own game mode to Survival.
+    usage: /survival
+    permission: testserver.mode
+  jasprnet:
+    description: Show live JasperCraft ping and server tick diagnostics.
+    usage: /jasprnet [player]
+    permission: testserver.network
+permissions:
+  testserver.mode:
+    description: Allows the owner to switch game mode.
+    default: op
+  testserver.network:
+    description: Allows the owner to inspect live network diagnostics.
+    default: op

@@ -1,0 +1,13 @@
+blight:
+  # Master switch. Off leaves water harmless.
+  enabled: true
+  # Poison level. 1 is Poison I, 2 is Poison II.
+  poison-level: 1
+  # How long the poison lingers after the last contact, in ticks. 100 is five seconds.
+  poison-ticks: 100
+  # How often contact is tested. Ten ticks is twice a second.
+  check-ticks: 10
+  # A boat keeps its passengers out of the water. Turn off to poison them anyway.
+  boats-are-safe: true
+  # Poison mobs that touch water too. Off by default: it drowns passive animals slowly.
+  also-poison-mobs: false

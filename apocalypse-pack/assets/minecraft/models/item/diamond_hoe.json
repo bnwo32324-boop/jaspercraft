@@ -1,0 +1,504 @@
+{
+  "parent": "item/handheld",
+  "textures": {
+    "layer0": "items/diamond_hoe"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7815502882767457
+      },
+      "model": "item/apocalypse_deadfrequency"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7821909032671365
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7879564381806534
+      },
+      "model": "item/apocalypse_ironpsalm"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7885970531710442
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7943625880845612
+      },
+      "model": "item/apocalypse_pallbearer"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.795003203074952
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8007687379884689
+      },
+      "model": "item/apocalypse_hexbreaker"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8014093529788597
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8071748878923767
+      },
+      "model": "item/apocalypse_stormcoil"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8078155028827675
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8135810377962844
+      },
+      "model": "item/apocalypse_witchlight"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8142216527866752
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8199871877001922
+      },
+      "model": "item/apocalypse_cenotaph"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.820627802690583
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8263933376040999
+      },
+      "model": "item/apocalypse_nullpoint"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8270339525944908
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8327994875080077
+      },
+      "model": "item/apocalypse_ashfall"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8334401024983985
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8392056374119155
+      },
+      "model": "item/apocalypse_choir"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8398462524023063
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8456117873158232
+      },
+      "model": "item/apocalypse_lockjaw"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.846252402306214
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.852017937219731
+      },
+      "model": "item/apocalypse_bellringer"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8526585522101218
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8584240871236387
+      },
+      "model": "item/apocalypse_whiteout"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8590647021140295
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8648302370275465
+      },
+      "model": "item/apocalypse_watchtower"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8654708520179372
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8712363869314542
+      },
+      "model": "item/apocalypse_gallows"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8718770019218449
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.877642536835362
+      },
+      "model": "item/apocalypse_signal"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8782831518257527
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8840486867392697
+      },
+      "model": "item/apocalypse_quarantine"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8846893017296604
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8904548366431775
+      },
+      "model": "item/apocalypse_blackbox"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8910954516335682
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8968609865470852
+      },
+      "model": "item/apocalypse_tunnelrat"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8975016015374759
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.903267136450993
+      },
+      "model": "item/apocalypse_cinder"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9039077514413837
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9096732863549007
+      },
+      "model": "item/apocalypse_turnstile"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9103139013452914
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9160794362588085
+      },
+      "model": "item/apocalypse_ossuary"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9167200512491992
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9224855861627163
+      },
+      "model": "item/apocalypse_vesper"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.923126201153107
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.928891736066624
+      },
+      "model": "item/apocalypse_sepulcher"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9295323510570147
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9352978859705318
+      },
+      "model": "item/apocalypse_frostbite"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9359385009609225
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9417040358744395
+      },
+      "model": "item/apocalypse_cyclops"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9423446508648302
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9481101857783472
+      },
+      "model": "item/apocalypse_adjudicator"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.948750800768738
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9545163356822549
+      },
+      "model": "item/apocalypse_sunlance"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9551569506726457
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9609224855861627
+      },
+      "model": "item/apocalypse_longwatch"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9615631005765535
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9673286354900704
+      },
+      "model": "item/apocalypse_bastion"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9679692504804612
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9737347853939782
+      },
+      "model": "item/apocalypse_tempest"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.974375400384369
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9801409352978859
+      },
+      "model": "item/apocalypse_whisper"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9807815502882767
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9865470852017937
+      },
+      "model": "item/apocalypse_gravebreaker"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9871877001921845
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9929532351057014
+      },
+      "model": "item/apocalypse_requiem"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9935938500960922
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9993593850096092
+      },
+      "model": "item/apocalypse_last_light"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 1
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    },
+    {
+      "predicate": {
+        "damaged": 1
+      },
+      "model": "item/apocalypse_vanilla_diamond_hoe"
+    }
+  ]
+}

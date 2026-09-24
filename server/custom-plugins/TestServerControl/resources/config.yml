@@ -1,0 +1,32 @@
+# Zero disables empty-server shutdown. The gateway keeps Paper running and restarts it after failures.
+idle-shutdown-seconds: 0
+# Loopback only. Production gateway is 3200; an isolated test fixture may use another port.
+jaspr-bridge-port: 3200
+# Operator powers are granted here, by name, and nowhere else. The website can mark
+# more than one account as an owner, so the game does not take its word for it: only a
+# name on this allow-list is ever opped, and only while signed in and authenticated.
+minecraft-op-allowlist:
+  - jasper_e_
+minecraft-op-denylist: []
+connection-keeper:
+  # Retired: clearing Paper's pending-ping flag rejects the client's valid reply
+  # as "invalid keepalive". Keep native protocol validation and bounded timeouts.
+  # Do not re-enable this helper; the network diagnostics below are read-only.
+  enabled: false
+  # Never keepalive-kick a client during its first N seconds (initial chunk load
+  # is the worst freeze). 0 disables the join grace.
+  join-grace-seconds: 300
+  # Also protect, for the whole session, any client whose ping stays at/above this.
+  relax-ping-ms: 1500
+  # Names always protected, regardless of ping or grace.
+  always-relax: []
+  # Verbose per-player connection logging (JASPR_KEEP lines) for these names.
+  debug-players:
+    - anon_0935
+  debug-sample-seconds: 10
+network-diagnostics:
+  enabled: true
+  sample-seconds: 5
+  alert-ping-ms: 150
+  recovery-ping-ms: 100
+  max-log-bytes: 16777216

@@ -1,0 +1,114 @@
+# JasperCraft invasions.
+#
+# Invasion nights are shared - the world gets one every few days - but who gets invaded, and what
+# comes for them, is personal. Each player's difficulty is their own playtime on this server, so
+# on the same night a veteran can be fighting armoured, enchanted raiders at one base while a
+# newer player fights a handful of bare zombies at another, and someone who joined this morning is
+# left alone entirely until they have played enough.
+
+enabled: true
+
+schedule:
+  # World day of the first possible invasion, then one every N days after that.
+  first-invasion-day: 3
+  invade-every-days: 6
+
+  # Announce to the whole server when someone's invasion begins.
+  broadcast: true
+
+  # Worlds invasions can happen in. Empty means every world.
+  worlds: []
+
+progression:
+  # How long a player must have played before invasions notice them at all.
+  # One "day played" is twenty real minutes, so 3.0 is an hour of actual play.
+  min-days-played: 3.0
+
+  # Days played at which a player faces the worst the system has. Everything between the two
+  # numbers above is a smooth ramp through the tiers.
+  full-difficulty-days-played: 25.0
+
+  # Whether time spent in creative counts toward progression. Normally it should not.
+  count-creative-time: false
+
+spawning:
+  # Invaders appear in a ring this far from the player, and the ring follows them.
+  range-min: 18
+  range-max: 40
+
+  # How hard to look for a valid spot before giving up on this attempt.
+  attempts-per-spawn: 14
+
+  # Invaders prefer the dark. After enough failures at a well-lit base they stop being fussy.
+  max-light: 7
+  failed-tries-before-lit-spawns: 8
+
+  # The safety valve for a shared server. A night's worth of invaders arrives in waves, but never
+  # more than this many at once - per player, and across the whole server.
+  max-concurrent-per-player: 14
+  max-concurrent-global: 50
+
+  # Scales every tier's total invader count. 0.5 halves an invasion, 2.0 doubles it.
+  count-multiplier: 1.0
+
+  ticks-between-waves: 600
+
+behaviour:
+  # How often invader behaviour runs, in ticks. Lower is sharper and more expensive.
+  ai-tick-rate: 10
+
+  # Invaders know where their target is within this range, walls or no walls.
+  omniscience-range: 72
+  follow-range: 72
+
+  # An invader that strays this far from its target gives up and despawns.
+  leash-range: 96
+
+  # Miners dig through walls. Soldiers pillar up to reach someone above them.
+  miners: true
+  soldiers: true
+  miner-cooldown-ticks: 25
+  soldier-cooldown-ticks: 30
+  max-pillar-height: 12
+
+  # Damage per second dealt to invaders still standing after sunrise.
+  sunrise-damage-per-second: 4.0
+
+  # You cannot sleep through your own invasion.
+  prevent-sleep: true
+
+  # Chance an invader drops a piece of its gear. Zero keeps invasions a threat, not a farm.
+  gear-drop-chance: 0.0
+
+  # Put a name tag over every invader. Off by default; captains are named regardless.
+  name-invaders: false
+
+base-damage:
+  # Miners and explosions breach walls. Everything they break is recorded and put back later.
+  break-blocks: true
+  repair-delay-seconds: 300
+
+  # Safety limits on the repair queue.
+  max-recorded-blocks: 20000
+  repair-batch-size: 60
+
+  # Never broken by an invasion, whatever happens. Chests, furnaces, spawners and anything else
+  # holding items are protected automatically and do not need listing here.
+  unbreakable:
+    - BEDROCK
+    - BARRIER
+    - OBSIDIAN
+    - ENDER_PORTAL
+    - ENDER_PORTAL_FRAME
+    - PORTAL
+    - END_GATEWAY
+    - COMMAND
+    - COMMAND_CHAIN
+    - COMMAND_REPEATING
+    - STRUCTURE_BLOCK
+    - MOB_SPAWNER
+    - BEACON
+    - WATER
+    - STATIONARY_WATER
+    - LAVA
+    - STATIONARY_LAVA

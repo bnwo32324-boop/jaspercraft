@@ -1,0 +1,96 @@
+# JasperCraft natural disasters.
+#
+# Exactly one disaster runs at a time, server-wide, and it always happens to exactly one player.
+# That is the cost model: no matter how many people are online, the server is only ever paying
+# for one bounded event near one player.
+
+# Master switch. False stops every scheduled disaster; /shower and /lightning still work.
+enabled: true
+
+# Quiet gap after any disaster ends, so one never rolls straight into the next.
+cooldown-seconds: 120
+
+meteor-shower:
+  enabled: true
+
+  # A shower fires somewhere in this window, measured in Minecraft days (1 day = 20 real minutes).
+  min-days: 1
+  max-days: 14
+
+  # Announce the shower to the whole server when it starts.
+  broadcast: true
+
+  # Never pick a creative-mode player for a scheduled shower. /shower still works on yourself.
+  skip-creative: true
+
+  # Limit showers to these worlds. Empty means every world.
+  worlds: []
+
+  # How many rocks fall, how far around the player they can land, and how high they start.
+  # 20 meteors at 30 ticks apart is about half a minute of sky falling, spread over a 28 block
+  # radius around the target. Raising spawn-radius without raising meteors thins the shower out.
+  meteors: 20
+  spawn-radius: 28
+  fall-height: 45
+  ticks-between-meteors: 30
+
+  # A meteor that never reports a landing (despawned, chunk unloaded) detonates after this long.
+  meteor-timeout-ticks: 200
+
+  # Impact. Power 3.0 is roughly a creeper; 4.0 is TNT.
+  explosion-power: 3.0
+  break-blocks: true
+  scatter-radius: 3
+  magma-per-impact: 6
+  fire-per-impact: 8
+
+thunder-storm:
+  enabled: true
+
+  # Same schedule shape as the shower, on its own independent timer.
+  min-days: 1
+  max-days: 14
+
+  broadcast: true
+  skip-creative: true
+  worlds: []
+
+  # How long the sky stays angry.
+  duration-seconds: 75
+
+  # Bolts land inside this radius of the target, and the radius follows them as they run.
+  radius: 40
+  min-radius: 4
+
+  # Cadence. 45 ticks is a bolt every 2.25 seconds, plus up to the jitter on top.
+  ticks-between-bolts: 45
+  bolt-jitter-ticks: 20
+
+  # Every Nth bolt is a hell bolt: a blast that scoops a crater and leaves it burning.
+  # Set to 0 for no hell bolts at all.
+  super-bolt-every: 5
+  super-bolt-power: 4.0
+  super-bolt-effect-radius: 6
+
+  # Hell bolt aftermath.
+  break-blocks: true
+  crater-radius: 3
+  crater-fire: 12
+  crater-magma: 7
+
+  # Netherrack under the crater fire keeps it burning instead of guttering out.
+  netherrack-floor: true
+
+  # Every Nth ordinary bolt is a hunter bolt: it lands where the target stood a second ago, so
+  # standing still during the storm is what gets you hit. Set to 0 to switch hunting off.
+  hunter-bolt-every: 4
+
+  # Chance that an ordinary bolt leaves a fire where it struck.
+  scorch-chance-percent: 35
+
+  # Caught in a hell bolt: seconds of burning and of wither.
+  ignite-seconds: 5
+  wither-seconds: 4
+
+  # The target glows for the duration, so everyone can see who the storm is hunting.
+  mark-target: true

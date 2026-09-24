@@ -1,0 +1,11 @@
+/* Host presentation only. Authentication, voice and link destinations are unchanged. */
+@media (hover:hover) and (pointer:fine){
+  .playing .game-nav{opacity:.1;transition:opacity .16s ease}
+  .playing .game-nav:hover,.playing .game-nav:focus-within{opacity:1}
+}
+@media (pointer:coarse){
+  .playing #game-host{top:calc(56px + env(safe-area-inset-top));height:calc(100dvh - 56px - env(safe-area-inset-top))}
+  .playing .discord-promo{top:max(8px,env(safe-area-inset-top));bottom:auto;right:max(8px,env(safe-area-inset-right));width:42px;gap:0}
+  .playing .discord-promo-label{display:none}
+  .playing .discord-promo-link{width:42px;height:42px}
+}

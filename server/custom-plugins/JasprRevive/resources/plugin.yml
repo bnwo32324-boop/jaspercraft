@@ -1,0 +1,15 @@
+name: JasprRevive
+version: 1.1.0
+main: chat.jaspr.revive.RevivePlugin
+author: Jaspr
+description: A fatal blow puts you on the ground bleeding instead of killing you. Another player can revive you.
+softdepend: [JasprGraves, TestServerControl]
+commands:
+  giveup:
+    description: Stop holding on while bleeding out and die for real.
+    usage: /giveup
+    permission: jaspr.revive.giveup
+permissions:
+  jaspr.revive.giveup:
+    description: Give up while bleeding out. Every player has this.
+    default: true

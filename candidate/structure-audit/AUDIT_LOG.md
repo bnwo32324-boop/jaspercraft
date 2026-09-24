@@ -1,0 +1,200 @@
+# JasperCraft structure audit & repair — log
+
+Started 2026-09-22. Conventions: `CONVENTIONS.md`. Owner criteria: `OWNER_CRITERIA.md`. Machine checklist:
+`audit-state.json` (to be written from `inspections/*.json`). SA = this folder.
+
+## CHECKPOINT 2026-09-22 ~18:15 CDT (paused for the owner's usage-limit reset)
+
+Nothing is half-written. State on disk:
+
+| item | state | where |
+|---|---|---|
+| Source drift | FIXED: canonical tree restored to 3.23.0, proven equivalent to the live jar | `recovery-report.md`, `recovery/verify.sh` (RESULT: CLEAN), backup of old tree in `backup-pc319/` |
+| Capture hook | added (null in production; 8 lines in 5 files) | `harness/hook-patch/hook.diff` |
+| Harness | working; matches live world cell-for-cell | `harness/`, `tools/capture.py`, `testserver-template/`, `jars/base323.jar` |
+| Sites | 638 sites (reg 124, dun 28, cat 468, sanct 2, fold 16) | `sites.json` |
+| Renderer/analyzer | working, real textures | `tools/` (README.md) |
+| Inventory | 381 records, 334 in scope (47 biome-detail motifs out: density 0) | `inventory.json`, `inventory.md` |
+| Valuables scan | 155 placement records; 13,757 valuable blocks in 51 structures | `valuables.json`, `valuables.md` |
+| Grounds baseline | all 317 exported + rendered + analysed | `dumps|renders|analysis/grounds-w3/` |
+| base323 capture | slot 0 (reg/dun/sanct/fold + 58 cat) and slot 1 (176 cat) were still running locally at checkpoint; they need no API usage and finish on their own | `runs/base323-0-1/`, `runs/base323-1-1/`, `dumps/base323/` |
+| base323 renders | reg/dun/sanct/fold (170 dumps) DONE, 0 errors | `renders/base323/`, `analysis/base323/` |
+| Inspection | NOT STARTED (a launch failed instantly on a bad args placeholder — 0 agents ran, nothing lost) | groups ready in `inspection-groups.json` (174 groups, 334 ids) |
+
+## EXACT NEXT STEPS (resume here)
+
+1. Confirm both capture runs finished: `runs/base323-0-1/results.jsonl` should have 286 lines and
+   `runs/base323-1-1/results.jsonl` 352 lines (both with an "end" line), and `dumps/base323/` should hold
+   1276 .jsd files. If a run died, re-run only the missing ids with `tools/capture.py --set base323 --ids ...`.
+2. Render the catalogue captures:
+   `cd tools && python batch.py base323 --only cat__ --skip-iso --workers 12`.
+3. Launch inspection workflow A (non-catalogue, 84 groups) by re-invoking the saved script
+   (`structure-inspection-wf_7534e9f8-d9d.js`) with args `{"set":"base323","groups":[...]}` where groups is
+   the ACTUAL ARRAY of the non-`cat` entries of `inspection-groups.json` (the script cannot read files; the
+   earlier launch passed a string placeholder and failed). Then workflow B with the 90 `cat` groups.
+   Inspectors write `inspections/<stem>.json` as they finish, so a limit hit mid-run loses at most the
+   in-flight groups; re-run only groups whose files are missing.
+4. Aggregate inspections → `audit-state.json` + shared-defect clusters → shared fixes first
+   (valuables palette; block physics: unpowered lit lamps / unsupported torches / falling sand; dungeon rooms
+   overwriting set pieces and catalogue sites; Rapture register drift; catalogue staircase handrails and
+   terrace strips), then per-source-file repairs in private tree copies with capture verification, then a
+   full recapture + independent verification inspection, then deploy + Testing Grounds rebuild (w4).
+
+## Plan (phases)
+
+0. Infrastructure — DONE.
+1. Baseline capture/render — in progress (see checkpoint).
+2. Inspection — every structure looked at in its renders; classified; defects + root cause recorded.
+3. Shared fixes first, then per-structure repairs grouped by source file.
+4. Verification — recapture from modified source, re-render, re-inspect every repaired structure (both sites).
+5. Deploy — plugin jar via `plugins\update\` + restart; rebuild the Testing Grounds world (w4).
+
+## Findings so far (not yet fixed)
+
+- Source drift confirmed and fixed (see recovery-report.md). The live jar was built with JDK 21.
+- Live 3.23.0 quirks reproduced exactly and flagged (recovery-report.md): TerrainLighting dangling else;
+  Dungeons.restock passes chunk coords to caves.region(); only Megaliths pieces + catalogue can be disabled;
+  Where.java uses sites() not identify(); /wasteland status lacks spawnersDriven.
+- Harness findings: Rapture register drift (builder cell 121 / 45x45 vs table 136 / 55x55 → /where cannot
+  recognise real Raptures); dungeon rooms overwrite register set pieces (e.g. The Hive@b loses 2535 cells to
+  Dungeons.sanatorium; overlaps at 15 register sites, 1 dungeon site, 32 catalogue sites); blocks lost after
+  building (torches pop off, lit lamps turn off, sand falls, fire burns out, grass path → dirt); 16 register
+  entries build ±1..5 blocks off their table footprint; The Spire dun:5@a missing in the live world (older ground).
+- Valuables: iron block 7,259; gold block 4,410; redstone block 1,275; coal block 802; lapis 25; beacon 1;
+  iron ore 26 (catalogue excavation rooms). Bombfall's redstone blocks sit under TNT (functional).
+  Catalogue grammar already swaps iron/gold/diamond for plain blocks.
+- Grounds-only analysis flags (to confirm in natural captures): #9 Neon Arcology has no entrance and ladders
+  attached to nothing; #10 The Room upper flat floats in the grounds (natural capture shows it is a surface flat
+  with a buried twin — context matters); floating fence handrails (e.g. 416 in #271 Canal Grid Metropolis);
+  stacked lower iron-door halves in dun:8 / dun:12; AM's entrance ladder ends 16 blocks above the floor.
+- 18:09 slot 0 capture finished (runs/base323-0-1); slot 1 still running.
+- 18:12 RESUMED. Inspection workflow A (84 non-catalogue groups) running: run id wf_4adf24b6-0e0,
+  script structure-inspection-wf_7534e9f8-d9d.js, args groups = runs/groupsA.json (line 2). Finished
+  inspectors leave inspections/<stem>.json. If interrupted: resume with resumeFromRunId (cached agents replay)
+  or re-run only groups whose inspection files are missing. Catalogue (workflow B, 90 groups) waits for
+  slot 1 capture + `batch.py base323 --only cat__ --skip-iso`.
+- 18:11 CHECKPOINT (usage 99%): inspections written so far: 0 files in inspections/ (workflow A
+  wf_4adf24b6-0e0 may be cut off by the usage limit). Slot 1 capture: 226 result lines, finished=0.
+  RESUME: (1) if slot 1 not finished, re-run missing cat ids into set base323; (2) render cat (batch.py base323
+  --only cat__ --skip-iso); (3) resume workflow A with resumeFromRunId wf_4adf24b6-0e0 (same script + same args
+  from runs/groupsA.json line 2) or re-run only groups lacking inspections/<stem>.json; (4) workflow B (cat groups).
+- 18:55 RESUMED after the usage reset. The first workflow A (wf_4adf24b6-0e0) died on the limit with 0
+  inspections written (all 84 agents errored; nothing to recover). Slot 1 capture finished: 638/638 sites OK,
+  1276 dumps. Catalogue render running (runs/render-base323-cat.out). Workflow A RELAUNCHED with concurrency 8:
+  run id wf_eb146b9d-9a5 (same script, now with a bounded worker pool; args = runs/groupsA.json line 2 plus
+  "concurrency":8). If it is cut off, re-run only the groups whose inspections/<stem>.json files are missing.
+- 19:10 Owner said "go": shared fixes started in private trees (SA/work/{blocks,placement,grammar}/tree,
+  merged into SA/work/shared/tree) — workflow wf_78c6c651-fc9. Canonical tree untouched until inspections end.
+  Inspection B (90 catalogue groups, concurrency 4) running: wf_cda97e77-ba1. Inspection A: wf_eb146b9d-9a5.
+  Owner themes file copied to SA/STRUCTURE_INSPIRATIONS.txt and referenced from OWNER_CRITERIA.md.
+- 23:55 RESUMED after the second usage limit. Survivors: 16 full inspections (reg:0-15, all "defective",
+  high confidence) in inspections/. Shared-fix engineers died mid-task; partial private trees kept
+  (work/blocks 12 files differ, work/placement 3, work/grammar 1) — relaunched to CONTINUE from them:
+  wf_03208e7e-692. Remaining 318 structures: LEAN inspection (contact sheets a+b, sec_x, analyzer text,
+  focus renders for suspects only; catalogue one family per inspector): wf_875b7851-2c4, args runs/groupsR2.json.
+  Reason: full-depth inspection cost ~200-400k tokens per structure (usage limits hit twice).
+- 2026-09-23 (after 3rd limit) RESUMED. Done so far: 65 inspections (reg:0-61, dun:0-2). Shared fixes:
+  "blocks" DONE+verified (valuables 27,586 -> 0 on 236 captured sites; post-placement block losses 1,045 -> 5),
+  "placement" DONE+verified (no overlaps with set pieces; Rapture recognised; side effect: ~24.5% of catalogue
+  sites yield to set pieces in fresh ground — owner decision pending: keep, or raise catalogue density
+  0.15 -> ~0.20 to compensate, which only ADDS cells). Grammar + merge resumed: wf_03208e7e-692 (resume).
+  Remaining 269 inspections (47 groups): wf_5155ef9b-128, args runs/groupsR3.json.
+- Owner chose COMPENSATE: after the merge, set StructurePlanner.RELATIVE_STRUCTURE_DENSITY 0.15 -> 0.20 in work/shared/tree (only adds cells; identify() unaffected).
+- 2026-09-23 ~10:00 RESUMED (4th limit). Inspections 141/334 done (reg all, dun all, sanct, fold all,
+  ruins all, cat: archive/auditorium/backroom/barracks/bathhouse/battle_tower/bunker). Grammar fix DONE.
+  Merge (+ density 0.20) resumed: wf_03208e7e-692. Remaining 193 catalogue inspections (29 families):
+  wf_f3b08b88-c3b, args runs/groupsR4.json. Next after both: aggregate -> audit-state.json, per-file repairs.
+- 2026-09-23 10:25 Session restarted (live server restarted 10:09 by its gateway; no damage). Merge tree
+  work/shared/tree complete (13 files, density 0.20) -> jars/shared.jar (md5 eb57109147483f7949320c7e43c185a8).
+  sites-shared.json rediscovered (638, all found). Full capture set shared2 running on slots 5/6, auto-render queued.
+  audit-state.json written (143 visual inspections: 115 defective, 2 severely incomplete, 25 passable, 1 good).
+  DECISION (owner asked to save tokens): remaining 191 catalogue designs get ONE visual inspection on shared2
+  (after shared grammar fixes) instead of a separate baseline pass; their baseline class = analyzer autoVerdict.
+  Repairs workflow wf_163763d5-62d: stage 1 r-helpers (shared register/dungeon helpers) + r-extras (Fold,
+  sanctuary, ruins); stage 2 per-file engineers r-landmarks/megaliths/anomalies/relics/metropolis/wonders/
+  temples/breach/dungeons (private trees from work/r-helpers/tree; outputs repairs/<stem>.json).
+- 11:00 Owner: more parallelism, Sonnet for inspections, inspect less. Repairs relaunched wider:
+  wf_e20b8fe2-3d2 (r-helpers + r-extras + 7 independent file engineers at once; r-megaliths/r-dungeons start
+  when r-helpers finishes). shared2 capture 638/638 OK; ANALYSIS ONLY for shared2 (full render cancelled).
+  Catalogue triage (runs/cat-triage.json): of the 191 not-yet-inspected designs, after shared fixes the analyzer
+  passes 173 (29 good, 144 passable = automated only, NOT visually inspected) and flags 18 -> Sonnet lean
+  inspection on contact sheets: wf_2d2886ef-895.
+- 11:05 18 flagged catalogue designs inspected (Sonnet, shared2): 13 defective, 5 passable. Catalogue repair engineer launched: wf_66c8ef0e-dc3 (r-catalogue, slot 8, grammar-level).
+- 09-23 14:51 RESUMED after 5th limit. Done+verified: r-extras (Fold 16 + sanctuary + 6 ruins -> good; ruins diff separate: work/r-extras/apocalypse-changes.diff), r-breach (5 -> good). Resumed repairs wf_e20b8fe2-3d2 (helpers, 6 file engineers, then megaliths/dungeons) and catalogue wf_66c8ef0e-dc3; all continue from their private trees.
+- 2026-09-23 ~16:00 Repair engineers ALL DONE (wf_e20b8fe2-3d2): 100 structures repaired + verified by their
+  engineers (repairs/*.json): before 78 defective / 2 severely incomplete / 19 passable / 1 good ->
+  after 88 good / 12 passable. Engineers' files are disjoint; merged into work/merge1 (= shared tree + all
+  engineer files; catalogue engineer wf_66c8ef0e-dc3 still running) -> jars/merge1.jar (md5 ac5fb6a2...).
+  Integration capture set merge1 (reg/dun/sanct/fold) running to catch regressions from combining the
+  helper ground-clearing with engineers who worked without it (known risk: reg:6, 7b, 11, 14, 18).
+- 2026-09-23 20:15 FINALIZING (no handoff; HANDOFF.md superseded). merge1 integration check: no real
+  regressions (only Temples' wall-set dart-trap dispensers now counted "unreachable" because excavate
+  cleared a tree outside the wall — analyzer artefact, by design). Sonnet contact-sheet verification of the
+  46 set pieces repaired before the helper fix: wf_8eca4854-106. Catalogue engineer resumed: wf_66c8ef0e-dc3.
+  Ruins: repaired Ruins.java copied into server/custom-plugins/JasprApocalypse (original unchanged since
+  09-06; backup SA/backup-Ruins.java.orig); plugin NOT rebuilt/deployed (ruins disabled live; another agent
+  edits JasprApocalypse gun recipes). DO NOT touch JasprImportedWorldgen or JasperCraft-Threefold-Structures-
+  20260923 (another agent's work); tell owner when the live deploy is done.
+- 09-23 20:19 Sonnet check of merged set pieces: 45/51 ok; 6 small floating pieces (reg:26b,32b,45a,51b,53ab,61a) -> fix-up engineer in work/merge1 (wf_0126d6f2-e6e), recapture set merge2.
+- RULE: when 5-hour or weekly usage reaches 98% -> stop and write HANDOFF.md (check get_usage after each background job).
+- 09-23 20:44 merge fix-ups DONE (work/merge1-fixups.md): footing/underpin reach ground, excavate removes orphaned tree pieces; 4 of 6 findings were capture-edge artefacts. jars/merge1.jar md5 b34429c2...; set merge2 = final reg/dun capture. Usage 30%/85%.
+- 09-23 20:46 Grounds pipeline READY (grounds/rebuild.py, verify.py; 5 s each; all checks pass on test). Plan: trim oversize catalogue approach paths to fit 160-block plots (grounds only). Usage 30%/86%.
+- 09-23 20:47 grounds/rebuild.py gained --oversize crop (keeps densest window = building; trims approach-path tail) + verify.py honours sourceCrop. Test out-test: 316/317 painted, PASS. Waiting on catalogue engineer, then final cat merge/capture, deploy, grounds.
+- 2026-09-23 21:30 DEPLOYED stage 1 LIVE: JasprHorrorBiomes 3.24.0 (jar md5 462c5899a492447beba33fbd881529df;
+  canonical tree = work/merge1 + version bump; previous canonical backed up to SA/backup-canonical-323hook;
+  previous live jar in .runtime/plugin-backup-*-JasprHorrorBiomes/). Restart via game-server-stop.request,
+  Done in 3.7 s, all READY lines present, relativeStructureDensity=20%, no errors. Contains: shared fixes +
+  100 set-piece/dungeon/Fold/sanctuary repairs + merge fix-ups + first catalogue grammar pass.
+  Stage 2 pending: catalogue grammar engineer (wf_66c8ef0e-dc3) -> second deploy; Testing Grounds w4.
+- 2026-09-23 21:37 DEPLOYED stage 2 LIVE: JasprHorrorBiomes 3.24.1 (jar md5 8a556eb77657b5a55c6b2001a5555434) =
+  3.24.0 + catalogue grammar pass (StructureArchitecture.java from work/r-catalogue). Clean restart.
+- 21:40 TESTING GROUNDS w4 / stg-10 INSTALLED in site/ (world, index, classes.js, client.html; backups in
+  SA/backup-site-*). Built from merge2 (reg/dun/Fold/sanct) + r-catalogue (cat) + r-extras-ruins, --oversize crop;
+  verify PASS (317 plots, 316 painted, dun:14 kept; landings 317; spawn column clear). Public URLs serve new bytes.
+  Confirmation capture set "final" (all 638 sites, jar 3.24.1) running -> compare, then final report.
+- 2026-09-23 22:10 AUDIT COMPLETE. Live-build confirmation capture 'final' (638 sites, 3.24.1): 0 regressions vs verified sets. audit-state.json finalized; FINAL_REPORT.md written.
+- 2026-09-23 23:24 DEPLOYED 1.5x STRUCTURE RATES (owner request) with ONE restart: JasprHorrorBiomes 3.25.0 (jar md5
+  f15f70bb7f61ed92cc9cffadcc63e215; backup .runtime/plugin-backup-20260923-232229-JasprHorrorBiomes) + JasprImportedWorldgen
+  1.1.0 (md5 93bbbf7fa6ada24c049405bda7ad4783; backup .runtime/plugin-backup-20260923-232229-JasprImportedWorldgen; source folder
+  backed up to SA/backup-imported-worldgen-20260923-223902). Work in SA/work/r-rates (tree, imported, probe, cap.py).
+  ADDITIVE: every 3.24.1 site keeps anchor/seed/blocks and recognition. HB: catalogue density 0.20->0.46 as tiers (tier 0 = old
+  rules verbatim; tier 1 yields to everything older); per-structure secondary set-piece lattice (Megaliths.C_CELL2, own salt,
+  yields to built primaries/higher secondaries/older catalogue+rooms/sanctuaries, no chunk shared with a same-kind primary);
+  room lattice C (D_CELL_C/D_SALT_C); vanilla rooms 26->39 attempts; +50% sanctuaries (seeded share of square centres);
+  jaspr-rates-v1.boundary keeps every new site out of the 6,074 pre-3.25 chunks (retrofit lays none); legacy region 229,242
+  "Approach cannot reach surface" no longer throws (scan: 958,441 legacy regions to 500k blocks, 0 throws).
+  Evidence (rates probe = plugin's own pure functions, old vs new jar): sites-shared.json 638/638 identical fingerprints;
+  96k x 96k blocks outside r3072: 989,268 old sites 0 missing/0 changed, 491,422 added all recognised; ratios set pieces 1.491
+  (62 ids 1.43-1.63), rooms 1.498 (1.48-1.54), catalogue 1.472, sanctuaries 1.561. Importer: census fix (plan-view clear of set
+  pieces+excavation, rooms incl. buried shafts, new HB sites) + secondary 41-chunk grid with calibrated design weights: 8,753 ->
+  12,906 plans (1.474x; Codex 1.456, GLM 1.486), plan-view conflicts with HB 3,030 (35%) -> 0. Captures rates-new (15 new sites,
+  all built, 6 contact sheets inspected: complete, no clipping) and rates-imp (10 rooms 3 blocks from importer stamps: 0 HB
+  blocks overwritten). Live: HORROR_BIOMES_READY 3.25.0, RATES_BOUNDARY_READY protectedChunks=6074, IMPORTED_BOUNDARY_READY
+  grids=48+41, STRUCTURES_READY relativeStructureDensity=46%, no exceptions. Note: live autosave stalled 23:16:39-23:21:56
+  (before this deploy; recovered by itself).
+- 2026-09-24 00:16 DEPLOYED Survivor Gear structure loot + big imported designs with ONE restart: JasprHorrorBiomes 3.26.0 (md5
+  ef932c8610984f668ce261f8b6662352) + JasprImportedWorldgen 1.2.0 (md5 e71c78bf4e79f206b367b5c4e8c7be64). Work: SA/work/r-gear (hb, imported,
+  probe, gearprobe, verify). Backups: .runtime/plugin-backup-20260924-001507-{JasprHorrorBiomes,JasprImportedWorldgen}, importer source
+  SA/backup-imported-worldgen-20260924-001507, canonical HB 3.25.0 tree SA/backup-canonical-325-20260924-001507. Canonical trees updated
+  (custom-plugins/JasprHorrorBiomes; Threefold imported/ + build.sh); rebuilds are class-identical to the tested jars.
+  LOOT: GearLoot (reflection, JasprGear's loader, cached, never throws; GEAR_LOOT_LINKED / GEAR_LOOT_UNAVAILABLE) -> GearApi.rollLoot at most
+  once per chest: catalogue I-V -> 1-5 (last draw of the chest's own r), set-piece graded depth 0-4 -> 1-5 and troves 5 (from a serialized
+  copy of the builder's Random keyed to the chest, so r is never moved), dungeon rooms 0 / rich 1 (the chest's keyed `luck` stream), restocked
+  pre-3.21 chests (set piece depth+1, room 0); importer: ~2+tier of a placed design's chests picked per chest (seed+position stream), tier =
+  design tier 1-5 (IMPORTED_GEAR_PLACED). In-server statistical fills (20k/row, live JasprGear jar): catalogue 4.9/8.0/11.9/17.7/25.0%,
+  set pieces 5.0/7.7/12.1/18.0/24.5%, trove 25.2%, rooms 3.0% (rich 5.2%); highest rank = 2,2,3,4,5 by tier (rank 5 only at tier 5);
+  max 1 trinket per chest; imported 0.14/0.30/0.59/1.06/1.73 trinkets per placed design (tier 1-5). Natural captures gear-a: set pieces 51 of
+  395 chests, rooms 3 of 82, 9 big imported designs 5 trinkets. gear-a vs gear-c: 71 dumps (2,447 chests, gear included) identical across runs;
+  gear-a vs gear-b (no JasprGear): 79 dumps identical block states and chest contents minus gear, builder-stream digest identical, 0 exceptions.
+  BIG DESIGNS: primary grid keeps the 1.1.0 rule (all 6,178 probe plans identical). Secondary grid: designs >= 12,000 blocks^2 (23) are
+  admitted by Occupancy (4x4 cells of their real records) against HB envelopes (set piece footprint+3 from floor-10 up, surface room +6
+  clearing, buried room box + ENTRY shaft column to the sky, catalogue reserved box +16, sanctuaries as before, all +2) and search their whole
+  cell; big-design multipliers recalibrated (probe/calib3 + damped pass); new jaspr-imported-v2.boundary (6,074 chunks at 1.2.0 start) keeps new
+  secondary sites off every existing chunk. Rates (96k box, x of 1.0.0): cbd_101 1.67, B07 1.43, B15 1.86, cbd_034 1.43, B76 1.50, cbd_017 1.71,
+  cbd_019 2.27, cbd_081 2.00, cbd_033 1.20 (all were 0 in 1.1.0); B61 still 0 (no collision-free site: 0 of 5,430 terrain-fit positions in 40
+  fully scanned cells); small designs median 1.52x (1.1.0: 1.49x). Overwrites: 9 big designs stamped on a test server at the predicted boxes;
+  21 HB sites meeting them (18 rooms incl. buried rooms under them, 3 set pieces): hookMismatch only the per-room-type torch/bed baseline that
+  the 'final' captures show without any importer -> 0 HB blocks overwritten. Live: HORROR_BIOMES_READY version=3.26.0, IMPORTED_ASSETS_READY
+  version=1.2.0, IMPORTED_BOUNDARY_READY protectedChunks=5865 protectedChunksV2=6074, GEAR_READY, STRUCTURES_READY; Done in 3.2 s; no new errors.
+- 2026-09-24 owner: drop the 98% handoff rule; work until the usage limit.
+- 09-24 09:43 PAUSED by owner. Gear Phase 2 and B61/recalibration jobs stopped before any edits (canonical sources unchanged since the 3.26.0/1.2.0 deploy; plugins/update empty). Live: HorrorBiomes 3.26.0, importer 1.2.0, JasprGear phase 1.

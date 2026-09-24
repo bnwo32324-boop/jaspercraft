@@ -1,0 +1,14 @@
+name: JasprDaylight
+version: 1.0.0
+main: chat.jaspr.daylight.DaylightPlugin
+author: Jaspr
+description: While the sun is up, every mob walks at half speed. Above ground and below.
+commands:
+  daylight:
+    description: Show whether daylight torpor is in force and what it is doing.
+    usage: /daylight
+    permission: jaspr.daylight.status
+permissions:
+  jaspr.daylight.status:
+    description: Read the daylight torpor status.
+    default: op

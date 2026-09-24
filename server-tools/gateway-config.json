@@ -1,0 +1,12 @@
+{
+  "listenHost": "127.0.0.1",
+  "listenPort": 3310,
+  "backendHost": "127.0.0.1",
+  "backendPort": 25565,
+  "startupTimeoutSeconds": 120,
+  "javaPath": "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.20.8-hotspot\\bin\\java.exe",
+  "minimumMemory": "512M",
+  "maximumMemory": "2G",
+  "alwaysOn": true,
+  "idleShutdownSeconds": 0
+}

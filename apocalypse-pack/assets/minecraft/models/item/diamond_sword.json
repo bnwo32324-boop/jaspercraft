@@ -1,0 +1,350 @@
+{
+  "parent": "item/handheld",
+  "textures": {
+    "layer0": "items/diamond_sword"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8327994875080077
+      },
+      "model": "item/apocalypse_wire_whip"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8334401024983985
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8392056374119155
+      },
+      "model": "item/apocalypse_execution_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8398462524023063
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8456117873158232
+      },
+      "model": "item/apocalypse_altar_mallet"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.846252402306214
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.852017937219731
+      },
+      "model": "item/apocalypse_mourning_glaive"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8526585522101218
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8584240871236387
+      },
+      "model": "item/apocalypse_ember_falchion"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8590647021140295
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8648302370275465
+      },
+      "model": "item/apocalypse_ossuary_flail"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8654708520179372
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8712363869314542
+      },
+      "model": "item/apocalypse_hollow_halberd"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8718770019218449
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.877642536835362
+      },
+      "model": "item/apocalypse_vesper_dagger"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8782831518257527
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8840486867392697
+      },
+      "model": "item/apocalypse_rebar_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8846893017296604
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8904548366431775
+      },
+      "model": "item/apocalypse_tollhammer"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8910954516335682
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8968609865470852
+      },
+      "model": "item/apocalypse_suture_sickle"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8975016015374759
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.903267136450993
+      },
+      "model": "item/apocalypse_cautery_sabre"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9039077514413837
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9096732863549007
+      },
+      "model": "item/apocalypse_pilgrim_lance"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9103139013452914
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9160794362588085
+      },
+      "model": "item/apocalypse_wardcleaver"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9167200512491992
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9224855861627163
+      },
+      "model": "item/apocalypse_railpick"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.923126201153107
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.928891736066624
+      },
+      "model": "item/apocalypse_gravespike"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9295323510570147
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9352978859705318
+      },
+      "model": "item/apocalypse_sentinel_spear"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9359385009609225
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9417040358744395
+      },
+      "model": "item/apocalypse_thermal_machete"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9423446508648302
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9481101857783472
+      },
+      "model": "item/apocalypse_reaper_scythe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.948750800768738
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9545163356822549
+      },
+      "model": "item/apocalypse_gravity_maul"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9551569506726457
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9609224855861627
+      },
+      "model": "item/apocalypse_shock_baton"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9615631005765535
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9673286354900704
+      },
+      "model": "item/apocalypse_mono_katana"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9679692504804612
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9737347853939782
+      },
+      "model": "item/apocalypse_breacher_axe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.974375400384369
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9801409352978859
+      },
+      "model": "item/apocalypse_trench_blade"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.9807815502882767
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 1
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    }
+  ]
+}

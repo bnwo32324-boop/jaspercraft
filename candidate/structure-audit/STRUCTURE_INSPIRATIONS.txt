@@ -1,0 +1,157 @@
+===============================================================================
+ JASPERCRAFT STRUCTURES -- GAMES, TYPES AND INSPIRATIONS (CONDENSED)
+===============================================================================
+
+A NOTE ON SOURCING, UP FRONT:
+This is not a transcript of your original messages. The chat turns where the
+biomes and structures were actually specified predate what this session has
+kept in memory (they were summarized away before this session began), and
+the 234-design catalogue set was built in a separate ChatGPT Codex session
+this assistant never had access to. What follows is reconstructed from what
+does survive: JasperCraft's own release notes and the structure names/code
+themselves, which spell most of the intent out directly (many structures are
+literally internally named after their inspiration, e.g. RAPTURE, DOOM1).
+No invented quotes are included.
+
+
+===============================================================================
+ PART 1 -- VIDEO GAMES / FILM FRANCHISES BEHIND THE WORLD
+===============================================================================
+
+SILENT HILL  (12 of the 62 regions)
+  Draws on the numbered games and remake, Origins, Homecoming, Shattered
+  Memories, Downpour, Book of Memories, "f", The Short Message, Townfall,
+  and the handheld/arcade entries. One register structure ("The Room") also
+  nods to Silent Hill 4's duplicated apartment specifically.
+
+S.T.A.L.K.E.R.  (8 regions)
+  The original trilogy, Legends of the Zone, and Heart of Chornobyl / the
+  S.T.A.L.K.E.R. 2 setting -- exclusion-zone, radiation-town material.
+
+FALLOUT  (13 regions, plus individual landmarks)
+  Fallout 1-4, New Vegas, 76, Tactics, Brotherhood of Steel, Shelter and
+  Shelter Online. Beyond the regions themselves, two hand-built landmarks
+  are direct Fallout nods: "Vault 44" (a numbered Vault) and "Bombfall"
+  (a town built inside its own crater, in the mold of Fallout 3's Megaton).
+
+DARK SOULS  (10 regions)
+  All three mainline games plus their Remastered/Scholar-of-the-First-Sin
+  editions and expansions.
+
+EVIL DEAD  (10 regions)
+  The 1984 game, Hail to the King, A Fistful of Boomstick, Regeneration,
+  Army of Darkness: Defense, the mobile/VR entries, the 2022 game, and
+  RetroRealms.
+
+DANTE'S INFERNO  (9 regions -- all nine circles of Hell, one each)
+  The 2010 action game, used circle-by-circle: Limbo, Lust, Gluttony,
+  Greed, Wrath, Heresy, Violence, Fraud, Treachery.
+
+DOOM  (3 individual landmarks, not a whole region)
+  "Phobos Anomaly", "The Gate" and "Delta Labs" are literal DOOM/DOOM
+  II/DOOM 3 level and location names, carried over as hand-built set pieces.
+
+BIOSHOCK  (2 individual landmarks)
+  "Rapture" (an undersea city losing to the water) and "Columbia" (a city
+  meant to stay above the world, "that never got off the ground").
+
+THE MATRIX  (1 landmark; film, not a game)
+  "The Field" -- rows of pods rising past where the light reaches.
+
+ALIEN  (1 landmark; film, not a game)
+  "The Visitor" -- something landed that nobody built.
+
+RESIDENT EVIL  (2 landmarks, by shared naming)
+  "Spencer Manor" and "Raccoon Precinct" carry the same names as Resident
+  Evil's Spencer Mansion and the Raccoon City Police Department.
+
+
+===============================================================================
+ PART 2 -- TYPES OF STRUCTURE THAT WERE BUILT
+===============================================================================
+
+HAND-BUILT SET PIECES (77 total; organized into 8 named groups)
+  Landmarks    -- single recognizable buildings a town would be built around.
+  Megaliths    -- large institutional-scale set pieces (bases, malls, sewers,
+                  an airliner wreck).
+  Wonders      -- the biggest, strangest set pieces (whole cities, a theme
+                  park, a cathedral).
+  Temples      -- sacred/ceremonial spaces, one per mood or element.
+  Relics       -- standalone landmarks built around one strong idea each.
+  Metropolis   -- downtown-scale city fragments (towers, a hotel, an
+                  interchange).
+  Anomalies    -- places that should not make sense; sealed self-contained
+                  wrongness.
+  Breach       -- small, intensely unsettling anomaly rooms.
+
+DUNGEON ROOM TYPES (15, seeded twice as densely as everything else)
+  A cell block, a round bone-vault ossuary, a flooded cistern, a sealed
+  vault/strongroom, a dug-out warren, a standalone spire, a small chapel,
+  a road checkpoint, a fogbound hospital ward, a ritual "trial ground", a
+  woodland cabin with a hidden cellar, a shrine built around an undying
+  fire, a fenced quarantine block, a dead stretch of highway, and the
+  vanilla mossy-cobble spawner room (run at triple the normal frequency).
+
+THE EXPEDITION CATALOGUE (234 designs, sorted into 36 "families" -- i.e.
+kinds of building, each appearing at multiple tiers of danger and, mostly,
+tied to specific horror-inspired regions):
+  metro, city, metropolis, underwater_city, harbor       -- transit & urban
+  house, mansion, castle, barracks, market, refuge        -- civic & domestic
+  school, monastery, archive, observatory, research,
+    conservatory, hospital, infirmary, bathhouse          -- institutions
+  cistern, sewer, excavation, foundry, telecom, signal,
+    bunker, battle_tower, prison                          -- infrastructure
+    & military
+  dungeon, catacomb, mortuary, reliquary                  -- death & the
+                                                              sacred
+  plane, backroom                                         -- wreckage and
+                                                              (for "backroom")
+                                                              the liminal /
+                                                              Backrooms style
+  auditorium                                              -- performance
+
+LEGACY RUINS (6; disabled, never generate live -- kept only for reference)
+  Small, unthemed roadside shells: a ruined town lot, a motel, a watchpost,
+  a shrine, a bunker, a salvage yard. These predate the biome/catalogue
+  system and are not tied to any of the inspirations above.
+
+THE FOLD  (jaspr_backrooms)
+  A separate persistent liminal world, reached through rare thresholds
+  inside structures -- JasperCraft's own take on the internet "Backrooms"
+  aesthetic: looping, non-spatial rooms rather than a physical place.
+
+
+===============================================================================
+ PART 3 -- OTHER (NON-VIDEO-GAME) INSPIRATIONS ON RECORD
+===============================================================================
+
+SCP FOUNDATION
+  "Site-19" -- six cells behind glass, numbered the same way the SCP
+  Foundation's own real Site-19 is.
+
+"I HAVE NO MOUTH, AND I MUST SCREAM" (Harlan Ellison)
+  The landmark "AM" -- its in-world description ("hate, and a face with no
+  mouth on it") is a direct reference to the story's tormenting AI, AM.
+
+THE SHINING
+  "The Grand Meridian" -- "two hundred rooms and every door shut" reads as
+  an Overlook Hotel beat.
+
+HOUSE OF LEAVES (Mark Z. Danielewski)
+  "The Walking House" -- "a house that was never one house," in the same
+  vein as that novel's house that is larger on the inside than outside.
+
+REAL-WORLD DISASTER SITES
+  "Ostrovets Station" -- a cold nuclear-plant town, named after a real
+  nuclear plant town in Belarus, in the Chernobyl mold already set by the
+  S.T.A.L.K.E.R.-inspired regions.
+
+CONSUMER-BRAND PARODIES (small, humor-driven landmarks, not full regions)
+  "The Flatpack" (a flat-pack furniture warehouse), "The Golden Arches"
+  (a derelict fast-food restaurant), "The Bell" (a derelict taco chain
+  outlet) -- ordinary, recognizable chain buildings turned to ruin.
+
+
+===============================================================================
+ END
+===============================================================================

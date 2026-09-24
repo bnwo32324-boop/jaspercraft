@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" width="900" height="560" font-family="'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#191c22"/><stop offset="1" stop-color="#101216"/>
+    </linearGradient>
+    <linearGradient id="quartz" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fdfbf6"/><stop offset="1" stop-color="#cfc6b8"/>
+    </linearGradient>
+    <linearGradient id="diamond" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8ff3ea"/><stop offset="1" stop-color="#35bdb2"/>
+    </linearGradient>
+    <radialGradient id="pearl" cx="0.38" cy="0.32" r="0.8">
+      <stop offset="0" stop-color="#b9f7d8"/><stop offset="0.55" stop-color="#3fae86"/><stop offset="1" stop-color="#14483c"/>
+    </radialGradient>
+    <linearGradient id="iron" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2f2f2"/><stop offset="1" stop-color="#a6a6a6"/>
+    </linearGradient>
+    <linearGradient id="gun" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5a6270"/><stop offset="1" stop-color="#2d333d"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+
+    <!-- one nether quartz shard -->
+    <g id="iQuartz">
+      <path d="M0,-19 L13,-6 L9,17 L-9,17 L-13,-6 Z" fill="url(#quartz)" stroke="#8d8577" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M0,-19 L0,17 M-13,-6 L13,-6" stroke="#b3aa9a" stroke-width="1.3" opacity="0.8"/>
+    </g>
+    <!-- one diamond -->
+    <g id="iDiamond">
+      <path d="M0,-17 L17,-4 L0,18 L-17,-4 Z" fill="url(#diamond)" stroke="#1d7e77" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M-17,-4 L17,-4 M0,-17 L-7,-4 L0,18 L7,-4 Z" fill="none" stroke="#d6fffb" stroke-width="1.3" opacity="0.75"/>
+    </g>
+    <!-- one ender pearl -->
+    <g id="iPearl">
+      <circle cx="0" cy="0" r="17" fill="url(#pearl)" stroke="#0d3a30" stroke-width="1.6"/>
+      <path d="M-8,-4 q8,-9 16,-1 q-6,10 -16,1 Z" fill="#d9ffe9" opacity="0.55"/>
+      <circle cx="-5" cy="-6" r="3.4" fill="#ffffff" opacity="0.65"/>
+    </g>
+    <!-- one iron ingot -->
+    <g id="iIron">
+      <path d="M-18,7 L-12,-8 L12,-8 L18,7 Z" fill="url(#iron)" stroke="#6f6f6f" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M-12,-8 L12,-8 M-14,-2 L14,-2" stroke="#ffffff" stroke-width="1.5" opacity="0.6"/>
+    </g>
+    <!-- the portal gun itself -->
+    <g id="iGun">
+      <path d="M-30,6 L-14,6 L-10,-8 L16,-8 L26,-1 L26,9 L14,16 L-6,16 L-10,24 L-24,24 L-22,12 L-30,12 Z"
+            fill="url(#gun)" stroke="#161a20" stroke-width="2.2" stroke-linejoin="round"/>
+      <circle cx="19" cy="4" r="7.5" fill="#0f1318" stroke="#161a20" stroke-width="1.5"/>
+      <circle cx="19" cy="4" r="4.6" fill="#55ffff"/>
+      <circle cx="19" cy="4" r="9" fill="#55ffff" opacity="0.35" filter="url(#soft)"/>
+      <rect x="-8" y="-4" width="16" height="5" rx="2.5" fill="#ff9600"/>
+      <rect x="-8" y="3" width="11" height="4" rx="2" fill="#55ffff" opacity="0.85"/>
+    </g>
+  </defs>
+
+  <rect width="900" height="560" fill="url(#bg)"/>
+  <text x="48" y="62" fill="#f2f4f8" font-size="30" font-weight="600">Portal Gun</text>
+  <text x="48" y="90" fill="#8b93a1" font-size="16">Crafting table &#183; shaped recipe &#183; makes 1</text>
+  <line x1="48" y1="108" x2="852" y2="108" stroke="#2a2f38" stroke-width="2"/>
+
+  <!-- the 3x3 grid -->
+  <g transform="translate(70,150)">
+    <rect x="-14" y="-14" width="286" height="286" rx="14" fill="#23272f" stroke="#343a45" stroke-width="2"/>
+    <g stroke="#3d4450" stroke-width="2" fill="#171a20">
+      <rect x="4"   y="4"   width="78" height="78" rx="8"/>
+      <rect x="90"  y="4"   width="78" height="78" rx="8"/>
+      <rect x="176" y="4"   width="78" height="78" rx="8"/>
+      <rect x="4"   y="90"  width="78" height="78" rx="8"/>
+      <rect x="90"  y="90"  width="78" height="78" rx="8"/>
+      <rect x="176" y="90"  width="78" height="78" rx="8"/>
+      <rect x="4"   y="176" width="78" height="78" rx="8"/>
+      <rect x="90"  y="176" width="78" height="78" rx="8"/>
+      <rect x="176" y="176" width="78" height="78" rx="8"/>
+    </g>
+    <!-- row 1: empty, quartz, diamond -->
+    <use href="#iQuartz"  x="129" y="43"/>
+    <use href="#iDiamond" x="215" y="43"/>
+    <!-- row 2: quartz, pearl, quartz -->
+    <use href="#iQuartz"  x="43"  y="129"/>
+    <use href="#iPearl"   x="129" y="129"/>
+    <use href="#iQuartz"  x="215" y="129"/>
+    <!-- row 3: iron, quartz, empty -->
+    <use href="#iIron"    x="43"  y="215"/>
+    <use href="#iQuartz"  x="129" y="215"/>
+  </g>
+
+  <!-- arrow -->
+  <g transform="translate(390,283)" fill="#5d6675">
+    <rect x="0" y="-6" width="52" height="12" rx="6"/>
+    <path d="M50,-17 L78,0 L50,17 Z"/>
+  </g>
+
+  <!-- result -->
+  <g transform="translate(500,208)">
+    <rect x="-14" y="-14" width="128" height="128" rx="14" fill="#23272f" stroke="#343a45" stroke-width="2"/>
+    <rect x="4" y="4" width="92" height="92" rx="10" fill="#171a20" stroke="#3d4450" stroke-width="2"/>
+    <use href="#iGun" x="50" y="46"/>
+    <text x="50" y="132" fill="#c9cfda" font-size="16" text-anchor="middle">Portal Gun &#215;1</text>
+  </g>
+
+  <!-- legend -->
+  <g transform="translate(662,150)">
+    <text x="0" y="0" fill="#8b93a1" font-size="14" letter-spacing="1.4">INGREDIENTS</text>
+    <g transform="translate(18,40)"><use href="#iQuartz"/></g>
+    <text x="46" y="46" fill="#e8ebf1" font-size="17">4 &#215; Nether Quartz</text>
+    <g transform="translate(18,98)"><use href="#iDiamond"/></g>
+    <text x="46" y="104" fill="#e8ebf1" font-size="17">1 &#215; Diamond</text>
+    <g transform="translate(18,156)"><use href="#iPearl"/></g>
+    <text x="46" y="162" fill="#e8ebf1" font-size="17">1 &#215; Ender Pearl</text>
+    <g transform="translate(18,214)"><use href="#iIron"/></g>
+    <text x="46" y="220" fill="#e8ebf1" font-size="17">1 &#215; Iron Ingot</text>
+  </g>
+
+  <!-- footer note -->
+  <text x="48" y="506" fill="#7c8492" font-size="15">The layout is exact: quartz makes the frame, the pearl is the emitter, the diamond is the lens, the iron is the grip.</text>
+  <text x="48" y="530" fill="#5c6472" font-size="14">Already registered in JasprApocalypse &#183; vanilla ingredients only &#183; checked against all 432 vanilla recipes for collisions.</text>
+</svg>

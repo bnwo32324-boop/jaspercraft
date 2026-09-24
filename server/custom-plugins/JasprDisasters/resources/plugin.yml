@@ -1,0 +1,18 @@
+name: JasprDisasters
+version: 1.2.0
+main: chat.jaspr.disasters.DisasterPlugin
+author: Jaspr
+description: Natural disasters for JasperCraft. One disaster runs at a time, server-wide.
+commands:
+  shower:
+    description: Call a meteor shower down on yourself.
+    usage: /shower [status|stop|reload]
+    permission: jaspr.disasters.admin
+  lightning:
+    description: Call a thunder-hell storm down on yourself.
+    usage: /lightning [status|stop|reload]
+    permission: jaspr.disasters.admin
+permissions:
+  jaspr.disasters.admin:
+    description: Allows summoning and controlling natural disasters.
+    default: op

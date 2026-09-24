@@ -1,0 +1,23 @@
+name: JasprRPG
+version: 1.0.0
+main: chat.jaspr.rpg.RpgPlugin
+author: Jaspr
+description: Trainable player stats and gear that levels with use. Open to every player.
+commands:
+  stats:
+    description: Open your stat sheet and spend experience levels on upgrades.
+    usage: /stats [top]
+    aliases: [upgrades, perks]
+    permission: jaspr.rpg.stats
+  armament:
+    description: Inspect the weapon or armour in your hand and spend its ability tokens.
+    usage: /armament
+    aliases: [enhance, armaments]
+    permission: jaspr.rpg.armaments
+permissions:
+  jaspr.rpg.stats:
+    description: Open the stat sheet. Every player has this.
+    default: true
+  jaspr.rpg.armaments:
+    description: Open the armament sheet. Every player has this.
+    default: true

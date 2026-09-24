@@ -1,0 +1,40 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),cp=require('node:child_process');
+const root=path.resolve(__dirname,'..');
+test('bounded siege awareness and traversal on real isolated Paper 1.12.2', {skip:process.env.JASPR_SIEGE_PAPER!=='1',timeout:150000},()=>{
+  const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'jaspr-siege-paper-'));
+  const server=path.join(scratch,'server'),classes=path.join(scratch,'classes'),authClasses=path.join(scratch,'auth'),probeClasses=path.join(scratch,'probe');
+  for(const dir of [server,classes,authClasses,probeClasses,path.join(server,'plugins')])fs.mkdirSync(dir,{recursive:true});
+  const javaHome=process.env.JAVA17_HOME||'C:/Program Files/Eclipse Adoptium/jdk-17.0.20.8-hotspot';
+  const api=path.join(root,'server/cache/patched_1.12.2.jar');
+  const exe=name=>path.join(javaHome,'bin',name+(process.platform==='win32'?'.exe':''));
+  function run(name,args,timeout=45000){
+    const result=cp.spawnSync(exe(name),args,{cwd:server,encoding:'utf8',timeout,maxBuffer:8*1024*1024});
+    fs.appendFileSync(path.join(scratch,'output.log'),result.stdout+'\n'+result.stderr);
+    assert.ifError(result.error);assert.equal(result.status,0,(result.stdout+'\n'+result.stderr).slice(-18000));
+    return result.stdout+'\n'+result.stderr;
+  }
+  const compile=['--release','8','-encoding','UTF-8','-proc:none'];
+  const fixture=path.join(root,'tests/siege-awareness-fixture');
+  run('javac',[...compile,'-cp',api,'-d',authClasses,...fs.readdirSync(fixture).filter(n=>n.endsWith('.java')).map(n=>path.join(fixture,n))]);
+  fs.writeFileSync(path.join(authClasses,'plugin.yml'),'name: AuthMe\nversion: fixture\nmain: chat.jaspr.siegefixture.SiegeAuthFixture\n');
+  run('jar',['cf',path.join(server,'plugins/AuthMe.jar'),'-C',authClasses,'.']);
+  const source=path.join(root,'server/custom-plugins/JasprApocalypse/src/chat/jaspr/apocalypse');
+  run('javac',[...compile,'-cp',[api,authClasses].join(path.delimiter),'-d',classes,...fs.readdirSync(source).filter(n=>n.endsWith('.java')).map(n=>path.join(source,n))]);
+  const resources=path.join(root,'server/custom-plugins/JasprApocalypse/resources');
+  for(const name of ['plugin.yml','config.yml'])fs.copyFileSync(path.join(resources,name),path.join(classes,name));
+  run('javac',[...compile,'-cp',[api,authClasses,classes].join(path.delimiter),'-d',classes,path.join(root,'tests/SiegeAwarenessPaperProbe.java')]);
+  run('jar',['cf',path.join(server,'plugins/JasprApocalypse.jar'),'-C',classes,'.']);
+  run('javac',[...compile,'-cp',[api,authClasses,classes].join(path.delimiter),'-d',probeClasses,path.join(root,'tests/SiegeAwarenessBootstrap.java')]);
+  fs.writeFileSync(path.join(probeClasses,'plugin.yml'),'name: SiegeAwarenessPaperProbe\nversion: fixture\nmain: chat.jaspr.siegefixture.SiegeAwarenessBootstrap\ndepend: [JasprApocalypse]\n');
+  run('jar',['cf',path.join(server,'plugins/SiegeAwarenessPaperProbe.jar'),'-C',probeClasses,'.']);
+  fs.writeFileSync(path.join(server,'eula.txt'),'eula=true\n');
+  fs.writeFileSync(path.join(server,'server.properties'),'server-ip=127.0.0.1\nserver-port=0\nonline-mode=false\nlevel-name=world\nlevel-type=FLAT\ngenerator-settings=3;minecraft:bedrock,2*minecraft:dirt,minecraft:grass;1;\nlevel-seed=20260907\nallow-nether=false\ngenerate-structures=false\nspawn-npcs=false\nspawn-animals=false\nspawn-monsters=false\nview-distance=6\nmax-tick-time=-1\n');
+  fs.writeFileSync(path.join(server,'bukkit.yml'),'settings:\n  allow-end: false\n');
+  fs.writeFileSync(path.join(server,'spigot.yml'),'world-settings:\n  default:\n    entity-activation-range:\n      monsters: 32\n    entity-tracking-range:\n      monsters: 48\n');
+  process.stdout.write('Siege fixture: '+scratch+'\n');
+  const output=run('java',['-Djaspr.siege.fixture=true','-DPaper.IgnoreJavaVersion=true','-Xms256M','-Xmx768M','-jar',api,'nogui'],90000);
+  process.stdout.write(output.split(/\r?\n/).filter(line=>line.includes('SIEGE_PAPER_')).join('\n')+'\n');
+  assert.doesNotMatch(output,/SIEGE_PAPER_FAILED/);
+  assert.match(output,/SIEGE_PAPER_OK/);
+});

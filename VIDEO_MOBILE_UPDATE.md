@@ -1,0 +1,23 @@
+# Video presets, mobile controls and connection hotfix — 2026-09-20
+
+The active client now includes the `20260920-video1` video/mobile release. Its reproducible sources, tests, benchmarks, deployment manifest and rollback backup are in:
+
+`C:\Users\AM\Documents\JasperCraft-Performance-20260920`
+
+Start with `RELEASE_REPORT.md` and `RESEARCH.md` there. The follow-up `20260920-menu1` fixes high-FPS menu paint starvation without changing gameplay FPS. See `MENU_PACING_REPORT.md` and `menu-pacing-deployment.json`. The latest release is `20260920-mobile2`, documented in `IPHONE11_REPORT.md` and `iphone11-deployment.json`. Its active client SHA256 is `297db5e76d34dc02f56bd99ffe685722bb56b138a027b4b0b5d27bd680e89dce`.
+
+The mobile follow-up corrects vertical touch aiming through the native turn method, removes redundant touch DOM/key updates and adds editable/persistent Ambient block FX budgets. Hyper uses Low (84 paired cosmetic probes), Performance Medium (222), Balanced/Quality Full (667). This affects client ambience only, not server simulation or spawning. It also adds the bounded, same-origin `jaspercraft-client-performance-diagnostics.js` asset for real-device FPS/stall evidence. The tested five-asset release preserved all unrelated live files and required no server restart. Physical iPhone retesting is still required; WebKit tests on this PC showed improvement but also remaining loading hitches.
+
+The subsequent `20260920-mobile3` policy update automatically chooses Hyper for every detected mobile device, including a one-time migration of existing mobile settings. Users can still deliberately change settings afterward; those changes persist. Mobile Reset Defaults / Auto also select Hyper. See `MOBILE_DEFAULT_REPORT.md` and `mobile-default-deployment.json`. Only the video-core policy asset and its HTML cache version changed; the engine hash above is unchanged.
+
+The `20260920-rotate1` follow-up adds event-driven mobile viewport coordination between the host and iframe, delayed Safari resize handling, touch release during rotation, and bounded lifecycle diagnostics. See `ROTATION_AND_AVATAR_REPORT.md` and `rotation-deployment.json` in the same workspace. Two new prefixed viewport assets and the two HTML references changed; engine/auth/server/voice remain unchanged. Desktop WebKit and Chrome touch tests passed; physical iPhone verification is still needed. The latest mobile disconnect coincided with host iframe removal, not a recorded timeout, but the cause is not established. The separately reported intermittent PC/Brave missing third-person Prisoner model was not reproduced in repeated skin/rejoin tests and remains unresolved; no speculative renderer fix was deployed.
+
+Preserve `JasprVideoFrameLimit` plus the two `C88` scheduling hooks: world-backed menus have an effective 60 FPS ceiling (or a lower user cap), no-world menus 30 FPS, while gameplay pacing and saved settings remain native. The independent `20260920-video2` host stylesheet keeps the desktop cat at 10% opacity until hover/focus.
+
+**Do not rebuild `site/classes.js` from an older shader/turret/waypoint builder without merging the video adapter.** `build.cjs` in that workspace applies exact, reversible hooks to its preserved baseline. Future features need to preserve the existing hooks or rebase/re-audit them intentionally. No other gameplay source or world was modified for the video release.
+
+Released assets: `classes.js`, `jaspr-client.js`, `client.html`, `index.html`, plus `jaspercraft-video-core.js`, `jaspercraft-mobile-controls.js`, `jaspercraft-mobile-controls.css`, and `jaspercraft-mobile-host.css`. All eight were byte/hash/MIME verified through the public Jaspr.chat route after deployment. Native account synchronization and OAuth are unchanged.
+
+The separate server hotfix disabled the unsafe `connection-keeper` in TestServerControl's runtime and resource configs and adapted three missing Netty API calls in EaglerXServer. See that workspace's `network/README.md`. This was tested and applied with an approved Minecraft-only restart; no world regeneration. Do not re-enable the keeper: it clears valid pending keepalives and causes false timeout kicks.
+
+Performance defaults to 4 chunks / 144 FPS cap / native resolution on desktop. Mobile automatically starts on Hyper (3 chunks / 30 FPS / 70% world resolution); choosing Performance manually still uses 60 FPS and native resolution. Balanced/Quality also retain native resolution. A stable 120 FPS minimum during all loading is **not** established; consult the recorded actual frame-time results rather than the cap label. Physical iPhone Safari retesting remains separate from Chrome touch emulation.

@@ -1,0 +1,46 @@
+# Loopback-only relay port. The Jaspr gateway forwards /jaspercraft/voice here after it has
+# authenticated the browser session; nothing on this port is reachable from the internet.
+port: 24454
+
+# Hearing range in blocks. Beyond this the server never forwards the audio at all,
+# so range cannot be extended by modifying the browser overlay.
+max-distance: 48.0
+
+# Range used while the speaker is sneaking.
+whisper-distance: 12.0
+
+max-clients: 24
+
+# Guard rails on relayed frames. Opus voice frames are well under 200 bytes.
+max-audio-bytes: 700
+max-packets-per-second: 90
+
+spectators-can-talk: false
+dead-can-talk: false
+cross-world: false
+announce-on-join: true
+
+# Environmental acoustics. Every value here is measured on the server, so the browser overlay
+# cannot be edited to hear through a wall or to strip the underwater filter off someone's voice.
+environment:
+  enabled: true
+
+  # Sample the straight line between two players and muffle the voice by how much of it is solid.
+  occlusion: true
+  occlusion-samples: 12
+
+  # Scales every reverb tail at once. 0 disables reverb, 2 makes every cave a cathedral.
+  reverb-strength: 1.0
+
+  # How far the enclosure probes reach, in blocks. Larger reads bigger caverns as enclosed,
+  # at a slightly higher cost per recalculation.
+  probe-reach: 9
+
+  # Acoustics change far more slowly than positions, so they are recalculated on this cycle and
+  # carried forward in between. Raising it costs less; lowering it reacts faster.
+  recalc-every-ticks: 8
+
+  # How far below the surface counts as a cave rather than a roof. A house or a tree canopy sits
+  # one or two blocks under the highest block; a cave is properly deep. Only past this depth does
+  # a voice get the long dark tail instead of a little room tone.
+  cave-depth: 6

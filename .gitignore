@@ -1,0 +1,47 @@
+# Allowlist: everything is ignored unless listed below.
+# NEVER add: private/ (keys, credentials), .runtime/, server worlds, plugin data folders (player data,
+# AuthMe database), logs, usercache.json, backups, checkpoints, world-resets, big audit captures.
+/*
+!/.gitignore
+!/.gitattributes
+!/CLAUDE.md
+!/*.md
+!/deployment-manifest.json
+!/scripts/
+!/server-tools/
+!/client-mods/
+!/client-reference/
+!/apocalypse-pack/
+!/tests/
+!/site/
+!/Claude outputs/
+
+!/server/
+/server/*
+!/server/custom-plugins/
+!/server/cache/
+!/server/paper-1.12.2.jar
+!/server/plugins/
+/server/plugins/*
+!/server/plugins/Jaspr*.jar
+
+!/candidate/
+/candidate/*
+!/candidate/structure-audit/
+/candidate/structure-audit/*
+!/candidate/structure-audit/*.md
+!/candidate/structure-audit/*.txt
+!/candidate/structure-audit/inventory.json
+!/candidate/structure-audit/sites-shared.json
+!/candidate/structure-audit/audit-state.json
+!/candidate/structure-audit/tools/
+!/candidate/structure-audit/harness/
+!/candidate/structure-audit/testserver-template/
+!/candidate/structure-audit/census/
+/candidate/structure-audit/census/*
+!/candidate/structure-audit/census/*.md
+!/candidate/structure-audit/census/*.csv
+
+__pycache__/
+*.pyc
+*.log

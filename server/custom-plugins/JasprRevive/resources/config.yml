@@ -1,0 +1,23 @@
+revive:
+  # Master switch. Off means ordinary death.
+  enabled: true
+  # How long you lie there before the death becomes real. 2400 ticks = 2 minutes.
+  bleed-out-ticks: 2400
+  # Ticks of help needed to bring someone back. Each helper contributes one per
+  # tick, so two helpers halve it. 100 ticks = 5 seconds, the mod's default.
+  revive-ticks: 100
+  # How close a helper has to stay.
+  revive-radius: 3.5
+  # Helpers must hold sneak over the body.
+  require-sneak: true
+  # Health and food the body is pinned at while bleeding (the mod's values).
+  downed-health: 2.0
+  downed-food: 6
+  # Hunger the act of reviving costs, per tick, as in the mod.
+  reviver-exhaustion: 0.5
+  # Lay the body on the ground for everyone watching. Turn off if it misbehaves.
+  lying-pose: true
+  # Dying alone with nobody online to reach you is just a two minute wait.
+  require-another-player: true
+  # Logging out while bleeding is treated as giving up, so it cannot dodge death.
+  kill-on-disconnect: true

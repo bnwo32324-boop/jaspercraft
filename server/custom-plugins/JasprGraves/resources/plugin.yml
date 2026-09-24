@@ -1,0 +1,15 @@
+name: JasprGraves
+version: 1.0.0
+main: chat.jaspr.graves.GravesPlugin
+author: Jaspr
+description: Death leaves a headstone holding everything you were carrying, instead of scattering it on the ground.
+commands:
+  graves:
+    description: List the graves you have left behind.
+    usage: /graves
+    aliases: [grave]
+    permission: jaspr.graves.list
+permissions:
+  jaspr.graves.list:
+    description: List your own graves. Every player has this.
+    default: true

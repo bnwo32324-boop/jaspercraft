@@ -1,0 +1,197 @@
+--- a/src/chat/jaspr/biomes/Dungeons.java	2026-09-22 16:40:26.356925900 -0500
++++ b/src/chat/jaspr/biomes/Dungeons.java	2026-09-22 17:28:41.682310700 -0500
+@@ -851,8 +851,13 @@
+ 
+     static void set(Chunk c, int x, int y, int z, int id, int data) {
+         if (x < 0 || x > 15 || z < 0 || z > 15 || y < 1 || y > 254) return;
+-        if (data < 0) { c.getBlock(x, y, z).setTypeIdAndData(48, (byte) 0, false); return; }
++        if (data < 0) {
++            c.getBlock(x, y, z).setTypeIdAndData(48, (byte) 0, false);
++            if (CaptureHook.sink != null) CaptureHook.chunk(c, x, y, z, 48, 0, "populate");   // test harness only
++            return;
++        }
+         c.getBlock(x, y, z).setTypeIdAndData(id, (byte) data, false);
++        if (CaptureHook.sink != null) CaptureHook.chunk(c, x, y, z, id, data, "populate");    // test harness only
+     }
+ 
+     static void spawner(Block block, Random r, int style) {
+--- a/src/chat/jaspr/biomes/StructureArchitecture.java	2026-09-12 14:36:25.711875400 -0500
++++ b/src/chat/jaspr/biomes/StructureArchitecture.java	2026-09-22 17:28:44.198479900 -0500
+@@ -575,7 +575,10 @@
+             if(id==42){id=1;datum=6;}       // iron block -> polished andesite
+             else if(id==41){id=159;datum=4;} // gold block -> yellow hardened clay
+             else if(id==57){id=159;datum=9;} // diamond block -> cyan hardened clay
+-            if(wx>=x&&(long)wx<x+16L&&wz>=z&&(long)wz<z+16L&&y>0&&y<250)data.setBlock(wx-x,y,wz-z,id,(byte)datum);
++            if(wx>=x&&(long)wx<x+16L&&wz>=z&&(long)wz<z+16L&&y>0&&y<250){
++                data.setBlock(wx-x,y,wz-z,id,(byte)datum);
++                CaptureHook.Sink hook=CaptureHook.sink;if(hook!=null)hook.write(null,wx,y,wz,id,datum&15,"catalog"); // test harness only
++            }
+         }
+         void column(int wx,int low,int wz,int high,int id,int datum){for(int y=Math.max(1,low);y<=Math.min(249,high);y++)put(wx,y,wz,id,datum);}
+         void removeVegetation(int wx,int low,int wz,int high,String tree) {
+--- a/src/chat/jaspr/biomes/HorrorGenerator.java	2026-09-18 20:48:53.651369400 -0500
++++ b/src/chat/jaspr/biomes/HorrorGenerator.java	2026-09-22 17:28:47.429528600 -0500
+@@ -98,7 +98,8 @@
+         // Springs, already run to rest. Nothing here is left for the server to tick.
+         if(!Boolean.getBoolean("jaspr.nosprings"))CaveSprings.pour(d,t,cx,cz);
+         Catalog.Profile center=t.sample(cx*16+8,cz*16+8).profile;
+-        if(portalChunk(cx,cz)){sanctuary(d,heights);}
++        // CaptureHook.tap returns d itself unless the structure-audit test harness is attached.
++        if(portalChunk(cx,cz)){sanctuary(CaptureHook.tap(d,null,cx,cz,"sanctuary"),heights);}
+         else{
+             Random r=new Random(Terrain.mix(w.getSeed()+cx*91337L+cz*19777L));
+             for(int k=0;k<center.density;k++){
+@@ -109,7 +110,7 @@
+                 if(!Boolean.getBoolean("jaspr.notrees"))tree(d,x,y,z,center.tree,r);
+             }
+             if(Boolean.getBoolean("jaspr.audit")){int a=Floaters.audit(d);if(a>0)Bukkit.getLogger().info("[AUDIT] afterTrees="+a+" chunk="+cx+","+cz);}
+-            BiomeDetails.decorate(d,t,cx,cz,heights);
++            BiomeDetails.decorate(CaptureHook.tap(d,null,cx,cz,"detail"),t,cx,cz,heights);
+             if(Boolean.getBoolean("jaspr.audit")){int a=Floaters.audit(d);if(a>0)Bukkit.getLogger().info("[AUDIT] afterDetails="+a+" chunk="+cx+","+cz);}
+             if(!Boolean.getBoolean("jaspr.nosites"))for(StructurePlanner.Site site:WorldgenExpansion.sites(w,cx,cz))site.stamp(d,cx,cz);
+         }
+--- a/src/chat/jaspr/biomes/BiomeDetails.java	2026-09-08 09:52:43.953624900 -0500
++++ b/src/chat/jaspr/biomes/BiomeDetails.java	2026-09-22 17:28:49.451926600 -0500
+@@ -181,7 +181,10 @@
+         public boolean floor(int x,int y,int z){return snapshot.getBlockTypeId(x,y,z)==(nether?87:121);}
+         public boolean clear(int x,int y,int z){return snapshot.getBlockTypeId(x,y,z)==0&&type(x,y,z)==0;}
+         public boolean neighborhood(int a,int b,int c,int d,int e,int f){return naturalNeighborhood(snapshot,nether,a,b,c,d,e,f);}
+-        public void set(int x,int y,int z,int state){chunk.getBlock(x,y,z).setTypeIdAndData(state>>>4,(byte)(state&15),false);}
++        public void set(int x,int y,int z,int state){
++            chunk.getBlock(x,y,z).setTypeIdAndData(state>>>4,(byte)(state&15),false);
++            if(CaptureHook.sink!=null)CaptureHook.chunk(chunk,x,y,z,state>>>4,state&15,"detail"); // test harness only
++        }
+     }
+     static boolean naturalNeighborhood(ChunkSnapshot s,boolean nether,int x0,int z0,int x1,int z1,int y0,int y1) {
+         if(x0<0||z0<0||x1>15||z1>15||y0<1||y1>127)return false;
+--- a/src/chat/jaspr/biomes/LiminalGenerator.java	2026-09-12 14:36:25.712871900 -0500
++++ b/src/chat/jaspr/biomes/LiminalGenerator.java	2026-09-22 17:28:59.178376000 -0500
+@@ -59,10 +59,12 @@
+     }
+ 
+     @Override public ChunkData generateChunkData(World world,Random ignored,int cx,int cz,BiomeGrid biomes){
+-        ChunkData data=createChunkData(world);
++        // The server gets `chunk`; builders write through `data`, which is the same object unless the
++        // structure-audit test harness is attached (CaptureHook.tap).
++        ChunkData chunk=createChunkData(world),data=CaptureHook.tap(chunk,world.getName(),cx,cz,"fold");
+         for(int x=0;x<16;x++)for(int z=0;z<16;z++)biomes.setBiome(x,z,Biome.PLAINS);
+         // View-distance fringe chunks stay empty. No loads, populators or unbounded structure growth.
+-        if(cx<0||cx>=SIDE||cz<0||cz>=SIDE)return data;
++        if(cx<0||cx>=SIDE||cz<0||cz>=SIDE)return chunk;
+         int room=cz*SIDE+cx,base=floor(room),roof=base+5+room%4;
+         data.setRegion(1,base-1,1,15,base,15,Material.STONE);
+         Material flooring=room==3||room==9?Material.QUARTZ_BLOCK:room==4||room==6||room==15?Material.SMOOTH_BRICK:Material.WOOD;
+@@ -90,7 +92,7 @@
+             data.setBlock(8,65,5,Material.SEA_LANTERN);
+             data.setBlock(8,66,5,63,(byte)0);
+         }
+-        return data;
++        return chunk;
+     }
+     /** Each room has a different silhouette and furnishings. Preserve a two-block cross and outer aisle. */
+     private static void furnish(ChunkData data,int room,int base,int roof){
+--- /dev/null
++++ b/src/chat/jaspr/biomes/CaptureHook.java
+@@ -0,0 +1,102 @@
++package chat.jaspr.biomes;
++
++import org.bukkit.Chunk;
++import org.bukkit.Material;
++import org.bukkit.generator.ChunkGenerator;
++import org.bukkit.material.MaterialData;
++
++/**
++ * Observation point for structure block writes (structure audit capture harness, 2026-09-22).
++ *
++ * Nothing in this plugin ever sets {@link #sink}. Only the out-of-tree capture harness used on
++ * throwaway test servers does. Every call site reads the field once and does nothing when it is
++ * null, so a production server behaves exactly as before: same blocks, same order, same random
++ * draws. The harness uses the reports to tell which blocks of a generated world a structure
++ * builder wrote (the "mask" of a structure dump), as opposed to terrain.
++ *
++ * Call sites (each reports the block id and data actually written, in world coordinates):
++ *   Dungeons.set                   "populate"   every register set piece, dungeon room and
++ *                                               vanilla-style spawner room (BlockPopulator)
++ *   StructureArchitecture.Brush.put "catalog"   every expedition catalogue block (ChunkData)
++ *   HorrorGenerator.sanctuary       "sanctuary" portal sanctuaries (ChunkData, via tap)
++ *   HorrorGenerator -> BiomeDetails "detail"    biome-detail motifs, overworld (ChunkData, via tap)
++ *   BiomeDetails.Native.set         "detail"    biome-detail motifs, nether/end (live chunk)
++ *   LiminalGenerator                "fold"      the Fold rooms (ChunkData, via tap)
++ */
++public final class CaptureHook {
++    private CaptureHook() { }
++
++    /** Receives one report per block written by a structure builder. */
++    public interface Sink {
++        /**
++         * @param world  world name, or null for a write into the ChunkData of the overworld generator
++         *               (HorrorGenerator only ever generates the world named "world")
++         * @param x      world block x
++         * @param y      block y
++         * @param z      world block z
++         * @param id     1.12 numeric block id written
++         * @param data   4-bit data value written
++         * @param source which writer, see the class comment
++         */
++        void write(String world, int x, int y, int z, int id, int data, String source);
++    }
++
++    /** Null in production. Set only by the capture harness on a test server. */
++    public static volatile Sink sink;
++
++    /** Reports a write into a live chunk at chunk-local x/z. Does nothing when no sink is set. */
++    static void chunk(Chunk c, int x, int y, int z, int id, int data, String source) {
++        Sink s = sink;
++        if (s != null) s.write(c.getWorld().getName(), c.getX() * 16 + x, y, c.getZ() * 16 + z, id, data, source);
++    }
++
++    /**
++     * The ChunkData to hand to a builder that writes generation-time blocks. With no sink this is the
++     * very same object, so production is unchanged. With a sink it is a forwarding view that reports
++     * each block after it has been written. The view must never be returned to the server.
++     */
++    static ChunkGenerator.ChunkData tap(ChunkGenerator.ChunkData data, String world, int cx, int cz, String source) {
++        Sink s = sink;
++        return s == null ? data : new Tap(data, world, cx, cz, source, s);
++    }
++
++    private static final class Tap implements ChunkGenerator.ChunkData {
++        private final ChunkGenerator.ChunkData d;
++        private final String world, source;
++        private final int bx, bz;
++        private final Sink s;
++        Tap(ChunkGenerator.ChunkData d, String world, int cx, int cz, String source, Sink s) {
++            this.d = d; this.world = world; this.bx = cx * 16; this.bz = cz * 16; this.source = source; this.s = s;
++        }
++        private void report(int x, int y, int z) {
++            if (x < 0 || x > 15 || z < 0 || z > 15 || y < 0 || y >= d.getMaxHeight()) return;
++            s.write(world, bx + x, y, bz + z, d.getTypeId(x, y, z), d.getData(x, y, z) & 15, source);
++        }
++        private void report(int x0, int y0, int z0, int x1, int y1, int z1) {
++            for (int x = Math.max(0, x0); x < Math.min(16, x1); x++)
++                for (int z = Math.max(0, z0); z < Math.min(16, z1); z++)
++                    for (int y = Math.max(0, y0); y < Math.min(d.getMaxHeight(), y1); y++) report(x, y, z);
++        }
++        @Override public int getMaxHeight() { return d.getMaxHeight(); }
++        @Override public void setBlock(int x, int y, int z, Material m) { d.setBlock(x, y, z, m); report(x, y, z); }
++        @Override public void setBlock(int x, int y, int z, MaterialData m) { d.setBlock(x, y, z, m); report(x, y, z); }
++        @Override public void setBlock(int x, int y, int z, int id) { d.setBlock(x, y, z, id); report(x, y, z); }
++        @Override public void setBlock(int x, int y, int z, int id, byte data) { d.setBlock(x, y, z, id, data); report(x, y, z); }
++        @Override public void setRegion(int x0, int y0, int z0, int x1, int y1, int z1, Material m) {
++            d.setRegion(x0, y0, z0, x1, y1, z1, m); report(x0, y0, z0, x1, y1, z1);
++        }
++        @Override public void setRegion(int x0, int y0, int z0, int x1, int y1, int z1, MaterialData m) {
++            d.setRegion(x0, y0, z0, x1, y1, z1, m); report(x0, y0, z0, x1, y1, z1);
++        }
++        @Override public void setRegion(int x0, int y0, int z0, int x1, int y1, int z1, int id) {
++            d.setRegion(x0, y0, z0, x1, y1, z1, id); report(x0, y0, z0, x1, y1, z1);
++        }
++        @Override public void setRegion(int x0, int y0, int z0, int x1, int y1, int z1, int id, int data) {
++            d.setRegion(x0, y0, z0, x1, y1, z1, id, data); report(x0, y0, z0, x1, y1, z1);
++        }
++        @Override public Material getType(int x, int y, int z) { return d.getType(x, y, z); }
++        @Override public MaterialData getTypeAndData(int x, int y, int z) { return d.getTypeAndData(x, y, z); }
++        @Override public int getTypeId(int x, int y, int z) { return d.getTypeId(x, y, z); }
++        @Override public byte getData(int x, int y, int z) { return d.getData(x, y, z); }
++    }
++}

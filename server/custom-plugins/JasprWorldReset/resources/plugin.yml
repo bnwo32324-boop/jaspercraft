@@ -1,0 +1,5 @@
+name: JasprWorldReset
+version: 1.0.0
+main: chat.jaspr.reset.ResetPlugin
+load: STARTUP
+description: Retires the current world on request so the server generates a new one. Moves, never deletes.

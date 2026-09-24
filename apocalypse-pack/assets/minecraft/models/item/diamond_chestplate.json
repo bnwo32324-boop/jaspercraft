@@ -1,0 +1,70 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "items/diamond_chestplate"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.01893939393939394
+      },
+      "model": "item/apocalypse_bulwark_chestplate"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.020833333333333332
+      },
+      "model": "item/apocalypse_vanilla_diamond_chestplate"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.03787878787878788
+      },
+      "model": "item/apocalypse_ranger_chestplate"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.03977272727272727
+      },
+      "model": "item/apocalypse_vanilla_diamond_chestplate"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.056818181818181816
+      },
+      "model": "item/apocalypse_spectre_chestplate"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.058712121212121215
+      },
+      "model": "item/apocalypse_vanilla_diamond_chestplate"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.07575757575757576
+      },
+      "model": "item/apocalypse_hazmat_chestplate"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.07765151515151515
+      },
+      "model": "item/apocalypse_vanilla_diamond_chestplate"
+    },
+    {
+      "predicate": {
+        "damaged": 1
+      },
+      "model": "item/apocalypse_vanilla_diamond_chestplate"
+    }
+  ]
+}

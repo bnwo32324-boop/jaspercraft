@@ -1,0 +1,63 @@
+# slot|name|inspiration|height|relief|surface id:data|under id:data|tree|density|landmark|atmosphere|water RGB
+OCEAN|Ashveil Coast|Silent Hill; Play Novel|55|8|82:0|13:0|dead|2|harbor|mist|596568
+PLAINS|Rustwater Ward|Silent Hill 2; Silent Hill 2 remake|69|5|159:7|1:0|dead|1|ward|rust|574e43
+DESERT|Gutterglass Schoolgrounds|Silent Hill 3; Silent Hill: The Arcade|72|8|159:8|1:0|dead|2|school|rust|655945
+EXTREME_HILLS|Tenement Wound|Silent Hill 4: The Room; Silent Hill: Escape|92|26|159:12|1:0|none|0|ward|whisper|544651
+FOREST|Cinder Hospice|Silent Hill: Origins; Silent Hill: Orphan|76|12|3:1|1:0|dead|5|hospital|ash|6a6559
+TAIGA|Drowned Borough|Silent Hill: Homecoming; Silent Hill: Orphan 2|59|10|82:0|3:0|dead|2|harbor|rain|525f64
+SWAMPLAND|Whiteout Reservoir|Silent Hill: Shattered Memories|66|9|80:0|174:0|frost|6|dam|snow|8aadb5
+RIVER|Penitent Spillway|Silent Hill: Downpour; Silent Hill: Orphan 3|57|14|13:0|1:0|dead|3|dam|rain|425e62
+HELL|Palimpsest Vaultlands|Silent Hill: Book of Memories; The Silent Hill Experience|85|18|1:0|159:7|none|0|vault|whisper|4b3851
+SKY|Red Blossom Hollow|Silent Hill f|76|20|3:2|159:14|blossom|12|shrine|spores|663641
+FROZEN_OCEAN|Bloomfall Tenements|Silent Hill: The Short Message; Silent Hill: Ascension|74|7|159:6|1:0|blossom|3|ward|spores|744659
+FROZEN_RIVER|Signalwreck Coast|Silent Hill: Townfall|60|14|13:0|1:0|dead|2|radio|mist|506d70
+ICE_FLATS|Abandoned Cordon|S.T.A.L.K.E.R.: Shadow of Chornobyl|70|7|3:1|3:0|scrub|4|checkpoint|wind|646f42
+ICE_MOUNTAINS|Blackreed Marsh|S.T.A.L.K.E.R.: Clear Sky|60|5|82:0|3:0|swamp|7|pump|mist|46552b
+MUSHROOM_ISLAND|Sunken Convoy|S.T.A.L.K.E.R.: Call of Pripyat|58|9|13:0|82:0|dead|1|harbor|rain|4e663b
+MUSHROOM_ISLAND_SHORE|Dead Array|S.T.A.L.K.E.R.: Shadow of Chornobyl; Legends of the Zone|81|15|3:1|1:0|dead|6|radio|static|566346
+BEACHES|Sanguine Exclusion Forest|S.T.A.L.K.E.R. 2: Heart of Chornobyl|77|17|3:2|159:12|red|13|checkpoint|spores|6e4333
+DESERT_HILLS|Gravity Scar|S.T.A.L.K.E.R. 2: Heart of Chornobyl; Clear Sky|82|30|1:1|1:0|none|0|anomaly|static|666c3e
+FOREST_HILLS|Oxide Railgrave|S.T.A.L.K.E.R.: Call of Pripyat|72|5|159:12|13:0|scrub|2|rail|wind|5f674b
+TAIGA_HILLS|Glass Reactor|S.T.A.L.K.E.R.: Shadow of Chornobyl; S.T.A.L.K.E.R. 2|87|21|159:13|1:0|crystal|4|reactor|static|758342
+SMALLER_EXTREME_HILLS|Bleached Expanse|Fallout|68|11|12:0|24:0|scrub|2|vault|dust|8a835a
+JUNGLE|Bitter Orchard|Fallout 2|73|10|3:1|3:0|scrub|9|town|wind|6c713e
+JUNGLE_HILLS|Capitol Ossuary|Fallout 3|77|19|13:0|1:0|dead|2|monument|dust|5e6841
+JUNGLE_EDGE|Neon Dust Basin|Fallout: New Vegas|72|23|12:1|179:0|cactus|5|casino|dust|776b40
+DEEP_OCEAN|Viridian Blastlands|Fallout 4|64|28|159:5|1:0|dead|2|reactor|spores|708536
+STONE_BEACH|Coalbreath Ridges|Fallout 76|85|31|159:15|1:0|dead|5|mine|ash|66613b
+COLD_BEACH|Shelterfall Terraces|Fallout Shelter|76|9|159:8|1:0|scrub|3|vault|wind|687652
+BIRCH_FOREST|Iron Convoy Barrens|Fallout Tactics: Brotherhood of Steel|72|6|13:0|1:0|dead|1|rail|dust|696548
+BIRCH_FOREST_HILLS|Brotherhood Slagfields|Fallout: Brotherhood of Steel|80|19|159:12|1:0|none|0|foundry|ash|735e30
+ROOFED_FOREST|Vaultroot Gardens|Fallout Shelter Online; Fallout 2|72|13|3:2|3:0|swamp|10|vault|spores|5c7636
+TAIGA_COLD|Brine Lantern Mire|Fallout 4: Far Harbor|59|12|82:0|3:0|swamp|9|harbor|mist|506154
+TAIGA_COLD_HILLS|Gilded Hush|Fallout: New Vegas - Dead Money|84|17|159:4|1:0|dead|2|casino|rust|806b39
+REDWOOD_TAIGA|Carousel Wastes|Fallout 4: Nuka-World; Fallout 76|72|8|159:1|3:0|scrub|3|carnival|whisper|8c7052
+REDWOOD_TAIGA_HILLS|Hollow Crown Borough|Dark Souls; Dark Souls Remastered|83|23|1:0|1:0|dead|3|keep|ash|62675a
+EXTREME_HILLS_WITH_TREES|Rootbound Sanctuary|Dark Souls: Artorias of the Abyss|80|22|3:2|3:0|ancient|14|shrine|mist|4c6756
+SAVANNA|Leechwater Depths|Dark Souls|57|8|82:0|3:0|swamp|9|stilt|spores|47532e
+SAVANNA_ROCK|Cinderlake Shelf|Dark Souls|89|29|159:15|1:0|petrified|5|kiln|ash|6d5344
+MESA|Forgotten Monarch Shore|Dark Souls II; Scholar of the First Sin|67|19|12:0|1:0|scrub|4|keep|wind|739082
+MESA_ROCK|Blackgutter Chasm|Dark Souls II|75|35|159:15|1:0|dead|2|stilt|whisper|3f493d
+MESA_CLEAR_ROCK|Frostcrown Ramparts|Dark Souls II: Crown of the Ivory King|100|30|80:0|174:0|frost|5|keep|snow|a2b7c7
+VOID|Ringfall Cinders|Dark Souls III: The Ringed City|91|26|159:8|1:0|petrified|3|monument|ash|746661
+MUTATED_PLAINS|Cathedral of the Last Ember|Dark Souls III; Ashes of Ariandel|90|19|1:0|1:0|dead|4|cathedral|ash|786c68
+MUTATED_DESERT|Drowned Oath Fen|Dark Souls III; Dark Souls II: Sunken King and Iron King|60|10|3:2|82:0|swamp|10|shrine|mist|455e48
+MUTATED_EXTREME_HILLS|Cabin of the Listening Pines|The Evil Dead (1984)|77|15|3:2|3:0|pine|12|cabin|whisper|5b6d50
+MUTATED_FOREST|Bloodroot Timberland|Evil Dead: Hail to the King|80|18|3:1|159:14|red|12|cabin|spores|713c32
+MUTATED_TAIGA|Boomtown After Midnight|Evil Dead: A Fistful of Boomstick|72|6|159:7|1:0|dead|2|town|rust|695644
+MUTATED_SWAMPLAND|Deadward Asylum|Evil Dead: Regeneration|79|14|159:8|1:0|dead|6|hospital|whisper|58665d
+MUTATED_ICE_FLATS|Bastion of the Unburied|Army of Darkness: Defense|93|25|12:1|179:0|none|0|keep|dust|826b49
+MUTATED_JUNGLE|Possessed Orchard|Evil Dead: The Game (2011 mobile)|75|11|3:2|3:0|red|11|cabin|whisper|5e5738
+MUTATED_JUNGLE_EDGE|Endless Night Boulevard|Evil Dead: Endless Nightmare|71|7|159:15|1:0|dead|3|town|mist|51584f
+MUTATED_BIRCH_FOREST|Mirrorward Thicket|Evil Dead: Virtual Nightmare|77|20|3:1|159:8|ancient|10|hospital|whisper|5a655f
+MUTATED_BIRCH_FOREST_HILLS|Kandarian Hunting Grounds|Evil Dead: The Game (2022)|83|24|3:2|3:0|pine|13|keep|wind|556542
+MUTATED_ROOFED_FOREST|Grinning Hollow|RetroRealms: Ash vs Evil Dead|78|15|159:12|3:0|red|10|carnival|rust|733f3c
+MUTATED_TAIGA_COLD|I - Limbo: Mourning Fields|Dante's Inferno - Limbo|74|10|3:1|1:0|dead|5|monument|mist|6d7775
+MUTATED_REDWOOD_TAIGA|II - Lust: The Unceasing Gale|Dante's Inferno - Lust|97|35|159:8|1:0|petrified|2|arch|wind|857883
+MUTATED_REDWOOD_TAIGA_HILLS|III - Gluttony: Carrion Slough|Dante's Inferno - Gluttony|59|8|82:0|3:0|swamp|4|pump|rain|514a38
+MUTATED_EXTREME_HILLS_WITH_TREES|IV - Greed: The Burdened Quarry|Dante's Inferno - Greed|86|27|159:4|1:0|none|0|mine|dust|8c7844
+MUTATED_SAVANNA|V - Wrath: Styx Blackwater|Dante's Inferno - Wrath|56|7|159:15|82:0|dead|4|harbor|rain|302e29
+MUTATED_SAVANNA_ROCK|VI - Heresy: Sepulcher of Embers|Dante's Inferno - Heresy|83|14|159:14|87:0|none|0|tomb|ash|934a38
+MUTATED_MESA|VII - Violence: Thornblood Reach|Dante's Inferno - Violence|80|23|159:14|1:0|thorn|8|shrine|rust|87332f
+MUTATED_MESA_ROCK|VIII - Fraud: Malebolge Trenches|Dante's Inferno - Fraud|85|33|159:12|1:0|none|0|trench|whisper|70522e
+MUTATED_MESA_CLEAR_ROCK|IX - Treachery: Cocytus|Dante's Inferno - Treachery|65|9|174:0|79:0|frost|2|tomb|snow|a3bccc

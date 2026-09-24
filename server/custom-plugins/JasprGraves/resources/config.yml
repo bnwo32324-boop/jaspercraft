@@ -1,0 +1,7 @@
+graves:
+  # Master switch. Off means vanilla death drops.
+  enabled: true
+  # Experience is stored with the items and handed back to whoever opens the grave.
+  store-experience: true
+  # Tell the player where their grave went the moment they die.
+  announce: true

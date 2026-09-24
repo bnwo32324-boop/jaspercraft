@@ -1,0 +1,9 @@
+name: JasprVoiceChat
+version: 1.0.0
+main: chat.jaspr.voice.VoicePlugin
+author: Jaspr
+description: Always-on proximity voice chat for the JasperCraft browser client.
+commands:
+  voice:
+    description: Show proximity voice chat status.
+    usage: /voice [status|who|off]

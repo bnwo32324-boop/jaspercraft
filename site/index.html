@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="Build, explore, and play JasperCraft with your Jaspr.chat account. One account for chat and Minecraft in your browser.">
+  <meta name="referrer" content="no-referrer">
+  <title>JasperCraft | Play with your Jaspr.chat account</title>
+  <link rel="canonical" href="https://jaspr.chat/jaspercraft/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="JasperCraft on Jaspr.chat">
+  <meta property="og:description" content="One Jaspr.chat account for chat and JasperCraft. Choose your character and jump into the world.">
+  <meta property="og:url" content="https://jaspr.chat/jaspercraft/">
+  <meta property="og:image" content="https://jaspr.chat/jaspercraft/jaspercraft-banner.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="JasperCraft on Jaspr.chat">
+  <meta name="twitter:description" content="One account. Chat, build, and explore together.">
+  <meta name="twitter:image" content="https://jaspr.chat/jaspercraft/jaspercraft-banner.png">
+  <link rel="icon" href="jaspercraft-cat-face.png?build=20260914-dlights10">
+  <link rel="stylesheet" href="jaspr-sso.css?build=20260914-dlights10">
+  <script defer src="jaspr-profile.js?build=20260914-dlights10"></script>
+<script defer src="jaspr-sso.js?build=20260914-dlights10"></script>
+<link rel="stylesheet" href="jaspercraft-mobile-host.css?build=20260920-video2">
+<link rel="stylesheet" href="jaspercraft-mobile-viewport.css?build=20260920-rotate1">
+<script defer src="jaspercraft-mobile-viewport.js?build=20260920-rotate1"></script>
+</head>
+<body class="checking">
+  <nav class="game-nav" aria-label="Jaspr.chat navigation">
+    <a id="back-chat" class="chat-cat-link" href="https://jaspr.chat/" target="_self" aria-label="Go to Jaspr.chat" title="Go to Jaspr.chat">
+      <img src="jaspercraft-cat-face.png?build=20260914-dlights10" alt="" width="42" height="42">
+      <span>Go to Jaspr.chat</span>
+    </a>
+  </nav>
+
+  <main id="lobby" hidden>
+    <img id="lobby-banner" class="banner" data-src="jaspercraft-banner.png?build=20260914-dlights10" alt="JasperCraft: a cat's block-building adventure" decoding="async">
+    <div class="welcome">
+      <section class="intro">
+        <p class="eyebrow">JASPR.CHAT / JASPERCRAFT</p>
+        <h1>Your friends.<br>Your world.</h1>
+        <p>Sign in once for Jaspr.chat and JasperCraft. Your identity and multiplayer progress stay connected.</p>
+      </section>
+
+      <section class="account-card" aria-label="Jaspr.chat account access">
+        <p id="status" role="status" aria-live="polite"></p>
+
+        <div id="auth-panel">
+          <div class="oauth-buttons" aria-label="External sign-in options">
+            <button id="google-signin" class="oauth-button google" type="button">
+              <span class="oauth-provider-mark google-mark" aria-hidden="true"><img src="/auth/google-g.png" alt="" width="20" height="20"></span>
+              <span><strong>Continue with Google</strong><small id="google-note">Creates or signs in</small></span>
+            </button>
+            <button id="discord-signin" class="oauth-button discord" type="button">
+              <span class="oauth-provider-mark discord-mark" aria-hidden="true"><img src="/auth/discord-clyde.svg" alt="" width="26" height="20"></span>
+              <span><strong>Continue with Discord</strong><small id="discord-note">Creates or signs in</small></span>
+            </button>
+          </div>
+          <p class="oauth-help">New to Jaspr.chat? Google and Discord create your account automatically. You do not need an existing Jaspr.chat account.</p>
+
+          <div class="guest-row">
+            <span>Get the next permanent Jaspr.chat anon_ number</span>
+            <button class="primary" id="guest" type="button">Play as guest</button>
+          </div>
+
+          <div class="divider"><span>or use a username — no email</span></div>
+          <div class="tabs" role="tablist" aria-label="Persistent account options">
+            <button id="login-tab" type="button" role="tab" aria-selected="true">Sign in</button>
+            <button id="register-tab" type="button" role="tab" aria-selected="false">Create account</button>
+          </div>
+          <p id="local-account-help" class="local-account-help">Use your Jaspr.chat username and password.</p>
+          <form id="auth-form">
+            <div class="field-grid">
+              <label>Username<input id="username" name="username" autocomplete="username" required maxlength="64"></label>
+              <label id="display-label" hidden>Display name (optional)<input id="display-name" name="displayName" autocomplete="nickname" maxlength="32"></label>
+              <label>Password<input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024"></label>
+              <label id="confirm-label" hidden>Confirm password<input id="confirm" name="confirm" type="password" autocomplete="new-password" maxlength="1024"></label>
+            </div>
+            <button class="secondary" id="auth-submit" type="submit">Sign in</button>
+          </form>
+        </div>
+
+        <form id="alias-panel" hidden>
+          <p class="eyebrow">ONE LAST STEP</p>
+          <h2>Choose your Jaspr.chat username</h2>
+          <p class="hint">This becomes the identity used by both Jaspr.chat and JasperCraft.</p>
+          <label>Username<input id="alias-username" name="username" autocomplete="username" required maxlength="32"></label>
+          <button class="primary" id="alias-submit" type="submit">Save and enter world</button>
+        </form>
+
+        <button id="retry" type="button" hidden>Try again</button>
+      </section>
+    </div>
+  </main>
+
+  <section id="game-host" aria-label="JasperCraft game">
+    <p class="boot-copy">Opening JasperCraft…</p>
+  </section>
+  <aside id="game-status" role="status" aria-live="polite">
+    <span id="game-status-text">Connecting your Jaspr.chat identity…</span>
+    <button id="retry-game" type="button" hidden>Try again</button>
+  </aside>
+  <aside class="discord-promo" aria-label="JasperCraft Discord community">
+    <p class="discord-promo-label">Join our Discord</p>
+    <a class="discord-promo-link" href="https://discord.gg/5cdQYGXkvP" target="_blank" rel="noopener noreferrer" aria-label="Join the JasperCraft Discord server" title="Join our Discord">
+      <img src="/auth/discord-clyde.svg" alt="Discord" width="32" height="24">
+    </a>
+  </aside>
+  <noscript>Enable JavaScript to sign in and play JasperCraft.</noscript>
+</body>
+</html>

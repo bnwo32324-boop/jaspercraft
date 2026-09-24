@@ -1,0 +1,11 @@
+# structure-audit capture test server (minimal; Paper fills in the defaults).
+config-version: 13
+verbose: false
+timings:
+  enabled: false
+settings:
+  save-player-data: false
+world-settings:
+  default:
+    keep-spawn-loaded: false
+    auto-save-interval: -1

@@ -1,0 +1,14 @@
+name: JasprInvasions
+version: 1.0.0
+main: chat.jaspr.invasions.InvasionPlugin
+author: Jaspr
+description: Per-player nightly invasions for JasperCraft. Miners dig in, soldiers climb over.
+commands:
+  invasion:
+    description: Call an invasion down on yourself, or inspect the system.
+    usage: /invasion [status|stop|reload|<difficulty 0.0-1.0>]
+    permission: jaspr.invasions.admin
+permissions:
+  jaspr.invasions.admin:
+    description: Allows summoning and controlling invasions.
+    default: op

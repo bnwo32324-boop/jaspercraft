@@ -1,0 +1,61 @@
+name: JasprApocalypse
+version: 3.6.0
+main: chat.jaspr.apocalypse.ApocalypsePlugin
+depend: [AuthMe]
+softdepend: [TestServerControl]
+description: Haunted ruins, siege undead and late-game salvage weapons for JasperCraft.
+commands:
+  tp:
+    description: Send a request to teleport to another online player.
+    usage: /tp <player>
+    aliases: [teleport]
+    permission: jaspr.apocalypse.teleport
+  tpa:
+    description: Send a request to teleport to another online player.
+    usage: /tpa <player>
+    permission: jaspr.apocalypse.teleport
+  tpahere:
+    description: Ask another online player to teleport to you.
+    usage: /tpahere <player>
+    permission: jaspr.apocalypse.teleport
+  tpaccept:
+    description: Accept your pending teleport request.
+    usage: /tpaccept
+    permission: jaspr.apocalypse.teleport
+  tpdeny:
+    description: Deny your pending teleport request.
+    usage: /tpdeny
+    permission: jaspr.apocalypse.teleport
+  tpcancel:
+    description: Cancel your outgoing teleport request.
+    usage: /tpcancel
+    permission: jaspr.apocalypse.teleport
+  waypoints:
+    description: Manage personal waypoints. Deaths are marked automatically.
+    usage: /waypoints [list|add|delete|track|help]
+    aliases: [wp]
+    permission: jaspr.apocalypse.waypoints
+  dl:
+    description: Dynamic lights status. Hold a torch to light nearby terrain.
+    usage: /dl [resync]
+    aliases: [dynamiclights]
+    permission: jaspr.apocalypse.dynamiclights
+  apocalypse:
+    description: Apocalypse field guide and operator status.
+    usage: /apocalypse [status|guide]
+  portalgun:
+    description: Get the Portal Gun (creative mode only, for now).
+    usage: /portalgun
+    aliases: [portal]
+    permission: jaspr.apocalypse.portalgun
+permissions:
+  jaspr.apocalypse.teleport:
+    default: true
+  jaspr.apocalypse.waypoints:
+    default: true
+  jaspr.apocalypse.dynamiclights:
+    default: true
+  jaspr.apocalypse.portalgun:
+    default: true
+  jaspr.apocalypse.admin:
+    default: op

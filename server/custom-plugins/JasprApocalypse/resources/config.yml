@@ -1,0 +1,93 @@
+world: world
+# Vanilla difficulty for the survival world (peaceful/easy/normal/hard). Peaceful
+# despawns hostiles, stops hunger drain and regens health; custom siege spawners
+# keep firing but their mobs cannot survive it.
+difficulty: hard
+teleport:
+  # Public consent-based requests. This permission is granted to non-ops and ops alike.
+  request-timeout-seconds: 60
+siege:
+  # Clear daylight/visible light sight only; darkness, sneaking and occlusion reduce this.
+  # All sensing and traversal stop at unloaded chunks. No global activation-range change.
+  detection-range: 96
+  # One in this many slain siege dead is still carrying a salvage-grade firearm, and one
+  # in this many a salvage-grade melee weapon. Long odds on purpose: finding one should be
+  # worth telling somebody about. Raise the numbers to make them rarer.
+  salvage-gun-odds: 500
+  salvage-melee-odds: 180
+  # Inside this radius a hunter notices you outright: no line-of-sight check, no ray budget,
+  # no losing you behind a fence. Deliberately larger than a vanilla zombie's awareness.
+  aggro-range: 32
+  sight-rays-per-pass: 96
+  max-signals: 128
+  pursuit-ticks: 160
+  pursuit-leash: 112
+  signal-owner-leash: 40
+  sound-memory-ticks: 100
+  scent-memory-ticks: 240
+  motions-per-tick: 40
+  max-traversal-rise: 16
+  max-wall-climb-rise: 48
+  max-pillar-blocks-per-zombie: 16
+  traversal-attempt-ticks: 600
+  max-active-zombies: 80
+  ambient-per-player: 14
+  # Shared by breaches, pillar placements, and TNT (including cancelled attempts), every 10 ticks.
+  block-breaks-per-pass: 6
+  tnt-radius: 2.6
+  tnt-max-blocks: 32
+  tnt-fuse-ticks: 50
+  newcomer-grace-seconds: 90
+  blood-moon-every-nights: 3
+ruins:
+  # Replaced by the biome-specific multi-chunk expedition generator.
+  enabled: false
+  edits-per-tick: 100
+  max-pending-plans: 32
+  max-plan-edits: 3200
+  max-ledger-entries: 32768
+  max-slope: 2
+  region-chunks: 24
+  district-radius-chunks: 7
+  spacing-chunks: 2
+  district-chance: 0.60
+  district-density: 0.80
+  isolated-chance: 0.008
+  relic-cache-chance: 0.25
+  scrap-chance: 0.20
+resource-pack:
+  url: ''
+  sha1: ''
+sentry:
+  # Craftable automated defense: dispenser body, zombies by default.
+  enabled: true
+  # 0 means unlimited, which is the default. Set a positive number to cap it again.
+  max-per-player: 0
+  max-total: 0
+  # Safety bound on how many can be read back from disk; not a gameplay limit.
+  max-stored: 20000
+  tick-period: 5
+  noise-radius: 10.0
+  slow-damage: 16.0
+  slow-interval-ticks: 22
+  normal-damage: 12.0
+  normal-interval-ticks: 12
+  fast-damage: 8.0
+  fast-interval-ticks: 7
+wall-jump:
+  # Server-authoritative for every player; keyboard Shift and touch sneak both work.
+  enabled: true
+  jump-boost: 0.55
+  slide-delay-ticks: 15
+waypoints:
+  # Personal markers: M menu, deathpoints, compass readout, hidden marker sync.
+  enabled: true
+  max-manual: 12
+  max-death: 3
+  compass-interval-ticks: 20
+enhanced-armaments:
+  # Native Paper/Eaglercraft port of Enhanced Armaments 1.3.21.
+  enabled: true
+  max-level: 10
+  level-one-experience: 120
+  experience-multiplier: 1.9

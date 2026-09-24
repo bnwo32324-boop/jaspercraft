@@ -1,0 +1,280 @@
+{
+  "deploymentVersion": 24,
+  "generatedAt": "2026-09-17T13:15:00.000Z",
+  "releaseStatus": "verified-live",
+  "projectRoot": "C:\\Users\\AM\\Documents\\Eaglercraft-1.12.2-Tailscale",
+  "client": {
+    "minecraftVersion": "1.12.2",
+    "eaglerUpdate": "u1",
+    "distribution": "JavaScript",
+    "sourceUrl": "https://github.com/TwoMuchNerdo/1.12.2-WASM",
+    "sourceCommit": "94e4c10e9939ece0c1694dac34f70f3424a27199",
+    "classesSha256": "5E76CB9544FDDD2DF23D02390890DE8E3F7F1F336A8D07F622F09D80BF571344",
+    "assetsSha256": "6A2C05D45AC77937719E63354A857EC3DF1A08389D201BCC9BBD9A420694A565",
+    "uiCacheVersion": "20260914-dlights10",
+    "localStorageNamespace": "_eaglercraft_1122_tailscale_ui2",
+    "branding": "JasperCraft",
+    "menuLayout": "direct-entry-auth-fallback",
+    "faviconSha256": "E2998884B47BB5102B685968AB470008BB24267B21225E67549E5BA8285A7420",
+    "catFaceSha256": "9E6AE17845FBFD6A81AD033713EF752275F3A6AC92F84DFE0F7012ABCFAD1361",
+    "gameOverlay": "compact-cat-link",
+    "signedInEntry": "automatic",
+    "signedOutEntry": "compact-shared-jaspr-auth",
+    "audioGate": "non-blocking-gameplay-unlock-plus-continuous-master-gain",
+    "accountOptions": {
+      "version": 2,
+      "scope": "all-namespaced-client-settings",
+      "savePath": "authoritative-local-storage-write-plus-teavm-callback",
+      "restorePath": "account-snapshot-before-engine-start",
+      "browserSmoke": "tests/settings-storage-browser-smoke.cjs"
+    },
+    "statsMenu": {
+      "defaultKey": "K",
+      "command": "/stats",
+      "nativeControlsLabel": "Upgrade Stats",
+      "optionKey": "key_key.jaspr.stats",
+      "accountSettings": true,
+      "implementation": "native-remappable-binding-server-inventory-panel",
+      "patchManifest": "candidate/stats-client/manifest.json"
+    },
+    "waypointMenu": {
+      "defaultKey": "M",
+      "command": "/waypoints",
+      "commandAlias": "/wp",
+      "nativeControlsLabel": "Waypoints Menu",
+      "optionKey": "key_key.jaspr.waypoints",
+      "accountSettings": false,
+      "implementation": "native-remappable-binding-server-inventory-panel",
+      "patchManifest": "candidate/stats-client/manifest.json",
+      "verification": "WAYPOINTS_UPDATE.md"
+    },
+    "creativeCatalogue": {
+      "version": 2,
+      "totalItems": 88,
+      "categories": {
+        "guns": 35,
+        "meleeWeapons": 24,
+        "armor": 16,
+        "materials": 4,
+        "consumables": 4,
+        "supplies": 3,
+        "artifacts": 2,
+        "blocks": 1
+      },
+      "nativeTabs": [
+        "Combat",
+        "Food",
+        "Miscellaneous",
+        "Search"
+      ],
+      "searchable": true,
+      "clientTemplates": "inert-request-tokens",
+      "issuance": "authenticated-creative-server-authoritative",
+      "futureCustomBlocks": "Building Blocks tab supported when defined",
+      "worldReset": false,
+      "verification": "CREATIVE_CATALOGUE_UPDATE.md"
+    },
+    "nativeDismemberment": {
+      "version": "1.0.0",
+      "source": "client-mods/",
+      "implementation": "custom-browser-native-renderer",
+      "progressiveAmputation": "cosmetic-synchronized-health",
+      "worldReset": false,
+      "serverRestart": false,
+      "verification": "GORE_UPDATE.md"
+    },
+    "dynamicLights": {
+      "defaultKey": "L",
+      "command": "/dl",
+      "commandAlias": "/dynamiclights",
+      "nativeControlsLabel": "Dynamic Lights",
+      "optionKey": "key.jaspr.dynamiclights",
+      "accountSettings": false,
+      "implementation": "native-remappable-binding-server-scoreboard-feed",
+      "scoreboard": "jdl",
+      "modes": "Fast(default)/Smooth/Off",
+      "patchManifest": "candidate/stats-client/manifest.json"
+    }
+  },
+  "server": {
+    "minecraftVersion": "1.12.2",
+    "protocol": 340,
+    "defaultGameMode": "survival",
+    "difficulty": "hard",
+    "maximumPlayers": 12,
+    "alwaysOn": true,
+    "idleShutdownSeconds": 0,
+    "crashRestart": true,
+    "authentication": "AuthMe",
+    "ownerUsername": "jasper",
+    "ownerOpLevel": 4,
+    "guestCommands": "authentication-only",
+    "forceDefaultGameModeOnJoin": false,
+    "ownerUsernameCaseSensitive": true,
+    "serverIconSha256": "438D70F56DC49D61C7D36A4B40D1C82A34B07E99CA10B9CCE08F0F1AE9E38A64",
+    "testServerControlSha256": "E164C9643F58F5670F134B2B0988603A198E451380210A0202EAB3956A42EB49",
+    "apocalypse": {
+      "version": "3.4.0",
+      "name": "Creative Catalogue, Survivor Upgrades and the Expanded Arsenal",
+      "jarSha256": "7C583CB26F3773AD929F70DEB9DA746654468A4725EAC659B2082E484B9607EC",
+      "worldReset": false,
+      "ruinsGeneration": "legacy-disabled-replaced-by-biome-expeditions",
+      "weaponModels": "default-browser-epk",
+      "verifiedFixture": "candidate/apocalypse-smoke-ae20d5b1-1567-4e1a-a41c-9acea96f3dac/result.json",
+      "equipmentFixture": "candidate/apocalypse-smoke-ae20d5b1-1567-4e1a-a41c-9acea96f3dac/result.json",
+      "guns": 35,
+      "meleeWeapons": 24,
+      "newGuns": 24,
+      "newMeleeWeapons": 16,
+      "creativeCatalogueItems": 89,
+      "sentryTurret": {
+        "item": "sentry_turret",
+        "recipe": "4x iron_ingot + 1x iron_block (shaped)",
+        "defaults": "hostile mobs, range 24, normal rate",
+        "persistence": "plugins/JasprApocalypse/turrets.yml",
+        "verification": "SENTRY_TURRET_UPDATE.md"
+      },
+      "survivorStats": {
+        "names": [
+          "Vitality",
+          "Power",
+          "Agility",
+          "Fortitude",
+          "Haste",
+          "Stability"
+        ],
+        "ranksPerStat": 10,
+        "currency": "spendable-XP-points",
+        "price": "1 + r",
+        "priceStartXp": 1,
+        "priceStepXp": 1,
+        "oneStatTotalXp": 55,
+        "resetOnDeath": true,
+        "resetWithKeepInventory": true,
+        "persistence": "native-player-NBT-plus-durable-life-generation",
+        "qaReport": "candidate/stats-qa-report.json",
+        "shutdownReport": "candidate/stats-shutdown-report.json",
+        "shutdownHookReport": "candidate/stats-shutdown-hook-report.json"
+      },
+      "siege": {
+        "awareness": "bounded-sight-sound-wound-scent",
+        "maximumSightBlocks": 96,
+        "maximumPillarBlocks": 16,
+        "maximumWallClimbBlocks": 48,
+        "maxActiveZombies": 80,
+        "runtimeChecksPassed": 179,
+        "testRuntimeChunksLoaded": 0
+      }
+    },
+    "readinessMarkerRetry": true,
+    "horrorBiomes": {
+      "version": "3.2.0",
+      "replacements": 62,
+      "detailedBiomes": 0,
+      "artificialDetailBiomes": 0,
+      "naturalTerrain": true,
+      "naturalRivers": true,
+      "naturalTrees": true,
+      "naturalFoliage": true,
+      "detailMotifs": 47,
+      "detailLitterStyles": 12,
+      "terrainEpoch": "surface-v4",
+      "infernoCircles": 9,
+      "jarSha256": "CC486A27B8E3CD24215BADE2F79038362B3AC4F984D1B6B0B1B9B4C60B917495",
+      "latestReleasePreservedTerrain": false,
+      "latestLootFixture": "candidate/structures-smoke-fccd641e-c9a9-446f-b10c-dc992698ff42",
+      "weaponLoot": "guaranteed-custom-armories-theme-biased-distinct-vault-weapons",
+      "overworldGenerator": "JasprHorrorBiomes",
+      "outerRealms": "native-shape-fortresses-and-dragon-retained-with-biome-and-surface-replacement",
+      "terrainReset": "all-three-dimensions",
+      "retainedPlayerRecords": 24,
+      "protectedFilesVerified": 215,
+      "offlineVerifiedProtectedFiles": 215,
+      "postStartupByteIdenticalProtectedFiles": 204,
+      "postStartupLockedJournalsVerifiedOffline": [
+        "plugins/JasprHorrorBiomes/structure-loot-v2.journal"
+      ],
+      "postStartupExpectedMetadataChanges": [
+        "jaspr_backrooms/data/villages.dat (runtime Tick only)",
+        "jaspr_backrooms/level.dat",
+        "jaspr_backrooms/level.dat_old",
+        "jaspr_backrooms/region/r.0.0.mca (chunk LastUpdate only)",
+        "jaspr_backrooms/session.lock",
+        "paper.yml (mapping order only)",
+        "plugins/SkinsRestorer/recommendations.json (recommendation order only)",
+        "server.properties (timestamp/order only)",
+        "spigot.yml (mapping order only)"
+      ],
+      "postStartupAppendOnlyLogs": [
+        "plugins/AuthMe/authme.log"
+      ],
+      "resetArchive": "world-resets/surface-v4-2026-09-08T15-21-15-331Z",
+      "previousResetArchive": "world-resets/details-v3-2026-09-08T07-41-41-147Z",
+      "fixture": "candidate/structures-smoke-fccd641e-c9a9-446f-b10c-dc992698ff42",
+      "biomeFixture": "candidate/biomes-smoke-85e640e3-5fbf-4c56-b97c-c317965e3426",
+      "verifiedAt": "2026-09-08T15:51:12.313Z",
+      "verification": "SURFACE_WORLD_UPDATE.md",
+      "postStartupPlayerFilesUnchanged": true,
+      "structures": 234,
+      "addedStructures": 130,
+      "newExclusiveBiomeDungeons": 62,
+      "exclusiveBiomeMappings": 62,
+      "minimumAnchorSpacingBlocks": 352,
+      "legacyAnchorSpacingBlocks": 768,
+      "supplementalRegionBlocks": 384,
+      "surfaceReservedCellsPercent": 75,
+      "sampleSurfaceSharePercent": 86.1,
+      "sampleSurfaceSitesPerMillionBlocks": 5.98,
+      "sampleSurfaceP95DistanceBlocks": 322,
+      "sampleSurfaceMaximumDistanceBlocks": 440,
+      "productionSurfaceSitesWithin300Blocks": 3,
+      "productionNearestSurfaceSiteBlocks": 258,
+      "lootPersistence": "write-ahead-checksummed-claims",
+      "overworldLootNamespace": "v2:surface-v4",
+      "foldLootNamespace": "fold-v1",
+      "liminalWorld": "jaspr_backrooms"
+    }
+  },
+  "public": {
+    "client": "https://jaspr.chat/jaspercraft/",
+    "multiplayer": "wss://jaspr.chat/jaspercraft/socket",
+    "jaspergers": "https://jaspr.chat/",
+    "releaseVerified": true,
+    "clientStatus": 200,
+    "primarySessionVerified": "20260907-195829-58fad210",
+    "verificationReport": "candidate/creative-catalogue-release-report.json",
+    "previousVerificationReport": "candidate/surface-v4-release-report.json"
+  },
+  "localPorts": {
+    "jaspergers": 3200,
+    "client": 3308,
+    "gateway": 3310,
+    "paper": 25565
+  },
+  "scheduledTasks": [
+    "Eaglercraft Tailscale Web Server",
+    "Eaglercraft Game Wake Gateway",
+    "Eaglercraft Tailscale Funnel Watchdog"
+  ],
+  "sourceMismatch": {
+    "path": "C:\\Users\\AM\\Downloads\\EaglercraftX-1.12.2-workspace-master\\EaglercraftX-1.12.2-workspace-master",
+    "detectedVersion": "1.8.8",
+    "deployed": false
+  },
+  "processSupervision": {
+    "enabled": true,
+    "childRestartDelaySeconds": 2,
+    "schedulerFallbackMinutes": 1,
+    "verifiedByCrashTest": true
+  },
+  "funnelWatchdog": {
+    "enabled": true,
+    "checkIntervalSeconds": 15,
+    "ownedPorts": [
+      8443,
+      10000
+    ],
+    "globalReset": false,
+    "verifiedByRouteRemovalTest": true
+  }
+}

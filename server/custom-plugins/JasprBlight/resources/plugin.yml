@@ -1,0 +1,5 @@
+name: JasprBlight
+version: 1.0.0
+main: chat.jaspr.blight.BlightPlugin
+author: Jaspr
+description: The water is poisoned. Touching it poisons you; a boat keeps you clear of it.
