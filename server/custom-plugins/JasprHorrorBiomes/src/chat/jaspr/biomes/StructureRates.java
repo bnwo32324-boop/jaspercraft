@@ -33,6 +33,65 @@ import org.bukkit.World;
 public final class StructureRates {
     private StructureRates() {}
 
+    /*
+     * 3.28.0 (owner request, the second 1.5x: "all structures universally should spawn 1.5x whatever their
+     * current spawn rate is"). A third layer, built exactly like the 3.25.0 one and on top of it: TIER 2.
+     *   - set pieces: a tertiary lattice per register entry (Megaliths.C_CELL3), yielding to every primary and
+     *     secondary site, every tier-0/1 catalogue site, every lattice A/B/C room and every sanctuary;
+     *   - lattice rooms: a fourth lattice, D, for all fourteen rooms (Dungeons.D_CELL_D);
+     *   - vanilla-style rooms: attempts 39 -> 59 (the first 39 draw exactly as before);
+     *   - catalogue: RELATIVE_STRUCTURE_DENSITY 0.46 -> DENSITY_V2, the cells from 0.46 up being tier 2;
+     *   - portal sanctuaries: the edge midpoints between the old ones (sanctuary2()).
+     * Every tier-2 site stays out of every chunk that existed when 3.28.0 first started (the v2 boundary, with a
+     * ring of one chunk), so the whole world generated so far is untouched and every site already built is
+     * placed and recognised exactly as before: no older admission rule ever asks about a tier-2 site.
+     * Precedence among tier 2: sanctuaries, set pieces, catalogue, lattice rooms, vanilla rooms.
+     */
+    public static final String BOUNDARY_FILE_V2 = "jaspr-rates-v2.boundary";
+    private static final int BOUNDARY_MAGIC_V2 = 0x4a525232;
+    private static final long TERTIARY_SALT = 0x5448495244L;          // "THIRD"
+    static long tertiarySalt(long salt) { return salt * 37L + TERTIARY_SALT; }
+    /** A tertiary lattice for a builder beyond the register table (none today): the secondary one, ~0.8 wider. */
+    static int tertiaryCell(int cell) { return (int) Math.round(cell * 1.25); }
+    private static final Map<Long, WorldgenExpansion.Boundary> BOUNDARIES_V2 = new ConcurrentHashMap<>();
+    private static final Map<Long, Boolean> FAILED_V2 = new ConcurrentHashMap<>();
+
+    /** Opens (first 3.28.0 start: snapshots) the v2 boundary. Called on WorldInitEvent, before any chunk. */
+    public static synchronized int initializeV2(World world) {
+        long seed = world.getSeed();
+        WorldgenExpansion.Boundary known = BOUNDARIES_V2.get(seed);
+        if (known != null) return known.protectedChunks();
+        try {
+            WorldgenExpansion.Boundary b = WorldgenExpansion.open(world.getWorldFolder(), seed, BOUNDARY_FILE_V2, BOUNDARY_MAGIC_V2);
+            BOUNDARIES_V2.put(seed, b);
+            FAILED_V2.remove(seed);
+            return b.protectedChunks();
+        } catch (IOException | RuntimeException e) {
+            FAILED_V2.put(seed, Boolean.TRUE);                          // fail closed: no tier-2 site anywhere
+            return -1;
+        }
+    }
+
+    public static boolean failedV2(long seed) { return FAILED_V2.containsKey(seed); }
+
+    /** True when no chunk of this box, nor the ring round it, existed before 3.28.0 (and the v1 test passes). */
+    static boolean permits2(long seed, int x, int z, int sizeX, int sizeZ) {
+        if (FAILED_V2.containsKey(seed) || !permits(seed, x, z, sizeX, sizeZ)) return false;
+        WorldgenExpansion.Boundary b = BOUNDARIES_V2.get(seed);
+        if (b == null || b.protectedChunks() == 0) return true;
+        for (int cx = Math.floorDiv(x - 16, 16); cx <= Math.floorDiv(x + sizeX + 15, 16); cx++)
+            for (int cz = Math.floorDiv(z - 16, 16); cz <= Math.floorDiv(z + sizeZ + 15, 16); cz++)
+                if (b.contains(cx, cz)) return false;
+        return true;
+    }
+
+    /** True when this chunk did not exist before 3.28.0. */
+    static boolean fresh2(long seed, int cx, int cz) {
+        if (FAILED_V2.containsKey(seed) || !fresh(seed, cx, cz)) return false;
+        WorldgenExpansion.Boundary b = BOUNDARIES_V2.get(seed);
+        return b == null || !b.contains(cx, cz);
+    }
+
     /** What RELATIVE_STRUCTURE_DENSITY was before 3.25.0: a catalogue cell below it is tier 0 (old rules). */
     public static final double PREVIOUS_DENSITY = 0.20;
     public static final String BOUNDARY_FILE = "jaspr-rates-v1.boundary";
@@ -155,10 +214,74 @@ public final class StructureRates {
             long d = sq(bx - x, bz - z);
             if (d < best && sanctuary(t, cx, cz)) { best = d; bestX = bx; bestZ = bz; }
         }
+        for (int[] e : new int[][]{{EDGE_A_X, EDGE_A_Z}, {EDGE_B_X, EDGE_B_Z}}) {         // 3.28.0 tier 2
+            int a0 = Math.floorDiv(Math.floorDiv(x, 16) - e[0], 256), b0 = Math.floorDiv(Math.floorDiv(z, 16) - e[1], 256);
+            for (int i = a0 - 1; i <= a0 + 2; i++) for (int j = b0 - 1; j <= b0 + 2; j++) {
+                int cx = e[0] + 256 * i, cz = e[1] + 256 * j;
+                int bx = cx * 16 + 8, bz = cz * 16 + 8;
+                long d = sq(bx - x, bz - z);
+                if (d < best && sanctuary2(t, cx, cz)) { best = d; bestX = bx; bestZ = bz; }
+            }
+        }
         return new int[]{bestX, bestZ};
     }
 
     private static long sq(long a, long b) { return a * a + b * b; }
+
+    // == tier-2 portal sanctuaries (3.28.0) ================================================================
+    /*
+     * On the edge midpoints between the old sanctuaries -- chunk (136, 0) and (8, 128) modulo 256, as far from
+     * both older families as the lattice allows -- on a seeded SELECT_2 share, admitted where nothing older
+     * stands in the chunk (with its cordon) and only in chunks that did not exist before 3.28.0.
+     */
+    static final int EDGE_A_X = 136, EDGE_A_Z = 0, EDGE_B_X = 8, EDGE_B_Z = 128;
+    static final double SELECT_2 = 0.46;
+
+    static boolean candidate2(long seed, int cx, int cz) {
+        boolean a = Math.floorMod(cx - EDGE_A_X, 256) == 0 && Math.floorMod(cz - EDGE_A_Z, 256) == 0;
+        boolean b = Math.floorMod(cx - EDGE_B_X, 256) == 0 && Math.floorMod(cz - EDGE_B_Z, 256) == 0;
+        if (!a && !b) return false;
+        long i = Math.floorDiv(cx, 256), j = Math.floorDiv(cz, 256);
+        return (Terrain.mix(seed + 0x53414E4332L + (a ? 0 : 97L) + i * 341873128712L + j * 132897987541L) >>> 11) * 0x1.0p-53 < SELECT_2;
+    }
+
+    private static final Map<Long, Boolean> SANCTUARY2_CACHE = new ConcurrentHashMap<>();
+
+    /** True when a tier-2 (3.28.0) portal sanctuary stands in this chunk. */
+    public static boolean sanctuary2(Terrain t, int cx, int cz) {
+        if (!candidate2(t.seed, cx, cz)) return false;
+        boolean ready = BOUNDARIES_V2.containsKey(t.seed) || FAILED_V2.containsKey(t.seed);
+        long key = Terrain.mix(t.seed + cx * 341873128712L + cz * 132897987541L + 2L);
+        Boolean known = ready ? SANCTUARY2_CACHE.get(key) : null;
+        if (known != null) return known;
+        int x = cx * 16, z = cz * 16, size = 16;
+        boolean ok = permits2(t.seed, x, z, size, size)
+            && !Megaliths.occupiedAll(t, x, z, size, size, 255)         // a primary or secondary set piece
+            && !StructurePlanner.catalogueTier01(t, x, z, size, size)  // a tier-0/1 catalogue site
+            && !Dungeons.roomNearABC(t, x, z, size, size);             // a lattice A/B/C room
+        if (ready) { if (SANCTUARY2_CACHE.size() > 4096) SANCTUARY2_CACHE.clear(); SANCTUARY2_CACHE.put(key, ok); }
+        return ok;
+    }
+
+    /** nearSanctuary() counting the tier-2 sanctuaries too: what every tier-2 site asks. */
+    static boolean nearSanctuaryAll(Terrain t, int x, int z, int sizeX, int sizeZ) {
+        if (nearSanctuary(t, x, z, sizeX, sizeZ)) return true;
+        int c0 = Math.floorDiv(x - 2, 16) - SANCTUARY_HALO, c1 = Math.floorDiv(x + sizeX + 1, 16) + SANCTUARY_HALO;
+        int d0 = Math.floorDiv(z - 2, 16) - SANCTUARY_HALO, d1 = Math.floorDiv(z + sizeZ + 1, 16) + SANCTUARY_HALO;
+        for (int[] e : new int[][]{{EDGE_A_X, EDGE_A_Z}, {EDGE_B_X, EDGE_B_Z}})
+            for (int cx = c0 + Math.floorMod(e[0] - c0, 256); cx <= c1; cx += 256)
+                for (int cz = d0 + Math.floorMod(e[1] - d0, 256); cz <= d1; cz += 256)
+                    if (sanctuary2(t, cx, cz)) return true;
+        return false;
+    }
+
+    /** BiomeDetails keeps its motifs out of a tier-2 sanctuary's halo too. */
+    static boolean sanctuary2Halo(Terrain t, int cx, int cz) {
+        for (int ax = cx - SANCTUARY_HALO; ax <= cx + SANCTUARY_HALO; ax++)
+            for (int az = cz - SANCTUARY_HALO; az <= cz + SANCTUARY_HALO; az++)
+                if (sanctuary2(t, ax, az)) return true;
+        return false;
+    }
 
     /** For the server log (RATES_BOUNDARY_READY). */
     static File boundaryFile(World w) { return new File(w.getWorldFolder(), BOUNDARY_FILE); }

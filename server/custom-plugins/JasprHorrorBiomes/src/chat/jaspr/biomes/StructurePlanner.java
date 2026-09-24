@@ -68,7 +68,7 @@ public final class StructurePlanner {
         final int entranceCol,entranceRow;
         final int[] approach;
         private final List<Marker> markers;
-        /** 0: a cell under the 3.24 density (placed by the 3.24 rules); 1: added by 3.25.0 (StructureRates). */
+        /** 0: a cell under the 3.24 density (placed by the 3.24 rules); 1: added by 3.25.0; 2: a 3.28.0 grid (StructureRates). */
         int tier;
 
         private Site(long seed,StructureCatalog.Design design,int x,int z,String key,int anchorX,int anchorZ) {
@@ -190,7 +190,16 @@ public final class StructurePlanner {
             if(occupied.add(wx+":"+wy+":"+wz)) result.add(new Marker(wx,wy,wz,kind,result.size()));
         }
     }
+    /** Every site admitted for generation whose footprint touches this chunk: the 3.27 grids plus, since 3.28.0,
+     * the two tier-2 grids (sitesTier2). */
     public static List<Site> sites(long seed,int cx,int cz) {
+        List<Site> old=sitesTier01(seed,cx,cz),tier2=sitesTier2(seed,cx,cz);
+        if(tier2.isEmpty())return old;
+        List<Site> result=new ArrayList<>(old);result.addAll(tier2);
+        return Collections.unmodifiableList(result);
+    }
+    /** What sites() returned under 3.25-3.27 (tiers 0 and 1): asked by everything placed before 3.28.0. */
+    static List<Site> sitesTier01(long seed,int cx,int cz) {
         int rx=(int)Math.floorDiv((long)cx*16,REGION),rz=(int)Math.floorDiv((long)cz*16,REGION);
         List<Site> result=new ArrayList<>(1);
         for(int a=rx-1;a<=rx+1;a++) for(int b=rz-1;b<=rz+1;b++) {
@@ -319,6 +328,7 @@ public final class StructurePlanner {
         for(int a=ex-1;a<=ex+1;a++)for(int b=ez-1;b<=ez+1;b++) {
             Site site=identifyExpansion(seed,a,b);if(site!=null&&site.intersects(cx,cz)&&keys.add(site.key))result.add(site);
         }
+        for(Site site:identifyTier2(seed,cx,cz))if(keys.add(site.key))result.add(site);
         return Collections.unmodifiableList(result);
     }
     public static Site identifyRegion(long seed,int rx,int rz) {
@@ -472,6 +482,193 @@ public final class StructurePlanner {
         long right=(long)x+width-1,bottom=(long)z+depth-1;
         long dx=x>0?x:right<0?-right:0,dz=z>0?z:bottom<0?-bottom:0;
         return dx*dx+dz*dz<(long)SPAWN_EXCLUSION_RADIUS*SPAWN_EXCLUSION_RADIUS;
+    }
+
+    // == tier 2 (3.28.0, the second 1.5x; StructureRates) ================================================================
+    /*
+     * The two 3.27 grids cannot give another 1.5x: their remaining cells are mostly closed by gates that identify()
+     * also applies (0.72 / 0.94), so raising their density only reached ~1.34x. Tier 2 is two grids of its own instead,
+     * planned exactly like the two old ones -- the same design pools, weights, anchors and tests, with salts of their
+     * own -- so the design mix is kept: "structures:v8:" and "structures:v10:" like the legacy grid (1,024 blocks; two
+     * grids half a region apart, because the big legacy designs yield so often that one grid cannot give 1.5x),
+     * "structures:v9:" like the expansion grid (384 blocks). A tier-2 site is admitted only on ground new in 3.28.0 (v2 boundary, whole reserve)
+     * and yields to everything older: every set piece of every layer, every sanctuary, every 3.27 catalogue site,
+     * every lattice A/B/C room; a v10 site also to every v8 site, a v9 site to every v8 and v10 site. Nothing older ever asks about a tier-2 site.
+     */
+    static final int TIER2_SALT=50000;
+    /** Share of tier-2 cells planned (then admitted as above); rates probe, tests/java/.../StructureRatesProbe.java. */
+    public static final double TIER2_LEGACY_DENSITY=0.80,TIER2_EXPANSION_DENSITY=1.0;
+    private static final Map<RegionKey,Optional<Site>> TIER2_CACHE=new LinkedHashMap<RegionKey,Optional<Site>>(256,.75f,true) {
+        protected boolean removeEldestEntry(Map.Entry<RegionKey,Optional<Site>> e) { return size()>CACHE_LIMIT*2; }
+    };
+
+    /** Tier-2 sites (both grids) admitted for generation whose footprint touches this chunk. */
+    static List<Site> sitesTier2(long seed,int cx,int cz) {
+        List<Site> result=new ArrayList<>(0);
+        int rx=(int)Math.floorDiv((long)cx*16,REGION),rz=(int)Math.floorDiv((long)cz*16,REGION);
+        for(int a=rx-1;a<=rx+1;a++) for(int b=rz-1;b<=rz+1;b++) for(int g=0;g<2;g++) {
+            Site site=tier2Legacy(seed,a,b,g);if(site!=null&&site.intersects(cx,cz)) result.add(site);
+        }
+        int ex=(int)Math.floorDiv((long)cx*16,EXPANSION_REGION),ez=(int)Math.floorDiv((long)cz*16,EXPANSION_REGION);
+        for(int a=ex-1;a<=ex+1;a++)for(int b=ez-1;b<=ez+1;b++) {
+            Site site=tier2Region(seed,a,b,true);if(site!=null&&site.intersects(cx,cz))result.add(site);
+        }
+        return result;
+    }
+    /** Recognition of tier-2 sites: the same plan without the disabled-design list (a site built before its design
+     * was disabled is still named). Every other gate is a pure function of the seed and the immutable v2 boundary. */
+    static List<Site> identifyTier2(long seed,int cx,int cz) {
+        List<Site> result=new ArrayList<>(0);
+        int rx=(int)Math.floorDiv((long)cx*16,REGION),rz=(int)Math.floorDiv((long)cz*16,REGION);
+        for(int a=rx-1;a<=rx+1;a++) for(int b=rz-1;b<=rz+1;b++) for(int g=0;g<2;g++) {
+            Site site;try{site=planTier2Legacy(seed,a,b,g,false);}catch(RuntimeException error){site=null;}
+            if(site!=null&&site.intersects(cx,cz)) result.add(site);
+        }
+        int ex=(int)Math.floorDiv((long)cx*16,EXPANSION_REGION),ez=(int)Math.floorDiv((long)cz*16,EXPANSION_REGION);
+        for(int a=ex-1;a<=ex+1;a++)for(int b=ez-1;b<=ez+1;b++) {
+            Site site;try{site=planTier2Expansion(seed,a,b,false);}catch(RuntimeException error){site=null;}
+            if(site!=null&&site.intersects(cx,cz))result.add(site);
+        }
+        return result;
+    }
+    /** The admitted tier-2 site of this cell on the expansion grid (expansion) or the first legacy grid, cached. */
+    static Site tier2Region(long seed,int rx,int rz,boolean expansion) {
+        return expansion?tier2Cached(seed,rx,rz,2):tier2Cached(seed,rx,rz,0);
+    }
+    /** The admitted tier-2 site of this cell on legacy grid g (0: v8, 1: v10). */
+    static Site tier2Legacy(long seed,int rx,int rz,int g) { return tier2Cached(seed,rx,rz,g); }
+    private static Site tier2Cached(long seed,int rx,int rz,int grid) {
+        RegionKey key=new RegionKey(seed^(0x544945524CL+grid*0x1000193L),rx,rz);Optional<Site> known;
+        synchronized(TIER2_CACHE) {known=TIER2_CACHE.get(key);}if(known!=null)return known.orElse(null);
+        Site made=grid==2?planTier2Expansion(seed,rx,rz,true):planTier2Legacy(seed,rx,rz,grid,true);
+        synchronized(TIER2_CACHE) {
+            known=TIER2_CACHE.get(key);if(known!=null)return known.orElse(null);
+            TIER2_CACHE.put(key,Optional.ofNullable(made));
+        }
+        return made;
+    }
+    /** plan(), on tier-2 legacy grid g (0: v8, 1: v10, half a region along each axis from the first, salts of its
+     * own). checkDisabled=false is recognition (identifyTier2). */
+    private static Site planTier2Legacy(long seed,int rx,int rz,int g,boolean checkDisabled) {
+        Terrain terrain=new Terrain(seed);int salt=909+TIER2_SALT+g*1000,shift=g*REGION/2;
+        if(terrain.random(rx,rz,salt)>=TIER2_LEGACY_DENSITY)return null;
+        if(terrain.random(rx,rz,salt+1)>.72) return null;
+        long ax=(long)rx*REGION+shift+384+(int)(terrain.random(rx,rz,salt+2)*257);
+        long az=(long)rz*REGION+shift+384+(int)(terrain.random(rx,rz,salt+3)*257);
+        if(ax<Integer.MIN_VALUE+512L||ax>Integer.MAX_VALUE-512L||az<Integer.MIN_VALUE+512L||az>Integer.MAX_VALUE-512L)return null;
+        int biome=terrain.sample((int)ax,(int)az).profile.index;
+        List<StructureCatalog.Design> choices=StructureCatalog.legacyChoices(biome),pool=new ArrayList<>();
+        boolean exclusive=terrain.random(rx,rz,salt+4)<.55;
+        for(StructureCatalog.Design d:choices) if(d.exclusive==exclusive) pool.add(d);
+        if(pool.isEmpty())return null;
+        StructureCatalog.Design design=pool.get((int)(terrain.random(rx,rz,salt+5)*pool.size()));
+        if(design.mode.equals("underwater")&&terrain.sample((int)ax,(int)az).y>=62) {
+            pool.clear();for(StructureCatalog.Design d:choices) if(!d.mode.equals("underwater")) pool.add(d);
+            if(pool.isEmpty())return null;
+            design=pool.get((int)(terrain.random(rx,rz,salt+6)*pool.size()));
+        }
+        if(checkDisabled&&DisabledStructures.any(design.name,design.id))return null;
+        int width=design.columns*12+MARGIN*2,depth=design.rows*12+MARGIN*2+APPROACH;
+        int x=(int)ax-width/2,z=(int)az-depth/2;
+        int suitable=0,wet=0,samples=0;
+        for(int row=0;row<design.rows;row++)for(int col=0;col<design.columns;col++)if(design.room(col,row)!='.') {
+            for(int dx:new int[]{1,6,10})for(int dz:new int[]{1,6,10}) {
+                Terrain.Sample sample=terrain.sample(x+MARGIN+col*12+dx,z+MARGIN+row*12+dz);
+                samples++;if(design.accepts(sample.profile.index))suitable++;if(sample.y<62)wet++;
+            }
+        }
+        if(suitable*3<samples*2||design.mode.equals("underwater")&&wet*10<samples*9)return null;
+        if(!tier2Ground(terrain,x,z,width,depth))return null;
+        Site site;
+        try{site=new Site(seed,design,x,z,(g==0?"structures:v8:":"structures:v10:")+seed+":"+rx+":"+rz+":"+design.id,(int)ax,(int)az);}
+        catch(IllegalStateException ex){if(ex.getMessage()==null||!ex.getMessage().startsWith("Approach cannot reach surface"))throw ex;return null;}
+        site.tier=2;
+        return tier2Clear(terrain,site,g)?site:null;
+    }
+    /** planExpansion(), on the tier-2 expansion grid. checkDisabled=false is recognition (identifyTier2). */
+    private static Site planTier2Expansion(long seed,int rx,int rz,boolean checkDisabled) {
+        Terrain terrain=new Terrain(seed);int salt=1909+TIER2_SALT;
+        if(terrain.random(rx,rz,salt)>=TIER2_EXPANSION_DENSITY)return null;
+        boolean surfaceLandmark=Math.floorMod(rx+2*rz,4)!=0;
+        if(!surfaceLandmark&&terrain.random(rx,rz,salt+1)>=.94)return null;
+        long ax=(long)rx*EXPANSION_REGION+176+(int)(terrain.random(rx,rz,salt+2)*33);
+        long az=(long)rz*EXPANSION_REGION+176+(int)(terrain.random(rx,rz,salt+3)*33);
+        if(ax<Integer.MIN_VALUE+512L||ax>Integer.MAX_VALUE-512L||az<Integer.MIN_VALUE+512L||az>Integer.MAX_VALUE-512L)return null;
+        int biome=terrain.sample((int)ax,(int)az).profile.index;
+        List<StructureCatalog.Design> choices=StructureCatalog.expansionChoices(biome),pool=new ArrayList<>();
+        if(surfaceLandmark) {
+            for(StructureCatalog.Design d:choices)if(d.mode.equals("surface")&&d.tier>=SURFACE_LANDMARK_TIER)pool.add(d);
+            if(pool.isEmpty())for(StructureCatalog.Design d:choices)if(d.mode.equals("surface"))pool.add(d);
+        } else {
+            boolean exclusive=terrain.random(rx,rz,salt+4)<.60;
+            for(StructureCatalog.Design d:choices)if(d.exclusive==exclusive)addWeighted(pool,d);
+            if(pool.isEmpty())for(StructureCatalog.Design d:choices)addWeighted(pool,d);
+        }
+        if(pool.isEmpty())return null;
+        int attempts=surfaceLandmark?Math.min(12,pool.size()):4;
+        int first=surfaceLandmark?(int)(terrain.random(rx,rz,salt+5)*pool.size()):0;
+        for(int attempt=0;attempt<attempts;attempt++) {
+            StructureCatalog.Design design=surfaceLandmark?pool.get((first+attempt)%pool.size()):pool.get((int)(terrain.random(rx,rz,salt+5+attempt)*pool.size()));
+            if(checkDisabled&&DisabledStructures.any(design.name,design.id))return null;
+            int width=design.columns*12+MARGIN*2,depth=design.rows*12+MARGIN*2+APPROACH;
+            if(width>EXPANSION_MIN_SPACING-8||depth>EXPANSION_MIN_SPACING-8)continue;
+            int x=(int)ax-width/2,z=(int)az-depth/2;
+            if(!tier2Ground(terrain,x,z,width,depth))continue;
+            int samples=0,suitable=0,wet=0;
+            for(int row=0;row<design.rows;row++)for(int col=0;col<design.columns;col++)if(design.room(col,row)!='.')
+                for(int dx:new int[]{1,6,10})for(int dz:new int[]{1,6,10}) {
+                    Terrain.Sample sample=terrain.sample(x+MARGIN+col*12+dx,z+MARGIN+row*12+dz);
+                    samples++;if(design.accepts(sample.profile.index))suitable++;if(sample.y<62)wet++;
+                }
+            if(suitable*3<samples*2||design.mode.equals("underwater")&&wet*10<samples*9)continue;
+            try{Site site=new Site(seed,design,x,z,"structures:v9:"+seed+":"+rx+":"+rz+":"+design.id,(int)ax,(int)az);
+                site.tier=2;
+                if(!tier2Clear(terrain,site,2))continue;
+                return site;}
+            catch(IllegalStateException ex){if(ex.getMessage()==null||!ex.getMessage().startsWith("Approach cannot reach surface"))throw ex;}
+        }
+        return null;
+    }
+    /** The reserve-wide tier-2 gates: spawn exclusion, ground new in 3.28.0, every portal sanctuary halo. */
+    private static boolean tier2Ground(Terrain terrain,int x,int z,int width,int depth) {
+        if(intersectsSpawnExclusion(x,z,width,depth))return false;
+        if(!StructureRates.permits2(terrain.seed,x,z,width,depth))return false;
+        for(int cx=Math.floorDiv(x,16)-2;cx<=Math.floorDiv(x+width-1,16)+2;cx++)
+            for(int cz=Math.floorDiv(z,16)-2;cz<=Math.floorDiv(z+depth-1,16)+2;cz++)
+                if(HorrorGenerator.portalChunk(cx,cz))return false;
+        return !StructureRates.nearSanctuaryAll(terrain,x,z,width,depth);
+    }
+    /** True when nothing older has any ground this tier-2 site builds on: set pieces of every layer, lattice A/B/C
+     * rooms, 3.27 catalogue sites and the tier-2 grids ranked before this one (grid 0: v8, 1: v10, 2: v9), with their
+     * sixteen-block reserve gap. */
+    private static boolean tier2Clear(Terrain terrain,Site site,int grid) {
+        for(int[] e:site.envelope())if(Megaliths.occupiedAll3(terrain,e[0],e[1],e[2],e[3],255))return false;
+        for(int[] e:site.envelope())if(Dungeons.roomNearABC(terrain,e[0],e[1],e[2],e[3]))return false;
+        long seed=terrain.seed;
+        int l0=Math.floorDiv(site.x-1536,REGION),l1=Math.floorDiv(site.x+site.width+16,REGION);
+        int m0=Math.floorDiv(site.z-1536,REGION),m1=Math.floorDiv(site.z+site.depth+16,REGION);
+        for(int a=l0;a<=l1;a++)for(int b=m0;b<=m1;b++) {
+            if(near(site,region(seed,a,b)))return false;
+            for(int g=0;g<grid&&g<2;g++)if(near(site,tier2Legacy(seed,a,b,g)))return false;
+        }
+        int e0=Math.floorDiv(site.x-400,EXPANSION_REGION),e1=Math.floorDiv(site.x+site.width+16,EXPANSION_REGION);
+        int f0=Math.floorDiv(site.z-400,EXPANSION_REGION),f1=Math.floorDiv(site.z+site.depth+16,EXPANSION_REGION);
+        for(int a=e0;a<=e1;a++)for(int b=f0;b<=f1;b++)if(near(site,expansionRegion(seed,a,b)))return false;
+        return true;
+    }
+    private static boolean near(Site site,Site other) {
+        return other!=null&&site.x<other.x+(long)other.width+16&&site.x+(long)site.width+16>other.x
+            &&site.z<other.z+(long)other.depth+16&&site.z+(long)site.depth+16>other.z;
+    }
+    /** catalogueTier0(), counting tier-1 sites too (the 3.27 grids): what every other tier-2 site asks. */
+    static boolean catalogueTier01(Terrain t,int x,int z,int sizeX,int sizeZ) {
+        for(int cx=(x-2)>>4;cx<=(x+sizeX+1)>>4;cx++)for(int cz=(z-2)>>4;cz<=(z+sizeZ+1)>>4;cz++)
+            for(Site s:sitesTier01(t.seed,cx,cz))for(int[] e:s.envelope()) {
+                if(e[0]+e[2]+2<=x||x+sizeX+2<=e[0])continue;
+                if(e[1]+e[3]+2<=z||z+sizeZ+2<=e[1])continue;
+                return true;
+            }
+        return false;
     }
     private static final class RegionKey {
         final long seed;final int x,z;

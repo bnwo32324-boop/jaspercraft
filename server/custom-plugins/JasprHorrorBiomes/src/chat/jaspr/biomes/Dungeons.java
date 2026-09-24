@@ -46,6 +46,9 @@ public final class Dungeons {
      */
     public static final double VANILLA_RATE = 0.0077;
     public static final int ATTEMPTS = 39;
+    /** 3.28.0 (second 1.5x, StructureRates): attempts from ATTEMPTS up draw after all of those, only in chunks new in
+     * 3.28.0, so the first 39 rooms of every chunk are drawn exactly as before. */
+    public static final int ATTEMPTS_V2 = 59;
     /** What ATTEMPTS was until 3.25.0 (1.5x, StructureRates): attempts from here on draw after all of those, so
      * the first twenty-six rooms of every chunk are drawn exactly as before, and none is laid by a retrofit
      * into a chunk that predates 3.25.0. */
@@ -96,14 +99,15 @@ public final class Dungeons {
         Random r = new Random(Terrain.mix(terrain.seed + cx * 0x9E3779B97F4A7C15L + cz * 0xC2B2AE3D27D4EB4FL + 77L));
         int first = retrofit ? PREVIOUS_ATTEMPTS : 0;
         boolean fresh = StructureRates.fresh(terrain.seed, cx, cz);
-        for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
+        boolean fresh2 = StructureRates.fresh2(terrain.seed, cx, cz);
+        for (int attempt = 0; attempt < ATTEMPTS_V2; attempt++) {
             // Footprint kept inside the chunk so no neighbour is ever read.
             int x = 4 + r.nextInt(8);
             int y = r.nextInt(256);
             int z = 4 + r.nextInt(8);
             // The draws still happen for the earlier attempts, because skipping them would
             // shift every attempt after and put the new rooms somewhere else entirely.
-            if (attempt >= first && (attempt < ATTEMPTS_324 || fresh))
+            if (attempt >= first && (attempt < ATTEMPTS_324 || fresh) && (attempt < ATTEMPTS || fresh2))
                 plain(chunk, terrain, r, x, y, z, caves.region(cx * 16 + x, cz * 16 + z));
         }
         // First lattice: what a chunk generated before this change already contains.
@@ -186,6 +190,32 @@ public final class Dungeons {
         blockhouse(world, chunk, terrain, D_CELL_C[12], D_SALT_C[12]);
         clearing(chunk, terrain, 13, D_SALT_C[13]);
         highway(world, chunk, terrain, D_CELL_C[13], D_SALT_C[13]);
+        // Fourth lattice (3.28.0, the second 1.5x): every room once more, on ground new in 3.28.0 only, yielding to
+        // everything older and every tier-2 set piece, catalogue site and sanctuary (see taken()).
+        ward(world, chunk, terrain, caves, D_SALT_D[0]);
+        ossuary(world, chunk, terrain, caves, D_SALT_D[1]);
+        cistern(world, chunk, terrain, caves, D_SALT_D[2]);
+        vault(world, chunk, terrain, caves, D_SALT_D[3]);
+        warren(world, chunk, terrain, caves, D_SALT_D[4]);
+        for (int i = 0; i < 5; i++) entrance(chunk, terrain, i, D_SALT_D[i]);
+        clearing(chunk, terrain, 5, D_SALT_D[5]);
+        spire(world, chunk, terrain, D_SALT_D[5]);
+        clearing(chunk, terrain, 6, D_SALT_D[6]);
+        chapel(world, chunk, terrain, D_SALT_D[6]);
+        clearing(chunk, terrain, 7, D_SALT_D[7]);
+        checkpoint(world, chunk, terrain, D_SALT_D[7]);
+        clearing(chunk, terrain, 8, D_SALT_D[8]);
+        sanatorium(world, chunk, terrain, D_CELL_D[8], D_SALT_D[8]);
+        clearing(chunk, terrain, 9, D_SALT_D[9]);
+        trial(world, chunk, terrain, D_CELL_D[9], D_SALT_D[9]);
+        clearing(chunk, terrain, 10, D_SALT_D[10]);
+        cabin(world, chunk, terrain, D_CELL_D[10], D_SALT_D[10]);
+        clearing(chunk, terrain, 11, D_SALT_D[11]);
+        shrine(world, chunk, terrain, D_CELL_D[11], D_SALT_D[11]);
+        clearing(chunk, terrain, 12, D_SALT_D[12]);
+        blockhouse(world, chunk, terrain, D_CELL_D[12], D_SALT_D[12]);
+        clearing(chunk, terrain, 13, D_SALT_D[13]);
+        highway(world, chunk, terrain, D_CELL_D[13], D_SALT_D[13]);
         settle(chunk, written.bits);             // see settle(): the faults every builder left behind
         written.chunk = null;
     }
@@ -216,7 +246,9 @@ public final class Dungeons {
         // site stamped before it, or be half overwritten by a set piece or built room laid after it.
         // Asked only once the blocks have passed, so the lookup costs nothing on the attempts that fail.
         int wx = c.getX() * 16 + x - rx - 1, wz = c.getZ() * 16 + z - rz - 1;
-        if (Megaliths.occupiedAll(t, wx, wz, rx * 2 + 3, rz * 2 + 3, y + 4) || catalogued(t, wx, wz, rx * 2 + 3, rz * 2 + 3, y + 4, true)
+        // 3.28.0: every layer, tier 2 included. A tier-2 site never reaches a chunk that existed before 3.28.0, so
+        // in such a chunk (a retrofit) these answer exactly as the 3.25-3.27 tests did.
+        if (Megaliths.occupiedAll3(t, wx, wz, rx * 2 + 3, rz * 2 + 3, y + 4) || catalogued(t, wx, wz, rx * 2 + 3, rz * 2 + 3, y + 4, 2)
                 || roomed(t, wx, wz, rx * 2 + 3, rz * 2 + 3, y - 1, y + 4)) {
             TAKEN.incrementAndGet();
             return false;
@@ -1234,6 +1266,10 @@ public final class Dungeons {
      * SA/work/r-rates). Separate arrays: D_CELL and D_SALT_A/B keep their shape (the importer reads them). */
     private static final int[] D_CELL_C = { 22, 29, 26, 30, 23, 33, 36, 27, 44, 41, 34, 37, 44, 42 };
     private static final long[] D_SALT_C = { 0x5741524402L, 0x424F4E4502L, 0x4349535402L, 0x5641554C5402L, 0x574152524E02L, 0x5350495247L, 0x434841504EL, 0x43484B5056L, 0x53414E4156L, 0x54524941544EL, 0x4341424950L, 0x5348524950L, 0x424C4F434DL, 0x524F414402L };
+    /** 3.28.0 (the second 1.5x, StructureRates): lattice D for all fourteen rooms, half the 3.27 count again after
+     * everything older has its ground (rates probe, tests/java/chat/jaspr/biomes/StructureRatesProbe.java). */
+    private static final int[] D_CELL_D = { 18, 23, 21, 24, 18, 26, 28, 21, 34, 31, 27, 30, 35, 33 };
+    private static final long[] D_SALT_D = { 0x5741524403L, 0x424F4E4503L, 0x4349535403L, 0x5641554C5403L, 0x574152524E03L, 0x5350495248L, 0x434841504FL, 0x43484B5057L, 0x53414E4157L, 0x54524941544FL, 0x4341424951L, 0x5348524951L, 0x424C4F434EL, 0x524F414403L };
     private static final int[] D_SX = { 13, 11, 13, 11, 15, 7, 11, 13, 15, 13, 11, 11, 15, 15 };
     private static final int[] D_SZ = { 9, 11, 13, 11, 11, 7, 15, 9, 13, 13, 9, 11, 13, 9 };
     private static final boolean[] D_SURFACE = { false, false, false, false, false, true, true, true, true, true, true, true, true, true };
@@ -1253,6 +1289,18 @@ public final class Dungeons {
      */
     public static String locate(Terrain t, int wx, int wy, int wz) {
         int cx = wx >> 4, cz = wz >> 4;
+        // 3.28.0 lattice D, named only where a room was really admitted, exactly as lattice C below: it keeps two
+        // blocks clear of every admitted room of the older lattices, so no position named before changes name.
+        for (int i = 0; i < D_NAME.length; i++) {
+            Anchor a = D_SURFACE[i]
+                ? surfaceAnchor(t, cx, cz, D_CELL_D[i], D_SALT_D[i], D_SX[i], D_SZ[i], true)
+                : anchor(t, cx, cz, D_CELL_D[i], D_SALT_D[i], D_SX[i], D_SZ[i], true);
+            if (a == null) continue;
+            if (wx < a.x || wx >= a.x + D_SX[i]) continue;
+            if (wz < a.z || wz >= a.z + D_SZ[i]) continue;
+            if (wy < a.y - 2 || wy > a.y + D_SY[i] + 2) continue;
+            return D_NAME[i] + "\u0000" + D_METHOD[i] + "\u0000" + a.x + "\u0000" + a.y + "\u0000" + a.z;
+        }
         // 3.25.0 lattice: named only where a room was really admitted. Such a room keeps two blocks clear of
         // every admitted older room at any height, so every position named before is named as before.
         for (int i = 0; i < D_NAME.length; i++) {
@@ -1373,7 +1421,7 @@ public final class Dungeons {
 
     /** True when a register set piece or an admitted catalogue site owns this box (+2 cordon) up to top. */
     private static boolean taken(Terrain t, int x, int z, int sizeX, int sizeZ, int top) {
-        return Megaliths.occupied(t, x, z, sizeX, sizeZ, top) || catalogued(t, x, z, sizeX, sizeZ, top, false);
+        return Megaliths.occupied(t, x, z, sizeX, sizeZ, top) || catalogued(t, x, z, sizeX, sizeZ, top, 0);
     }
 
     /**
@@ -1383,13 +1431,64 @@ public final class Dungeons {
      * sanctuary halos, and to chunks that predate 3.25.0.
      */
     private static boolean taken(Terrain t, int x, int z, int sizeX, int sizeZ, int top, long salt) {
+        if (latticeD(salt) >= 0) return takenD(t, x, z, sizeX, sizeZ, top, latticeD(salt));
         if (!fresh(salt)) return taken(t, x, z, sizeX, sizeZ, top);
         return !StructureRates.permits(t.seed, x, z, sizeX, sizeZ)
             || StructureRates.nearSanctuary(t, x, z, sizeX, sizeZ)
             || Megaliths.occupiedAll(t, x, z, sizeX, sizeZ, top)
-            || catalogued(t, x, z, sizeX, sizeZ, top, true)
+            || catalogued(t, x, z, sizeX, sizeZ, top, 1)   // tiers 0-1: never a 3.28.0 site (StructureRates)
             || oldRoomNear(t, x, z, sizeX, sizeZ)
             || newRoomNear(t, x, z, sizeX, sizeZ, freshIndex(salt));
+    }
+
+    /**
+     * taken() for a lattice-D room (3.28.0, the second 1.5x): only on ground new in 3.28.0 (the v2 boundary), clear of
+     * every sanctuary halo (tier 2 included), every set piece of every layer, every catalogue site of every tier,
+     * every admitted lattice A/B/C room within two blocks at any height, and every lower-indexed lattice-D room.
+     */
+    private static boolean takenD(Terrain t, int x, int z, int sizeX, int sizeZ, int top, int index) {
+        return !StructureRates.permits2(t.seed, x, z, sizeX, sizeZ)
+            || StructureRates.nearSanctuaryAll(t, x, z, sizeX, sizeZ)
+            || Megaliths.occupiedAll3(t, x, z, sizeX, sizeZ, top)
+            || catalogued(t, x, z, sizeX, sizeZ, top, 2)
+            || roomNearABC(t, x, z, sizeX, sizeZ)
+            || roomNearD(t, x, z, sizeX, sizeZ, index);
+    }
+
+    /** The lattice-D index of this salt, or -1. */
+    private static int latticeD(long salt) {
+        for (int i = 0; i < D_SALT_D.length; i++) if (D_SALT_D[i] == salt) return i;
+        return -1;
+    }
+
+    /** True when an admitted room of lattice A, B or C stands within two blocks of this box, at any height:
+     * what every 3.28.0 (tier-2) site asks. */
+    static boolean roomNearABC(Terrain t, int x, int z, int sizeX, int sizeZ) {
+        return oldRoomNear(t, x, z, sizeX, sizeZ) || newRoomNear(t, x, z, sizeX, sizeZ, D_NAME.length);
+    }
+
+    /** newRoomNear() among the lattice-D rooms: a lower index outranks. */
+    private static boolean roomNearD(Terrain t, int x, int z, int sizeX, int sizeZ, int below) {
+        for (int i = 0; i < below; i++) {
+            int cell = D_CELL_D[i];
+            long salt = D_SALT_D[i];
+            int mx = (int) Math.floorMod(Terrain.mix(t.seed + salt) >>> 3, (long) cell);
+            int mz = (int) Math.floorMod(Terrain.mix(t.seed + salt + 17L) >>> 3, (long) cell);
+            int a0 = Math.floorDiv(x - D_SX[i] - 4, 16), a1 = Math.floorDiv(x + sizeX + 1, 16);
+            int b0 = Math.floorDiv(z - D_SZ[i] - 4, 16), b1 = Math.floorDiv(z + sizeZ + 1, 16);
+            for (int acx = a0 + Math.floorMod(mx - a0, cell); acx <= a1; acx += cell) {
+                for (int acz = b0 + Math.floorMod(mz - b0, cell); acz <= b1; acz += cell) {
+                    int ax = acx * 16 + 2, az = acz * 16 + 2;
+                    if (ax + D_SX[i] + 2 <= x || x + sizeX + 2 <= ax) continue;
+                    if (az + D_SZ[i] + 2 <= z || z + sizeZ + 2 <= az) continue;
+                    Anchor a = D_SURFACE[i]
+                        ? surfaceAnchor(t, acx, acz, cell, salt, D_SX[i], D_SZ[i])
+                        : anchor(t, acx, acz, cell, salt, D_SX[i], D_SZ[i]);
+                    if (a != null && a.x == ax && a.z == az) return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static int freshIndex(long salt) {
@@ -1431,7 +1530,7 @@ public final class Dungeons {
     }
 
     /** The lattice spacing that goes with this salt: the 3.25.0 lattice of rooms 8-13 is wider. */
-    private static int cellFor(int i, long salt) { return salt == D_SALT_C[i] ? D_CELL_C[i] : D_CELL[i]; }
+    private static int cellFor(int i, long salt) { return salt == D_SALT_D[i] ? D_CELL_D[i] : salt == D_SALT_C[i] ? D_CELL_C[i] : D_CELL[i]; }
 
     /**
      * True when an older (lattice A or B) room admitted for generation stands within two blocks of this box,
@@ -1471,11 +1570,13 @@ public final class Dungeons {
      * lowest room floor clears the piers it stands on, so a buried room far below a surface site
      * is not a collision.
      */
-    private static boolean catalogued(Terrain t, int x, int z, int sizeX, int sizeZ, int top, boolean all) {
+    private static boolean catalogued(Terrain t, int x, int z, int sizeX, int sizeZ, int top, int maxTier) {
         for (int cx = (x - 2) >> 4; cx <= (x + sizeX + 1) >> 4; cx++) {
             for (int cz = (z - 2) >> 4; cz <= (z + sizeZ + 1) >> 4; cz++) {
-                // Older rooms ask only the tier-0 (3.24) sites, and never plan a tier-1 cell to do it.
-                for (StructurePlanner.Site s : all ? StructurePlanner.sites(t.seed, cx, cz) : StructurePlanner.sitesTier0(t.seed, cx, cz)) {
+                // Older rooms ask only the tier-0 (3.24) sites, and never plan a tier-1 cell to do it; the 3.25.0 rooms
+                // (lattice C) only tier 0-1, never planning a 3.28.0 (tier-2) cell; lattice D and the vanilla rooms all.
+                for (StructurePlanner.Site s : maxTier >= 2 ? StructurePlanner.sites(t.seed, cx, cz)
+                        : maxTier == 1 ? StructurePlanner.sitesTier01(t.seed, cx, cz) : StructurePlanner.sitesTier0(t.seed, cx, cz)) {
                     int floor = s.y;
                     for (StructurePlanner.Room room : s.rooms) floor = Math.min(floor, room.floor);
                     if (top < floor - 16) continue;
@@ -1495,8 +1596,8 @@ public final class Dungeons {
         for (int cx = (x - 2) >> 4; cx <= (x + sizeX + 1) >> 4; cx++) {
             for (int cz = (z - 2) >> 4; cz <= (z + sizeZ + 1) >> 4; cz++) {
                 for (int i = 0; i < D_NAME.length; i++) {
-                    for (int lat = 0; lat < 3; lat++) {
-                        long salt = lat == 0 ? D_SALT_A[i] : lat == 1 ? D_SALT_B[i] : D_SALT_C[i];
+                    for (int lat = 0; lat < 4; lat++) {
+                        long salt = lat == 0 ? D_SALT_A[i] : lat == 1 ? D_SALT_B[i] : lat == 2 ? D_SALT_C[i] : D_SALT_D[i];
                         if (salt == 0L) continue;
                         Anchor a = D_SURFACE[i]
                             ? surfaceAnchor(t, cx, cz, cellFor(i, salt), salt, D_SX[i], D_SZ[i])
@@ -1515,7 +1616,7 @@ public final class Dungeons {
 
     /** How far the room on this lattice stands above its anchor (D_SY), found by its salt. */
     private static int tall(long salt) {
-        for (int i = 0; i < D_SY.length; i++) if (D_SALT_A[i] == salt || D_SALT_B[i] == salt || D_SALT_C[i] == salt) return D_SY[i];
+        for (int i = 0; i < D_SY.length; i++) if (D_SALT_A[i] == salt || D_SALT_B[i] == salt || D_SALT_C[i] == salt || D_SALT_D[i] == salt) return D_SY[i];
         return 20;
     }
 

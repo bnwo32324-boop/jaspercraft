@@ -100,7 +100,7 @@ public final class HorrorGenerator extends ChunkGenerator {
         Catalog.Profile center=t.sample(cx*16+8,cz*16+8).profile;
         // CaptureHook.tap returns d itself unless the structure-audit test harness is attached.
         // 3.25.0: the new sanctuaries (StructureRates.sanctuary) are built exactly like the original ones.
-        if(portalChunk(cx,cz)||StructureRates.sanctuary(t,cx,cz)){sanctuary(CaptureHook.tap(d,null,cx,cz,"sanctuary"),heights);}
+        if(portalChunk(cx,cz)||StructureRates.sanctuary(t,cx,cz)||StructureRates.sanctuary2(t,cx,cz)){sanctuary(CaptureHook.tap(d,null,cx,cz,"sanctuary"),heights);}
         else{
             Random r=new Random(Terrain.mix(w.getSeed()+cx*91337L+cz*19777L));
             for(int k=0;k<center.density;k++){

@@ -1948,17 +1948,20 @@ public final class Landmarks {
                 return new Site(x, lo + 1, z, lo, hi, seed, sizeX, sizeZ);
             }
         }
-        return secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, 0);
+        Site second = secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, 0, false);
+        return second != null ? second : secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, 0, true);
     }
 
     /**
      * site() / siteNear() on the secondary lattice (3.25.0, StructureRates): asked only when no primary site
      * reaches this chunk; the same slope and height tests, and Megaliths.secondaryFree in place of claimed().
+     * tertiary: the same on the tertiary lattice (3.28.0, tier 2), asked only when no primary or secondary site
+     * reaches this chunk, with Megaliths.tertiaryFree.
      */
     private static Site secondary(Terrain t, int cx, int cz, int cell, long salt, int sizeX, int sizeZ, int maxSlope,
-                                  int rank, int margin) {
-        int cell2 = Megaliths.cell2(rank, cell);
-        long salt2 = Megaliths.salt2(rank, salt);
+                                  int rank, int margin, boolean tertiary) {
+        int cell2 = tertiary ? Megaliths.cell3(rank, cell) : Megaliths.cell2(rank, cell);
+        long salt2 = tertiary ? Megaliths.salt3(rank, salt) : Megaliths.salt2(rank, salt);
         int span = ((Math.max(sizeX, sizeZ) + margin) >> 4) + 1;
         for (int ox = -span; ox <= span; ox++) {
             for (int oz = -span; oz <= span; oz++) {
@@ -1978,7 +1981,8 @@ public final class Landmarks {
                 }
                 if (hi - lo > maxSlope) continue;
                 if (lo < 64 || hi > 136) continue;
-                if (!Megaliths.secondaryFree(t, x, z, sizeX, sizeZ, rank)) continue;
+                if (!(tertiary ? Megaliths.tertiaryFree(t, x, z, sizeX, sizeZ, rank)
+                               : Megaliths.secondaryFree(t, x, z, sizeX, sizeZ, rank))) continue;
                 long seed = Terrain.mix(t.seed + acx * 6364136223846793005L + acz * 1442695040888963407L + salt2);
                 return new Site(x, lo + 1, z, lo, hi, seed, sizeX, sizeZ);
             }
@@ -2135,7 +2139,8 @@ public final class Landmarks {
                 return new Site(x, lo + 1, z, lo, hi, seed, sizeX, sizeZ);
             }
         }
-        return secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, margin);
+        Site second = secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, margin, false);
+        return second != null ? second : secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, margin, true);
     }
 
     // -- danger and reward -------------------------------------------------------

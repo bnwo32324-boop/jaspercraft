@@ -144,7 +144,11 @@ public final class HorrorPlugin extends JavaPlugin implements Listener {
         if(w.getName().equals("world"))getLogger().info("EXPANSION_BOUNDARY_READY protectedChunks="+WorldgenExpansion.initialize(w).protectedChunks());
         if(w.getName().equals("world")){int n=StructureRates.initialize(w);
             if(n<0)getLogger().severe("RATES_BOUNDARY_FAILED file="+StructureRates.BOUNDARY_FILE+" -- the 3.25.0 extra structures are disabled; older placement is unaffected");
-            else getLogger().info("RATES_BOUNDARY_READY protectedChunks="+n+" catalogueDensity="+Math.round(StructurePlanner.RELATIVE_STRUCTURE_DENSITY*100)+"% setPieceLattices=2 roomLattices=+1 vanillaRoomAttempts="+Dungeons.ATTEMPTS+" sanctuaries=+50%");}
+            else getLogger().info("RATES_BOUNDARY_READY protectedChunks="+n+" catalogueDensity="+Math.round(StructurePlanner.RELATIVE_STRUCTURE_DENSITY*100)+"% setPieceLattices=2 roomLattices=+1 vanillaRoomAttempts="+Dungeons.ATTEMPTS+" sanctuaries=+50%");
+            // 3.28.0: the second 1.5x (tier 2). Fails closed like the first: without it no tier-2 site is placed.
+            int n2=StructureRates.initializeV2(w);
+            if(n2<0)getLogger().severe("RATES_V2_BOUNDARY_FAILED file="+StructureRates.BOUNDARY_FILE_V2+" -- the 3.28.0 extra structures are disabled; older placement is unaffected");
+            else getLogger().info("RATES_V2_BOUNDARY_READY protectedChunks="+n2+" tier2=set-pieces,rooms-D,catalogue,sanctuaries vanillaRoomAttempts="+Dungeons.ATTEMPTS_V2);}
         if(w.getEnvironment()!=World.Environment.NORMAL&&!w.getPopulators().stream().anyMatch(p->p instanceof OuterRealms))w.getPopulators().add(new OuterRealms());
     }
     public Catalog.Profile at(World w,int x,int z){return w.getEnvironment()==World.Environment.NORMAL?new Terrain(w.getSeed()).sample(x,z).profile:OuterRealms.profile(w,x,z);}

@@ -119,14 +119,39 @@ public final class Megaliths {
         97, 97, 101, 89, 97, 94, 94, 89, 86, 86, 79,
     };
     private static final long[] C_SALT2 = new long[C_SALT.length];
+    /*
+     * 3.28.0 tertiary lattices (tier 2, the second 1.5x; StructureRates), one per register entry, each with a salt of
+     * its own. A tertiary site yields to everything older -- every primary and secondary site, tier-0/1 catalogue
+     * sites, lattice A/B/C rooms, every sanctuary, chunks that predate 3.28.0 -- so each cell is sized, per set
+     * piece, for half the 3.27 count (primary + secondary) again after those yields (rates probe,
+     * tests/java/chat/jaspr/biomes/StructureRatesProbe.java), searched per set piece in rank order for the cell whose
+     * measured count lands nearest that target -- which also steers clear of cells that alias another lattice (a
+     * tertiary cell equal to another set piece's cell sits at one fixed offset from it and is blocked everywhere).
+     */
+    private static final int[] C_CELL3 = {
+        93, 127, 98, 86, 118, 97, 86, 94, 84, 105, 97, 94, 101, 101, 79, 97, 97,
+        81, 86, 94, 86, 88, 79, 94, 68, 33, 43, 46, 46, 53, 31, 89, 86, 79,
+        86, 89, 59, 84, 86, 79, 83, 86, 73, 74, 79, 82, 79, 80, 79, 79, 73,
+        73, 72, 76, 71, 73, 71, 75, 67, 68, 67, 61,
+    };
+    private static final long[] C_SALT3 = new long[C_SALT.length];
     static {
         if (C_CELL2.length != C_CELL.length) throw new IllegalStateException("secondary lattice table");
+        if (C_CELL3.length != C_CELL.length) throw new IllegalStateException("tertiary lattice table");
         for (int k = 0; k < C_CELL.length; k++) C_SALT2[k] = StructureRates.secondarySalt(C_SALT[k]);
+        for (int k = 0; k < C_CELL.length; k++) C_SALT3[k] = StructureRates.tertiarySalt(C_SALT[k]);
     }
 
     /** The secondary lattice of register entry `rank` (a builder's own cell is used only past the table). */
     static int cell2(int rank, int cell) {
         return rank >= 0 && rank < C_CELL2.length ? C_CELL2[rank] : StructureRates.secondaryCell(cell);
+    }
+    /** The tertiary (3.28.0) lattice of register entry `rank`. */
+    static int cell3(int rank, int cell) {
+        return rank >= 0 && rank < C_CELL3.length ? C_CELL3[rank] : StructureRates.tertiaryCell(cell2(rank, cell));
+    }
+    static long salt3(int rank, long salt) {
+        return rank >= 0 && rank < C_SALT3.length ? C_SALT3[rank] : StructureRates.tertiarySalt(salt);
     }
     static long salt2(int rank, long salt) {
         return rank >= 0 && rank < C_SALT2.length ? C_SALT2[rank] : StructureRates.secondarySalt(salt);
@@ -390,8 +415,46 @@ public final class Megaliths {
                 }
             }
         }
+        // 3.28.0: the tertiary lattices, asked only when no primary or secondary site holds this position. A built
+        // tertiary never overlaps a built primary or secondary, so no position that answered before answers otherwise.
+        for (int k = 0; k < C_CELL.length; k++) {
+            int[] third = tertiaryAt(t, k, wx, wz);
+            if (third != null && wy >= third[2] - 10 && wy <= third[2] + C_HEIGHT[k] + 6) return k;
+        }
         return -1;
     }
+
+    /** {acx, acz, floorY} of the built tertiary (3.28.0) site of kind k covering this column, or null. */
+    private static int[] tertiaryAt(Terrain t, int k, int wx, int wz) {
+        int cell = C_CELL3[k];
+        int ax = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT3[k]) >>> 3, (long) cell);
+        int az = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT3[k] + 17L) >>> 3, (long) cell);
+        for (int acx = (wx - C_SX[k]) >> 4; acx <= (wx >> 4); acx++) {
+            if (Math.floorMod(acx, cell) != ax) continue;
+            for (int acz = (wz - C_SZ[k]) >> 4; acz <= (wz >> 4); acz++) {
+                if (Math.floorMod(acz, cell) != az) continue;
+                int x = acx * 16 + 1, z = acz * 16 + 1;
+                if (wx < x || wx >= x + C_SX[k] || wz < z || wz >= z + C_SZ[k]) continue;
+                int base = tertiaryBase(t, k, acx, acz);
+                if (base >= 0) return new int[]{acx, acz, base};
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The floor of the tertiary (3.28.0) site of kind k at lattice cell acx, acz when it is really built, else -1:
+     * it fits its ground exactly as a primary would and tertiaryFree() gives it the ground.
+     */
+    static int tertiaryBase(Terrain t, int k, int acx, int acz) {
+        int x = acx * 16 + 1, z = acz * 16 + 1;
+        if (!fits(t, k, x, z)) return -1;
+        if (!tertiaryFree(t, x, z, C_SX[k], C_SZ[k], k)) return -1;
+        return baseY(t, k, acx, acz, C_SALT3[k]);
+    }
+
+    /** Tertiary lattice geometry for other placement code (the importer's claim guard): {cell, salt}. */
+    static long[] tertiaryLattice(int k) { return new long[]{C_CELL3[k], C_SALT3[k]}; }
 
     /** {acx, acz, floorY} of the built secondary (3.25.0) site of kind k covering this column, or null. */
     private static int[] secondaryAt(Terrain t, int k, int wx, int wz) {
@@ -436,6 +499,8 @@ public final class Megaliths {
     static int[] originOf(Terrain t, int k, int wx, int wz) {
         int[] second = secondaryAt(t, k, wx, wz);
         if (second != null) return new int[]{second[0] * 16 + 1, second[1] * 16 + 1, second[2]};
+        int[] third = tertiaryAt(t, k, wx, wz);
+        if (third != null) return new int[]{third[0] * 16 + 1, third[1] * 16 + 1, third[2]};
         int cell = C_CELL[k];
         int ax = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT[k]) >>> 3, (long) cell);
         int az = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT[k] + 17L) >>> 3, (long) cell);
@@ -455,6 +520,8 @@ public final class Megaliths {
     static String key(Terrain t, int k, int wx, int wz) {
         int[] second = secondaryAt(t, k, wx, wz);
         if (second != null) return k + ".s" + second[0] + "." + second[1];
+        int[] third = tertiaryAt(t, k, wx, wz);
+        if (third != null) return k + ".t" + third[0] + "." + third[1];
         int cell = C_CELL[k];
         int ax = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT[k]) >>> 3, (long) cell);
         int az = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT[k] + 17L) >>> 3, (long) cell);
@@ -578,6 +645,92 @@ public final class Megaliths {
                     if (base < 0 || top < base - (C_MODE[k] == 1 ? 10 : 32)) continue;
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    /** occupiedAll(), counting the tertiary (3.28.0) sites too: what every tier-2 catalogue site and room asks. */
+    static boolean occupiedAll3(Terrain t, int x, int z, int sizeX, int sizeZ, int top) {
+        if (occupiedAll(t, x, z, sizeX, sizeZ, top)) return true;
+        int c0 = (x >> 4) - 4, c1 = ((x + sizeX) >> 4) + 1;
+        int d0 = (z >> 4) - 4, d1 = ((z + sizeZ) >> 4) + 1;
+        for (int k = 0; k < C_CELL3.length; k++) {
+            int cell = C_CELL3[k];
+            int ax = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT3[k]) >>> 3, (long) cell);
+            int az = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT3[k] + 17L) >>> 3, (long) cell);
+            for (int acx = c0; acx <= c1; acx++) {
+                if (Math.floorMod(acx, cell) != ax) continue;
+                for (int acz = d0; acz <= d1; acz++) {
+                    if (Math.floorMod(acz, cell) != az) continue;
+                    int ox = acx * 16 + 1, oz = acz * 16 + 1;
+                    if (ox + C_SX[k] + 2 <= x || x + sizeX + 2 <= ox) continue;
+                    if (oz + C_SZ[k] + 2 <= z || z + sizeZ + 2 <= oz) continue;
+                    int base = tertiaryBase(t, k, acx, acz);
+                    if (base < 0 || top < base - (C_MODE[k] == 1 ? 10 : 32)) continue;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True when a tertiary-lattice (3.28.0, tier-2) site of this rank may have this ground. It is never asked for a
+     * primary or secondary site, so those are placed and recognised exactly as before. A tertiary site yields to
+     * chunks that predate 3.28.0 (v2 boundary) and to every sanctuary halo (tier 2 included); to higher-ranked
+     * tertiaries that fit; to a built primary or secondary of its own kind sharing a chunk with it (a builder is
+     * asked once per chunk); to every built primary and secondary of any rank (occupiedAll, two block cordon); and
+     * to the tier-0/1 catalogue sites and the lattice A/B/C rooms, which were placed without knowing about it.
+     */
+    static boolean tertiaryFree(Terrain t, int x, int z, int sizeX, int sizeZ, int rank) {
+        if (!StructureRates.permits2(t.seed, x, z, sizeX, sizeZ)) return false;
+        if (StructureRates.nearSanctuaryAll(t, x, z, sizeX, sizeZ)) return false;
+        if (tertiaryClaimed(t, x, z, sizeX, sizeZ, rank)) return false;
+        if (sharesChunk(t, x, z, sizeX, sizeZ, rank)) return false;
+        if (sharesChunkSecondary(t, x, z, sizeX, sizeZ, rank)) return false;
+        if (occupiedAll(t, x, z, sizeX, sizeZ, 255)) return false;
+        if (StructurePlanner.catalogueTier01(t, x, z, sizeX, sizeZ)) return false;
+        return !Dungeons.roomNearABC(t, x, z, sizeX, sizeZ);
+    }
+
+    /** claimed() among the tertiary lattices: a higher-ranked tertiary that fits (and may be placed) outranks. */
+    private static boolean tertiaryClaimed(Terrain t, int x, int z, int sizeX, int sizeZ, int rank) {
+        int c0 = (x >> 4) - 4, c1 = ((x + sizeX) >> 4) + 1;
+        int d0 = (z >> 4) - 4, d1 = ((z + sizeZ) >> 4) + 1;
+        for (int k = 0; k < rank && k < C_CELL3.length; k++) {
+            int cell = C_CELL3[k];
+            int ax = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT3[k]) >>> 3, (long) cell);
+            int az = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT3[k] + 17L) >>> 3, (long) cell);
+            for (int acx = c0; acx <= c1; acx++) {
+                if (Math.floorMod(acx, cell) != ax) continue;
+                for (int acz = d0; acz <= d1; acz++) {
+                    if (Math.floorMod(acz, cell) != az) continue;
+                    int ox = acx * 16 + 1, oz = acz * 16 + 1;
+                    if (ox + C_SX[k] + 2 <= x || x + sizeX + 2 <= ox) continue;
+                    if (oz + C_SZ[k] + 2 <= z || z + sizeZ + 2 <= oz) continue;
+                    if (fits(t, k, ox, oz) && StructureRates.permits2(t.seed, ox, oz, C_SX[k], C_SZ[k])) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** True when a built secondary site of kind k reaches any chunk this box (plus eight blocks) reaches. */
+    private static boolean sharesChunkSecondary(Terrain t, int x, int z, int sizeX, int sizeZ, int k) {
+        if (k < 0 || k >= C_CELL2.length) return false;
+        int a0 = (x - 8) >> 4, a1 = (x + sizeX + 7) >> 4, b0 = (z - 8) >> 4, b1 = (z + sizeZ + 7) >> 4;
+        int cell = C_CELL2[k];
+        int ax = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT2[k]) >>> 3, (long) cell);
+        int az = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT2[k] + 17L) >>> 3, (long) cell);
+        for (int acx = a0 - 6; acx <= a1 + 1; acx++) {
+            if (Math.floorMod(acx, cell) != ax) continue;
+            for (int acz = b0 - 6; acz <= b1 + 1; acz++) {
+                if (Math.floorMod(acz, cell) != az) continue;
+                int ox = acx * 16 + 1, oz = acz * 16 + 1;
+                if (((ox + C_SX[k] + 7) >> 4) < a0 || ((ox - 8) >> 4) > a1) continue;
+                if (((oz + C_SZ[k] + 7) >> 4) < b0 || ((oz - 8) >> 4) > b1) continue;
+                if (secondaryBase(t, k, acx, acz) >= 0) return true;
             }
         }
         return false;
@@ -715,6 +868,25 @@ public final class Megaliths {
             if (hi - lo > maxSlope || lo < 64 || hi > 136) continue;
             if (!secondaryFree(t, x, z, sizeX, sizeZ, rank)) continue;
             Site site = new Site(x, lo + 1, z, lo, hi, siteSeed(t, acx, acz, salt2), sizeX, sizeZ);
+            excavate(c, site, rank);
+            return site;
+        }
+        // 3.28.0: nothing on the primary or secondary lattice reaches this chunk -- the tertiary one (tier 2).
+        int cell3 = cell3(rank, cell);
+        long salt3 = salt3(rank, salt);
+        for (int ox = -span; ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
+            int acx = c.getX() + ox, acz = c.getZ() + oz;
+            if (!anchored(t, c, cell3, salt3, sizeX, sizeZ, acx, acz)) continue;
+            int x = acx * 16 + 1, z = acz * 16 + 1, lo = 999, hi = -999;
+            for (int sx = 0; sx < sizeX; sx += 4) for (int sz = 0; sz < sizeZ; sz += 4) {
+                int h = t.sample(x + sx, z + sz).y;
+                if (h < lo) lo = h;
+                if (h > hi) hi = h;
+            }
+            if (!weather(t, rank, x, z)) continue;
+            if (hi - lo > maxSlope || lo < 64 || hi > 136) continue;
+            if (!tertiaryFree(t, x, z, sizeX, sizeZ, rank)) continue;
+            Site site = new Site(x, lo + 1, z, lo, hi, siteSeed(t, acx, acz, salt3), sizeX, sizeZ);
             excavate(c, site, rank);
             return site;
         }
@@ -915,6 +1087,27 @@ public final class Megaliths {
             bed(c, site);
             return site;
         }
+        // 3.28.0: nothing on the primary or secondary lattice reaches this chunk -- the tertiary one (tier 2).
+        int cell3 = cell3(rank, cell);
+        long salt3 = salt3(rank, salt);
+        for (int ox = -span; ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
+            int acx = c.getX() + ox, acz = c.getZ() + oz;
+            if (!anchored(t, c, cell3, salt3, sizeX, sizeZ, acx, acz)) continue;
+            int x = acx * 16 + 1, z = acz * 16 + 1, lo = 999;
+            for (int sx = 0; sx < sizeX; sx += 4) for (int sz = 0; sz < sizeZ; sz += 4) {
+                int h = t.sample(x + sx, z + sz).y;
+                if (h < lo) lo = h;
+            }
+            if (!weather(t, rank, x, z)) continue;
+            int ceiling = lo - 10 - height;
+            if (ceiling < 5) continue;
+            if (!tertiaryFree(t, x, z, sizeX, sizeZ, rank)) continue;
+            long seed = siteSeed(t, acx, acz, salt3);
+            int y = 5 + (int) Math.floorMod(seed >>> 19, (long) (ceiling - 4));
+            Site site = new Site(x, y, z, y, y + height, seed, sizeX, sizeZ);
+            bed(c, site);
+            return site;
+        }
         return null;
     }
 
@@ -975,6 +1168,23 @@ public final class Megaliths {
             if (!drowned(t, x, z, sizeX, sizeZ)) continue;
             if (!secondaryFree(t, x, z, sizeX, sizeZ, rank)) continue;
             return new Site(x, lo + 1, z, lo, hi, siteSeed(t, acx, acz, salt2), sizeX, sizeZ);
+        }
+        // 3.28.0: nothing on the primary or secondary lattice reaches this chunk -- the tertiary one (tier 2).
+        int cell3 = cell3(rank, cell);
+        long salt3 = salt3(rank, salt);
+        for (int ox = -span; ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
+            int acx = c.getX() + ox, acz = c.getZ() + oz;
+            if (!anchored(t, c, cell3, salt3, sizeX, sizeZ, acx, acz)) continue;
+            int x = acx * 16 + 1, z = acz * 16 + 1, lo = 999, hi = -999;
+            for (int sx = 0; sx < sizeX; sx += 4) for (int sz = 0; sz < sizeZ; sz += 4) {
+                int h = t.sample(x + sx, z + sz).y;
+                if (h < lo) lo = h;
+                if (h > hi) hi = h;
+            }
+            if (!weather(t, rank, x, z)) continue;
+            if (!drowned(t, x, z, sizeX, sizeZ)) continue;
+            if (!tertiaryFree(t, x, z, sizeX, sizeZ, rank)) continue;
+            return new Site(x, lo + 1, z, lo, hi, siteSeed(t, acx, acz, salt3), sizeX, sizeZ);
         }
         return null;
     }

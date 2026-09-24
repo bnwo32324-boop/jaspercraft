@@ -84,6 +84,7 @@ public final class BiomeDetails {
     public static void decorate(ChunkGenerator.ChunkData d,Terrain terrain,int cx,int cz,int[][] heights) {
         if(reserved(cx,cz))return;
         if(StructureRates.newSanctuaryHalo(terrain,cx,cz))return;     // 3.25.0 sanctuaries keep the same halo
+        if(StructureRates.sanctuary2Halo(terrain,cx,cz))return;       // and the 3.28.0 ones
         decorate(new Overworld(d,terrain,cx,cz,heights),terrain.seed,cx,cz,false);
     }
 
