@@ -8,8 +8,9 @@ JasprHorrorBiomes are untouched. No world reset.
 
 Phase status: **Phase 1 (slots, UI, 15 trinkets, textures, mechanics, loot API), Phase 2 (status
 effects, Adrenaline + HUD bar, ability costs, consumables) and Phase 3 (nine races as mutations,
-Creative gear column, worn trinkets on player models, gear recipes in EasierCrafting) are done** -
-see the Phase 2 and Phase 3 sections below and "Remaining" at the end.
+Creative gear column, worn trinkets on player models, gear recipes in EasierCrafting) are done**,
+plus the 3.1.0 loot pass (boss drops, trinkets in every dungeon chest, very expensive recipes) -
+see the Phase 2, Phase 3 and 3.1.0 sections below and "Remaining" at the end.
 
 ## Playing
 
@@ -61,39 +62,51 @@ Hostile targeting honours world PvP (players are only zapped when PvP is on).
 
 ## Recipes (vanilla ingredients only; tagged/custom items are refused as ingredients)
 
-Rows top to bottom, `.` = empty.
+Since JasprGear 3.1.0 trinkets are deliberately the most expensive recipes in the game, so most
+players find them in dungeons instead. Every trinket takes a **Nether Star** (a Wither kill) plus at
+least 2 diamond blocks; rank 3+ adds an emerald block, rank 4+ takes 3 diamond blocks, rank 5 two
+emerald blocks. For scale: a full exoskeleton set costs 4 Nether Stars. Rows top to bottom, `.` =
+empty; d diamond block, f emerald block, g gold block, i iron block, X Nether Star.
 
-| Trinket | Shape | Key |
-| --- | --- | --- |
-| Capacitor Belt | `LRL / IBI / LRL` | L leather, R redstone, I iron ingot, B redstone block |
-| Riot Vest | `I.I / LOL / ILI` | I iron ingot, L leather, O obsidian |
-| Thermal Goggles | `SLS / GMG` | S string, L leather, G glass pane, M magma cream |
-| Phase Headset | `IRI / E.E` | I iron ingot, R redstone, E ender pearl |
-| Field Journal | `.F. / IBL` | F feather, I ink sac, B book, L lapis lazuli |
-| Razor Claws | `FFF / III` | F flint, I iron ingot |
-| Tritium Ring | `NGN / N.N / NNN` | N iron nugget, G glowstone dust |
-| Sprinter's Brace | `SLS / LRL / SLS` | S string, L leather, R rabbit's foot |
-| Gyro Stabilizer | `GIG / ICI / GIG` | G gold nugget, I iron ingot, C compass |
-| Toxin Injector | `N / B / E` | N iron nugget, B glass bottle, E fermented spider eye |
-| Scrap Magnet | `R.R / I.I / III` | R redstone, I iron ingot |
-| Rebreather | `.S. / LPL / .I.` | S string, L leather, P pufferfish, I iron ingot |
-| Worn Teddy Bear | `.W. / WSW / W.W` | W brown wool, S string |
-| Grav Harness | `LHL / FIF / L.L` | L leather, H shulker shell, F feather, I iron ingot |
-| Necrotic Ring | `NCN / N.N / NBN` | N iron nugget, C coal, B bone |
+| Trinket | Rank | Shape | Ingredients |
+| --- | --- | --- | --- |
+| Capacitor Belt | 4 | `dBd / LXL / dfR` | 1 Nether Star, 3 diamond block, 1 emerald block, 1 redstone block, 2 leather, 1 redstone |
+| Riot Vest | 4 | `i.i / dXd / fOd` | 1 Nether Star, 3 diamond block, 1 emerald block, 2 iron block, 1 obsidian |
+| Thermal Goggles | 3 | `SMS / GXG / dfd` | 1 Nether Star, 2 diamond block, 1 emerald block, 2 string, 1 magma cream, 2 glass pane |
+| Phase Headset | 5 | `dRd / EXE / fdf` | 1 Nether Star, 3 diamond block, 2 emerald block, 1 redstone, 2 ender pearl |
+| Field Journal | 1 | `dFd / IXL / gBg` | 1 Nether Star, 2 diamond block, 2 gold block, 1 feather, 1 ink sac, 1 lapis lazuli, 1 book |
+| Razor Claws | 3 | `FFF / dXd / IfI` | 1 Nether Star, 2 diamond block, 1 emerald block, 3 flint, 2 iron ingot |
+| Tritium Ring | 1 | `NGN / dXd / NgN` | 1 Nether Star, 2 diamond block, 1 gold block, 4 iron nugget, 1 glowstone dust |
+| Sprinter's Brace | 2 | `SLS / dXd / gRg` | 1 Nether Star, 2 diamond block, 2 gold block, 2 string, 1 leather, 1 rabbit's foot |
+| Gyro Stabilizer | 3 | `GdG / IXI / fCd` | 1 Nether Star, 2 diamond block, 1 emerald block, 2 gold nugget, 2 iron ingot, 1 compass |
+| Toxin Injector | 3 | `dNd / BXB / EfE` | 1 Nether Star, 2 diamond block, 1 emerald block, 1 iron nugget, 2 glass bottle, 2 fermented spider eye |
+| Scrap Magnet | 2 | `R.R / dXd / IgI` | 1 Nether Star, 2 diamond block, 1 gold block, 2 redstone, 2 iron ingot |
+| Rebreather | 1 | `dSd / LXL / gPg` | 1 Nether Star, 2 diamond block, 2 gold block, 1 string, 2 leather, 1 pufferfish |
+| Worn Teddy Bear | 4 | `dWd / WXW / fSd` | 1 Nether Star, 3 diamond block, 1 emerald block, 3 brown wool, 1 string |
+| Grav Harness | 5 | `dHd / FXF / fdf` | 1 Nether Star, 3 diamond block, 2 emerald block, 1 shulker shell, 2 feather |
+| Necrotic Ring | 3 | `NCN / dXd / NfB` | 1 Nether Star, 2 diamond block, 1 emerald block, 3 iron nugget, 1 coal, 1 bone |
+
+The self-test checks these rules and that no trinket pattern matches another registered recipe
+(JasprApocalypse blueprints included).
 
 ## Drops and structure loot
 
 - Hostile mobs killed by a player drop one random trinket with 0.35% chance (zombies 0.5%),
   weighted by `6 - rank`; spawner mobs never drop gear. Configurable in
   `plugins/JasprGear/config.yml` (`drops.hostile-chance`, `drops.zombie-chance`, capped at 5%).
-- Structure loot API — wired in since 2026-09-24 (JasprHorrorBiomes 3.26.0: catalogue tiers I-V, set-piece
-  depth tiers, troves, dungeon rooms; JasprImportedWorldgen 1.2.0: about 2 + tier chests per design):
+- **Bosses** (3.1.0) always drop one random trinket (uniform over all 15) where they die, whoever
+  killed them: the Wither, the Ender Dragon, Elder Guardians, and every mob carrying the
+  `jaspr_boss` scoreboard tag or metadata (JasprHorrorBiomes 3.27.0 tags the 27 Containment
+  bosses and the 182 catalogue boss encounters). Bosses skip the ordinary mob roll.
+- Structure loot API — every chest of every generator rolls it (JasprHorrorBiomes 3.27.0: catalogue
+  tiers I-V, set-piece depth tiers, troves, dungeon rooms and, new, the Fold rooms at tier 3;
+  JasprImportedWorldgen 1.2.1: every chest of the GLM and Codex designs, no longer about 2 + tier):
   class **`chat.jaspr.gear.GearApi`** (load with JasprGear's class loader, e.g.
   `Class.forName("chat.jaspr.gear.GearApi", true, Bukkit.getPluginManager().getPlugin("JasprGear").getClass().getClassLoader())`):
   - `public static ItemStack rollLoot(java.util.Random random, int tier)` - tier 0 trivial rooms,
     1..5 structure difficulty (set pieces pass depth tier + 1). Uses only the passed Random
     (`nextDouble` then `nextInt`), so seeded rolls are deterministic. Chance per chest by tier
-    0..5: 3%, 5%, 8%, 12%, 18%, 25%. Rank 1-2 anywhere, rank 3 needs tier 3+, rank 4 tier 4+,
+    0..5 (3.1.0): 0.4%, 0.6%, 1%, 1.5%, 2.5%, 4% (was 3-25%). Rank 1-2 anywhere, rank 3 needs tier 3+, rank 4 tier 4+,
     rank 5 only tier 5 (lowest weight). Returns null most of the time. Main thread, no player needed.
   - `public static ItemStack create(String gearId)`, `public static boolean isGear(ItemStack)`,
     `public static String gearId(ItemStack)`, `public static int rank(String gearId)`,
@@ -289,6 +302,41 @@ lists it too; the HUD shows its name above the status tags.
 - Not verified here: the live server and EaglerXServer, and how the pieces look on many skins
   (positions are tuned for the default 4-pixel arms; slim arms still hold the rings).
 
+## Loot and bosses (JasprGear 3.1.0, JasprHorrorBiomes 3.27.0, JasprImportedWorldgen 1.2.1, 2026-09-24)
+
+Goal: trinkets are found, not farmed or crafted. Dungeons are the main source, bosses a sure but
+hard one, crafting a very expensive last resort.
+
+- **Chests**: `GearApi.rollLoot` odds cut to 0.4 / 0.6 / 1 / 1.5 / 2.5 / 4% per chest for tiers 0-5,
+  so harder dungeons give more. The new trinket band is a prefix of the old one: any chest seed that
+  still rolls a trinket rolls the same one as before, and the supply band (6-16%) is unchanged.
+  Coverage is now every chest of every generator: Claude's set pieces and dungeon rooms, the Codex
+  catalogue, the Fold rooms (new roll, tier 3), and every chest of the imported GLM and Codex
+  designs (the importer used to pick about 2 + tier chests per design). The disabled legacy
+  Apocalypse ruins never generate; vanilla structures are not generated by this world.
+- **Bosses**: one random trinket per boss death (see Drops). JasprHorrorBiomes 3.27.0 adds the
+  persistent `jaspr_boss` scoreboard tag to Containment bosses and catalogue boss encounters, so the
+  mark survives restarts. The drop is spawned with `dropItemNaturally`, because the encounter code
+  clears boss drops. Invasion captains are elites, not bosses.
+- **Recipes**: see the recipe table (a Nether Star and 2-3 diamond blocks each).
+- Importer: its source lives only on the owner's PC, so 1.2.1 is the 1.2.0 jar with one class
+  recompiled (`server/custom-plugins/JasprImportedWorldgen/patch/`, built by
+  `scripts/patch-imported-worldgen.sh`). The same one-line change (`GearLoot.picks` returns
+  `n > 0`) must go into the PC source before its next rebuild.
+- Versions: `classes.js?v=20260924-gear4` (only the fenced recipe table changed).
+
+### 3.1.0 verification (2026-09-24, cloud, Linux)
+
+- Test server with every live Jaspr jar plus the three new ones (JasprApocalypse loaded through a
+  test-only AuthMe stub): no errors, **GEAR_SELFTEST PASS, 994 checks**. New checks: chance per tier
+  over 60,000 rolls, parity with the old algorithm, the recipe cost rules, no recipe clashes, boss
+  detection, uniform boss loot.
+- In-server probe (not committed): 100,807 checks. Covers Fold rooms rolling gear (1.56%) and
+  supplies (12.1%), and a slain encounter boss and a slain Containment boss each dropping a trinket.
+- `tests/gear-boss-bot.cjs` **3/3**. A tagged husk and a vanilla Wither each drop one trinket; an
+  ordinary zombie drops none. Phase 2 bots 28/28 (+2/2) and Phase 3 bots 22/22 (+1/1).
+- The existing repo tests fail in the same places as on the base commit.
+
 ## How it works
 
 - **Items**: an unbreakable, flag-hidden **stone hoe** whose damage value selects the texture
@@ -370,7 +418,7 @@ tokens or IPs are logged.
 
 - Race size changes (tiny Sprite, huge Brute): left out on purpose until the client and server can
   agree on a resized player safely.
-- Structure loot is wired in (JasprHorrorBiomes 3.26.0, JasprImportedWorldgen 1.2.0); since Phase 2
-  `rollLoot` also returns supplies and serums, so those chests now hold them too.
+- Structure loot reaches every chest (JasprHorrorBiomes 3.27.0, JasprImportedWorldgen 1.2.1); the
+  importer's PC source still needs the `GearLoot.picks` change (see the 3.1.0 section).
 - A live play-test on the real server (worn-gear placement on real skins, Sprite flight feel,
   ability balance).

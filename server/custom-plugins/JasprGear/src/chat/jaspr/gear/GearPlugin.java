@@ -17,6 +17,7 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
@@ -25,6 +26,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.craftbukkit.v1_12_R1.entity.CraftPlayer;
 import org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
@@ -79,7 +81,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
     GearAbilities abilities;
     GearVitals vitals;
     GearMutations mutations;
-    private int tick, recipes, equips, unequips, mobDrops, supplyDrops, deathDropCount, hellos, rejected;
+    private int tick, recipes, equips, unequips, mobDrops, supplyDrops, bossDrops, deathDropCount, hellos, rejected;
     private int supplyRecipes;
     private Method authGetter, authCheck, spawnerCheck;
     private boolean authMissing, spawnerMissing;
@@ -735,9 +737,48 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         getLogger().info("GEAR_DEATH_RESTORED player=" + e.getEntity().getUniqueId() + " items=" + restored);
     }
 
+    /**
+     * Every boss drops one random trinket when it dies, however it dies. Bosses are the vanilla Wither,
+     * Ender Dragon and Elder Guardian plus anything another plugin marks with the scoreboard tag
+     * "jaspr_boss" (JasprHorrorBiomes: Containment's named set-piece bosses and the catalogue's
+     * encounter bosses) or the older in-memory "jaspr_boss" metadata. The trinket is dropped into the
+     * world rather than added to the event's drops, because encounter bosses have their drops
+     * cleared ("valuable loot lives in the vault").
+     */
+    static boolean boss(LivingEntity e) {
+        if (e == null || e instanceof Player) return false;
+        return bossType(e.getType()) || e.getScoreboardTags().contains(BOSS_TAG) || e.hasMetadata(BOSS_TAG);
+    }
+
+    static boolean bossType(EntityType type) {
+        return type == EntityType.WITHER || type == EntityType.ENDER_DRAGON || type == EntityType.ELDER_GUARDIAN;
+    }
+
+    static final String BOSS_TAG = "jaspr_boss";
+
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void onBossDeath(EntityDeathEvent e) {
+        LivingEntity dead = e.getEntity();
+        if (!boss(dead)) return;
+        ItemStack trinket = GearApi.bossLoot(random);
+        Location at = dead.getLocation().add(0, 0.5, 0);
+        if (at.getY() < 1) at.setY(Math.max(1, dead.getWorld().getHighestBlockYAt(at) + 1)); // died in the void
+        if (dead.getWorld().getHighestBlockYAt(at) <= 0) { // nothing below (a dragon over the End void): the killer gets it
+            Player killer = dead.getKiller();
+            at = killer != null && killer.getWorld() == dead.getWorld() ? killer.getLocation() : dead.getWorld().getSpawnLocation();
+        }
+        dead.getWorld().dropItemNaturally(at, trinket);
+        bossDrops++;
+        GearItem item = GearItems.identify(trinket);
+        String name = dead.getCustomName() != null ? ChatColor.stripColor(dead.getCustomName()) : dead.getType().name();
+        getLogger().info("GEAR_BOSS_DROP item=" + (item == null ? "?" : item.id) + " boss=" + name.replace(' ', '_')
+            + " killer=" + (dead.getKiller() == null ? "-" : dead.getKiller().getUniqueId().toString()));
+    }
+
     @EventHandler(priority = EventPriority.NORMAL)
     public void onMobDeath(EntityDeathEvent e) {
         LivingEntity dead = e.getEntity();
+        if (boss(dead)) return; // bosses always drop from onBossDeath
         if (dead instanceof Player || !GearAbilities.hostile(dead) || dead.getKiller() == null || spawned(dead)) return;
         double supply = Math.max(0.0, Math.min(0.05, getConfig().getDouble("drops.supply-chance", 0.01)));
         if (random.nextDouble() < supply) {
@@ -845,7 +886,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         if (sub.equals("status")) {
             if (p != null && !p.hasPermission("jasprgear.admin")) { sender.sendMessage(ChatColor.RED + "Not allowed."); return true; }
             sender.sendMessage("GEAR_STATUS profiles=" + profiles.size() + " recipes=" + recipes + " equips=" + equips
-                + " unequips=" + unequips + " mobDrops=" + mobDrops + " supplyDrops=" + supplyDrops + " deathDrops=" + deathDropCount
+                + " unequips=" + unequips + " mobDrops=" + mobDrops + " bossDrops=" + bossDrops + " supplyDrops=" + supplyDrops + " deathDrops=" + deathDropCount
                 + " hellos=" + hellos + " rejected=" + rejected + " wornSent=" + wornSent + " creativeMoves=" + creativeMoves
                 + " writes=" + store.writes + " saveFailures=" + store.failures
                 + " " + abilities.metrics() + " " + vitals.metrics() + " " + mutations.metrics());

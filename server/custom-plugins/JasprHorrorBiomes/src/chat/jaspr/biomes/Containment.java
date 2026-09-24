@@ -229,6 +229,9 @@ public final class Containment implements Listener {
                 if (effect != null) mob.addPotionEffect(new PotionEffect(effect, Integer.MAX_VALUE, 0, false, false), true);
             if (isBoss) {
                 mob.setMetadata("jaspr_boss", new org.bukkit.metadata.FixedMetadataValue(plugin, spec.name));
+                // 3.27.0: also a scoreboard tag, which is saved with the entity (metadata is not), so the boss
+                // is still recognised after a restart - JasprGear drops one random trinket for every "jaspr_boss".
+                mob.addScoreboardTag("jaspr_boss");
                 mob.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, false, false), true);
             }
         } catch (RuntimeException | NoSuchMethodError | NoSuchFieldError ignored) { }

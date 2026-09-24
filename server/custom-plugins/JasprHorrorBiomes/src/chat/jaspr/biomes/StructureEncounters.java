@@ -407,6 +407,9 @@ public final class StructureEncounters implements Listener {
     }
     private void configure(LivingEntity entity,EncounterJournal.Record r,boolean fresh) {
         freeze(entity); entity.setRemoveWhenFarAway(false); entity.setCanPickupItems(false); entity.setGlowing(false);
+        // 3.27.0: bosses carry the shared "jaspr_boss" tag (set on spawn and on adoption, so bosses spawned by
+        // older versions get it too); JasprGear drops one random trinket for every tagged boss that dies.
+        if(r.boss)entity.addScoreboardTag("jaspr_boss");
         attribute(entity,Attribute.GENERIC_FOLLOW_RANGE,RANGE); attribute(entity,Attribute.GENERIC_KNOCKBACK_RESISTANCE,1);
         attribute(entity,Attribute.GENERIC_MAX_HEALTH,health(r)); attribute(entity,Attribute.GENERIC_ATTACK_DAMAGE,damage(r));
         attribute(entity,Attribute.GENERIC_MOVEMENT_SPEED,.18+.015*r.tier);

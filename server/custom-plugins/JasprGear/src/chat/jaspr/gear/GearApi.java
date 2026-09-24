@@ -17,8 +17,11 @@ import org.bukkit.inventory.ItemStack;
  * never throw for bad input and return fresh canonical items.
  */
 public final class GearApi {
-    /** Chance that one chest receives a trinket, by tier 0..5. */
-    private static final double[] CHANCE = {0.03, 0.05, 0.08, 0.12, 0.18, 0.25};
+    /**
+     * Chance that one chest receives a trinket, by tier 0..5: very small in every chest, larger the
+     * harder the dungeon (2026-09-24; was 3-25%). Every structure chest of every generator rolls once.
+     */
+    static final double[] CHANCE = {0.004, 0.006, 0.010, 0.015, 0.025, 0.040};
     /** Phase 2: extra chance, above the trinket band, that the chest receives one consumable. */
     static final double[] SUPPLY_CHANCE = {0.06, 0.08, 0.10, 0.12, 0.14, 0.16};
 
@@ -30,6 +33,9 @@ public final class GearApi {
      * the time. Uses ONLY the passed Random, in a fixed order (nextDouble, then nextInt only when
      * something is returned), so the result is deterministic for a seeded Random. Rank 1-2 at any
      * tier, rank 3 needs tier 3+, rank 4 needs tier 4+, rank 5 only at tier 5 (lowest weight).
+     *
+     * The trinket band shrank on 2026-09-24 (to 0.4-4%); it is a prefix of the old band, so a seed
+     * that rolls a trinket now rolled that same trinket before.
      *
      * Phase 2: a roll that misses the trinket band may land in the supply band just above it and
      * return one consumable (Adrenaline Candy and Field Bandage anywhere, Stim Reagent from tier 2,
@@ -100,6 +106,12 @@ public final class GearApi {
     static int lootWeight(int rank, int tier) {
         if (rank <= 2) return tier >= 3 ? 2 : 4;
         return rank == 3 ? 3 : rank == 4 ? 2 : 1;
+    }
+
+    /** One trinket for a slain boss: every trinket equally likely, no tier gating. Uses only nextInt. */
+    public static ItemStack bossLoot(Random random) {
+        GearItem[] all = GearItem.values();
+        return random == null ? null : GearItems.create(all[random.nextInt(all.length)]);
     }
 
     /** Fresh canonical item for a gear or consumable id, or null when the id is unknown. */

@@ -49,6 +49,7 @@ final class GearSelfTest {
             vitalsStore();
             hud();
             mutations();
+            bosses();
         } catch (Throwable t) {
             failures.add("exception " + t);
         }
@@ -113,6 +114,44 @@ final class GearSelfTest {
 
     private void recipes() {
         check(plugin.recipeCount() == GearItem.values().length, "recipes registered " + plugin.recipeCount());
+        // End-game prices: a Nether Star and 2+ diamond blocks each; rank 3+ an emerald block; rank 4+ three
+        // diamond blocks; rank 5 two emerald blocks.
+        for (GearItem item : GearItem.values()) {
+            int star = 0, diamond = 0, emerald = 0;
+            java.util.Map<Character, String> key = item.ingredientMap();
+            for (String row : item.shape) for (char ch : row.toCharArray()) {
+                String m = key.get(ch);
+                if (m == null) continue;
+                if (m.equals("NETHER_STAR")) star++;
+                if (m.equals("DIAMOND_BLOCK")) diamond++;
+                if (m.equals("EMERALD_BLOCK")) emerald++;
+            }
+            check(star == 1 && diamond >= 2, "expensive: star + 2 diamond blocks " + item.id);
+            check(item.rank < 3 || emerald >= 1, "expensive: emerald block from rank 3 " + item.id);
+            check(item.rank < 4 || diamond >= 3, "expensive: 3 diamond blocks from rank 4 " + item.id);
+            check(item.rank < 5 || emerald >= 2, "expensive: 2 emerald blocks at rank 5 " + item.id);
+        }
+        // No other recipe on this server (vanilla or any plugin) may share a trinket's pattern.
+        java.util.Map<String, String> mine = new java.util.HashMap<String, String>();
+        java.util.Iterator<org.bukkit.inventory.Recipe> all = Bukkit.recipeIterator();
+        java.util.List<org.bukkit.inventory.ShapedRecipe> others = new ArrayList<org.bukkit.inventory.ShapedRecipe>();
+        while (all.hasNext()) {
+            org.bukkit.inventory.Recipe r = all.next();
+            if (!(r instanceof org.bukkit.inventory.ShapedRecipe)) continue;
+            GearItem g = GearItems.identify(r.getResult());
+            if (g != null) mine.put(g.id, pattern((org.bukkit.inventory.ShapedRecipe) r, false));
+            else others.add((org.bukkit.inventory.ShapedRecipe) r);
+        }
+        check(mine.size() == GearItem.values().length, "all trinket patterns found");
+        java.util.Set<String> seen = new java.util.HashSet<String>();
+        for (String p : mine.values()) check(seen.add(p), "trinket patterns distinct");
+        int clashes = 0;
+        for (org.bukkit.inventory.ShapedRecipe o : others) {
+            String a = pattern(o, false), b = pattern(o, true);
+            for (java.util.Map.Entry<String, String> m : mine.entrySet())
+                if (samePattern(m.getValue(), a) || samePattern(m.getValue(), b)) { clashes++; failures.add("recipe clash " + m.getKey() + " vs " + o.getResult().getType()); }
+        }
+        check(clashes == 0, "no other recipe shares a trinket pattern (" + others.size() + " shaped recipes compared)");
         for (GearItem item : GearItem.values()) {
             boolean found = false;
             for (org.bukkit.inventory.Recipe r : Bukkit.getRecipesFor(GearItems.create(item)))
@@ -121,6 +160,64 @@ final class GearSelfTest {
             for (String ingredient : item.ingredientMap().values())
                 check(!ingredient.startsWith("STONE_HOE"), "no gear/carrier ingredient " + item.id);
         }
+    }
+
+    /** Trimmed, optionally mirrored grid of "MATERIAL:data" cells ("*" data = any), rows joined by "/". */
+    private static String pattern(org.bukkit.inventory.ShapedRecipe r, boolean mirror) {
+        String[] shape = r.getShape();
+        java.util.Map<Character, ItemStack> key = r.getIngredientMap();
+        StringBuilder out = new StringBuilder();
+        for (String row : shape) {
+            StringBuilder line = new StringBuilder();
+            for (int i = 0; i < row.length(); i++) {
+                char ch = row.charAt(mirror ? row.length() - 1 - i : i);
+                ItemStack in = key.get(ch);
+                if (i > 0) line.append(',');
+                if (in == null || in.getType() == org.bukkit.Material.AIR) line.append('.');
+                else line.append(in.getType().name()).append(':').append(in.getDurability() < 0 || in.getDurability() == Short.MAX_VALUE ? "*" : String.valueOf(in.getDurability()));
+            }
+            if (out.length() > 0) out.append('/');
+            out.append(line);
+        }
+        return out.toString();
+    }
+
+    private static boolean samePattern(String a, String b) {
+        String[] ra = a.split("/", -1), rb = b.split("/", -1);
+        if (ra.length != rb.length) return false;
+        for (int i = 0; i < ra.length; i++) {
+            String[] ca = ra[i].split(",", -1), cb = rb[i].split(",", -1);
+            if (ca.length != cb.length) return false;
+            for (int j = 0; j < ca.length; j++) {
+                if (ca[j].equals(cb[j])) continue;
+                String[] x = ca[j].split(":"), y = cb[j].split(":");
+                if (x.length < 2 || y.length < 2 || !x[0].equals(y[0]) || !(x[1].equals("*") || y[1].equals("*"))) return false;
+            }
+        }
+        return true;
+    }
+
+    private void bosses() {
+        check(GearPlugin.bossType(org.bukkit.entity.EntityType.WITHER) && GearPlugin.bossType(org.bukkit.entity.EntityType.ENDER_DRAGON)
+            && GearPlugin.bossType(org.bukkit.entity.EntityType.ELDER_GUARDIAN) && !GearPlugin.bossType(org.bukkit.entity.EntityType.ZOMBIE), "boss types");
+        org.bukkit.World w = Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0);
+        if (w != null) {
+            org.bukkit.Location at = w.getSpawnLocation().clone().add(0, 2, 0);
+            org.bukkit.entity.LivingEntity plain = (org.bukkit.entity.LivingEntity) w.spawnEntity(at, org.bukkit.entity.EntityType.ZOMBIE);
+            org.bukkit.entity.LivingEntity tagged = (org.bukkit.entity.LivingEntity) w.spawnEntity(at, org.bukkit.entity.EntityType.ZOMBIE);
+            tagged.addScoreboardTag(GearPlugin.BOSS_TAG);
+            org.bukkit.entity.LivingEntity legacy = (org.bukkit.entity.LivingEntity) w.spawnEntity(at, org.bukkit.entity.EntityType.HUSK);
+            legacy.setMetadata(GearPlugin.BOSS_TAG, new org.bukkit.metadata.FixedMetadataValue(plugin, "test"));
+            check(!GearPlugin.boss(plain) && GearPlugin.boss(tagged) && GearPlugin.boss(legacy), "boss markers (tag, metadata)");
+            plain.remove(); tagged.remove(); legacy.remove();
+        }
+        int[] counts = new int[GearItem.values().length];
+        java.util.Random r = new java.util.Random(99L);
+        int n = 150000;
+        for (int i = 0; i < n; i++) counts[GearItems.identify(GearApi.bossLoot(r)).ordinal()]++;
+        for (GearItem g : GearItem.values())
+            check(Math.abs(counts[g.ordinal()] - n / (double) counts.length) < 5 * Math.sqrt(n / (double) counts.length), "boss loot uniform " + g.id);
+        check(GearApi.bossLoot(null) == null, "boss loot null-safe");
     }
 
     private void store() throws Exception {
@@ -197,7 +294,7 @@ final class GearSelfTest {
     private void loot() {
         for (int tier = -1; tier <= 6; tier++) {
             java.util.Random a = new java.util.Random(4242L + tier), b = new java.util.Random(4242L + tier);
-            int hits = 0, n = 20000, t = Math.max(0, Math.min(5, tier));
+            int hits = 0, n = 60000, t = Math.max(0, Math.min(5, tier));
             int[] ranks = new int[6];
             for (int i = 0; i < n; i++) {
                 GearItem x = GearApi.pickLoot(a, tier), y = GearApi.pickLoot(b, tier);
@@ -207,14 +304,16 @@ final class GearSelfTest {
                 ranks[x.rank]++;
                 if (!GearApi.eligible(x.rank, t)) { check(false, "ineligible rank " + x.rank + " at tier " + tier); break; }
             }
-            double rate = hits / (double) n, expect = new double[]{0.03, 0.05, 0.08, 0.12, 0.18, 0.25}[t];
-            check(Math.abs(rate - expect) < 0.015, "loot rate tier " + tier + " = " + rate);
+            double rate = hits / (double) n, expect = GearApi.CHANCE[t];
+            check(Math.abs(rate - expect) < 4 * Math.sqrt(expect * (1 - expect) / n) + 0.0005, "loot rate tier " + tier + " = " + rate);
             check(t >= 5 ? ranks[5] > 0 : ranks[5] == 0, "rank 5 gating tier " + tier);
             check(t >= 4 ? ranks[4] > 0 : ranks[4] == 0, "rank 4 gating tier " + tier);
             check(t >= 3 ? ranks[3] > 0 : ranks[3] == 0, "rank 3 gating tier " + tier);
             check(ranks[1] > 0 && ranks[2] > 0, "utility everywhere tier " + tier);
         }
         check(GearApi.pickLoot(null, 5) == null, "null random");
+        for (int t = 0; t < 6; t++) check(GearApi.CHANCE[t] > 0 && GearApi.CHANCE[t] <= 0.05 && (t == 0 || GearApi.CHANCE[t] > GearApi.CHANCE[t - 1]),
+            "very small chance per chest, rising with difficulty: tier " + t);
         ItemStack loot = null;
         java.util.Random r = new java.util.Random(7L);
         for (int i = 0; i < 400 && loot == null; i++) { ItemStack x = GearApi.rollLoot(r, 5); if (GearApi.isGear(x)) loot = x; }
@@ -282,7 +381,8 @@ final class GearSelfTest {
         check(GearConsumable.byId("ADRENALINE_CANDY") == GearConsumable.ADRENALINE_CANDY && GearConsumable.byId("nope") == null, "consumable byId");
     }
 
-    /** The Phase 1 roll, verbatim: Phase 2 must give the same trinket for every seed that rolled one. */
+    /** The Phase 1 roll, verbatim. Its trinket band has since shrunk to a prefix, so every seed that rolls a
+     *  trinket now must have rolled the same trinket then (and nothing may appear that was not there). */
     private static GearItem legacyRoll(java.util.Random random, int tier) {
         double[] chance = {0.03, 0.05, 0.08, 0.12, 0.18, 0.25};
         int t = Math.max(0, Math.min(5, tier));
@@ -308,8 +408,8 @@ final class GearSelfTest {
                 java.util.Random a = new java.util.Random(seed * 31L + tier), b = new java.util.Random(seed * 31L + tier);
                 GearItem old = legacyRoll(a, tier);
                 Object now = GearApi.pickAny(b, tier);
-                if (old != null ? now != old : now instanceof GearItem) mismatch++;
-                if (old != null && a.nextLong() != b.nextLong()) mismatch++; // same draws consumed when a trinket rolls
+                if (now instanceof GearItem && now != old) mismatch++;
+                if (now instanceof GearItem && a.nextLong() != b.nextLong()) mismatch++; // same draws consumed when a trinket rolls
                 if (now instanceof GearConsumable) { supplies++; byItem[((GearConsumable) now).ordinal()]++; }
             }
             check(mismatch == 0, "phase 1 trinket parity tier " + tier + " mismatches=" + mismatch);
