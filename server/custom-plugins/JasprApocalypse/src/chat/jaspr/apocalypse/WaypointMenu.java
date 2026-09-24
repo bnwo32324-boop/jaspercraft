@@ -5,8 +5,10 @@ import java.util.List;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -53,7 +55,8 @@ public final class WaypointMenu {
                     + (isActive ? " \u00b7 tracking" : ""));
                 int distance = distanceTo(player, waypoint);
                 lore.add(ChatColor.GRAY + (distance >= 0 ? Waypoint.formatDistance(distance) + " away" : "another world"));
-                lore.add(ChatColor.DARK_GRAY + "Left: track \u00b7 Right: recolor \u00b7 Shift+Left: delete");
+                lore.add(ChatColor.DARK_GRAY + (player.getGameMode() == GameMode.CREATIVE ? "Left: teleport" : "Left: track")
+                    + " \u00b7 Right: recolor \u00b7 Shift+Left: delete");
                 meta.setLore(lore);
                 if (isActive) {
                     meta.addEnchant(Enchantment.DURABILITY, 1, true);
@@ -130,6 +133,7 @@ public final class WaypointMenu {
         switch (click) {
             case LEFT:
                 manager.setActive(player.getUniqueId(), waypoint.slot);
+                if (player.getGameMode() == GameMode.CREATIVE) { teleport(player, waypoint); return; }
                 player.sendMessage(ChatColor.GREEN + "Tracking '" + waypoint.name + "'.");
                 break;
             case RIGHT:
@@ -153,6 +157,17 @@ public final class WaypointMenu {
                 return;
         }
         menu.paint(player);
+    }
+
+    /** Creative only (the caller checks the game mode on the server): jump to the waypoint's block. */
+    private static void teleport(Player player, Waypoint waypoint) {
+        World world = Bukkit.getWorld(waypoint.world);
+        if (world == null) { player.sendMessage(ChatColor.RED + "World '" + waypoint.world + "' is not loaded."); return; }
+        Location here = player.getLocation();
+        Location to = new Location(world, waypoint.x + 0.5, waypoint.y, waypoint.z + 0.5, here.getYaw(), here.getPitch());
+        player.closeInventory();
+        if (player.teleport(to)) player.sendMessage(ChatColor.GREEN + "Teleported to '" + waypoint.name + "'.");
+        else player.sendMessage(ChatColor.RED + "Could not teleport to '" + waypoint.name + "'.");
     }
 
     static List<Waypoint> ordered(Waypoints manager, UUID owner) {

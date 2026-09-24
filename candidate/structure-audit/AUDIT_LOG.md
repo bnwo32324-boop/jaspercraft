@@ -207,3 +207,8 @@ Nothing is half-written. State on disk:
   no new errors (EaglerXServer ForceAliveListener + AuthMe GeoLite warnings pre-existing), 3310 status running, 3200 health 200, site serves
   new versions. Backups: .runtime/plugin-backup-20260924-114952-JasprGear, .runtime/site-backup-20260924-114952-gear2. Not yet play-tested
   by a real Eaglercraft client on the live server.
+- 2026-09-24 13:25 DEPLOYED JasprApocalypse 3.6.1 (owner request): in CREATIVE, left-clicking a waypoint in the waypoint menu teleports
+  there (also sets it tracked); survival unchanged (left = track). Lore says "Left: teleport" in Creative. Built as a PATCH of the live
+  3.6.0 jar (only WaypointMenu*.class + plugin.yml replaced) because the JasprApocalypse source has undeployed drift (Ruins restoreRails,
+  SiegeRules) - a full rebuild would ship that too. Test server load clean; live APOCALYPSE_READY 3.6.1, 0 players, one restart.
+  Backup .runtime/plugin-backup-20260924-132510-JasprApocalypse.
