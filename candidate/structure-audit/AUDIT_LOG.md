@@ -222,3 +222,8 @@ Nothing is half-written. State on disk:
   to diamond blocks + shulker shells; GearApi.BACKPACK_CHANCE 3.0-5.0% by tier above the supply band, tier shares 50/25/14/8/3%;
   vanilla loot-table containers roll GearApi once at tier 1; contents on disk by uuid). No structure/placement change. Test server:
   GEAR_SELFTEST PASS 1090, gear-backpack-bot 13/13 + restart 1/1, phase2/phase3/boss bots and browser client pass.
+- 2026-09-24 PR (cloud, not deployed) Structures 1.5x (all generators): JasprHorrorBiomes 3.28.0 (tier-2 layer behind boundary
+  jaspr-rates-v2: tertiary set pieces, room lattice D, vanilla spawner rooms 39->59 attempts, catalogue grids v8/v10/v9, tier-2
+  sanctuaries; old layers' fingerprints identical to 3.27.0; 48k box old->new: set pieces 1.50x, rooms 1.50x, sanctuaries 1.52x,
+  catalogue 1.49x; fresh 1600-chunk test world: spawner rooms 40->62, +6% ms/chunk, RATES_V2_BOUNDARY_READY, no SEVERE) +
+  JasprImportedWorldgen 1.3.0 (grid 3 behind jaspr-imported-v3.boundary, aware of HB tier 2). Deploy the two together.
