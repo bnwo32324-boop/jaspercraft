@@ -130,30 +130,38 @@ public final class Blueprints {
         add(map, "stormcoil", "gun/energy", "iiQ", "grD", "iRI");
         add(map, "pallbearer", "gun/energy", "iii", "hrU", "iDI");
         add(map, "ironpsalm", "gun/heavy", "iii", "hrU", "ipi");
-        add(map, "trench_blade", "melee/blade", ".I.", ".F.", ".S.");
-        add(map, "mono_katana", "melee/blade", ".D.", ".Q.", ".S.");
-        add(map, "gravespike", "melee/blade", ".I.", ".K.", ".S.");
-        add(map, "vesper_dagger", "melee/blade", ".L.", ".F.", ".S.");
-        add(map, "cautery_sabre", "melee/blade", ".B.", ".I.", ".S.");
-        add(map, "rebar_sword", "melee/blade", ".I.", ".O.", ".S.");
-        add(map, "execution_sword", "melee/blade", ".D.", ".O.", ".S.");
-        add(map, "wardcleaver", "melee/blade", ".E.", ".I.", ".S.");
-        add(map, "shock_baton", "melee/blade", ".R.", ".C.", ".S.");
-        add(map, "suture_sickle", "melee/blade", ".Q.", ".T.", ".S.");
-        add(map, "breacher_axe", "melee/axe", "IO.", "IS.", ".S.");
-        add(map, "railpick", "melee/axe", "IQ.", "IS.", ".S.");
-        add(map, "thermal_machete", "melee/axe", "BC.", "BS.", ".S.");
-        add(map, "ember_falchion", "melee/axe", "BG.", "BS.", ".S.");
-        add(map, "gravity_maul", "melee/axe", "OL.", "OS.", ".S.");
-        add(map, "tollhammer", "melee/axe", "iK.", "iS.", ".S.");
-        add(map, "altar_mallet", "melee/axe", "QW.", "QS.", ".S.");
-        add(map, "sentinel_spear", "melee/polearm", "..I", ".F.", "S..");
-        add(map, "pilgrim_lance", "melee/polearm", "..G", ".K.", "S..");
-        add(map, "hollow_halberd", "melee/polearm", "..D", ".I.", "S..");
-        add(map, "mourning_glaive", "melee/polearm", "..E", ".Q.", "S..");
-        add(map, "reaper_scythe", "melee/scythe", "IK.", "..S", "..S");
-        add(map, "ossuary_flail", "melee/scythe", "IG.", "..S", "..S");
-        add(map, "wire_whip", "melee/scythe", "TF.", "..S", "..S");
+        // Melee (2026-09-25 owner overhaul). Every one of these out-hits a diamond sword (7 damage, ~11 DPS):
+        // 1.4-4x per hit and 1.2-2.5x per second. Cost follows power = sqrt(DPS ratio x hit ratio) against the
+        // diamond sword (2 diamonds), in four bands, counted in diamond-equivalents (block = 9):
+        //   power < 1.93  ~5-6.5   (2.5-3x a diamond sword)   power 2.06-2.15  ~12.5-16  (6-8x)
+        //   power 1.93-2.05 ~9-12  (4.5-6x)                   power > 2.15     ~18.5-20  (9-10x)
+        // Shapes follow the weapon: short blades one stick; swords one stick under a guard row; axes, picks,
+        // hammers and the scythe two sticks (vanilla haft); polearms a head on two diagonal sticks; the baton and
+        // the whip a leather grip. Edges are diamond, heavy heads are metal blocks, fire weapons carry blaze rods.
+        add(map, "trench_blade", "melee/blade", ".D.", "DiD", ".S.");    // [< 1.93] diamond knife over an iron knuckle guard, one stick
+        add(map, "mono_katana", "melee/blade", ".dD", "Dd.", "TST");     // [> 2.15] two diamond blocks, diamond edges, string-wrapped hilt
+        add(map, "gravespike", "melee/blade", ".D.", "KdK", ".S.");      // [1.93-2.05] diamond point, diamond-block dirk, bone guard, one stick
+        add(map, "vesper_dagger", "melee/blade", ".e.", ".d.", ".S.");   // [1.93-2.05] ritual eye-of-ender tip, diamond-block blade, one stick
+        add(map, "cautery_sabre", "melee/blade", ".D.", "DdD", "BSB");   // [2.06-2.15] diamond-edged diamond-block sabre, blaze-rod heated grip
+        add(map, "rebar_sword", "melee/blade", ".i.", "idi", ".S.");     // [2.06-2.15] iron-block rebar around a diamond-block core, one stick
+        add(map, "execution_sword", "melee/blade", ".d.", "DOD", "OSO"); // [2.06-2.15] diamond-block blade, diamond/obsidian guard, obsidian pommel
+        add(map, "wardcleaver", "melee/blade", "DDE", "iE.", ".S.");     // [< 1.93] diamond edge, emerald wards, iron spine, one stick
+        add(map, "shock_baton", "melee/blade", "DrD", "GiG", ".H.");     // [< 1.93] diamond electrodes, redstone battery, gold contacts, iron shaft, leather grip
+        add(map, "suture_sickle", "melee/blade", ".DD", "TiD", "S..");   // [< 1.93] curved diamond blade, iron hub, string sutures, one stick
+        add(map, "breacher_axe", "melee/axe", "dD.", "iS.", ".S.");      // [1.93-2.05] diamond-block bit with a diamond edge, iron poll, two sticks
+        add(map, "railpick", "melee/axe", "iDi", ".S.", ".S.");          // [< 1.93] rail-iron pick head, diamond point, two-stick haft
+        add(map, "thermal_machete", "melee/blade", ".d.", "BCB", ".S."); // [1.93-2.05] diamond-block machete over blaze-rod and coal heaters, one stick
+        add(map, "ember_falchion", "melee/blade", ".BD", ".d.", ".S.");  // [1.93-2.05] blaze-heated diamond-block falchion, one stick
+        add(map, "gravity_maul", "melee/axe", "dOd", ".S.", ".S.");      // [> 2.15] two diamond blocks around an obsidian core, two sticks
+        add(map, "tollhammer", "melee/axe", "dGd", "GSG", ".S.");        // [> 2.15] diamond-block head, gold bell bands, two sticks
+        add(map, "altar_mallet", "melee/axe", "gdg", ".S.", ".S.");      // [2.06-2.15] gold-capped diamond-block head, two-stick haft
+        add(map, "sentinel_spear", "melee/polearm", ".DD", ".SD", "Si."); // [< 1.93] diamond head, two-stick shaft, iron butt spike
+        add(map, "pilgrim_lance", "melee/polearm", ".Dd", ".SG", "S.."); // [1.93-2.05] diamond tip, diamond-block vamplate, gold trim, two sticks
+        add(map, "hollow_halberd", "melee/polearm", ".dD", ".Sg", "S.."); // [2.06-2.15] diamond-block axe blade, diamond spike, gold langet, two sticks
+        add(map, "mourning_glaive", "melee/polearm", ".Dd", ".SL", "S.."); // [1.93-2.05] diamond-block glaive blade, ink mourning band, two sticks
+        add(map, "reaper_scythe", "melee/scythe", "DDD", "KiS", "..S");  // [< 1.93] diamond blade, bone collar, iron tang, two-stick snath
+        add(map, "ossuary_flail", "melee/scythe", "KdK", ".N.", ".S.");  // [1.93-2.05] bone-spiked diamond-block head on a nugget chain, one stick
+        add(map, "wire_whip", "melee/scythe", "DTD", "DiD", ".H.");      // [< 1.93] razorwire lash with diamond barbs on an iron reel, leather handle
         add(map, "bulwark_helmet", "armor/bulwark", "dXd", "iOi", "...");
         add(map, "bulwark_chestplate", "armor/bulwark", "i.i", "dXd", "gOg");
         add(map, "bulwark_leggings", "armor/bulwark", "dXd", "iOi", "g.g");

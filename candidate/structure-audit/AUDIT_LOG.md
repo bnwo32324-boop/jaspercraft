@@ -250,3 +250,11 @@ Nothing is half-written. State on disk:
   sync-recipe-table -> build-recipe-book-client --upgrade -> build-gear-client; Creative catalogue gains gear_blight_filter.
   Self-test PASS 1129. Backups .runtime/plugin-backup-20260925-111152-filter, .runtime/site-backup-20260925-111152-filter.
 - 2026-09-25 11:22 Recipe panel scroll wheel fixed (site only, no restart; classes.js?v=20260925-wheel1): the client's canvas wheel handler calls stopPropagation(), so the recipe book's bubbling document 'wheel' listener never fired. Now a capture-phase window listener (passive, never blocks the game), only for a panel drawn in the last 500 ms. Backup .runtime/site-backup-20260925-112201-wheel.
+- 2026-09-25 11:31 Melee recipe overhaul LIVE (owner request; guns untouched, another agent owns them): JasprApocalypse 3.6.3 =
+  live 3.6.2 jar + new Blueprints.class only (source still has undeployed Ruins/SiegeRules drift). All 24 melee weapons out-hit a
+  diamond sword; cost now scales with power = sqrt(DPS ratio x per-hit ratio) vs the diamond sword, four bands ~5-6.5 / 9-12 /
+  12.5-16 / 18.5-20 diamond-equivalents (diamond sword = 2). Logical shapes: short blades and swords one stick, axes/picks/hammers/
+  scythe two sticks, polearms two diagonal sticks, baton and whip leather grips; thematic parts (blaze rods on fire weapons, redstone
+  battery + gold contacts on the shock baton, bone on the ossuary/grave weapons). tests/gun-recipe-blueprints.test.cjs passes (no
+  collisions, no vanilla shadowing); recipe-table.json re-exported (24 changed, 0 removed); client classes.js?v=20260925-melee1.
+  Backups .runtime/plugin-backup-20260925-113124-JasprApocalypse, .runtime/site-backup-20260925-113124-melee.
