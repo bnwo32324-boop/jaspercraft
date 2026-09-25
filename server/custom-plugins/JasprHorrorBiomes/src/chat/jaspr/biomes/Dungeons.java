@@ -2173,7 +2173,8 @@ public final class Dungeons {
             case 13: return new ItemStack(Material.SULPHUR, 1 + r.nextInt(4));
             case 14: return style == Caves.FROSTBORE ? new ItemStack(Material.DIAMOND, 1 + r.nextInt(2))
                                                      : new ItemStack(Material.LAPIS_ORE, 1 + r.nextInt(3));
-            case 15: return new ItemStack(Material.ENCHANTED_BOOK);
+            // Never a blank book (owner, 2026-09-25); drawn from its own source so r is not advanced.
+            case 15: return LootBooks.random(java.util.concurrent.ThreadLocalRandom.current());
             case 16: return new ItemStack(Material.DIAMOND, 1 + r.nextInt(3));
             default: return new ItemStack(Material.IRON_BLOCK);
         }

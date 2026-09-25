@@ -42,9 +42,19 @@ public final class SpawnBalance implements Listener {
 
     SpawnBalance(HorrorPlugin plugin) { this.plugin = plugin; }
 
-    public void start() { Bukkit.getPluginManager().registerEvents(this, plugin); }
+    /** Hosted here so the live jar could be patched without touching HorrorPlugin (its source has undeployed drift). */
+    private LootBooks books;
 
-    public void stop() { HandlerList.unregisterAll(this); }
+    public void start() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
+        books = new LootBooks(plugin);
+        books.start();
+    }
+
+    public void stop() {
+        HandlerList.unregisterAll(this);
+        if (books != null) books.stop();
+    }
 
     public String status() { return "passiveKept=" + kept + " passiveThinned=" + thinned; }
 
