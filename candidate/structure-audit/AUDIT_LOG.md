@@ -258,3 +258,10 @@ Nothing is half-written. State on disk:
   battery + gold contacts on the shock baton, bone on the ossuary/grave weapons). tests/gun-recipe-blueprints.test.cjs passes (no
   collisions, no vanilla shadowing); recipe-table.json re-exported (24 changed, 0 removed); client classes.js?v=20260925-melee1.
   Backups .runtime/plugin-backup-20260925-113124-JasprApocalypse, .runtime/site-backup-20260925-113124-melee.
+- 2026-09-25 12:44 Weapon/armor model flicker fixed (site only, no restart; assets.epk + jaspr-client.js build 20260925-flicker1).
+  Cause: z-fighting -- 60 of the apocalypse item models had same-facing coplanar overlapping faces (e.g. Tempest top plate vs its
+  side rails, steel vs coal). New apocalypse-pack/zfight.cjs pushes the smaller (detail) element out by 0.05 model units per
+  conflict until none remain; applied to the generated models (arsenal-expansion.cjs models()) and once to the static ones (sentry
+  turret eye edited by hand: its file has a custom layout). build-apocalypse-pack.cjs now fails on any z-fighting pair.
+  arsenal-legacy-contract.json: 19 model sha256 pins updated deliberately. apocalypse-assets tests 7/7 pass (orientation checks
+  included); EPK merge changed item models only. Backup .runtime/site-backup-20260925-124423-flicker.

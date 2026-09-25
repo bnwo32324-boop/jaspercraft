@@ -189,8 +189,11 @@ function meleeModel([id,band,type,top,accent]) {
   return {__comment:id+' / stable band '+band+' / working end +Y; original upright blade transforms',ambientocclusion:true,
     textures,display:display(false,pole||top>=28),elements:p};
 }
+// Every generated model passes through the z-fighting guard (coplanar same-facing faces flicker in game).
+const {separate}=require('./zfight.cjs');
+function unflicker(model){model.elements=separate(model.elements);return model;}
 function models() {
-  return new Map([...gunSpecs.map(spec=>['apocalypse_'+spec[0]+'.json',gunModel(spec)]),
-    ...meleeSpecs.map(spec=>['apocalypse_'+spec[0]+'.json',meleeModel(spec)])]);
+  return new Map([...gunSpecs.map(spec=>['apocalypse_'+spec[0]+'.json',unflicker(gunModel(spec))]),
+    ...meleeSpecs.map(spec=>['apocalypse_'+spec[0]+'.json',unflicker(meleeModel(spec))])]);
 }
 module.exports={gunSpecs,meleeSpecs,models};

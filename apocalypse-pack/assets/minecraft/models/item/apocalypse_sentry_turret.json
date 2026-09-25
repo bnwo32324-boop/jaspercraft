@@ -131,7 +131,7 @@
     {
       "__comment": "targeting eye",
       "from": [6.5, 9.625, 3.35],
-      "to": [9.5, 11.5, 3.65],
+      "to": [9.5, 11.55, 3.65],
       "faces": {
         "north": {"uv": [0, 0, 16, 16], "texture": "#red"},
         "south": {"uv": [0, 0, 16, 16], "texture": "#red"},

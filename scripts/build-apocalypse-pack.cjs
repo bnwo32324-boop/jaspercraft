@@ -105,6 +105,9 @@ function validate() {
     if (!model.elements) continue;
     const isGun = [...guns.values()].some(reference => modelPath(reference) === name);
     assert(model.elements.length >= (isGun ? 12 : 4) && model.elements.length <= 32, `${name}: geometry budget`);
+    // Coplanar same-facing overlapping faces z-fight (flicker) in game; apocalypse-pack/zfight.cjs separates them.
+    const flicker = require('../apocalypse-pack/zfight.cjs').conflicts(model.elements);
+    assert.equal(flicker.length, 0, `${name}: ${flicker.length} z-fighting face pair(s); run apocalypse-pack/zfight.cjs separate()`);
     for (const [index, element] of model.elements.entries()) {
       const label = `${name} element ${index}`;
       triple(element.from, `${label} from`, -16, 32);

@@ -481,7 +481,7 @@
       "__comment": "pump ridge one",
       "from": [
         4,
-        7,
+        6.95,
         -1
       ],
       "to": [
@@ -550,7 +550,7 @@
       "__comment": "pump ridge two",
       "from": [
         4,
-        7,
+        6.95,
         2
       ],
       "to": [
