@@ -278,3 +278,10 @@ Nothing is half-written. State on disk:
   attacked. Test-harness notes: vanilla /tp is shadowed by Apocalypse TPA (use minecraft:tp); /summon failed on the test server
   (spawnEntity works). One restart, 0 players.
 - 2026-09-25 13:59 JasprHorrorBiomes 3.27.2 LIVE: no more blank enchanted books (owner). Dungeons.roll() case 15 returned a bare ENCHANTED_BOOK; now LootBooks.random() (one non-curse enchantment at a random valid level, own RNG so the chest Random is not advanced). LootBooks also enchants any blank book when a container is first opened (position-seeded; catches already-rolled chests and imported designs; LOOT_BOOKS_FIXED log). Hosted from SpawnBalance.start() so HorrorPlugin (drifted source) is untouched. Patched into live 3.27.1 from commit 48487dc's Dungeons (bytecode-identical to live) + SpawnBalance + LootBooks; same edits in the 3.28.0 source. Bot test: 3 blank books in a chest -> Sweeping Edge I, Flame I, Luck of the Sea III. Backup .runtime/plugin-backup-20260925-135903-JasprHorrorBiomes.
+- 2026-09-25 14:28 WORLD DIFFICULTY -> EASY (owner). Found while debugging JasprFeral (hunting=0 live): the main world had been
+  PEACEFUL since 2026-09-17 via JasprApocalypse config `difficulty: peaceful` (it overrides server.properties). Peaceful also zeroes
+  all creature damage to players, so feral animals, sieges and monsters could never hurt anyone. Owner: "anything above peaceful
+  should make the mobs hostile; default world setting easy". Live plugins/JasprApocalypse/config.yml difficulty: easy, server.properties
+  difficulty=1, plugin default (resources/config.yml) easy. One restart, 0 players; level.dat Difficulty reads 1 after autosave.
+  Backup .runtime/config-backup-20260925-142754-difficulty. (Correction: an earlier answer to the owner said "Hard" from
+  server.properties; the effective setting was Peaceful.)

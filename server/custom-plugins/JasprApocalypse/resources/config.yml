@@ -2,7 +2,7 @@ world: world
 # Vanilla difficulty for the survival world (peaceful/easy/normal/hard). Peaceful
 # despawns hostiles, stops hunger drain and regens health; custom siege spawners
 # keep firing but their mobs cannot survive it.
-difficulty: hard
+difficulty: easy
 teleport:
   # Public consent-based requests. This permission is granted to non-ops and ops alike.
   request-timeout-seconds: 60
