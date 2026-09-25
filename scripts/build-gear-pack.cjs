@@ -71,6 +71,11 @@ const ART = {
     '................', '.....000000.....', '...00SSSSSS00...', '..0SSSSSSSSSS0..', 'bb0S0ii00ii0S0bb', '..0S0Ii00Ii0S0..',
     '..0SS00SS00SS0..', '..0sSSS00SSSs0..', '...0sS0hh0Ss0...', '....00hjjh00....', '.....0hjjh0.....', '.....0h11h0.....',
     '.....0hjjh0.....', '......0000......', '................', '................'],
+  // Charcoal gas-mask filter canister with a green blight mark (JasprGear 3.3.0).
+  blight_filter: [
+    '................', '.....000000.....', '....0jjjjjj0....', '....0HHHHHH0....', '...0000000000...', '...0hHHHHHHh0...',
+    '...0x5x5x5x50...', '...0hHHHHHHh0...', '...0sSSSSSSs0...', '...0sSgGGgSs0...', '...0sSgggGSs0...', '...0sSSSSSSs0...',
+    '...0hHHHHHHh0...', '...0hhhhhhhh0...', '....00000000....', '................'],
   teddy_bear: [
     '................', '...000....000...', '...0eF0000Fe0...', '...0FFFFFFFF0...', '..0FFxFFFFxFF0..', '..0FFFFeeFFFF0..',
     '..0FFFexxeFFF0..', '...0FFeeeeFF0...', '...00FFFFFF00...', '..0FF0eeee0FF0..', '.0FFF0eeRe0FFF0.', '.0ff0FeeeeF0ff0.',

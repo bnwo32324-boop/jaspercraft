@@ -120,7 +120,9 @@ final class GearAbilities implements Listener {
         if (!worn.contains(GearItem.SCRAP_MAGNET)) prof.magnet = false;
         if (!worn.contains(GearItem.GRAV_HARNESS)) dropLevitation(p, prof);
         if (!worn.contains(GearItem.RIOT_VEST)) prof.vestCharge = 0;
+        blightImmune(p, worn.contains(GearItem.BLIGHT_FILTER));
         if (worn.isEmpty()) return;
+        if (worn.contains(GearItem.BLIGHT_FILTER) && touchingWater(p)) p.removePotionEffect(PotionEffectType.POISON);
         if (worn.contains(GearItem.TRITIUM_RING)) p.removePotionEffect(PotionEffectType.BLINDNESS);
         if (worn.contains(GearItem.NECROTIC_RING)) p.removePotionEffect(PotionEffectType.WITHER);
         if (worn.contains(GearItem.TOXIN_INJECTOR) || (worn.contains(GearItem.REBREATHER) && touchingWater(p)))
@@ -129,7 +131,22 @@ final class GearAbilities implements Listener {
         if (worn.contains(GearItem.REBREATHER) && headInWater(p)) p.setRemainingAir(p.getMaximumAir());
     }
 
+    /**
+     * JasprBlight skips a player carrying this marker, so the Blight Filter's wearer is never poisoned
+     * by the water at all (no poison icon flicker). The marker only exists while the filter is worn.
+     */
+    static final String BLIGHT_IMMUNE = "jaspr_blight_immune";
+
+    private void blightImmune(Player p, boolean on) {
+        if (on) {
+            if (!p.hasMetadata(BLIGHT_IMMUNE)) p.setMetadata(BLIGHT_IMMUNE, new org.bukkit.metadata.FixedMetadataValue(plugin, Boolean.TRUE));
+        } else if (p.hasMetadata(BLIGHT_IMMUNE)) {
+            p.removeMetadata(BLIGHT_IMMUNE, plugin);
+        }
+    }
+
     void clear(Player p, GearProfile prof) {
+        blightImmune(p, false);
         for (Map<Attribute, AttributeModifier> map : modifiers.values())
             for (Map.Entry<Attribute, AttributeModifier> m : map.entrySet()) setModifier(p, m.getKey(), m.getValue(), false);
         potion(p, PotionEffectType.FAST_DIGGING, 0, false);
@@ -644,7 +661,8 @@ final class GearAbilities implements Listener {
                 if (worn.contains(GearItem.THERMAL_GOGGLES)) e.setDamage(e.getDamage() * 0.5);
                 break;
             case POISON:
-                if (worn.contains(GearItem.TOXIN_INJECTOR) || (worn.contains(GearItem.REBREATHER) && touchingWater(p))) {
+                if (worn.contains(GearItem.TOXIN_INJECTOR)
+                        || ((worn.contains(GearItem.REBREATHER) || worn.contains(GearItem.BLIGHT_FILTER)) && touchingWater(p))) {
                     e.setCancelled(true); p.removePotionEffect(PotionEffectType.POISON); return;
                 }
                 break;

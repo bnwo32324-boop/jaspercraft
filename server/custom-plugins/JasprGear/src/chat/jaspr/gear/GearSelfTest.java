@@ -117,7 +117,7 @@ final class GearSelfTest {
         check(plugin.recipeCount() == GearItem.values().length, "recipes registered " + plugin.recipeCount());
         // End-game prices: a Nether Star and 2+ diamond blocks each; rank 3+ an emerald block; rank 4+ three
         // diamond blocks; rank 5 two emerald blocks.
-        for (GearItem item : GearItem.values()) {
+        for (GearItem item : GearItem.LOOT) { // craft-only trinkets are deliberately cheap (checked in bossLoot)
             int star = 0, diamond = 0, emerald = 0;
             java.util.Map<Character, String> key = item.ingredientMap();
             for (String row : item.shape) for (char ch : row.toCharArray()) {
@@ -216,8 +216,22 @@ final class GearSelfTest {
         java.util.Random r = new java.util.Random(99L);
         int n = 150000;
         for (int i = 0; i < n; i++) counts[GearItems.identify(GearApi.bossLoot(r)).ordinal()]++;
-        for (GearItem g : GearItem.values())
-            check(Math.abs(counts[g.ordinal()] - n / (double) counts.length) < 5 * Math.sqrt(n / (double) counts.length), "boss loot uniform " + g.id);
+        double even = n / (double) GearItem.LOOT.length;
+        for (GearItem g : GearItem.values()) {
+            if (g.loot) check(Math.abs(counts[g.ordinal()] - even) < 5 * Math.sqrt(even), "boss loot uniform " + g.id);
+            else check(counts[g.ordinal()] == 0, "boss loot never rolls craft-only " + g.id);
+        }
+        // 3.3.0: the Blight Filter is craft-only and cheap (no Nether Star, no blocks of diamond/emerald/gold/iron).
+        check(!GearItem.BLIGHT_FILTER.loot && GearItem.LOOT.length == GearItem.values().length - 1, "blight filter craft-only");
+        for (String need : GearItem.BLIGHT_FILTER.ingredientMap().values())
+            check(!need.startsWith("NETHER_STAR") && !need.endsWith("_BLOCK"), "blight filter cheap: " + need);
+        java.util.Random lr = new java.util.Random(7L);
+        boolean rolled = false;
+        for (int i = 0; i < 20000 && !rolled; i++) {
+            ItemStack got = GearApi.rollLoot(lr, 1 + (i % 5));
+            rolled = got != null && GearItems.identify(got) == GearItem.BLIGHT_FILTER;
+        }
+        check(!rolled, "structure loot never rolls the blight filter");
         check(GearApi.bossLoot(null) == null, "boss loot null-safe");
     }
 
@@ -391,7 +405,7 @@ final class GearSelfTest {
         List<GearItem> pool = new ArrayList<GearItem>();
         List<Integer> weights = new ArrayList<Integer>();
         int total = 0;
-        for (GearItem item : GearItem.values()) {
+        for (GearItem item : GearItem.LOOT) { // the Phase 1 pool: craft-only trinkets never joined it
             if (!GearApi.eligible(item.rank, t)) continue;
             int w = GearApi.lootWeight(item.rank, t);
             pool.add(item); weights.add(w); total += w;

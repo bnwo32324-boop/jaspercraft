@@ -240,3 +240,12 @@ Nothing is half-written. State on disk:
   Both patched into the live 1.0.0 jar; no source drift to worry about (JasprGraves had none pending).
   Backups .runtime/plugin-backup-20260925-081253-JasprGraves, .runtime/plugin-backup-20260925-081618-JasprGraves.
 - 2026-09-25 11:01 JasprGear 3.2.1 LIVE (owner request): the adrenaline HUD bar only shows while an adrenaline-spending item is worn (Capacitor Belt, Phase Headset, Scrap Magnet), the mutation's R ability costs adrenaline, or a status effect is running (HUD clients get no other status notice). Server-side: GearVitals.hudWanted() feeds the hud packet's existing 'on' flag; no client change. Self-test PASS 1094 checks (4 new). Backup .runtime/plugin-backup-20260925-110128-JasprGear.
+- 2026-09-25 11:12 Blight Filter LIVE (owner request): JasprGear 3.3.0 + JasprBlight 1.1.0 + client (classes.js/assets.epk/client.html/
+  jaspr-client.js, versions 20260925-filter1), one restart, 0 players. New trinket BLIGHT_FILTER (any slot, rank 1, model 35, own 16x16
+  art): immunity to blight water. Cheap recipe SIS/CBC/SPS (string, iron ingot, charcoal, glass bottle, paper; no Nether Star, no
+  blocks). Craft-only (GearItem.loot=false, GearItem.LOOT pool) so structure loot, boss loot and mob drops are unchanged -- the
+  Phase 1 loot-parity self-test passes. Mechanism: JasprGear sets player metadata "jaspr_blight_immune" while worn (cleared on
+  unequip/quit/disable); JasprBlight skips players carrying it; JasprGear also cancels poison damage while the wearer touches water
+  (belt and braces). Recipe panel: recipe-table.json re-exported from a test server with all live plugins (diff: +1 recipe, 0 removed),
+  sync-recipe-table -> build-recipe-book-client --upgrade -> build-gear-client; Creative catalogue gains gear_blight_filter.
+  Self-test PASS 1129. Backups .runtime/plugin-backup-20260925-111152-filter, .runtime/site-backup-20260925-111152-filter.

@@ -103,7 +103,7 @@ public final class GearApi {
         List<GearItem> pool = new ArrayList<GearItem>();
         List<Integer> weights = new ArrayList<Integer>();
         int total = 0;
-        for (GearItem item : GearItem.values()) {
+        for (GearItem item : GearItem.LOOT) {
             if (!eligible(item.rank, t)) continue;
             int w = lootWeight(item.rank, t);
             pool.add(item);
@@ -131,7 +131,7 @@ public final class GearApi {
 
     /** One trinket for a slain boss: every trinket equally likely, no tier gating. Uses only nextInt. */
     public static ItemStack bossLoot(Random random) {
-        GearItem[] all = GearItem.values();
+        GearItem[] all = GearItem.LOOT;
         return random == null ? null : GearItems.create(all[random.nextInt(all.length)]);
     }
 

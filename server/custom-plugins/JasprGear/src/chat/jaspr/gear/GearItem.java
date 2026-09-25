@@ -63,7 +63,12 @@ public enum GearItem {
         new String[]{"dHd", "FXF", "fdf"}, "d=DIAMOND_BLOCK,H=SHULKER_SHELL,F=FEATHER,X=NETHER_STAR,f=EMERALD_BLOCK"),
     NECROTIC_RING("necrotic_ring", "Necrotic Ring", GearType.RING, 15, 3, "Wither Ring",
         new String[]{"Immune to Wither; withers foes", "Leech 1 HP from withered targets"},
-        new String[]{"NCN", "dXd", "NfB"}, "N=IRON_NUGGET,C=COAL:0,d=DIAMOND_BLOCK,X=NETHER_STAR,f=EMERALD_BLOCK,B=BONE");
+        new String[]{"NCN", "dXd", "NfB"}, "N=IRON_NUGGET,C=COAL:0,d=DIAMOND_BLOCK,X=NETHER_STAR,f=EMERALD_BLOCK,B=BONE"),
+    // 3.3.0 (owner request): a cheap, single-purpose answer to the blight water. Deliberately outside the
+    // end-game recipe rule above, and craft-only (loot=false) so every existing loot roll stays identical.
+    BLIGHT_FILTER("blight_filter", "Blight Filter", GearType.ANY, 35, 1, "(JasperCraft original)",
+        new String[]{"Charcoal filter: immune to blight water", "Cheap to make; never found as loot"},
+        new String[]{"SIS", "CBC", "SPS"}, "S=STRING,I=IRON_INGOT,C=COAL:1,B=GLASS_BOTTLE,P=PAPER", false);
 
     public final String id;
     public final String title;
@@ -74,9 +79,17 @@ public enum GearItem {
     public final String[] effects;
     public final String[] shape;
     public final String ingredients;
+    /** False: craft-only, never rolled by structure loot, boss loot or mob drops. */
+    public final boolean loot;
 
     GearItem(String id, String title, GearType type, int model, int rank, String inspiredBy,
              String[] effects, String[] shape, String ingredients) {
+        this(id, title, type, model, rank, inspiredBy, effects, shape, ingredients, true);
+    }
+
+    GearItem(String id, String title, GearType type, int model, int rank, String inspiredBy,
+             String[] effects, String[] shape, String ingredients, boolean loot) {
+        this.loot = loot;
         this.id = id;
         this.title = title;
         this.type = type;
@@ -110,6 +123,14 @@ public enum GearItem {
             if (BY_ID.put(item.id, item) != null) throw new IllegalStateException("duplicate gear id " + item.id);
             if (item.rank < 1 || item.rank > 5) throw new IllegalStateException("bad rank " + item.id);
         }
+    }
+
+    /** The lootable trinkets, in declaration order (the loot and boss-loot pools). */
+    public static final GearItem[] LOOT;
+    static {
+        java.util.List<GearItem> out = new java.util.ArrayList<GearItem>();
+        for (GearItem item : values()) if (item.loot) out.add(item);
+        LOOT = out.toArray(new GearItem[0]);
     }
 
     public static GearItem byId(String id) {

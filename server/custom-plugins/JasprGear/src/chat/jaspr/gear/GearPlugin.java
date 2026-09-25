@@ -794,10 +794,10 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         double chance = getConfig().getDouble(dead instanceof Zombie ? "drops.zombie-chance" : "drops.hostile-chance", 0.0035);
         if (random.nextDouble() >= Math.max(0.0, Math.min(0.05, chance))) return;
         int total = 0;
-        for (GearItem item : GearItem.values()) total += item.weight();
+        for (GearItem item : GearItem.LOOT) total += item.weight();
         int roll = random.nextInt(total);
-        GearItem pick = GearItem.values()[0];
-        for (GearItem item : GearItem.values()) { roll -= item.weight(); if (roll < 0) { pick = item; break; } }
+        GearItem pick = GearItem.LOOT[0];
+        for (GearItem item : GearItem.LOOT) { roll -= item.weight(); if (roll < 0) { pick = item; break; } }
         e.getDrops().add(GearItems.create(pick));
         mobDrops++;
         getLogger().info("GEAR_MOB_DROP item=" + pick.id + " mob=" + dead.getType().name() + " killer=" + dead.getKiller().getUniqueId());

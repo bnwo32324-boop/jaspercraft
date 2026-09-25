@@ -23,6 +23,8 @@ import org.bukkit.potion.PotionEffectType;
  * minecarts on bridges and any other mount equally dry.
  */
 public final class BlightPlugin extends JavaPlugin {
+    /** Player metadata key that exempts its holder from the blight (see JasprGear's Blight Filter). */
+    static final String IMMUNE = "jaspr_blight_immune";
 
     @Override public void onEnable() {
         saveDefaultConfig();
@@ -45,6 +47,8 @@ public final class BlightPlugin extends JavaPlugin {
         for (World world : Bukkit.getWorlds()) {
             for (Player player : world.getPlayers()) {
                 if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) continue;
+                // Set by JasprGear while its Blight Filter trinket is worn (no compile-time dependency).
+                if (player.hasMetadata(IMMUNE)) continue;
                 if (sheltered(player)) continue;
                 if (!touchingWater(player)) continue;
                 poison(player);
