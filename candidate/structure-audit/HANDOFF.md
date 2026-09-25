@@ -95,3 +95,10 @@ NEXT (main agent on the PC):
   waypoints, graves, turrets, boundaries) regenerates. Note the tool deliberately protects jaspr_backrooms and all plugin data:
   it must be changed for the Fold and for plugin world-state, while still keeping per-player plugin data (JasprGear players/,
   backpacks, Apocalypse ranks/life checkpoints, AuthMe, skins/SSO).
+
+## QUEUED (owner, 2026-09-25): blank enchanted books in structure chests
+- Owner: enchanted books may appear in loot, but never empty. Cause found: JasprHorrorBiomes Dungeons.roll() case 15 returns
+  `new ItemStack(Material.ENCHANTED_BOOK)` with no stored enchantment (ExpeditionLoot.book() is fine). Fix without moving the
+  chest's Random r (it may be a builder stream): pick the stored enchantment from a separate source. Also check the importer
+  (JasprImportedWorldgen) and vanilla-table chests. HB source is 3.28.0 with undeployed drift -> patch classes into the live jar.
+- JasprFeral 1.0.0 is live (see AUDIT_LOG 2026-09-25 13:16).

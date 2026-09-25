@@ -265,3 +265,15 @@ Nothing is half-written. State on disk:
   turret eye edited by hand: its file has a custom layout). build-apocalypse-pack.cjs now fails on any z-fighting pair.
   arsenal-legacy-contract.json: 19 model sha256 pins updated deliberately. apocalypse-assets tests 7/7 pass (orientation checks
   included); EPK merge changed item models only. Backup .runtime/site-backup-20260925-124423-flicker.
+- 2026-09-25 13:16 NEW PLUGIN JasprFeral 1.0.0 LIVE (owner: "make all passive mobs hostile, each with a unique fighting style";
+  before this nothing passive was hostile). 16 types / 14 styles: cow stampede-charge, mooshroom spore bursts (nausea), pig ram +
+  eats 2 food, sheep headbutt stagger, chicken fast pecks + rallies the flock, rabbit leap, horse/donkey/mule bite / rear-kick /
+  buck, bat nip-and-flutter, squid ink (blind) in water, parrot dive-bomb, polar bear maul + 4 s bleed, ocelot pin, llama spit
+  (+nausea), wolf pack (rallies wild wolves). Friendly: villagers, tamed/owned, leashed, name-tagged, ridden, babies; nothing in
+  Peaceful/Creative/Spectator. Wolves/polar bears/ocelots/llamas use their vanilla attack AI via setTarget; the rest are steered by
+  their own NMS pathfinder (repath every 4 ticks) and strike with real mob damage (armour/difficulty apply). Panic and avoid-player
+  goals are removed from an animal when it turns. Bounded: 1 s sweep per player (14 m, line of sight), max 160 hunters, velocity only
+  on a discrete move (never per tick). FERAL_READY / FERAL_METRICS (every 5 min) / /feral (op: turned + hits per style).
+  Test: mineflayer bot on a test server with every live plugin -- every style turned and landed hits; named + baby cow never
+  attacked. Test-harness notes: vanilla /tp is shadowed by Apocalypse TPA (use minecraft:tp); /summon failed on the test server
+  (spawnEntity works). One restart, 0 players.

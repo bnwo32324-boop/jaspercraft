@@ -1,0 +1,12 @@
+name: JasprFeral
+version: 1.0.0
+main: chat.jaspr.feral.FeralPlugin
+author: Jaspr
+description: Feral fauna - every passive animal hunts survival players with its own fighting style.
+commands:
+  feral:
+    description: Show feral fauna status.
+    permission: jasprferal.admin
+permissions:
+  jasprferal.admin:
+    default: op
