@@ -254,15 +254,8 @@ public final class GravesPlugin extends JavaPlugin implements Listener {
             player.sendMessage(ChatColor.RED + menu.viewerName(grave) + " is going through this grave.");
             return;
         }
-        if (!pickaxe(player.getInventory().getItemInMainHand())) {
-            player.sendMessage(ChatColor.RED + "Only a pickaxe will break a gravestone.");
-            return;
-        }
+        // Any tool, or an empty hand in Creative -- the owner asked for no pickaxe requirement.
         spill(grave, player);
-    }
-
-    static boolean pickaxe(ItemStack item) {
-        return item != null && item.getType() != Material.AIR && item.getType().name().endsWith("_PICKAXE");
     }
 
     /** Break behaviour: everything inside is thrown out where a chest would throw it. */

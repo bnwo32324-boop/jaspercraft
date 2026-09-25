@@ -1,5 +1,5 @@
 name: JasprGraves
-version: 1.0.0
+version: 1.2.0
 main: chat.jaspr.graves.GravesPlugin
 author: Jaspr
 description: Death leaves a headstone holding everything you were carrying, instead of scattering it on the ground.

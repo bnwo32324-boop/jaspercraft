@@ -230,3 +230,12 @@ Nothing is half-written. State on disk:
 - 2026-09-24 17:21 FULL WORLD REGENERATED (owner request): new seed -6436856966336135554 (all 3 worlds), Fold regenerated. Kept: world/playerdata, stats, advancements (66 files, hash-verified), all per-player plugin data (JasprGear gear/backpacks/vitals, Apocalypse survivors/stats, AuthMe). Moved to world-resets/full-regen-2026-09-24T22-20-18-653Z: terrain, world data, boundaries, jaspr_backrooms, HB caves-v11 relocation/encounters/loot journal/discoveries, imported-protection-v1, importer cells receipts, turrets, waypoints, graves. Players get relocated once on join (relocated-caves-v11.yml reset). Live healthy, 0 import tile failures.
 - 2026-09-24 18:46 JasprApocalypse 3.6.2 LIVE: SiegeTraversal.halt() re-sent zero velocity to stalled siege zombies every tick (entity velocity packet 20/s each; measured ~300 msgs/s to the client, owner felt ~1 s mouse lag). halt now only acts when horizontal speed > 1e-3. Patched into the live jar (only SiegeTraversal.class + plugin.yml). Backup .runtime/plugin-backup-*-JasprApocalypse (18:46).
 - 2026-09-24 20:52 JasprHorrorBiomes 3.27.1 LIVE (owner: halve all passive mob spawns): SpawnBalance keeps 17.5% of wild non-sheep animals (was 35%), 50% of sheep (was 100%), 50% of squid/bats (was 100%); NATURAL + CHUNK_GEN only. Patched into the live 3.27.0 jar (SpawnBalance.class + plugin.yml) because source is already 3.28.0 (undeployed). Backup .runtime/plugin-backup-20260924-205221-JasprHorrorBiomes.
+- 2026-09-25 08:12-08:16 JasprGraves LIVE, two owner-reported fixes, one restart each, 0 players online:
+  1.1.0: break a gravestone with any tool (or empty hand in Creative), not only a pickaxe -- removed the pickaxe()
+  gate in onBreak (owner request).
+  1.2.0: LADDER added to Headstone.soft() -- findSpot() treated a ladder block as solid, so a death on a ladder
+  walked the grave down to the first true-air gap, sometimes many blocks below the death point (owner report:
+  died on a ladder at world -126,28,-3, grave landed at -126,13,-3, 15 blocks down -- confirmed no data was
+  lost, just placed low; GRAVE_RAISED had logged stacks=21 xp=3439). Now the grave settles right at the ladder.
+  Both patched into the live 1.0.0 jar; no source drift to worry about (JasprGraves had none pending).
+  Backups .runtime/plugin-backup-20260925-081253-JasprGraves, .runtime/plugin-backup-20260925-081618-JasprGraves.

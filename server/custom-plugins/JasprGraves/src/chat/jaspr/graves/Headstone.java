@@ -99,6 +99,10 @@ final class Headstone {
             case RED_ROSE: case YELLOW_FLOWER: case DOUBLE_PLANT: case CROPS: case CARROT:
             case POTATO: case MELON_STEM: case PUMPKIN_STEM: case SUGAR_CANE_BLOCK:
             case NETHER_WARTS: case BROWN_MUSHROOM: case RED_MUSHROOM: case TORCH:
+            // A dying player is very often on one: without this, findSpot walks straight past
+            // every rung of a ladder shaft looking for true air, and settles the grave far below
+            // (owner report: died mid-ladder, grave landed 15 blocks down at the shaft's floor).
+            case LADDER:
                 return true;
             default:
                 return false;
