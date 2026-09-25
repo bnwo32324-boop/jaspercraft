@@ -507,6 +507,17 @@ final class GearSelfTest {
         com.google.gson.JsonArray fx = root.getAsJsonArray("fx");
         check(fx.size() == 1 && "bleed".equals(fx.get(0).getAsJsonArray().get(0).getAsString()) && fx.get(0).getAsJsonArray().get(1).getAsInt() == 5, "hud statuses");
         check(!root.has("slots") && json.length() < 400, "hud packet is small and never a slot packet");
+        // 3.2.1: the bar hides unless something spends adrenaline (or a status is running).
+        GearProfile bare = new GearProfile(UUID.randomUUID());
+        bare.adrenaline = 100;
+        check(!GearVitals.hudWanted(bare, now), "hud hidden with no adrenaline gear");
+        bare.slots[6] = GearItems.create(GearItem.TEDDY_BEAR);
+        check(!GearVitals.hudWanted(bare, now), "hud hidden for gear that never spends adrenaline");
+        bare.slots[5] = GearItems.create(GearItem.CAPACITOR_BELT);
+        check(GearVitals.hudWanted(bare, now), "hud shown with a Capacitor Belt");
+        bare.slots[5] = null;
+        bare.status.put(GearStatus.BLEED, now + 3000);
+        check(GearVitals.hudWanted(bare, now), "hud shown while a status runs");
         check("hello 2".equals(GearPlugin.decode(varString("hello 2"))), "decode hello 2");
         check("click 3 0 1".equals(GearPlugin.decode(varString("click 3 0 1"))), "decode click");
     }

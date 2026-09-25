@@ -239,3 +239,4 @@ Nothing is half-written. State on disk:
   lost, just placed low; GRAVE_RAISED had logged stacks=21 xp=3439). Now the grave settles right at the ladder.
   Both patched into the live 1.0.0 jar; no source drift to worry about (JasprGraves had none pending).
   Backups .runtime/plugin-backup-20260925-081253-JasprGraves, .runtime/plugin-backup-20260925-081618-JasprGraves.
+- 2026-09-25 11:01 JasprGear 3.2.1 LIVE (owner request): the adrenaline HUD bar only shows while an adrenaline-spending item is worn (Capacitor Belt, Phase Headset, Scrap Magnet), the mutation's R ability costs adrenaline, or a status effect is running (HUD clients get no other status notice). Server-side: GearVitals.hudWanted() feeds the hud packet's existing 'on' flag; no client change. Self-test PASS 1094 checks (4 new). Backup .runtime/plugin-backup-20260925-110128-JasprGear.

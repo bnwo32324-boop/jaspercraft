@@ -407,7 +407,7 @@ final class GearVitals implements Listener {
         JsonObject root = new JsonObject();
         root.addProperty("v", GearPlugin.PROTOCOL);
         root.addProperty("t", "hud");
-        root.addProperty("on", p == null || (p.getGameMode() != GameMode.SPECTATOR && !p.isDead()));
+        root.addProperty("on", (p == null || (p.getGameMode() != GameMode.SPECTATOR && !p.isDead())) && hudWanted(prof, now));
         root.addProperty("a", (int) Math.floor(Math.max(0, prof.adrenaline) + 1e-6));
         root.addProperty("m", prof.maxAdrenaline());
         if (prof.mutation != GearMutation.BASELINE) root.addProperty("mu", prof.mutation.title);
@@ -422,6 +422,19 @@ final class GearVitals implements Listener {
         }
         root.add("fx", fx);
         return root.toString();
+    }
+
+    /**
+     * Owner request (3.2.1): the bar only takes screen space while something the player carries
+     * spends adrenaline -- the Capacitor Belt, Phase Headset or Scrap Magnet, or a mutation whose
+     * R ability costs it -- or while a status is running (a HUD client gets no other status notice).
+     */
+    static boolean hudWanted(GearProfile prof, long now) {
+        java.util.Set<GearItem> worn = prof.worn();
+        if (worn.contains(GearItem.CAPACITOR_BELT) || worn.contains(GearItem.PHASE_HEADSET) || worn.contains(GearItem.SCRAP_MAGNET)) return true;
+        if (prof.mutation != null && prof.mutation.cost > 0) return true;
+        for (Long until : prof.status.values()) if (until != null && until > now) return true;
+        return false;
     }
 
     void pushHud(Player p, GearProfile prof) {
