@@ -331,23 +331,52 @@ public final class Arsenal implements Listener {
         NBTTagCompound data = data(item);
         return MARK.equals(data.getString("arsenalMark")) && !data.getString("serial").isEmpty()
                 && data.hasKeyOfType("rounds", 3) && data.getInt("rounds") >= 0
-                && data.getInt("rounds") <= gun.capacity ? gun : null;
+                && data.getInt("rounds") <= capacity(item, gun) ? gun : null;
     }
 
     /** Public classification hook for server-side item systems; identity remains NBT-backed. */
     public static boolean isGun(ItemStack item) { return identify(item) != null; }
 
+    // ---- Gunsmith upgrades (JasprRPG armament sheet, K on a gun) ------------------------------------------
+    // JasprRPG spends a gun's level tokens and writes the ranks into the item's own JasprArmament.Abilities
+    // compound; the four that change how the gun itself works are read here. NBT is the only contract between
+    // the two plugins, so a gun keeps its upgrades when dropped, traded or stored.
+    static int upgrade(ItemStack item, String key) {
+        if (item == null || item.getType() == Material.AIR) return 0;
+        net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(item);
+        if (nms == null || !nms.hasTag() || !nms.getTag().hasKeyOfType("JasprArmament", 10)) return 0;
+        NBTTagCompound armament = nms.getTag().getCompound("JasprArmament");
+        return armament.hasKeyOfType("Abilities", 10) ? Math.max(0, Math.min(5, armament.getCompound("Abilities").getInt(key))) : 0;
+    }
+    /** Extended Magazine: +20% capacity per rank (at least one round). */
+    static int capacity(ItemStack item, Gun gun) {
+        int rank = upgrade(item, "extended_mag");
+        return rank == 0 ? gun.capacity : gun.capacity + Math.max(rank, (int) Math.round(gun.capacity * 0.2 * rank));
+    }
+    /** Speed Loader: -15% reload time per rank. */
+    static long reloadMs(ItemStack item, Gun gun) { return Math.round(gun.reloadMs * (1 - 0.15 * upgrade(item, "speed_loader"))); }
+    /** Hair Trigger: -10% time between shots per rank. */
+    static long cooldownMs(ItemStack item, Gun gun) { return Math.round(gun.cooldownMs * (1 - 0.10 * upgrade(item, "hair_trigger"))); }
+    /** Match Barrel: +15% range and -15% pellet spread per rank. */
+    static double range(ItemStack item, Gun gun) { return gun.range * (1 + 0.15 * upgrade(item, "match_barrel")); }
+    static double spread(ItemStack item, Gun gun) { return gun.spread * (1 - 0.15 * upgrade(item, "match_barrel")); }
+    /** Arsenal owns the first lines of a gun lore; anything after them (the JasprRPG armament block) is kept. */
+    private static final int OWN_LORE_LINES = 7;
+
     private static ItemStack rounds(ItemStack item, Gun gun, int count) {
         // Change lore before NBT, so the server's ItemMeta roundtrip cannot discard our update.
         ItemStack copy = item.clone();
         ItemMeta meta = copy.getItemMeta();
-        meta.setLore(Arrays.asList(ChatColor.GRAY + "Magazine: " + count + "/" + gun.capacity,
+        List<String> lore = new ArrayList<String>(Arrays.asList(ChatColor.GRAY + "Magazine: " + count + "/" + capacity(copy, gun),
                 ChatColor.DARK_GRAY + "Right-click: fire | Sneak + right-click: reload",
                 ChatColor.GRAY + "Ammo per round: " + gun.ammoCost,
-                ChatColor.GRAY + "Damage: " + gun.pellets + " x " + gun.damage + " | Range: " + gun.range,
-                ChatColor.GRAY + "Shot: " + gun.cooldownMs + "ms | Reload: " + gun.reloadMs + "ms",
+                ChatColor.GRAY + "Damage: " + gun.pellets + " x " + gun.damage + " | Range: " + Math.round(range(copy, gun) * 10) / 10.0,
+                ChatColor.GRAY + "Shot: " + cooldownMs(copy, gun) + "ms | Reload: " + reloadMs(copy, gun) + "ms",
                 ChatColor.AQUA + specialty(gun),
                 ChatColor.DARK_PURPLE + "Forged from the relics of a fallen world"));
+        List<String> previous = meta.hasLore() ? meta.getLore() : null;
+        if (previous != null && previous.size() > OWN_LORE_LINES) lore.addAll(previous.subList(OWN_LORE_LINES, previous.size()));
+        meta.setLore(lore);
         copy.setItemMeta(meta);
         net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(copy);
         NBTTagCompound root = nms.getTag();
@@ -395,14 +424,14 @@ public final class Arsenal implements Listener {
         }
         Location origin = player.getEyeLocation();
         Vector direction = origin.getDirection().normalize();
-        List<Target> candidates = targets(player, origin, direction, gun);
+        List<Target> candidates = targets(player, origin, direction, gun, range(held, gun), spread(held, gun));
         if (candidates == null) {
             hint(player, "Too many entities in the firing lane. Move to a clearer position.");
             return;
         }
-        readyAt.put(id, System.nanoTime() + gun.cooldownMs * 1000000L);
+        readyAt.put(id, System.nanoTime() + cooldownMs(held, gun) * 1000000L);
         player.getInventory().setItemInMainHand(rounds(held, gun, count - 1));
-        fire(player, origin, direction, gun, candidates);
+        fire(player, origin, direction, gun, candidates, range(held, gun), spread(held, gun));
         if ((gun == Gun.TEMPEST || gun.pattern == Pattern.BURST) && count > 1) burst(player, gun, held, count - 1);
     }
 
@@ -451,10 +480,10 @@ public final class Arsenal implements Listener {
                             || data(item).getInt("rounds") != expected) { cancelReload(id); return; }
                     Location eye = player.getEyeLocation();
                     Vector direction = eye.getDirection().normalize();
-                    List<Target> candidates = targets(player, eye, direction, gun);
+                    List<Target> candidates = targets(player, eye, direction, gun, range(item, gun), spread(item, gun));
                     if (candidates == null) { cancelReload(id); return; }
                     player.getInventory().setItemInMainHand(rounds(item, gun, expected - 1));
-                    fire(player, eye, direction, gun, candidates);
+                    fire(player, eye, direction, gun, candidates, range(item, gun), spread(item, gun));
                     if (last) bursting.remove(id);
                 }
             }, i * 11L)); // Respect vanilla immunity without resetting noDamageTicks.
@@ -463,13 +492,15 @@ public final class Arsenal implements Listener {
 
     private void reload(final Player player, final Gun gun, ItemStack item) {
         final int before = data(item).getInt("rounds");
-        if (before >= gun.capacity) { hint(player, "Magazine already full."); return; }
+        final int capacity = capacity(item, gun);
+        final long reload = reloadMs(item, gun);
+        if (before >= capacity) { hint(player, "Magazine already full."); return; }
         if (availableAmmo(player) < gun.ammoCost) { hint(player, "You need iron nuggets to load this."); return; }
         final UUID id = player.getUniqueId();
         final int slot = player.getInventory().getHeldItemSlot();
         final String serial = data(item).getString("serial");
-        readyAt.put(id, System.nanoTime() + gun.reloadMs * 1000000L);
-        hint(player, "Reloading " + gun.title + " (" + (gun.reloadMs / 1000.0) + "s)...");
+        readyAt.put(id, System.nanoTime() + reload * 1000000L);
+        hint(player, "Reloading " + gun.title + " (" + (reload / 1000.0) + "s)...");
         player.playSound(player.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_OPEN, 0.5f, 0.8f);
         BukkitTask task = plugin.getServer().getScheduler().runTaskLater(plugin, new Runnable() {
             @Override public void run() {
@@ -478,14 +509,14 @@ public final class Arsenal implements Listener {
                 ItemStack held = player.getInventory().getItemInMainHand();
                 if (identify(held) != gun || !serial.equals(data(held).getString("serial"))
                         || data(held).getInt("rounds") != before) return;
-                int added = Math.min(gun.capacity - before, availableAmmo(player) / gun.ammoCost);
+                int added = Math.min(capacity - before, availableAmmo(player) / gun.ammoCost);
                 if (added == 0) { hint(player, "Reload cancelled: out of iron nuggets."); return; }
                 consumeAmmo(player, added * gun.ammoCost);
                 player.getInventory().setItemInMainHand(rounds(held, gun, before + added));
                 player.playSound(player.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 0.5f, 1.15f);
-                player.sendMessage(gun.color + gun.title + ChatColor.GRAY + ": " + (before + added) + "/" + gun.capacity);
+                player.sendMessage(gun.color + gun.title + ChatColor.GRAY + ": " + (before + added) + "/" + capacity);
             }
-        }, (gun.reloadMs + 49) / 50);
+        }, (reload + 49) / 50);
         reloading.put(id, task);
     }
 
@@ -527,15 +558,15 @@ public final class Arsenal implements Listener {
         if (needed != 0) throw new IllegalStateException("Ammo changed during synchronous reload");
     }
 
-    private List<Target> targets(Player shooter, Location eye, Vector direction, Gun gun) {
-        Location middle = eye.clone().add(direction.clone().multiply(gun.range / 2));
-        double padding = gun.range * gun.spread + 2;
+    private List<Target> targets(Player shooter, Location eye, Vector direction, Gun gun, double range, double spread) {
+        Location middle = eye.clone().add(direction.clone().multiply(range / 2));
+        double padding = range * spread + 2;
         // Exactly one broad-phase entity query per trigger, shared by every pellet. The supplied
         // CraftWorld/World implementation checks loaded chunks before collecting entity lists.
         Collection<Entity> entities = eye.getWorld().getNearbyEntities(middle,
-                Math.abs(direction.getX()) * gun.range / 2 + padding,
-                Math.abs(direction.getY()) * gun.range / 2 + padding,
-                Math.abs(direction.getZ()) * gun.range / 2 + padding);
+                Math.abs(direction.getX()) * range / 2 + padding,
+                Math.abs(direction.getY()) * range / 2 + padding,
+                Math.abs(direction.getZ()) * range / 2 + padding);
         if (entities.size() > MAX_CANDIDATES) return null; // Fail closed; don't omit a blocking body.
         List<Target> targets = new ArrayList<Target>();
         for (Entity entity : entities) {
@@ -548,7 +579,7 @@ public final class Arsenal implements Listener {
         return targets;
     }
 
-    private void fire(Player player, Location eye, Vector direction, Gun gun, List<Target> candidates) {
+    private void fire(Player player, Location eye, Vector direction, Gun gun, List<Target> candidates, double range, double spread) {
         Vector origin = eye.toVector();
         Vector right = direction.clone().crossProduct(new Vector(0, 1, 0));
         if (right.lengthSquared() < EPSILON) right = new Vector(1, 0, 0);
@@ -556,16 +587,16 @@ public final class Arsenal implements Listener {
         Vector up = right.clone().crossProduct(direction).normalize();
         Map<LivingEntity, Double> damage = new LinkedHashMap<LivingEntity, Double>();
         CollisionCache blocks = new CollisionCache(eye.getWorld());
-        double tracer = gun.range;
+        double tracer = range;
         for (int pellet = 0; pellet < gun.pellets; pellet++) {
             Vector ray = direction.clone();
             if (pellet != 0) {
-                double radius = Math.sqrt(random.nextDouble()) * gun.spread;
+                double radius = Math.sqrt(random.nextDouble()) * spread;
                 double angle = random.nextDouble() * Math.PI * 2;
                 ray.add(right.clone().multiply(Math.cos(angle) * radius));
                 ray.add(up.clone().multiply(Math.sin(angle) * radius)).normalize();
             }
-            double wall = wallDistance(blocks, origin, ray, gun.range);
+            double wall = wallDistance(blocks, origin, ray, range);
             List<Hit> hits = new ArrayList<Hit>();
             for (Target candidate : candidates) {
                 double distance = intersection(origin, ray, candidate.box, wall);

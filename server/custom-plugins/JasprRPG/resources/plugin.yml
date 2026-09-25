@@ -1,5 +1,5 @@
 name: JasprRPG
-version: 1.0.0
+version: 1.1.0
 main: chat.jaspr.rpg.RpgPlugin
 author: Jaspr
 description: Trainable player stats and gear that levels with use. Open to every player.

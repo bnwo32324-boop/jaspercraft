@@ -285,3 +285,13 @@ Nothing is half-written. State on disk:
   difficulty=1, plugin default (resources/config.yml) easy. One restart, 0 players; level.dat Difficulty reads 1 after autosave.
   Backup .runtime/config-backup-20260925-142754-difficulty. (Correction: an earlier answer to the owner said "Hard" from
   server.properties; the effective setting was Peaceful.)
+- 2026-09-25 14:45 GUNSMITH LIVE (owner: K on a gun opens a gun-specialised upgrade sheet, same number of upgrades as melee):
+  JasprRPG 1.1.0 (full rebuild; source == live) + JasprApocalypse 3.6.4 (live 3.6.3 + Arsenal classes only; other Apocalypse source
+  still has undeployed Ruins/SiegeRules drift). Guns (DIAMOND_HOE + JasprApocalypse.arsenalMark) are now armament-eligible: they
+  roll enhancement like swords, level by landing shots, earn tokens. K/stats on a gun opens "Gunsmith" (bench layout: Gun Parts row
+  10/12/14/16, Ammunition row 20-24, summary 31). 9 gun abilities: parts read by Arsenal from JasprArmament.Abilities (Extended
+  Magazine +20% cap/rank, Speed Loader -15% reload, Hair Trigger -10% shot cooldown, Match Barrel +15% range/-15% spread) and rounds
+  applied by JasprRPG on hit/kill (Incendiary, Cryo, Armor-Piercing scaled by target armour, Deadeye 20m+ bonus/double, Scavenger
+  kills refund iron-nugget ammo). Arsenal keeps lore lines after its own 7 so the "- Gunsmith -" block survives every shot.
+  Bot test on a test server: Gunsmith opened, 5 purchases, rifle 18->22 mag, 2400->2040 ms reload, 300->270 ms shot, 64->73.6 range;
+  a shot at an iron golem did 40.96 (32 x Legendary 1.28) and set it burning. Backup .runtime/plugin-backup-20260925-144539-gunsmith.

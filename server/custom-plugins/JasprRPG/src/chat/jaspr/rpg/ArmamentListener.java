@@ -43,7 +43,8 @@ final class ArmamentListener implements Listener {
         if (attacker == null) return;
 
         ItemStack weapon = attacker.getInventory().getItemInMainHand();
-        if (!Armament.isEnhanced(weapon) || !Armament.isWeapon(weapon)) return;
+        boolean gun = Armament.isGun(weapon);
+        if (!Armament.isEnhanced(weapon) || (!Armament.isWeapon(weapon) && !gun)) return;
 
         LivingEntity victim = (LivingEntity) event.getEntity();
         Rarity rarity = Armament.rarity(weapon);
@@ -51,7 +52,8 @@ final class ArmamentListener implements Listener {
         // The rarity is a buff in its own right, applied before any ability is considered.
         if (rarity.bonus > 0.0d) event.setDamage(event.getDamage() * (1.0d + rarity.bonus));
 
-        applyWeaponAbilities(attacker, victim, weapon, rarity, event);
+        if (gun) applyGunRounds(attacker, victim, weapon, rarity, event);
+        else applyWeaponAbilities(attacker, victim, weapon, rarity, event);
 
         // Experience scales with the blow actually landed, so a real fight levels a weapon and
         // hitting a chicken repeatedly does not.
@@ -119,6 +121,42 @@ final class ArmamentListener implements Listener {
         if (bloodthirst > 0) {
             double healed = event.getFinalDamage() * 0.08d * bloodthirst * scale;
             attacker.setHealth(Math.min(attacker.getMaxHealth(), attacker.getHealth() + healed));
+        }
+    }
+
+    /**
+     * The Gunsmith's rounds. Arsenal delivers every bullet as target.damage(amount, shooter) while the gun is in
+     * the shooter's main hand, so a gun hit arrives here like a melee blow. The four gun parts are not applied
+     * here: Arsenal reads them from the gun's NBT when it fires and reloads.
+     */
+    private void applyGunRounds(Player attacker, LivingEntity victim, ItemStack gun, Rarity rarity,
+                                EntityDamageByEntityEvent event) {
+        double scale = rarity.effect;
+
+        int incendiary = Armament.abilityLevel(gun, AbilityType.INCENDIARY);
+        if (incendiary > 0) victim.setFireTicks(Math.max(victim.getFireTicks(), (int) (incendiary * 40 * scale)));
+
+        int cryo = Armament.abilityLevel(gun, AbilityType.CRYO);
+        if (cryo > 0) victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOW,
+                (int) (cryo * 30 * scale), Math.min(3, cryo), true, true), true);
+
+        int piercing = Armament.abilityLevel(gun, AbilityType.ARMOR_PIERCING);
+        if (piercing > 0) {
+            // Scales with how armoured the target is: nothing extra against bare skin, full bonus at 10+ armour.
+            double armour = 0;
+            try { armour = victim.getAttribute(org.bukkit.attribute.Attribute.GENERIC_ARMOR).getValue(); } catch (RuntimeException ignored) { }
+            double share = Math.min(1.0d, armour / 10.0d);
+            if (share > 0) event.setDamage(event.getDamage() * (1.0d + 0.12d * piercing * share * scale));
+        }
+
+        int deadeye = Armament.abilityLevel(gun, AbilityType.DEADEYE);
+        if (deadeye > 0 && attacker.getWorld() == victim.getWorld()
+                && attacker.getLocation().distanceSquared(victim.getLocation()) >= 20 * 20) {
+            event.setDamage(event.getDamage() * (1.0d + 0.12d * deadeye * scale));
+            if (random.nextInt(100) < deadeye * 5 * scale) {
+                event.setDamage(event.getDamage() * 2.0d);
+                attacker.playSound(attacker.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_CRIT, 0.9f, 0.7f);
+            }
         }
     }
 
@@ -217,6 +255,14 @@ final class ArmamentListener implements Listener {
         if (killer == null) return;
         ItemStack weapon = killer.getInventory().getItemInMainHand();
         if (!Armament.isEnhanced(weapon)) return;
+
+        int scavenger = Armament.abilityLevel(weapon, AbilityType.SCAVENGER);
+        if (scavenger > 0 && Armament.isGun(weapon)) {
+            // Plain iron nuggets: exactly what Arsenal loads as ammunition.
+            ItemStack ammo = new ItemStack(Material.IRON_NUGGET, scavenger + random.nextInt(scavenger + 1));
+            for (ItemStack left : killer.getInventory().addItem(ammo).values())
+                killer.getWorld().dropItem(killer.getLocation(), left);
+        }
 
         int ethereal = Armament.abilityLevel(weapon, AbilityType.ETHEREAL);
         if (ethereal > 0 && weapon.getDurability() > 0) {

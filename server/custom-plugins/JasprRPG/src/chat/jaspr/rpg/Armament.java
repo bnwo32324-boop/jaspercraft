@@ -25,6 +25,9 @@ final class Armament {
     private static final String TOKENS = "Tokens";
     private static final String ABILITIES = "Abilities";
 
+    /** First line of the armament block under a gun's Arsenal lore (see decorate). */
+    static final String GUN_HEADER = ChatColor.DARK_GRAY + "- Gunsmith -";
+
     private Armament() {}
 
     // ------------------------------------------------------------------ eligibility
@@ -42,8 +45,23 @@ final class Armament {
                 || name.endsWith("_LEGGINGS") || name.endsWith("_BOOTS");
     }
 
+    /**
+     * A JasprApocalypse firearm: an unbreakable diamond hoe carrying the Arsenal's server-side mark. Checked on
+     * the NBT only (no compile-time dependency on that plugin), the same mark Arsenal itself requires.
+     */
+    static boolean isGun(ItemStack item) {
+        if (item == null || item.getType() != Material.DIAMOND_HOE || item.getAmount() != 1) return false;
+        try {
+            net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(item);
+            if (nms == null || !nms.hasTag() || !nms.getTag().hasKeyOfType("JasprApocalypse", 10)) return false;
+            return "jaspr-arsenal-v1".equals(nms.getTag().getCompound("JasprApocalypse").getString("arsenalMark"));
+        } catch (Throwable unsupported) {
+            return false;
+        }
+    }
+
     static boolean isEligible(ItemStack item) {
-        return item != null && item.getType() != Material.AIR && (isWeapon(item) || isArmour(item));
+        return item != null && item.getType() != Material.AIR && (isWeapon(item) || isArmour(item) || isGun(item));
     }
 
     static boolean isEnhanced(ItemStack item) {
@@ -207,10 +225,20 @@ final class Armament {
         int tokens = tag.getInt(TOKENS);
 
         List<String> lore = new ArrayList<String>();
+        // A gun's own lines (magazine, damage, range...) belong to the Arsenal and are rewritten on every shot;
+        // it keeps whatever follows them, so the armament block goes underneath instead of replacing them.
+        boolean gun = isGun(item);
+        if (gun && meta.hasLore()) {
+            for (String line : meta.getLore()) {
+                if (GUN_HEADER.equals(line)) break;
+                lore.add(line);
+            }
+            lore.add(GUN_HEADER);
+        }
         lore.add(rarity.coloured() + ChatColor.GRAY + "  Level " + ChatColor.WHITE + level);
         if (rarity.bonus > 0.0d) {
             int percent = (int) Math.round(rarity.bonus * 100.0d);
-            lore.add(ChatColor.GRAY + (isWeapon(item) ? "+" + percent + "% damage" : "+" + percent + "% protection"));
+            lore.add(ChatColor.GRAY + (isWeapon(item) || gun ? "+" + percent + "% damage" : "+" + percent + "% protection"));
         }
         if (tokens > 0) {
             lore.add(ChatColor.AQUA + "" + tokens + ChatColor.GRAY + " ability token(s) unspent");

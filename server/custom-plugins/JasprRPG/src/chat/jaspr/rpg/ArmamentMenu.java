@@ -25,6 +25,26 @@ import org.bukkit.inventory.meta.ItemMeta;
  */
 final class ArmamentMenu implements Listener {
     private static final String TITLE = ChatColor.DARK_PURPLE + "Armament";
+    /** Firearms get their own sheet: the Gunsmith, parts on one bench row and rounds on the other. */
+    private static final String GUN_TITLE = ChatColor.DARK_GRAY + "Gunsmith";
+    /** Gunsmith layout: four gun parts, then five kinds of rounds (AbilityType.forGuns order). */
+    private static final int[] GUN_SLOTS = {10, 12, 14, 16, 20, 21, 22, 23, 24};
+
+    /** The roster for what is in hand, in display order. */
+    static List<AbilityType> rosterFor(ItemStack held) {
+        if (Armament.isGun(held)) return AbilityType.forGuns();
+        return Armament.isWeapon(held) ? AbilityType.forWeapons() : AbilityType.forArmour();
+    }
+
+    /** Inventory slot of roster entry {@code i}. */
+    private static int slotOf(boolean gun, int i) { return gun ? GUN_SLOTS[i] : i; }
+
+    /** Roster entry at an inventory slot, or -1. */
+    private static int entryAt(boolean gun, int slot, int size) {
+        if (!gun) return slot >= 0 && slot < size ? slot : -1;
+        for (int i = 0; i < GUN_SLOTS.length && i < size; i++) if (GUN_SLOTS[i] == slot) return i;
+        return -1;
+    }
 
     private final RpgPlugin plugin;
 
@@ -36,7 +56,7 @@ final class ArmamentMenu implements Listener {
             player.sendMessage(ChatColor.RED + "Hold a weapon or a piece of armour to inspect it.");
             return false;
         }
-        Inventory inventory = Bukkit.createInventory(null, 36, TITLE);
+        Inventory inventory = Bukkit.createInventory(null, 36, Armament.isGun(held) ? GUN_TITLE : TITLE);
         render(player, inventory, held);
         player.openInventory(inventory);
         return true;
@@ -44,7 +64,9 @@ final class ArmamentMenu implements Listener {
 
     private void render(Player player, Inventory inventory, ItemStack held) {
         inventory.clear();
-        List<AbilityType> roster = Armament.isWeapon(held) ? AbilityType.forWeapons() : AbilityType.forArmour();
+        List<AbilityType> roster = rosterFor(held);
+        boolean gun = Armament.isGun(held);
+        if (gun) bench(inventory);
 
         if (!Armament.isEnhanced(held)) {
             renderOrdinary(inventory, held, roster);
@@ -57,10 +79,10 @@ final class ArmamentMenu implements Listener {
         int used = Armament.abilitiesOn(held).size();
 
         for (int i = 0; i < roster.size() && i < 27; i++) {
-            inventory.setItem(i, icon(roster.get(i), held, itemLevel, tokens, rarity, used));
+            inventory.setItem(slotOf(gun, i), icon(roster.get(i), held, itemLevel, tokens, rarity, used));
         }
 
-        ItemStack summary = new ItemStack(held.getType());
+        ItemStack summary = gun ? plain(held) : new ItemStack(held.getType());
         ItemMeta meta = summary.getItemMeta();
         meta.setDisplayName(rarity.coloured() + ChatColor.GRAY + "  Level " + ChatColor.WHITE + itemLevel);
         List<String> lore = new ArrayList<String>();
@@ -74,7 +96,8 @@ final class ArmamentMenu implements Listener {
             lore.add(ChatColor.GOLD + "Fully levelled.");
         }
         lore.add("");
-        lore.add(ChatColor.DARK_GRAY + (Armament.isWeapon(held) ? "Weapons level by dealing damage." : "Armour levels by taking it."));
+        lore.add(ChatColor.DARK_GRAY + (gun ? "Guns level by landing shots." : Armament.isWeapon(held) ? "Weapons level by dealing damage." : "Armour levels by taking it."));
+        if (gun) lore.add(ChatColor.DARK_GRAY + "Part upgrades show in the gun's stats after its next shot or reload.");
         meta.setLore(lore);
         summary.setItemMeta(meta);
         inventory.setItem(31, summary);
@@ -98,7 +121,7 @@ final class ArmamentMenu implements Listener {
 
         List<String> lore = new ArrayList<String>();
         lore.add(ChatColor.GRAY + ability.description);
-        lore.add(ChatColor.DARK_GRAY + (ability.active ? "Active" : "Passive"));
+        lore.add(ChatColor.DARK_GRAY + (ability.kind == AbilityType.Kind.GUN_PART ? "Gun part" : ability.kind == AbilityType.Kind.GUN_ROUND ? "Rounds" : ability.active ? "Active" : "Passive"));
         lore.add("");
         if (maxed) {
             lore.add(ChatColor.GOLD + "Mastered.");
@@ -132,6 +155,8 @@ final class ArmamentMenu implements Listener {
      * it tells the player this item is a candidate, and what it could eventually hold.
      */
     private void renderOrdinary(Inventory inventory, ItemStack held, List<AbilityType> roster) {
+        boolean gun = Armament.isGun(held);
+        if (gun) bench(inventory);
         for (int i = 0; i < roster.size() && i < 27; i++) {
             AbilityType ability = roster.get(i);
             ItemStack item = new ItemStack(ability.icon);
@@ -142,12 +167,12 @@ final class ArmamentMenu implements Listener {
             lore.add(ChatColor.DARK_GRAY + "Unlocks at item level " + ability.requiredItemLevel());
             meta.setLore(lore);
             item.setItemMeta(meta);
-            inventory.setItem(i, item);
+            inventory.setItem(slotOf(gun, i), item);
         }
 
-        ItemStack summary = new ItemStack(held.getType());
+        ItemStack summary = gun ? plain(held) : new ItemStack(held.getType());
         ItemMeta meta = summary.getItemMeta();
-        meta.setDisplayName(ChatColor.GRAY + "Ordinary " + (Armament.isWeapon(held) ? "weapon" : "armour"));
+        meta.setDisplayName(ChatColor.GRAY + "Ordinary " + (gun ? "gun" : Armament.isWeapon(held) ? "weapon" : "armour"));
         List<String> lore = new ArrayList<String>();
         lore.add(ChatColor.GRAY + "This one has no spark in it yet.");
         lore.add("");
@@ -159,9 +184,38 @@ final class ArmamentMenu implements Listener {
         inventory.setItem(31, summary);
     }
 
+    /** The Gunsmith's bench: dark panes, with a label at the head of each row. Purely decoration. */
+    private void bench(Inventory inventory) {
+        ItemStack pane = named(new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 15), " ", null);
+        for (int slot = 0; slot < 36; slot++) inventory.setItem(slot, pane);
+        inventory.setItem(9, named(new ItemStack(Material.IRON_INGOT), ChatColor.WHITE + "Gun Parts",
+                ChatColor.GRAY + "Change how the gun itself works."));
+        inventory.setItem(18, named(new ItemStack(Material.IRON_NUGGET), ChatColor.WHITE + "Ammunition",
+                ChatColor.GRAY + "Special rounds: work on hit or on kill."));
+    }
+
+    private static ItemStack named(ItemStack item, String name, String line) {
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(name);
+        if (line != null) { List<String> lore = new ArrayList<String>(); lore.add(line); meta.setLore(lore); }
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /** The gun itself as the summary icon (its own model), without its tooltip. */
+    private static ItemStack plain(ItemStack held) {
+        ItemStack copy = held.clone();
+        ItemMeta meta = copy.getItemMeta();
+        meta.setLore(new ArrayList<String>());
+        copy.setItemMeta(meta);
+        return copy;
+    }
+
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        if (event.getView() == null || !TITLE.equals(event.getView().getTitle())) return;
+        if (event.getView() == null) return;
+        String title = event.getView().getTitle();
+        if (!TITLE.equals(title) && !GUN_TITLE.equals(title)) return;
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player)) return;
         if (event.getClick() == ClickType.DOUBLE_CLICK) return;
@@ -170,11 +224,13 @@ final class ArmamentMenu implements Listener {
         ItemStack held = player.getInventory().getItemInMainHand();
         if (!Armament.isEnhanced(held)) return;
 
-        List<AbilityType> roster = Armament.isWeapon(held) ? AbilityType.forWeapons() : AbilityType.forArmour();
-        int slot = event.getRawSlot();
-        if (slot < 0 || slot >= roster.size()) return;
+        List<AbilityType> roster = rosterFor(held);
+        int entry = entryAt(Armament.isGun(held), event.getRawSlot(), roster.size());
+        if (entry < 0) return;
+        // The sheet belongs to what was in hand when it opened: never apply a gun upgrade to a sword or back.
+        if (GUN_TITLE.equals(title) != Armament.isGun(held)) { player.closeInventory(); return; }
 
-        AbilityType ability = roster.get(slot);
+        AbilityType ability = roster.get(entry);
         int level = Armament.abilityLevel(held, ability);
         int itemLevel = Armament.level(held);
         int tokens = Armament.tokens(held);
