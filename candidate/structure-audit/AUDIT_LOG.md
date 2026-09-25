@@ -249,3 +249,4 @@ Nothing is half-written. State on disk:
   (belt and braces). Recipe panel: recipe-table.json re-exported from a test server with all live plugins (diff: +1 recipe, 0 removed),
   sync-recipe-table -> build-recipe-book-client --upgrade -> build-gear-client; Creative catalogue gains gear_blight_filter.
   Self-test PASS 1129. Backups .runtime/plugin-backup-20260925-111152-filter, .runtime/site-backup-20260925-111152-filter.
+- 2026-09-25 11:22 Recipe panel scroll wheel fixed (site only, no restart; classes.js?v=20260925-wheel1): the client's canvas wheel handler calls stopPropagation(), so the recipe book's bubbling document 'wheel' listener never fired. Now a capture-phase window listener (passive, never blocks the game), only for a panel drawn in the last 500 ms. Backup .runtime/site-backup-20260925-112201-wheel.

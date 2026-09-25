@@ -50329,6 +50329,7 @@ var JasprRecipeBook = (function () {
       }
     }
     book.scrollable = scrollable;
+    book.drawnAt = Date.now(); // the wheel only scrolls a panel that is on screen right now
     if (!scrollable) book.scroll = 0;
     book.maxScroll = Math.max(0, rows - 1);
 
@@ -50772,16 +50773,19 @@ function JasprRecipeBookKeyTyped(a, ch, code) {
 (function () {
   try {
     if (typeof $rt_globals === "undefined" || !$rt_globals.document) return;
-    $rt_globals.document.addEventListener("wheel", function (event) {
+    // Capture phase on the window: the client's own canvas wheel handler calls stopPropagation(),
+    // so a bubbling document listener never heard the wheel (owner report: the panel would not scroll).
+    // Capturing runs first and changes nothing for the game, which still receives the event.
+    $rt_globals.addEventListener("wheel", function (event) {
       try {
-        if (JasprRecipeBook.disabled()) return;
+        if (JasprRecipeBook.disabled() || !event.deltaY) return;
         var all = JasprRecipeBook.books();
         if (!all.length) return;
         var book = all[all.length - 1];
-        if (!book || !book.scrollable) return;
+        if (!book || !book.scrollable || !(Date.now() - (book.drawnAt || 0) < 500)) return;
         JasprRecipeBook.scrollBy(book, event.deltaY > 0 ? -1 : 1);
       } catch (ignored) { }
-    }, {passive: true});
+    }, {capture: true, passive: true});
     var shift = function (event) { try { JasprRecipeBook.shift = !!event.shiftKey; } catch (ignored) { } };
     $rt_globals.document.addEventListener("keydown", shift, true);
     $rt_globals.document.addEventListener("keyup", shift, true);
