@@ -8,11 +8,13 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const expansion = require('../apocalypse-pack/arsenal-expansion.cjs');
+const portalGun = require('../apocalypse-pack/portal-gun-model.cjs');
 
 const project = path.resolve(__dirname, '..');
 const source = path.join(project, 'apocalypse-pack');
 const defaultOutput = path.join(source, 'build', 'jaspr-apocalypse.zip');
 const guns = new Map([
+  [1160, 'item/apocalypse_portal_gun'],
   ...expansion.gunSpecs.map(([id, band]) => [band, 'item/apocalypse_'+id]),
   [1460, 'item/apocalypse_frostbite'],
   [1470, 'item/apocalypse_cyclops'],
@@ -184,7 +186,7 @@ function validate() {
   const blades = [...equipmentJava.matchAll(/melee\("([a-z_]+)",[^\n]*?, (\d+),/g)].map(match => [Number(match[2]), match[1]]);
   assert.equal(blades.length, 40, 'Forty distinct melee definitions');
   assert.equal(new Set(blades.map(([band])=>band)).size, 40, 'Unique sword model bands');
-  assert.equal(guns.size, 40, 'Forty distinct gun bands');
+  assert.equal(guns.size, 41, 'Forty firearms plus the Portal Gun use distinct model bands');
   const bands = [['diamond_sword', 1561, blades]];
   for (const [part,max] of Object.entries({helmet:363,chestplate:528,leggings:495,boots:429})) {
     bands.push(['diamond_'+part, max, ['bulwark','ranger','spectre','hazmat'].map((set,i)=>[10+i*10,set+'_'+part])]);
@@ -210,6 +212,10 @@ function validate() {
     const actual = models.get('assets/minecraft/models/item/'+name);
     assert.deepEqual(actual, expected, `${name}: checked-in geometry differs from cuboid source`);
   }
+  assert.deepEqual(models.get(modelPath('item/apocalypse_portal_gun')), portalGun.model(),
+    'Portal Gun checked-in geometry differs from cuboid source');
+  assert(/new Spec\("portal_gun", "Portal Gun", "gadget", Material\.DIAMOND_HOE, 1160,/.test(equipmentJava),
+    'Portal Gun durability differs from model selector');
   for (const [id,band] of expansion.gunSpecs) {
     assert(band > 0 && band < 1460, 'New firearm band must not replace existing gear');
     const model = models.get(modelPath('item/apocalypse_'+id));

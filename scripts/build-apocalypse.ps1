@@ -7,7 +7,11 @@ $classes=Join-Path $candidateRoot ('classes-'+[Guid]::NewGuid().ToString('N'))
 $jdk='C:\Program Files\Eclipse Adoptium\jdk-17.0.20.8-hotspot\bin'
 New-Item -ItemType Directory -Force -Path $classes | Out-Null
 $sources=@(Get-ChildItem -LiteralPath (Join-Path $sourceRoot 'src') -Filter '*.java' -Recurse | Select-Object -ExpandProperty FullName)
-$classpath=(Join-Path $apocRoot 'server\cache\patched_1.12.2.jar')+';'+(Join-Path $apocRoot 'server\plugins\AuthMe.jar')
+$authMeCompile=Join-Path $candidateRoot 'AuthMe-compile.jar'
+Copy-Item -LiteralPath (Join-Path $apocRoot 'server\plugins\AuthMe.jar') -Destination $authMeCompile -Force
+$serverCompile=Join-Path $candidateRoot 'patched-1.12.2-compile.jar'
+Copy-Item -LiteralPath (Join-Path $apocRoot 'server\cache\patched_1.12.2.jar') -Destination $serverCompile -Force
+$classpath=$serverCompile+';'+$authMeCompile
 & (Join-Path $jdk 'javac.exe') --release 8 -encoding UTF-8 -cp $classpath -d $classes $sources
 if($LASTEXITCODE -ne 0){throw 'Apocalypse compilation failed.'}
 Copy-Item -LiteralPath (Join-Path $sourceRoot 'resources\plugin.yml') -Destination $classes

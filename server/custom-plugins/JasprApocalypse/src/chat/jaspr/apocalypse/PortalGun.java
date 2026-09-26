@@ -84,6 +84,11 @@ final class PortalGun implements Listener {
         Action action = event.getAction();
         if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
         ItemStack held = event.getPlayer().getInventory().getItemInMainHand();
+        ItemStack upgraded = ExpeditionEquipment.upgradeLegacyPortalGun(held);
+        if (upgraded != held) {
+            event.getPlayer().getInventory().setItemInMainHand(upgraded);
+            held = upgraded;
+        }
         if (!ID.equals(ApocalypseItems.id(held))) return;
         // The carrier is a tool; stop vanilla tilling/placement from the right-click.
         event.setCancelled(true);

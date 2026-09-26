@@ -110,7 +110,7 @@ public final class ExpeditionEquipment implements Listener {
                     0, 0, PERK_TEXT[set]));
         }
         add(new Spec("sentry_turret", "Sentry Turret", "block", Material.IRON_PICKAXE, 100, 0, 0, "Placeable automated defense.|Right-click: settings.|Sneak + right-click: collect."));
-        add(new Spec("portal_gun", "Portal Gun", "gadget", Material.DIAMOND_HOE, 0, 0, 0, "Right-click: cyan portal|Sneak + right-click: amber portal|Anyone can travel through your portals"));
+        add(new Spec("portal_gun", "Portal Gun", "gadget", Material.DIAMOND_HOE, 1160, 0, 0, "Right-click: cyan portal|Sneak + right-click: amber portal|Anyone can travel through your portals"));
         add(new Spec("alloy_plate", "Tempered Alloy Plate", "material", Material.IRON_INGOT, 0, 0, 0, "Combine with a Power Cell to press 48 cartridges"));
         add(new Spec("weapon_core", "Ancient Weapon Core", "material", Material.QUARTZ, 0, 0, 0, "Combine with Military Salvage to recover 4 alloy plates"));
         add(new Spec("power_cell", "Sealed Power Cell", "material", Material.PRISMARINE_SHARD, 0, 0, 0, "Powers ammunition presses and coolant injectors"));
@@ -182,6 +182,15 @@ public final class ExpeditionEquipment implements Listener {
         try { return UUID.fromString(value).toString().equals(value); } catch (IllegalArgumentException ignored) { return false; }
     }
     public static boolean verified(ItemStack item) { return identify(item) != null; }
+    static ItemStack upgradeLegacyPortalGun(ItemStack item) {
+        if (item == null || item.getType() != Material.DIAMOND_HOE || item.getDurability() != 0
+                || !"portal_gun".equals(ApocalypseItems.id(item))) return item;
+        net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(item);
+        NBTTagCompound data = nms.getTag().getCompound(TAG);
+        if (!MARK.equals(data.getString("equipmentMark"))) return item;
+        int tier = data.getInt("tier");
+        return ApocalypseItems.expedition("portal_gun", tier <= 0 ? 1 : tier);
+    }
     public static boolean isMelee(ItemStack item) {
         Spec spec = identify(item); return spec != null && "melee".equals(spec.category);
     }
@@ -197,7 +206,7 @@ public final class ExpeditionEquipment implements Listener {
     public ExpeditionEquipment(ApocalypsePlugin plugin) { this.plugin = plugin; }
     public void start() {
         if (task != null) return;
-        for (Player player : plugin.getServer().getOnlinePlayers()) strip(player);
+        for (Player player : plugin.getServer().getOnlinePlayers()) { migratePortalGuns(player); strip(player); }
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         task = plugin.getServer().getScheduler().runTaskTimer(plugin, new Runnable() {
             @Override public void run() { for (Player player : plugin.getServer().getOnlinePlayers()) refresh(player); }
@@ -211,6 +220,13 @@ public final class ExpeditionEquipment implements Listener {
     }
     private boolean allowed(Player player) {
         return task != null && plugin.isSurvivor(player) && Arsenal.equipmentWorld(plugin, player.getWorld());
+    }
+    private static void migratePortalGuns(Player player) {
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack before = player.getInventory().getItem(slot);
+            ItemStack after = upgradeLegacyPortalGun(before);
+            if (after != before) player.getInventory().setItem(slot, after);
+        }
     }
     private static int fullSet(Player player) {
         ItemStack[] armor = player.getInventory().getArmorContents(); // boots, leggings, chestplate, helmet
@@ -478,7 +494,7 @@ public final class ExpeditionEquipment implements Listener {
             }, 1L);
         } catch (RuntimeException ignored) { }
     }
-    @EventHandler public void join(PlayerJoinEvent event) { strip(event.getPlayer()); }
+    @EventHandler public void join(PlayerJoinEvent event) { migratePortalGuns(event.getPlayer()); strip(event.getPlayer()); }
     @EventHandler public void world(PlayerChangedWorldEvent event) { strip(event.getPlayer()); }
     @EventHandler public void mode(PlayerGameModeChangeEvent event) { strip(event.getPlayer()); }
     @EventHandler public void death(PlayerDeathEvent event) { strip(event.getEntity()); }

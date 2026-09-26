@@ -80,7 +80,7 @@ function edits(module, ammo) {
      '_:while(true){switch($p){case 0:if(JasprRecipeBookKeyTyped(a,b,c))return;if(c!=1&&c!=a.j.G.Hb.gO){$p=2;continue _;}', 1],
     // One swap does both catalogue fixes: the supply item that no longer exists becomes the
     // gadget that was never listed, so the array keeps its length and its shape.
-    [ammo, PORTAL_GUN, 1],
+    [ammo, PORTAL_GUN.replace('"model":0', '"model":1160').replace('Damage:0s', 'Damage:1160s'), 1],
   ];
 }
 
