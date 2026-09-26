@@ -362,3 +362,12 @@ Nothing is half-written. State on disk:
   LOST_CITIES_READY, MUSE_BOUNDARY_READY importer=linked, no CITY_* failures; gateway online. Other live plugins unchanged
   (another agent's uncommitted portal-gun Apocalypse left as it was). One restart, 0 players. Backups
   .runtime/plugin-backup-20260926-155736-nether-cities, .runtime/nether-backup-20260926-155736.
+- 2026-09-26 17:16 EASIERCRAFTING DISPLAY FIX LIVE (owner: the crafting panel shows wrong recipes -- shears 1 ingot, portal gun
+  wrong -- and the portal gun has no sprite there). Cause 1: the ingredient preview hung below the window and a short screen cut
+  off every row but the first (the recipes themselves were right). Now a card beside the panel with the recipe's exact grid
+  (empty cells shown), always on screen; tests/recipe-book-engine.test.cjs checks every cell is drawn on a short screen (9/9).
+  Cause 2: the table's portal gun result was a hand-edited stack without Unbreakable, so the gun model override (damaged=0)
+  never matched. recipe-table.json re-exported from ts3 (every live plugin): 600 recipes = 559 unchanged except the portal gun
+  (now Unbreakable, HideFlags 4, as crafted) + 41 JasprNether recipes. Client 20260926-craftfix1 (classes.js via
+  build-recipe-book-client --upgrade: only the module region changed; assets.epk unchanged). No restart.
+  Backup .runtime/site-backup-20260926-171629-craftfix.

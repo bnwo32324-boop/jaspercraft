@@ -71,7 +71,10 @@ test('the table holds every server recipe, vanilla and JasperCraft', () => {
     'jasprapocalypse:sentry_turret', 'jasprapocalypse:field_guide', 'jasprgear:satchel', 'jasprgear:capacitor_belt'])
     assert.ok(index(key) >= 0, key);
   const apoc = TABLE.recipes.filter(r => r.key.startsWith('jasprapocalypse:jaspr_'));
-  assert.equal(apoc.length, 89, 'all Apocalypse blueprints');
+  assert.equal(apoc.length, 100, 'all Apocalypse blueprints');
+  assert.equal(TABLE.recipes.filter(r => r.key.startsWith('jasprnether:')).length, 41, 'JasprNether recipes');
+  const gun = TABLE.recipes[index('jasprapocalypse:jaspr_portal_gun')];
+  assert.match(gun.result, /Unbreakable:1b/, 'the Portal Gun shows its own model (unbreakable, like the crafted gun)');
   assert.ok(apoc.every(r => r.single), 'blueprints craft with one plain click');
 });
 
@@ -161,4 +164,26 @@ test('search covers every recipe, craftable or not', () => {
   assert.ok(found.includes('minecraft:diamond_pickaxe') && found.includes('minecraft:wooden_pickaxe'));
   b.search = 'satchel';
   assert.ok(RB.searchResults(b).map(i => TABLE.recipes[i].key).includes('jasprgear:satchel'));
+});
+
+test('the ingredient card shows every cell of the recipe and stays on a short screen', () => {
+  // A phone-shaped screen: 10 px above and below the crafting-table window (166 px tall).
+  const guiTop = 10, gui = {gx: 166, l7: guiTop, is: 200};
+  const check = (search, key, cells) => {
+    const b = book(3, []);
+    Object.assign(b, {gui, perRow: 8, xOffset: -170, textBoxSize: 155, search, focused: false, scroll: 0});
+    const first = RB.plan(b, -1000, -1000);
+    const icon = first.items.find(it => it.i === index(key));
+    assert.ok(icon, key + ' listed');
+    const plan = RB.plan(b, icon.x + 4, icon.y + 4);
+    assert.equal(b.hover, index(key), key + ' hovered');
+    const shown = plan.items.filter(it => it.i === undefined);
+    assert.equal(shown.length, cells, key + ': every ingredient cell drawn');
+    for (const it of shown) {
+      assert.ok(it.y >= -guiTop && it.y + 16 <= gui.gx + guiTop, key + ' ingredient on screen (y ' + it.y + ')');
+      assert.ok(it.x >= 0, key + ' ingredient beside the panel, not under its icons');
+    }
+  };
+  check('shears', 'minecraft:shears', 2);
+  check('portal gun', 'jasprapocalypse:jaspr_portal_gun', 9);
 });
