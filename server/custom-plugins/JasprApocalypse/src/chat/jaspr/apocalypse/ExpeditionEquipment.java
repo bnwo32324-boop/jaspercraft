@@ -84,6 +84,25 @@ public final class ExpeditionEquipment implements Listener {
         melee("altar_mallet", "Silent Altar Mallet", 1320, 24, 1700, "+25% while braced stationary");
         melee("execution_sword", "Final Verdict Execution Sword", 1310, 25, 1800, "+30% against targets below 40% health");
         melee("wire_whip", "Razorwire Scourge", 1300, 13, 600, "Fast consistent cuts; vanilla reach still applies");
+        // Muse+GLM_Maps weapons (owner, 2026-09-26: "add more weaponry"). The ten boss relics drop only from the ten
+        // Muse+GLM_Maps bosses; the last six are crafted at a bench. Their perks are applied by JasprMuseMaps
+        // (Weapons) on top of this plugin's normal melee scaling; here they are ordinary expedition melee weapons.
+        melee("nightfall_scythe", "Nightfall Scythe", 1290, 24, 1300, "Boss relic of Dracul, the Night Sovereign|Heals you for 20% of damage dealt|+25% damage at night");
+        melee("glass_rapier", "Glass Slipper Rapier", 1280, 13, 400, "Boss relic of the Midnight Stepmother|+50% on falling strikes|Every fifth quick hit tolls midnight (+8)");
+        melee("magmaforged_greataxe", "Magmaforged Greataxe", 1270, 27, 1800, "Boss relic of Pyrarch Vulcanis|Sets targets ablaze|+35% against burning targets");
+        melee("skybreaker_blade", "Skybreaker Blade", 1260, 20, 900, "Boss relic of Kaio, the Skybound Sage|Hits lift the target|+30% against airborne targets");
+        melee("verdict_of_rime", "Verdict of Rime", 1250, 21, 1100, "Boss relic of the Frost Magistrate|Hits slow the target|+40% against slowed targets");
+        melee("champions_gladius", "Champion's Gladius", 1240, 18, 700, "Boss relic of Gladius Rex|Each hit within 3s adds +8% (up to +32%)");
+        melee("high_roller_sabre", "High Roller's Sabre", 1230, 17, 800, "Boss relic of The House|20% chance of double damage, 5% triple");
+        melee("censer_mace", "Hollow Censer Mace", 1220, 23, 1500, "Boss relic of the Hollow Bishop|+50% against undead|Each hit heals you 1");
+        melee("brinehook_cutlass", "Brinehook Cutlass", 1210, 17, 650, "Boss relic of Admiral Brinehook|Hooks targets toward you|+30% in water or rain");
+        melee("silkfang_dagger", "Silkfang Dagger", 1200, 12, 380, "Boss relic of the Burrow Matriarch|Poisons the target|+40% vs spiders; sneaking strikes +40%");
+        melee("tidecaller_spear", "Tidecaller Spear", 1190, 20, 1100, "+30% while you stand in water or rain");
+        melee("starmetal_rapier", "Starmetal Rapier", 1180, 14, 450, "+40% on falling (critical) strikes");
+        melee("obsidian_warhammer", "Obsidian Warhammer", 1170, 26, 1900, "Hits splash 30% damage onto nearby foes");
+        melee("hunters_kukri", "Hunter's Kukri", 1160, 13, 500, "+35% against animals, spiders and silverfish");
+        melee("voidsteel_katana", "Voidsteel Katana", 1150, 16, 600, "+30% against End creatures|10% chance to blink behind the target");
+        melee("bone_reaver", "Bone Reaver", 1140, 19, 1000, "Hits wither the target");
         for (int set = 0; set < SETS.length; set++) for (String part : PARTS) {
             String id = SETS[set] + "_" + part;
             add(new Spec(id, title(SETS[set]) + " Exoskeleton " + title(part), "armor",

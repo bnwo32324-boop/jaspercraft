@@ -182,8 +182,8 @@ function validate() {
   }
   const equipmentJava = fs.readFileSync(path.join(project, 'server/custom-plugins/JasprApocalypse/src/chat/jaspr/apocalypse/ExpeditionEquipment.java'), 'utf8');
   const blades = [...equipmentJava.matchAll(/melee\("([a-z_]+)",[^\n]*?, (\d+),/g)].map(match => [Number(match[2]), match[1]]);
-  assert.equal(blades.length, 24, 'Twenty-four distinct melee definitions');
-  assert.equal(new Set(blades.map(([band])=>band)).size, 24, 'Unique sword model bands');
+  assert.equal(blades.length, 40, 'Forty distinct melee definitions');
+  assert.equal(new Set(blades.map(([band])=>band)).size, 40, 'Unique sword model bands');
   assert.equal(guns.size, 40, 'Forty distinct gun bands');
   const bands = [['diamond_sword', 1561, blades]];
   for (const [part,max] of Object.entries({helmet:363,chestplate:528,leggings:495,boots:429})) {
@@ -205,7 +205,7 @@ function validate() {
   const geometry = [...guns.values()].map(reference => JSON.stringify(models.get(modelPath(reference)).elements.map(({from,to})=>({from,to}))));
   assert.equal(new Set(geometry).size, guns.size, 'Every firearm needs its own geometry, not recolors');
   const bladeGeometry = blades.map(([,id])=>JSON.stringify(models.get(modelPath('item/apocalypse_'+id)).elements.map(({from,to})=>({from,to}))));
-  assert.equal(new Set(bladeGeometry).size, 24, 'Every melee weapon needs its own geometry, not recolors');
+  assert.equal(new Set(bladeGeometry).size, 40, 'Every melee weapon needs its own geometry, not recolors');
   for (const [name, expected] of expansion.models()) {
     const actual = models.get('assets/minecraft/models/item/'+name);
     assert.deepEqual(actual, expected, `${name}: checked-in geometry differs from cuboid source`);

@@ -1,5 +1,5 @@
 name: JasprApocalypse
-version: 3.6.5
+version: 3.6.6
 main: chat.jaspr.apocalypse.ApocalypsePlugin
 depend: [AuthMe]
 softdepend: [TestServerControl]

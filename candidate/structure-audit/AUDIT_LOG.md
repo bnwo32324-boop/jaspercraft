@@ -317,3 +317,22 @@ Nothing is half-written. State on disk:
   +5 after deadfrequency, JasprBlueprintTable 94, recipe-table.json re-exported (+5, 0 removed, 2 guide books reworded),
   5 new models + diamond_hoe selector (81 overrides). creative-catalog.cjs counts fixed to the live catalogue (supply 2, total 94).
   One restart, 0 players. Backups .runtime/plugin-backup-20260926-093050-pistols, .runtime/site-backup-20260926-093050-pistols.
+- 2026-09-26 11:21 MUSE+GLM_MAPS LIVE (owner: add all 139 maps, separate and identifiable, /where "Muse+GLM_Maps", natural
+  spawning in new chunks and retrofitted into existing ones, Overworld/Nether/End dangers + custom mobs unique per structure,
+  special loot per structure, average spawn rate, 10 bosses, more weaponry, more character upgrades, SME in loot).
+  New plugins JasprMuseMaps 1.0.0 (code) + JasprMuseMapsPack 1.0.0 (block data). Pack built by scripts/muse-glm (Threefold
+  converter + reviewed substitutions for 42 post-1.12 names; valuables/spawners/TNT neutralised; 139/139 converted).
+  Own 32-chunk grid, per-design calibrated weights (131/139 designs seen in a 625-plan census; ~1 site per 980x980 blocks,
+  the HB catalogue's spacing). Admission: HB ClaimGuard (copied rule) + expedition catalogue + JasprImportedWorldgen plans via
+  reflection (live: importer=linked) + 256-block spawn core. Retrofit: pre-existing chunks only where inhabited time <= 1200
+  ticks, all-or-nothing per site, never with a player within ~110 blocks (test: 3 sites built into explored land with nobody
+  online). HB guard files written for every Muse chunk (WaterRepair/floater pass skips them). Encounters (garrison of 3 realms +
+  signature mob with 2 abilities + 2 hazards, all unique; re-arm 20 min), 10 bosses (bars, telegraphs, phases, sealed vault;
+  Frost Magistrate moved to Eldern Hold and The House to the Casino Hall because their 200-block hosts never fit), Essences
+  (6 permanent upgrades), 16 weapons. JasprApocalypse 3.6.6 (live 3.6.5 + ExpeditionEquipment/Blueprints/ApocalypseItems: 16 melee,
+  6 bench recipes; HEAD source == live verified by javap). JasprHorrorBiomes 3.27.5 (live 3.27.4 + ExpeditionLoot/LootBooks/SmeLoot:
+  half of structure loot books carry an SME enchantment, from a copy of r; LootBooks never picks curses or SME's blacklist).
+  Client 20260926-muse1: Creative catalogue +16 weapons +6 Essences (fenced JASPR_MUSE_CAT), blueprint table 100, recipe table
+  559 (+6; only the two guide books changed), 16 new models. Live world: 1854 existing chunks, 5 cells decided, 1 site planned
+  (b017 ancient overgrown stone manor at 256,224). One restart, 0 players. Backups .runtime/plugin-backup-20260926-112139-muse,
+  .runtime/site-backup-20260926-112139-muse.

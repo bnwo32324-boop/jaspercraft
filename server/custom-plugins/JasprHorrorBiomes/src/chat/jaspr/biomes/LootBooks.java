@@ -35,7 +35,8 @@ final class LootBooks implements Listener {
     static {
         List<Enchantment> all = new ArrayList<>();
         for (Enchantment e : Enchantment.values()) {
-            if (e == null || e == Enchantment.BINDING_CURSE || e == Enchantment.VANISHING_CURSE) continue;
+            // Curses (vanilla and So Many Enchantments) and SME's own loot blacklist never appear as loot books.
+            if (e == null || e.isCursed() || SmeLoot.blacklisted(e)) continue;
             all.add(e);
         }
         all.sort(Comparator.comparing(Enchantment::getName));

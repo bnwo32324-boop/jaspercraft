@@ -7,6 +7,230 @@
     {
       "predicate": {
         "damaged": 0,
+        "damage": 0.7303010890454836
+      },
+      "model": "item/apocalypse_bone_reaver"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7309417040358744
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7367072389493914
+      },
+      "model": "item/apocalypse_voidsteel_katana"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7373478539397822
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7431133888532991
+      },
+      "model": "item/apocalypse_hunters_kukri"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.74375400384369
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7495195387572069
+      },
+      "model": "item/apocalypse_obsidian_warhammer"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7501601537475977
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7559256886611146
+      },
+      "model": "item/apocalypse_starmetal_rapier"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7565663036515055
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7623318385650224
+      },
+      "model": "item/apocalypse_tidecaller_spear"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7629724535554132
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7687379884689302
+      },
+      "model": "item/apocalypse_silkfang_dagger"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.769378603459321
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7751441383728379
+      },
+      "model": "item/apocalypse_brinehook_cutlass"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7757847533632287
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7815502882767457
+      },
+      "model": "item/apocalypse_censer_mace"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7821909032671365
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7879564381806534
+      },
+      "model": "item/apocalypse_high_roller_sabre"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7885970531710442
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.7943625880845612
+      },
+      "model": "item/apocalypse_champions_gladius"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.795003203074952
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8007687379884689
+      },
+      "model": "item/apocalypse_verdict_of_rime"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8014093529788597
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8071748878923767
+      },
+      "model": "item/apocalypse_skybreaker_blade"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8078155028827675
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8135810377962844
+      },
+      "model": "item/apocalypse_magmaforged_greataxe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8142216527866752
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8199871877001922
+      },
+      "model": "item/apocalypse_glass_rapier"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.820627802690583
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8263933376040999
+      },
+      "model": "item/apocalypse_nightfall_scythe"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.8270339525944908
+      },
+      "model": "item/apocalypse_vanilla_diamond_sword"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
         "damage": 0.8327994875080077
       },
       "model": "item/apocalypse_wire_whip"

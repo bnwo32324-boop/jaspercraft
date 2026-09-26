@@ -1,0 +1,14 @@
+name: JasprMuseMaps
+version: 1.0.0
+main: chat.jaspr.muse.MusePlugin
+load: STARTUP
+depend: [JasprHorrorBiomes, JasprMuseMapsPack]
+softdepend: [JasprImportedWorldgen, JasprApocalypse, JasprGear, JasprEnchantments]
+description: The owner's Muse+GLM_Maps structure collection, with its dangers, bosses, Essences and weapons.
+commands:
+  musemaps:
+    description: Muse+GLM_Maps status (operators).
+    usage: /musemaps [status|nearest|essence <kind>]
+  essences:
+    description: Show your Essence ranks.
+    usage: /essences

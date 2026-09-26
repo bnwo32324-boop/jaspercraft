@@ -116,7 +116,7 @@ function vanillaSignatures() {
 
 const blueprints = parseBlueprints();
 const client = clientTable();
-assert.equal(blueprints.length, 94, 'server blueprint count');
+assert.equal(blueprints.length, 100, 'server blueprint count');
 assert.deepEqual(client.map(entry => ({ id: entry.id, shape: entry.shape })),
   blueprints.map(entry => ({ id: entry.id, shape: entry.shape })), 'client/server recipe parity');
 

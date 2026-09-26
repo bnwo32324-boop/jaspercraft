@@ -169,6 +169,14 @@ public final class Blueprints {
         add(map, "reaper_scythe", "melee/scythe", "DDD", "KiS", "..S");  // [< 1.93] diamond blade, bone collar, iron tang, two-stick snath
         add(map, "ossuary_flail", "melee/scythe", "KdK", ".N.", ".S.");  // [1.93-2.05] bone-spiked diamond-block head on a nugget chain, one stick
         add(map, "wire_whip", "melee/scythe", "DTD", "DiD", ".H.");      // [< 1.93] razorwire lash with diamond barbs on an iron reel, leather handle
+        // Muse+GLM_Maps bench weapons (JasprMuseMaps perks); the ten boss relics have no recipe. Cost follows the
+        // same power bands as the melee overhaul (sqrt(DPS ratio x per-hit ratio) against a diamond sword).
+        add(map, "tidecaller_spear", "melee/polearm", ".dW", ".Sd", "S..");  // [> 2.15] two diamond blocks, prismarine barb, two sticks
+        add(map, "starmetal_rapier", "melee/blade", ".D.", "dQd", ".S.");     // [> 2.15] two diamond blocks, quartz core, diamond point, one stick
+        add(map, "obsidian_warhammer", "melee/axe", "OdO", "OSO", ".S.");     // [2.06-2.15] diamond-block head in obsidian, two sticks
+        add(map, "hunters_kukri", "melee/blade", ".DD", "Kd.", "S..");        // [2.06-2.15] curved diamond blade, bone grip guard, one stick
+        add(map, "voidsteel_katana", "melee/blade", ".Pd", "dP.", "TST");     // [> 2.15] two diamond blocks, ender-pearl temper, string hilt
+        add(map, "bone_reaver", "melee/axe", "KdK", "KDK", ".S.");            // [2.06-2.15] bone-bound diamond-block head, two sticks
         add(map, "bulwark_helmet", "armor/bulwark", "dXd", "iOi", "...");
         add(map, "bulwark_chestplate", "armor/bulwark", "i.i", "dXd", "gOg");
         add(map, "bulwark_leggings", "armor/bulwark", "dXd", "iOi", "g.g");

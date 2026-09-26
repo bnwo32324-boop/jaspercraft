@@ -105,7 +105,11 @@ public final class ExpeditionLoot {
         return a;}
     private static ItemStack trophy(StructurePlanner.Site site,int tier){ItemStack i=custom("expedition_trophy",1);ItemMeta a=i.getItemMeta();a.setDisplayName(ChatColor.GOLD+site.design.name+" — Expedition Trophy");a.setLore(Arrays.asList(ChatColor.GRAY+"Recovered from a tier "+tier+" guarded vault.",ChatColor.DARK_GRAY+"X "+site.x+" / Z "+site.z));i.setItemMeta(a);return i;}
     private static ItemStack potion(boolean strong){ItemStack i=new ItemStack(Material.POTION);PotionMeta p=(PotionMeta)i.getItemMeta();p.setBasePotionData(new PotionData(PotionType.INSTANT_HEAL,false,strong));i.setItemMeta(p);return i;}
-    private static ItemStack book(Random r,int tier){ItemStack i=new ItemStack(Material.ENCHANTED_BOOK);EnchantmentStorageMeta m=(EnchantmentStorageMeta)i.getItemMeta();Enchantment[] a={Enchantment.DURABILITY,Enchantment.DAMAGE_ALL,Enchantment.PROTECTION_ENVIRONMENTAL,Enchantment.DIG_SPEED,Enchantment.ARROW_DAMAGE,Enchantment.LOOT_BONUS_BLOCKS};Enchantment e=a[r.nextInt(a.length)];m.addStoredEnchant(e,Math.min(e.getMaxLevel(),Math.max(1,tier-1)),false);i.setItemMeta(m);return i;}
+    private static ItemStack book(Random r,int tier){ItemStack i=new ItemStack(Material.ENCHANTED_BOOK);EnchantmentStorageMeta m=(EnchantmentStorageMeta)i.getItemMeta();Enchantment[] a={Enchantment.DURABILITY,Enchantment.DAMAGE_ALL,Enchantment.PROTECTION_ENVIRONMENTAL,Enchantment.DIG_SPEED,Enchantment.ARROW_DAMAGE,Enchantment.LOOT_BONUS_BLOCKS};Enchantment e=a[r.nextInt(a.length)];m.addStoredEnchant(e,Math.min(e.getMaxLevel(),Math.max(1,tier-1)),false);i.setItemMeta(m);
+        // So Many Enchantments (owner, 2026-09-26: "include so many enchantments in the looting system"): about half of
+        // these books carry an SME enchantment instead, chosen from a copy of r so the chest's other items are unchanged.
+        Random sme=copyOf(r,0x534D45424F4F4BL);if(sme!=null&&sme.nextDouble()<0.5){ItemStack s=SmeLoot.book(sme,tier);if(s!=null)return s;}
+        return i;}
     public static List<ItemStack> roll(long seed,StructurePlanner.Site site,StructurePlanner.Marker marker){
         int tier=Math.max(1,Math.min(5,site.design.tier));Random r=new Random(Terrain.mix(seed^site.key.hashCode()*173L^marker.ordinal*918273L));String role=marker.kind;
         Random thin=new Random(Terrain.mix(seed^site.key.hashCode()*0x5bd1e995L^marker.ordinal*0x27d4eb2dL^0x47554E53L));

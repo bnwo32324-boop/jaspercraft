@@ -1,0 +1,5 @@
+name: JasprMuseMapsPack
+version: 1.0.0
+main: chat.jaspr.musepack.MusePackPlugin
+load: STARTUP
+description: Block data of the Muse+GLM_Maps structure collection (used by JasprMuseMaps).

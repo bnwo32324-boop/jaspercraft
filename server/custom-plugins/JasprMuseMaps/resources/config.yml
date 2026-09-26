@@ -1,0 +1,11 @@
+# JasprMuseMaps -- the Muse+GLM_Maps structure pack.
+# Generate Muse+GLM_Maps sites in new chunks (and, with retrofit, into existing untouched land).
+enabled: true
+# Build sites into chunks that already existed, but only where players have spent less than this many ticks
+# (1200 = one minute), never within 256 blocks of spawn, and only while nobody is within about 110 blocks.
+retrofit: true
+retrofit-max-inhabited-ticks: 1200
+# Garrisons, custom mobs, hazards and bosses.
+encounters: true
+# Minutes before a cleared site's garrison returns.
+rearm-minutes: 20

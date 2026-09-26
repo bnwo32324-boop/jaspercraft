@@ -78,12 +78,12 @@ function catalogue() {
 
   const ids = new Set(result.map(item => item.id));
   if (ids.size !== result.length) throw new Error('Duplicate creative catalogue IDs');
-  const expected = {gun:40,melee:24,armor:16,material:4,consumable:4,supply:2,artifact:2,block:1,gadget:1};
+  const expected = {gun:40,melee:40,armor:16,material:4,consumable:4,supply:2,artifact:2,block:1,gadget:1};
   for (const [category,count] of Object.entries(expected)) {
     const actual = result.filter(item => item.category === category).length;
     if (actual !== count) throw new Error(`Creative ${category} catalogue drift: ${actual}, expected ${count}`);
   }
-  if (result.length !== 94) throw new Error('Creative catalogue must contain all 94 custom gameplay items');
+  if (result.length !== 110) throw new Error('Creative catalogue must contain all 110 custom gameplay items');
   return result;
 }
 

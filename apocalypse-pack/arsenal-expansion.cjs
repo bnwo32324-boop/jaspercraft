@@ -43,6 +43,15 @@ const meleeSpecs = [
   ['ossuary_flail',1350,'flail',27,'white'], ['ember_falchion',1340,'falchion',26,'red'],
   ['mourning_glaive',1330,'glaive',30,'energy'], ['altar_mallet',1320,'mallet',25,'green'],
   ['execution_sword',1310,'execution',30,'white'], ['wire_whip',1300,'scourge',26,'steel'],
+  // Muse+GLM_Maps weapons (JasprMuseMaps): ten boss relics, then six bench weapons. Each (type, length) pair is new.
+  ['nightfall_scythe',1290,'sickle',30,'dark'], ['glass_rapier',1280,'dagger',27,'white'],
+  ['magmaforged_greataxe',1270,'cleaver',28,'red'], ['skybreaker_blade',1260,'execution',31,'energy'],
+  ['verdict_of_rime',1250,'falchion',29,'white'], ['champions_gladius',1240,'dirk',24,'gold'],
+  ['high_roller_sabre',1230,'sabre',26,'gold'], ['censer_mace',1220,'bell',27,'white'],
+  ['brinehook_cutlass',1210,'falchion',24,'green'], ['silkfang_dagger',1200,'dagger',22,'dark'],
+  ['tidecaller_spear',1190,'lance',30,'green'], ['starmetal_rapier',1180,'sabre',30,'energy'],
+  ['obsidian_warhammer',1170,'mallet',27,'dark'], ['hunters_kukri',1160,'falchion',21,'steel'],
+  ['voidsteel_katana',1150,'sabre',31,'dark'], ['bone_reaver',1140,'cleaver',25,'white'],
 ];
 const textures = {particle:'blocks/iron_block',steel:'blocks/iron_block',dark:'blocks/coal_block',
   gold:'blocks/gold_block',wood:'blocks/planks_big_oak',energy:'blocks/diamond_block',

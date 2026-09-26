@@ -11,10 +11,10 @@ const root=path.resolve(__dirname,'..');
 
 test('arsenal models pass every durability and held-hand orientation case',()=>{
   const result=validate();
-  assert.equal(result.models,95);
+  assert.equal(result.models,111);
   assert.equal(result.checked,9886);
   assert.equal(result.heldOrientationCases,160);
-  assert.equal(result.meleeOrientationCases,96);
+  assert.equal(result.meleeOrientationCases,160);
 });
 
 test('sentry head uses the six-times effective, flush body-top placement transform',()=>{
@@ -40,7 +40,7 @@ test('sentry head uses the six-times effective, flush body-top placement transfo
 test('client EPK merge resolves actual resources, changes only item models, and is idempotent',()=>{
   const input=fs.readFileSync(path.join(root,'site','assets.epk'));
   const result=merge(input,path.join(root,'apocalypse-pack'));
-  assert.equal(result.models.length,95);
+  assert.equal(result.models.length,111);
   assert.ok(result.unchangedEntries>=5750);
   const repeated=merge(result.output,path.join(root,'apocalypse-pack'));
   assert.deepEqual(repeated.output,result.output);
@@ -50,7 +50,7 @@ test('client EPK merge resolves actual resources, changes only item models, and 
     assert.deepEqual(decoded.entries.find(e=>e.name===name).value,
       fs.readFileSync(path.join(root,'apocalypse-pack',name)));
   }
-  assert.ok(result.output.length-input.length<80000,'Forty cuboid weapons add less than 80 KB compressed client payload');
+  assert.ok(result.output.length-input.length<120000,'Fifty-six cuboid weapons add less than 120 KB compressed client payload');
 });
 
 test('all pre-expansion weapon stats and 45 non-selector model files are byte-preserved',()=>{
@@ -67,9 +67,10 @@ test('all pre-expansion weapon stats and 45 non-selector model files are byte-pr
 // 2026-09-26: five common sidearms (rapture, g18, magnum44, wingman, mozambique) append after the 24
 // late-expedition guns. They are deliberately far weaker and are held to their own, lower bounds below.
 const SIDEARMS=new Set(['rapture','g18','magnum44','wingman','mozambique']);
-test('exactly 29 guns (24 late-expedition + 5 common sidearms) and 16 melee append stable IDs with bounded profiles',()=>{
-  assert.equal(expansion.gunSpecs.length,29);assert.equal(expansion.meleeSpecs.length,16);
-  assert.equal(new Set([...expansion.gunSpecs,...expansion.meleeSpecs].map(s=>s[0])).size,45);
+// 2026-09-26: sixteen Muse+GLM_Maps melee weapons (ten boss relics, six bench weapons) append after wire_whip.
+test('exactly 29 guns (24 late-expedition + 5 common sidearms) and 32 melee append stable IDs with bounded profiles',()=>{
+  assert.equal(expansion.gunSpecs.length,29);assert.equal(expansion.meleeSpecs.length,32);
+  assert.equal(new Set([...expansion.gunSpecs,...expansion.meleeSpecs].map(s=>s[0])).size,61);
   for(const specs of [expansion.gunSpecs,expansion.meleeSpecs]) {
     assert.equal(new Set(specs.map(s=>s[1])).size,specs.length);
     assert.ok(specs.every(s=>s[1]>0&&s[1]<1460));
@@ -98,7 +99,7 @@ test('exactly 29 guns (24 late-expedition + 5 common sidearms) and 16 melee appe
   assert.equal(profiles.size,40,'Forty mechanically different profiles');
   const equipment=fs.readFileSync(path.join(root,'server/custom-plugins/JasprApocalypse/src/chat/jaspr/apocalypse/ExpeditionEquipment.java'),'utf8');
   const blades=[...equipment.matchAll(/melee\("([a-z_]+)", "([^"]+)", (\d+), (\d+), (\d+),/g)];
-  assert.equal(blades.length,24);assert.equal(new Set(blades.map(b=>b[2])).size,24);
+  assert.equal(blades.length,40);assert.equal(new Set(blades.map(b=>b[2])).size,40);
   for(const b of blades)assert.ok(+b[4]>=10&&+b[4]<=28&&+b[5]>=350&&+b[5]<=2000,b[1]);
   assert.doesNotMatch(java,/createExplosion|setHealth|setNoDamageTicks|setType\(/,'Firearms must not edit world or bypass native damage');
 });
