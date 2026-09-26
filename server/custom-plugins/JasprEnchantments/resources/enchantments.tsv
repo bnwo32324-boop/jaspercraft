@@ -1,0 +1,131 @@
+id	regname	displayName	maxLevel	minLevel	curse	style	treasure	rarity	description
+72	adept	Adept	3	1	0	normal	1	RARE	Increases dropped XP, scaling higher against bosses.
+73	ancientsealedcurses	Ancient Sealed Curses	1	1	0	ancient	1	VERY_RARE	An ancient enchantment that causes attacks to curse the equipment of the enemy.
+74	ancientswordmastery	Ancient Sword Mastery	3	1	0	ancient	1	VERY_RARE	An ancient enchantment that amplifies the dealt damage depending on the targets attack damage.
+75	arcslash	Arc Slash	3	1	0	normal	0	VERY_RARE	A variant of sweeping edge that trades slightly less damage for sweeping more often.
+76	ashdestroyer	Ash Destroyer	5	1	0	normal	0	RARE	Amplifies damage if the enemy is burning.
+77	atomicdeconstructor	Atomic Deconstructor	2	1	0	normal	0	RARE	Has a low chance to instantly shred the enemy from existence.
+78	blessededge	Blessed Edge	5	1	0	normal	0	RARE	Deals amplified damage against the undead and heals the user for a portion of the damage dealt.
+79	brutality	Brutality	5	1	0	normal	0	RARE	Increases damage dealt to the armor of the enemy.
+80	burningshield	Burning Shield	4	1	0	normal	0	RARE	Reflects a portion of damage done by attackers, and sets them alight.
+81	burningthorns	Burning Thorns	3	1	0	normal	0	VERY_RARE	Improved version of thorns that additionally sets the attacker on fire.
+82	butchering	Butchering	5	1	0	normal	0	RARE	Deals increased damage to animals, additionally increases the loot dropped by slain animals.
+83	clearskiesfavor	Clearskies' Favor	5	1	0	normal	0	RARE	Increases damage dealt during clear weather with an extra boost if exposed to the sky.
+84	combatmedic	Combat Medic	3	1	0	normal	0	RARE	Amplifies the user's healing.
+85	counterattack	Counter Attack	3	1	0	normal	0	RARE	Gives you a chance to automatically retaliate to a melee attack.
+86	criticalstrike	Critical Strike	4	1	0	normal	0	RARE	Gives your critical hits an increasing chance to turn into a super-critical hit for greatly amplified damage.
+87	cryogenic	Cryogenic	3	1	0	normal	0	RARE	Gives a chance to apply stacking slowness and fatigue to an enemy, which can freeze the enemy into a block of ice.
+88	culling	Culling	3	1	0	normal	0	VERY_RARE	If an attack would leave an enemy with low health, instantly kills the enemy instead. If successful, also drops the head of that enemy.
+89	darkshadows	Dark Shadows	3	1	0	normal	0	RARE	Your attacks deal increased damage when striking from the shadows, and additionally can blind enemies.
+90	defusingedge	Defusing Edge	5	1	0	normal	0	RARE	Defuses and deals increased damage to creepers.
+91	desolator	Desolator	4	1	0	normal	0	RARE	Attacks have a chance to apply negative resistance and weakness.
+92	difficultysendowment	Difficulty's Endowment	5	1	0	normal	0	RARE	Amplifies or decreases your attacks damage based on world difficulty.
+93	disarmament	Disarmament	5	1	0	normal	0	RARE	Grants a chance to disarm your opponent's weapons.
+94	disorientatingblade	Disorientating Blade	4	1	0	normal	0	RARE	Attacks have a chance to apply blindness and nausea to the enemy.
+95	empowereddefence	Empowered Defence	4	1	0	normal	0	RARE	Empowers your shield's defence, giving a chance to block and reflect an attack with additional knockback.
+96	envenomed	Envenomed	3	1	0	normal	0	RARE	Attacks have a chance to apply poison and wither to the enemy.
+97	evasion	Evasion	3	1	0	normal	0	RARE	Grants the user a chance to evade and ignore attacks.
+98	fieryedge	Fiery Edge	2	1	0	normal	0	VERY_RARE	A variant of fire aspect that additionally gives a chance to ignore the invulnerability frames of an enemy on fire.
+99	flinging	Flinging	2	1	0	normal	0	UNCOMMON	A variant of knockback that instead launches the enemy upwards.
+100	horsdecombat	Hors De Combat	4	1	0	normal	0	RARE	Attacks have a chance to cripple the enemy with various effects.
+101	inhumane	Inhumane	5	1	0	normal	0	RARE	Attacks deal extra damage against and apply weakness to Illagers.
+102	innerberserk	Inner Berserk	4	1	0	normal	0	VERY_RARE	Amplifies the damage the user deals the lower the user's health is.
+103	jaggedrake	Jagged Rake	5	1	0	normal	0	RARE	Increases damage dealt by hoes.
+104	levitator	Levitator	2	1	0	normal	0	RARE	Grants the ability for attacks to apply levitation to enemies.
+105	lifesteal	Lifesteal	4	1	0	normal	0	RARE	Heals the user for a portion of damage dealt.
+106	lightweight	Light Weight	3	1	0	normal	0	RARE	Increases the users jump height, additionally lowers and limits the user's fall damage.
+107	luckmagnification	Luck Magnification	2	1	0	normal	0	RARE	Amplifies the user's luck, making luck affect critical hits and looting.
+108	lunasblessing	Luna's Blessing	5	1	0	normal	0	RARE	Increases damage dealt during the night with an extra boost if exposed to the sky, additionally applies blindness to the enemy.
+109	magicprotection	Magic Protection	4	1	0	normal	0	UNCOMMON	A variant of protection that is more effective against magic damage.
+110	magmawalker	Magma Walker	2	1	0	normal	1	VERY_RARE	A variant of frost walker that instead applies to lava.
+111	moisturized	Moisturized	1	1	0	normal	0	UNCOMMON	Tilling will automatically make the resulting farmland wet.
+112	mortalitas	Mortalitas	8	1	0	normal	0	VERY_RARE	Each kill with this enchantment empowers the weapon, increasing future damage dealt.
+113	naturalblocking	Natural Blocking	3	1	0	normal	0	RARE	When wielding a shield, it will naturally block a portion of damage taken and damage the shield instead.
+114	parry	Parry	3	1	0	normal	0	RARE	Grants a chance to parry melee attacks and instead knock the attacker back while still triggering invulnerability frames.
+115	penetratingedge	Penetrating Edge	6	1	0	normal	0	RARE	Increases damage against enemies with higher armor.
+116	physicalprotection	Physical Protection	4	1	0	normal	0	RARE	A variant of protection that is more effective against melee attacks.
+117	purgingblade	Purging Blade	5	1	0	normal	0	UNCOMMON	Grants a chance on attacks to purge an effect from an enemy, amplifying the attack damage when purging stronger effects.
+118	purification	Purification	5	1	0	normal	0	UNCOMMON	Grants a chance to purify enemies such as Zombie Villagers, Pig Zombies, and Magma Cubes.
+119	pushing	Pushing	2	1	0	normal	0	VERY_RARE	Blesses your bow with an aura that repels nearby enemies while pulling the bow back.
+120	rainsbestowment	Rain's Bestowment	5	1	0	normal	0	RARE	Increases damage dealt while raining with an extra boost if exposed to the sky.
+121	reviledblade	Reviled Blade	4	1	0	normal	0	VERY_RARE	Amplifies the damage dealt the lower the health of the enemy.
+122	reinforcedsharpness	Reinforced Sharpness	5	1	0	normal	0	RARE	A variant of sharpness for tools.
+123	smelter	Smelter	1	1	0	normal	0	VERY_RARE	Harvesting a block will attempt to smelt the drops if applicable, additionally works with fortune.
+124	solsblessing	Sol's Blessing	5	1	0	normal	0	RARE	Increases damage dealt during the day with an extra boost if exposed to the sky, additionally applies glowing to the enemy.
+125	spellbreaker	Spell Breaker	5	1	0	normal	0	RARE	Deals increased damage for each effect an enemy has, with bonus damage against Evokers and Witches.
+126	splitshot	Splitshot	4	1	0	normal	0	VERY_RARE	Splits arrows fired by the bow into multiple arrows.
+127	strafe	Strafe	6	1	0	normal	0	UNCOMMON	Increases bow draw speed.
+128	strengthenedvitality	Strengthened Vitality	5	1	0	normal	0	VERY_RARE	Amplifies the user's max health.
+129	swifterslashes	Swifter Slashes	5	1	0	normal	0	VERY_RARE	Greatly increases attack speed, gives a chance to bypass invulnerability frames at the cost of reduced damage.
+130	thunderstormsbestowment	Thunderstorm's Bestowment	5	1	0	normal	0	RARE	Increases damage dealt while thunder-storming with an extra boost if exposed to the sky.
+131	truestrike	True Strike	1	1	0	normal	0	RARE	Allows the user to bypass evasion and parry enchantments, additionally gives a chance to bypass invulnerability frames.
+132	swiftswimming	Swift Swimming	3	1	0	normal	0	RARE	Amplifies the user's swim speed.
+133	unreasonable	Unreasonable	2	1	0	normal	0	RARE	Destroys the reasoning of an entity, making it target random entities near it instead of the user.
+134	unsheathing	Unsheathing	2	1	0	normal	0	VERY_RARE	When the user unsheathes their weapon, amplifies their attack damage if they attack within a short period of time.
+135	upgradedpotentials	Upgraded Potentials	1	1	0	normal	1	RARE	Reduces the XP repair cost when applied in an anvil.
+136	viper	Viper	5	1	0	normal	0	RARE	Increases damage dealt against enemies with poison or wither.
+137	wateraspect	Water Aspect	5	1	0	normal	0	RARE	Increases damage dealt if the user and/or the enemy is in water, with bonus damage against Endermen, Blazes, and Magma Cubes.
+138	plowing	Plowing	1	1	0	normal	0	RARE	Tilling area is increased to a radius of multiple blocks.
+139	wintersgrace	Winter's Grace	5	1	0	normal	0	RARE	Increases damage dealt in cold environments with extra boosts if exposed to the sky and if snowing, additionally has a chance to apply slowness and fatigue to the enemy.
+140	ascetic	Ascetic	3	1	1	curse	1	RARE	You abandon the need for loot.
+141	bluntness	Bluntness	5	1	1	curse	1	RARE	Decreases the attack damage of a weapon.
+142	breachedplating	Breached Plating	5	1	1	curse	1	RARE	Decreases the effectiveness of armor.
+143	cursededge	Cursed Edge	5	1	1	curse	1	RARE	Amplifies the damage your attack deals at the cost of severely reflecting a portion of the attack back at yourself.
+144	curseofdecay	Curse of Decay	1	1	1	curse	1	VERY_RARE	Curses an item to decay very fast if left in the ground.
+145	curseofholding	Curse of Holding	2	1	1	curse	1	VERY_RARE	Curses the user when equipped, applying various negative effects.
+146	curseofinaccuracy	Curse of Inaccuracy	2	1	1	curse	1	VERY_RARE	Curses the user's accuracy, causing melee attacks to have a chance to miss and making arrows inaccurate.
+147	curseofpossession	Curse of Possession	1	1	1	curse	1	VERY_RARE	Curses items to not be able to be dropped, disappearing if forced to drop.
+148	curseofvulnerability	Curse of Vulnerability	4	1	1	curse	1	VERY_RARE	Amplifies the user's damage taken.
+149	dragging	Dragging	2	1	1	curse	0	VERY_RARE	Drags enemies shot closer to the user.
+150	extinguish	Extinguish	1	1	1	curse	1	VERY_RARE	Extinguishes the target on hit.
+151	heavyweight	Heavy Weight	5	1	1	curse	1	RARE	Increases fall damage, reduces jump height, and can greatly reduce attack speed.
+152	inefficient	Inefficient	5	1	1	curse	1	RARE	Greatly reduces mining speed.
+153	instability	Instability	3	1	1	curse	0	VERY_RARE	Amplifies the damage your attack deals when your weapon is more damaged, at the cost of severely damaging the weapon based on the attack damage.
+154	meltdown	Meltdown	2	1	1	curse	0	VERY_RARE	A variant of thorns that causes the user to explode and severely damages the armor.
+155	pandorascurse	Pandora's Curse	1	1	1	pandora	1	VERY_RARE	Now you know, now you suffer.
+156	powerless	Powerless	5	1	1	curse	1	RARE	Decreases the damage of arrows fired from a bow.
+157	rusted	Rusted	3	1	1	curse	1	RARE	Curses the item with rust, greatly increasing the amount of durability damage taken.
+158	unpredictable	Unpredictable	2	1	1	curse	0	VERY_RARE	Randomizes the attack damage dealt, including a chance to instead heal the enemy.
+159	rune_arrowpiercing	Rune: Arrow Piercing	4	1	0	rune	0	VERY_RARE	Allows for a portion of arrow damage to pierce armor.
+160	rune_magicalblessing	Rune: Magical Blessing	4	1	0	rune	0	VERY_RARE	Increases damage dealt, converts the attack damage to magical damage, allows a portion of damage to bypass armor, and applies random negative effects to the enemy.
+161	rune_piercingcapabilities	Rune: Piercing Capabilities	4	1	0	rune	0	VERY_RARE	Allows for a portion of attack damage to pierce armor.
+162	rune_resurrection	Rune: Resurrection	2	1	0	rune	0	VERY_RARE	A consumable enchant that acts as an emergency totem of undying.
+163	rune_revival	Rune: Revival	2	1	0	rune	0	VERY_RARE	Grants a chance to save and repair an item when it would break based on its maximum durability.
+164	subjectbiology	Subject Biology	5	1	0	normal	1	RARE	Increases damage against enemies that are 'smarter'.
+165	subjectchemistry	Subject Chemistry	5	1	0	normal	1	RARE	Increases damage when the user has more active potion effects.
+166	subjectenglish	Subject English	5	1	0	normal	1	RARE	Increases damage the more letters there are in the target's name.
+167	subjecthistory	Subject History	5	1	0	normal	1	RARE	Increases damage the longer a chunk is inhabited.
+168	subjectmathematics	Subject Mathematics	5	1	0	normal	1	RARE	Increases damage based on the users xp level.
+169	subjectpe	Subject P.E.	5	1	0	normal	1	RARE	Attacks have a chance to give the user several buffs related to exercise and health.
+170	subjectphysics	Subject Physics	5	1	0	normal	1	RARE	Increases damage depending on the size difference between user and target.
+171	subjectgeography	Subject Geography	5	1	0	normal	1	RARE	Applies potion effects depending on the biome the user is in.
+172	lesserbaneofarthropods	Lesser Bane of Arthropods	5	1	0	normal	0	COMMON	Lesser version of Bane of Arthropods.
+173	lesserfireaspect	Lesser Fire Aspect	2	1	0	normal	0	COMMON	Lesser version of Fire Aspect.
+174	lesserflame	Lesser Flame	1	1	0	normal	0	COMMON	Lesser version of Flame.
+175	lessersharpness	Lesser Sharpness	5	1	0	normal	0	COMMON	Lesser version of Sharpness.
+176	lessersmite	Lesser Smite	5	1	0	normal	0	COMMON	Lesser version of Smite.
+177	advancedbaneofarthropods	Advanced Bane of Arthropods	5	1	0	normal	0	RARE	Advanced version of Bane of Arthropods.
+178	advancedblastprotection	Advanced Blast Protection	4	1	0	normal	0	RARE	Advanced version of Blast Protection.
+179	advancedefficiency	Advanced Efficiency	5	1	0	normal	0	RARE	Advanced version of efficiency.
+180	advancedfeatherfalling	Advanced Feather Falling	4	1	0	normal	0	VERY_RARE	Advanced version of Feather Falling.
+181	advancedfireaspect	Advanced Fire Aspect	2	1	0	normal	0	RARE	Advanced version of Fire Aspect.
+182	advancedfireprotection	Advanced Fire Protection	4	1	0	normal	0	RARE	Advanced version of Fire Protection.
+183	advancedflame	Advanced Flame	1	1	0	normal	0	VERY_RARE	Advanced version of Flame.
+184	advancedknockback	Advanced Knockback	2	1	0	normal	0	VERY_RARE	Advanced version of knockback.
+185	advancedlooting	Advanced Looting	3	1	0	normal	0	VERY_RARE	Advanced version of looting.
+186	advancedluckofthesea	Advanced Luck of the Sea	3	1	0	normal	0	VERY_RARE	Advanced version of Luck of the Sea.
+187	advancedlure	Advanced Lure	3	1	0	normal	0	VERY_RARE	Advanced version of Lure.
+188	advancedmending	Advanced Mending	1	1	0	normal	1	VERY_RARE	Advanced version of Mending.
+189	advancedpower	Advanced Power	5	1	0	normal	0	VERY_RARE	Advanced version of power.
+190	advancedprojectileprotection	Advanced Projectile Protection	4	1	0	normal	0	RARE	Advanced version of Projectile Protection.
+191	advancedprotection	Advanced Protection	4	1	0	normal	0	VERY_RARE	Advanced version of Protection.
+192	advancedpunch	Advanced Punch	2	1	0	normal	0	VERY_RARE	Advanced version of Punch.
+193	advancedsharpness	Advanced Sharpness	5	1	0	normal	0	RARE	Advanced version of Sharpness.
+194	advancedsmite	Advanced Smite	5	1	0	normal	0	RARE	Advanced version of smite.
+195	advancedthorns	Advanced Thorns	3	1	0	normal	0	RARE	Advanced version of Thorns.
+196	supremebaneofarthropods	Supreme Bane of Arthropods	5	1	0	normal	1	VERY_RARE	Supreme version of Bane of Arthropods.
+197	supremefireaspect	Supreme Fire Aspect	2	1	0	normal	1	VERY_RARE	Supreme version of Fire Aspect.
+198	supremeflame	Supreme Flame	1	1	0	normal	1	VERY_RARE	Supreme version of Flame.
+199	supremeprotection	Supreme Protection	10	10	0	normal	1	VERY_RARE	This was supposed to be a meme.
+200	supremesharpness	Supreme Sharpness	5	1	0	normal	1	VERY_RARE	Supreme version of Sharpness.
+201	supremesmite	Supreme Smite	5	1	0	normal	1	VERY_RARE	Supreme version of Smite.

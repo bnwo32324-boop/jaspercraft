@@ -1,0 +1,34 @@
+{
+	"atomic_deconstruct": {
+		"category": "player",
+		"sounds": [ "somanyenchantments:atomic_deconstruct" ]
+	},
+	"critical_strike": {
+		"sounds": [ "somanyenchantments:critical_strike" ]
+	},
+	"critical_strike_fail": {
+		"category": "player",
+		"sounds": [
+			{
+				"name": "somanyenchantments:critical_strike_fail",
+				"weight": 99
+			},
+			{
+				"name": "somanyenchantments:critical_strike_bonk",
+				"weight": 1
+			}
+		]
+	},
+	"culling": {
+		"category": "player",
+		"sounds": [ "somanyenchantments:culling" ]
+	},
+	"pandora_removal": {
+		"category": "player",
+		"sounds": [ "somanyenchantments:pandora_removal" ]
+	},
+	"rune_revival": {
+		"category": "player",
+		"sounds": [ "somanyenchantments:rune_revival" ]
+	}
+}

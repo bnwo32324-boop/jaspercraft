@@ -1,0 +1,674 @@
+gui.jei.category.upgrading=Enchantment Upgrading
+
+attribute.name.somanyenchantments.enchantfocus=Enchanting Focus
+
+enchantment.adept=Adept
+enchantment.somanyenchantments.adept.desc=Increases dropped XP, scaling higher against bosses.
+
+enchantment.ancientsealedcurses=Ancient Sealed Curses
+enchantment.somanyenchantments.ancientsealedcurses.desc=An ancient enchantment that causes attacks to curse the equipment of the enemy.
+
+enchantment.ancientswordmastery=Ancient Sword Mastery
+enchantment.somanyenchantments.ancientswordmastery.desc=An ancient enchantment that amplifies the dealt damage depending on the targets attack damage.
+
+enchantment.arcslash=Arc Slash
+enchantment.somanyenchantments.arcslash.desc=A variant of sweeping edge that trades slightly less damage for sweeping more often.
+
+enchantment.ashdestroyer=Ash Destroyer
+enchantment.somanyenchantments.ashdestroyer.desc=Amplifies damage if the enemy is burning.
+
+enchantment.atomicdeconstructor=Atomic Deconstructor
+enchantment.somanyenchantments.atomicdeconstructor.desc=Has a low chance to instantly shred the enemy from existence.
+
+enchantment.blessededge=Blessed Edge
+enchantment.somanyenchantments.blessededge.desc=Deals amplified damage against the undead and heals the user for a portion of the damage dealt.
+
+enchantment.brutality=Brutality
+enchantment.somanyenchantments.brutality.desc=Increases damage dealt to the armor of the enemy.
+
+enchantment.burningshield=Burning Shield
+enchantment.somanyenchantments.burningshield.desc=Reflects a portion of damage done by attackers, and sets them alight.
+
+enchantment.burningthorns=Burning Thorns
+enchantment.somanyenchantments.burningthorns.desc=Improved version of thorns that additionally sets the attacker on fire.
+
+enchantment.butchering=Butchering
+enchantment.somanyenchantments.butchering.desc=Deals increased damage to animals, additionally increases the loot dropped by slain animals.
+
+enchantment.clearskiesfavor=Clearskies' Favor
+enchantment.somanyenchantments.clearskiesfavor.desc=Increases damage dealt during clear weather with an extra boost if exposed to the sky.
+
+enchantment.combatmedic=Combat Medic
+enchantment.somanyenchantments.combatmedic.desc=Amplifies the user's healing.
+
+enchantment.counterattack=Counter Attack
+enchantment.somanyenchantments.counterattack.desc=Gives you a chance to automatically retaliate to a melee attack.
+
+enchantment.criticalstrike=Critical Strike
+enchantment.somanyenchantments.criticalstrike.desc=Gives your critical hits an increasing chance to turn into a super-critical hit for greatly amplified damage.
+
+enchantment.cryogenic=Cryogenic
+enchantment.somanyenchantments.cryogenic.desc=Gives a chance to apply stacking slowness and fatigue to an enemy, which can freeze the enemy into a block of ice.
+
+enchantment.culling=Culling
+enchantment.somanyenchantments.culling.desc=If an attack would leave an enemy with low health, instantly kills the enemy instead. If successful, also drops the head of that enemy.
+
+enchantment.darkshadows=Dark Shadows
+enchantment.somanyenchantments.darkshadows.desc=Your attacks deal increased damage when striking from the shadows, and additionally can blind enemies.
+
+enchantment.defusingedge=Defusing Edge
+enchantment.somanyenchantments.defusingedge.desc=Defuses and deals increased damage to creepers.
+
+enchantment.desolator=Desolator
+enchantment.somanyenchantments.desolator.desc=Attacks have a chance to apply negative resistance and weakness.
+
+enchantment.difficultysendowment=Difficulty's Endowment
+enchantment.somanyenchantments.difficultysendowment.desc=Amplifies or decreases your attacks damage based on world difficulty.
+
+enchantment.disarmament=Disarmament
+enchantment.somanyenchantments.disarmament.desc=Grants a chance to disarm your opponent's weapons.
+
+enchantment.disorientatingblade=Disorientating Blade
+enchantment.somanyenchantments.disorientatingblade.desc=Attacks have a chance to apply blindness and nausea to the enemy.
+
+enchantment.empowereddefence=Empowered Defence
+enchantment.somanyenchantments.empowereddefence.desc=Empowers your shield's defence, giving a chance to block and reflect an attack with additional knockback.
+
+enchantment.envenomed=Envenomed
+enchantment.somanyenchantments.envenomed.desc=Attacks have a chance to apply poison and wither to the enemy.
+
+enchantment.evasion=Evasion
+enchantment.somanyenchantments.evasion.desc=Grants the user a chance to evade and ignore attacks.
+
+enchantment.fieryedge=Fiery Edge
+enchantment.somanyenchantments.fieryedge.desc=A variant of fire aspect that additionally gives a chance to ignore the invulnerability frames of an enemy on fire.
+
+enchantment.flinging=Flinging
+enchantment.somanyenchantments.flinging.desc=A variant of knockback that instead launches the enemy upwards.
+
+enchantment.horsdecombat=Hors De Combat
+enchantment.somanyenchantments.horsdecombat.desc=Attacks have a chance to cripple the enemy with various effects.
+
+enchantment.inhumane=Inhumane
+enchantment.somanyenchantments.inhumane.desc=Attacks deal extra damage against and apply weakness to Illagers.
+
+enchantment.innerberserk=Inner Berserk
+enchantment.somanyenchantments.innerberserk.desc=Amplifies the damage the user deals the lower the user's health is.
+
+enchantment.jaggedrake=Jagged Rake
+enchantment.somanyenchantments.jaggedrake.desc=Increases damage dealt by hoes.
+
+enchantment.levitator=Levitator
+enchantment.somanyenchantments.levitator.desc=Grants the ability for attacks to apply levitation to enemies.
+
+enchantment.lifesteal=Lifesteal
+enchantment.somanyenchantments.lifesteal.desc=Heals the user for a portion of damage dealt.
+
+enchantment.lightweight=Light Weight
+enchantment.somanyenchantments.lightweight.desc=Increases the users jump height, additionally lowers and limits the user's fall damage.
+
+enchantment.luckmagnification=Luck Magnification
+enchantment.somanyenchantments.luckmagnification.desc=Amplifies the user's luck, making luck affect critical hits and looting.
+
+enchantment.lunasblessing=Luna's Blessing
+enchantment.somanyenchantments.lunasblessing.desc=Increases damage dealt during the night with an extra boost if exposed to the sky, additionally applies blindness to the enemy.
+
+enchantment.magicprotection=Magic Protection
+enchantment.somanyenchantments.magicprotection.desc=A variant of protection that is more effective against magic damage.
+
+enchantment.magmawalker=Magma Walker
+enchantment.somanyenchantments.magmawalker.desc=A variant of frost walker that instead applies to lava.
+
+enchantment.moisturized=Moisturized
+enchantment.somanyenchantments.moisturized.desc=Tilling will automatically make the resulting farmland wet.
+
+enchantment.mortalitas=Mortalitas
+enchantment.somanyenchantments.mortalitas.desc=Each kill with this enchantment empowers the weapon, increasing future damage dealt.
+
+enchantment.naturalblocking=Natural Blocking
+enchantment.somanyenchantments.naturalblocking.desc=When wielding a shield, it will naturally block a portion of damage taken and damage the shield instead.
+
+enchantment.parry=Parry
+enchantment.somanyenchantments.parry.desc=Grants a chance to parry melee attacks and instead knock the attacker back while still triggering invulnerability frames.
+
+enchantment.penetratingedge=Penetrating Edge
+enchantment.somanyenchantments.penetratingedge.desc=Increases damage against enemies with higher armor.
+
+enchantment.physicalprotection=Physical Protection
+enchantment.somanyenchantments.physicalprotection.desc=A variant of protection that is more effective against melee attacks.
+
+enchantment.purgingblade=Purging Blade
+enchantment.somanyenchantments.purgingblade.desc=Grants a chance on attacks to purge an effect from an enemy, amplifying the attack damage when purging stronger effects.
+
+enchantment.purification=Purification
+enchantment.somanyenchantments.purification.desc=Grants a chance to purify enemies such as Zombie Villagers, Pig Zombies, and Magma Cubes.
+
+enchantment.pushing=Pushing
+enchantment.somanyenchantments.pushing.desc=Blesses your bow with an aura that repels nearby enemies while pulling the bow back.
+
+enchantment.rainsbestowment=Rain's Bestowment
+enchantment.somanyenchantments.rainsbestowment.desc=Increases damage dealt while raining with an extra boost if exposed to the sky.
+
+enchantment.reviledblade=Reviled Blade
+enchantment.somanyenchantments.reviledblade.desc=Amplifies the damage dealt the lower the health of the enemy.
+
+enchantment.reinforcedsharpness=Reinforced Sharpness
+enchantment.somanyenchantments.reinforcedsharpness.desc=A variant of sharpness for tools.
+
+enchantment.smelter=Smelter
+enchantment.somanyenchantments.smelter.desc=Harvesting a block will attempt to smelt the drops if applicable, additionally works with fortune.
+
+enchantment.solsblessing=Sol's Blessing
+enchantment.somanyenchantments.solsblessing.desc=Increases damage dealt during the day with an extra boost if exposed to the sky, additionally applies glowing to the enemy.
+
+enchantment.spellbreaker=Spell Breaker
+enchantment.somanyenchantments.spellbreaker.desc=Deals increased damage for each effect an enemy has, with bonus damage against Evokers and Witches.
+
+enchantment.splitshot=Splitshot
+enchantment.somanyenchantments.splitshot.desc=Splits arrows fired by the bow into multiple arrows.
+
+enchantment.strafe=Strafe
+enchantment.somanyenchantments.strafe.desc=Increases bow draw speed.
+
+enchantment.strengthenedvitality=Strengthened Vitality
+enchantment.somanyenchantments.strengthenedvitality.desc=Amplifies the user's max health.
+
+enchantment.swifterslashes=Swifter Slashes
+enchantment.somanyenchantments.swifterslashes.desc=Greatly increases attack speed, gives a chance to bypass invulnerability frames at the cost of reduced damage.
+
+enchantment.thunderstormsbestowment=Thunderstorm's Bestowment
+enchantment.somanyenchantments.thunderstormsbestowment.desc=Increases damage dealt while thunder-storming with an extra boost if exposed to the sky.
+
+enchantment.truestrike=True Strike
+enchantment.somanyenchantments.truestrike.desc=Allows the user to bypass evasion and parry enchantments, additionally gives a chance to bypass invulnerability frames.
+
+enchantment.swiftswimming=Swift Swimming
+enchantment.somanyenchantments.swiftswimming.desc=Amplifies the user's swim speed.
+
+enchantment.unreasonable=Unreasonable
+enchantment.somanyenchantments.unreasonable.desc=Destroys the reasoning of an entity, making it target random entities near it instead of the user.
+
+enchantment.unsheathing=Unsheathing
+enchantment.somanyenchantments.unsheathing.desc=When the user unsheathes their weapon, amplifies their attack damage if they attack within a short period of time.
+
+enchantment.upgradedpotentials=Upgraded Potentials
+enchantment.somanyenchantments.upgradedpotentials.desc=Reduces the XP repair cost when applied in an anvil.
+
+enchantment.viper=Viper
+enchantment.somanyenchantments.viper.desc=Increases damage dealt against enemies with poison or wither.
+
+enchantment.wateraspect=Water Aspect
+enchantment.somanyenchantments.wateraspect.desc=Increases damage dealt if the user and/or the enemy is in water, with bonus damage against Endermen, Blazes, and Magma Cubes.
+
+enchantment.plowing=Plowing
+enchantment.somanyenchantments.plowing.desc=Tilling area is increased to a radius of multiple blocks.
+
+enchantment.wintersgrace=Winter's Grace
+enchantment.somanyenchantments.wintersgrace.desc=Increases damage dealt in cold environments with extra boosts if exposed to the sky and if snowing, additionally has a chance to apply slowness and fatigue to the enemy.
+
+#Curses
+
+enchantment.ascetic=Ascetic
+enchantment.somanyenchantments.ascetic.desc=You abandon the need for loot.
+
+enchantment.bluntness=Bluntness
+enchantment.somanyenchantments.bluntness.desc=Decreases the attack damage of a weapon.
+
+enchantment.breachedplating=Breached Plating
+enchantment.somanyenchantments.breachedplating.desc=Decreases the effectiveness of armor.
+
+enchantment.cursededge=Cursed Edge
+enchantment.somanyenchantments.cursededge.desc=Amplifies the damage your attack deals at the cost of severely reflecting a portion of the attack back at yourself.
+
+enchantment.curseofdecay=Curse of Decay
+enchantment.somanyenchantments.curseofdecay.desc=Curses an item to decay very fast if left in the ground.
+
+enchantment.curseofholding=Curse of Holding
+enchantment.somanyenchantments.curseofholding.desc=Curses the user when equipped, applying various negative effects.
+
+enchantment.curseofinaccuracy=Curse of Inaccuracy
+enchantment.somanyenchantments.curseofinaccuracy.desc=Curses the user's accuracy, causing melee attacks to have a chance to miss and making arrows inaccurate.
+
+enchantment.curseofpossession=Curse of Possession
+enchantment.somanyenchantments.curseofpossession.desc=Curses items to not be able to be dropped, disappearing if forced to drop.
+
+enchantment.curseofvulnerability=Curse of Vulnerability
+enchantment.somanyenchantments.curseofvulnerability.desc=Amplifies the user's damage taken.
+
+enchantment.dragging=Dragging
+enchantment.somanyenchantments.dragging.desc=Drags enemies shot closer to the user.
+
+enchantment.extinguish=Extinguish
+enchantment.somanyenchantments.extinguish.desc=Extinguishes the target on hit.
+
+enchantment.heavyweight=Heavy Weight
+enchantment.somanyenchantments.heavyweight.desc=Increases fall damage, reduces jump height, and can greatly reduce attack speed.
+
+enchantment.inefficient=Inefficient
+enchantment.somanyenchantments.inefficient.desc=Greatly reduces mining speed.
+
+enchantment.instability=Instability
+enchantment.somanyenchantments.instability.desc=Amplifies the damage your attack deals when your weapon is more damaged, at the cost of severely damaging the weapon based on the attack damage.
+
+enchantment.meltdown=Meltdown
+enchantment.somanyenchantments.meltdown.desc=A variant of thorns that causes the user to explode and severely damages the armor.
+
+enchantment.pandorascurse=Pandora's Curse
+enchantment.somanyenchantments.pandorascurse.desc=Now you know, now you suffer.
+
+enchantment.powerless=Powerless
+enchantment.somanyenchantments.powerless.desc=Decreases the damage of arrows fired from a bow.
+
+enchantment.rusted=Rusted
+enchantment.somanyenchantments.rusted.desc=Curses the item with rust, greatly increasing the amount of durability damage taken.
+
+enchantment.unpredictable=Unpredictable
+enchantment.somanyenchantments.unpredictable.desc=Randomizes the attack damage dealt, including a chance to instead heal the enemy.
+
+#Rune
+
+enchantment.rune_arrowpiercing=Rune: Arrow Piercing
+enchantment.somanyenchantments.rune_arrowpiercing.desc=Allows for a portion of arrow damage to pierce armor.
+
+enchantment.rune_magicalblessing=Rune: Magical Blessing
+enchantment.somanyenchantments.rune_magicalblessing.desc=Increases damage dealt, converts the attack damage to magical damage, allows a portion of damage to bypass armor, and applies random negative effects to the enemy.
+
+enchantment.rune_piercingcapabilities=Rune: Piercing Capabilities
+enchantment.somanyenchantments.rune_piercingcapabilities.desc=Allows for a portion of attack damage to pierce armor.
+
+enchantment.rune_resurrection=Rune: Resurrection
+enchantment.somanyenchantments.rune_resurrection.desc=A consumable enchant that acts as an emergency totem of undying.
+
+enchantment.rune_revival=Rune: Revival
+enchantment.somanyenchantments.rune_revival.desc=Grants a chance to save and repair an item when it would break based on its maximum durability.
+
+#Subject
+
+enchantment.subjectbiology=Subject Biology
+enchantment.somanyenchantments.subjectbiology.desc=Increases damage against enemies that are 'smarter'.
+
+enchantment.subjectchemistry=Subject Chemistry
+enchantment.somanyenchantments.subjectchemistry.desc=Increases damage when the user has more active potion effects.
+
+enchantment.subjectenglish=Subject English
+enchantment.somanyenchantments.subjectenglish.desc=Increases damage the more letters there are in the target's name.
+
+enchantment.subjecthistory=Subject History
+enchantment.somanyenchantments.subjecthistory.desc=Increases damage the longer a chunk is inhabited.
+
+enchantment.subjectmathematics=Subject Mathematics
+enchantment.somanyenchantments.subjectmathematics.desc=Increases damage based on the users xp level.
+
+enchantment.subjectpe=Subject P.E.
+enchantment.somanyenchantments.subjectpe.desc=Attacks have a chance to give the user several buffs related to exercise and health.
+
+enchantment.subjectphysics=Subject Physics
+enchantment.somanyenchantments.subjectphysics.desc=Increases damage depending on the size difference between user and target.
+
+enchantment.subjectgeography=Subject Geography
+enchantment.somanyenchantments.subjectgeography.desc=Applies potion effects depending on the biome the user is in.
+
+#Lesser
+
+enchantment.lesserbaneofarthropods=Lesser Bane of Arthropods
+enchantment.somanyenchantments.lesserbaneofarthropods.desc=Lesser version of Bane of Arthropods.
+
+enchantment.lesserfireaspect=Lesser Fire Aspect
+enchantment.somanyenchantments.lesserfireaspect.desc=Lesser version of Fire Aspect.
+
+enchantment.lesserflame=Lesser Flame
+enchantment.somanyenchantments.lesserflame.desc=Lesser version of Flame.
+
+enchantment.lessersharpness=Lesser Sharpness
+enchantment.somanyenchantments.lessersharpness.desc=Lesser version of Sharpness.
+
+enchantment.lessersmite=Lesser Smite
+enchantment.somanyenchantments.lessersmite.desc=Lesser version of Smite.
+
+#Advanced
+
+enchantment.advancedbaneofarthropods=Advanced Bane of Arthropods
+enchantment.somanyenchantments.advancedbaneofarthropods.desc=Advanced version of Bane of Arthropods.
+
+enchantment.advancedblastprotection=Advanced Blast Protection
+enchantment.somanyenchantments.advancedblastprotection.desc=Advanced version of Blast Protection.
+
+enchantment.advancedefficiency=Advanced Efficiency
+enchantment.somanyenchantments.advancedefficiency.desc=Advanced version of efficiency.
+
+enchantment.advancedfeatherfalling=Advanced Feather Falling
+enchantment.somanyenchantments.advancedfeatherfalling.desc=Advanced version of Feather Falling.
+
+enchantment.advancedfireaspect=Advanced Fire Aspect
+enchantment.somanyenchantments.advancedfireaspect.desc=Advanced version of Fire Aspect.
+
+enchantment.advancedfireprotection=Advanced Fire Protection
+enchantment.somanyenchantments.advancedfireprotection.desc=Advanced version of Fire Protection.
+
+enchantment.advancedflame=Advanced Flame
+enchantment.somanyenchantments.advancedflame.desc=Advanced version of Flame.
+
+enchantment.advancedknockback=Advanced Knockback
+enchantment.somanyenchantments.advancedknockback.desc=Advanced version of knockback.
+
+enchantment.advancedlooting=Advanced Looting
+enchantment.somanyenchantments.advancedlooting.desc=Advanced version of looting.
+
+enchantment.advancedluckofthesea=Advanced Luck of the Sea
+enchantment.somanyenchantments.advancedluckofthesea.desc=Advanced version of Luck of the Sea.
+
+enchantment.advancedlure=Advanced Lure
+enchantment.somanyenchantments.advancedlure.desc=Advanced version of Lure.
+
+enchantment.advancedmending=Advanced Mending
+enchantment.somanyenchantments.advancedmending.desc=Advanced version of Mending.
+
+enchantment.advancedpower=Advanced Power
+enchantment.somanyenchantments.advancedpower.desc=Advanced version of power.
+
+enchantment.advancedprojectileprotection=Advanced Projectile Protection
+enchantment.somanyenchantments.advancedprojectileprotection.desc=Advanced version of Projectile Protection.
+
+enchantment.advancedprotection=Advanced Protection
+enchantment.somanyenchantments.advancedprotection.desc=Advanced version of Protection.
+
+enchantment.advancedpunch=Advanced Punch
+enchantment.somanyenchantments.advancedpunch.desc=Advanced version of Punch.
+
+enchantment.advancedsharpness=Advanced Sharpness
+enchantment.somanyenchantments.advancedsharpness.desc=Advanced version of Sharpness.
+
+enchantment.advancedsmite=Advanced Smite
+enchantment.somanyenchantments.advancedsmite.desc=Advanced version of smite.
+
+enchantment.advancedthorns=Advanced Thorns
+enchantment.somanyenchantments.advancedthorns.desc=Advanced version of Thorns.
+
+#Supreme
+
+enchantment.supremebaneofarthropods=Supreme Bane of Arthropods
+enchantment.somanyenchantments.supremebaneofarthropods.desc=Supreme version of Bane of Arthropods.
+
+enchantment.supremefireaspect=Supreme Fire Aspect
+enchantment.somanyenchantments.supremefireaspect.desc=Supreme version of Fire Aspect.
+
+enchantment.supremeflame=Supreme Flame
+enchantment.somanyenchantments.supremeflame.desc=Supreme version of Flame.
+
+enchantment.supremeprotection=Supreme Protection
+enchantment.somanyenchantments.supremeprotection.desc=This was supposed to be a meme.
+
+enchantment.supremesharpness=Supreme Sharpness
+enchantment.somanyenchantments.supremesharpness.desc=Supreme version of Sharpness.
+
+enchantment.supremesmite=Supreme Smite
+enchantment.somanyenchantments.supremesmite.desc=Supreme version of Smite.
+
+potion.potency.4=V
+potion.potency.5=VI
+potion.potency.6=VII
+potion.potency.7=VIII
+potion.potency.8=IX
+potion.potency.9=X
+potion.potency.10=XI
+potion.potency.11=XII
+potion.potency.12=XIII
+potion.potency.13=XIV
+potion.potency.14=XV
+potion.potency.15=XVI
+potion.potency.16=XVII
+potion.potency.17=XVIII
+potion.potency.18=XIX
+potion.potency.19=XX
+
+death.attack.deconstructed=%1$s was reduced to atoms
+death.attack.deconstructed.player=%1$s was deconstructed by %2$s
+
+enchantment.gui.bookshelfpower=Bookshelf Power
+
+enchantment.level.11=XI
+enchantment.level.12=XII
+enchantment.level.13=XIII
+enchantment.level.14=XIV
+enchantment.level.15=XV
+enchantment.level.16=XVI
+enchantment.level.17=XVII
+enchantment.level.18=XVIII
+enchantment.level.19=XIX
+enchantment.level.20=XX
+enchantment.level.21=XXI
+enchantment.level.22=XXII
+enchantment.level.23=XXIII
+enchantment.level.24=XXIV
+enchantment.level.25=XXV
+enchantment.level.26=XXVI
+enchantment.level.27=XXVII
+enchantment.level.28=XXVIII
+enchantment.level.29=XXIX
+enchantment.level.30=XXX
+enchantment.level.31=XXXI
+enchantment.level.32=XXXII
+enchantment.level.33=XXXIII
+enchantment.level.34=XXXIV
+enchantment.level.35=XXXV
+enchantment.level.36=XXXVI
+enchantment.level.37=XXXVII
+enchantment.level.38=XXXVIII
+enchantment.level.39=XXXIX
+enchantment.level.40=XL
+enchantment.level.41=XLI
+enchantment.level.42=XLII
+enchantment.level.43=XLIII
+enchantment.level.44=XLIV
+enchantment.level.45=XLV
+enchantment.level.46=XLVI
+enchantment.level.47=XLVII
+enchantment.level.48=XLVIII
+enchantment.level.49=XLIX
+enchantment.level.50=L
+enchantment.level.51=LI
+enchantment.level.52=LII
+enchantment.level.53=LIII
+enchantment.level.54=LIV
+enchantment.level.55=LV
+enchantment.level.56=LVI
+enchantment.level.57=LVII
+enchantment.level.58=LVIII
+enchantment.level.59=LIX
+enchantment.level.60=LX
+enchantment.level.61=LXI
+enchantment.level.62=LXII
+enchantment.level.63=LXIII
+enchantment.level.64=LXIV
+enchantment.level.65=LXV
+enchantment.level.66=LXVI
+enchantment.level.67=LXVII
+enchantment.level.68=LXVIII
+enchantment.level.69=LXIX
+enchantment.level.70=LXX
+enchantment.level.71=LXXI
+enchantment.level.72=LXXII
+enchantment.level.73=LXXIII
+enchantment.level.74=LXXIV
+enchantment.level.75=LXXV
+enchantment.level.76=LXXVI
+enchantment.level.77=LXXVII
+enchantment.level.78=LXXVIII
+enchantment.level.79=LXXIX
+enchantment.level.80=LXXX
+enchantment.level.81=LXXXI
+enchantment.level.82=LXXXII
+enchantment.level.83=LXXXIII
+enchantment.level.84=LXXXIV
+enchantment.level.85=LXXXV
+enchantment.level.86=LXXXVI
+enchantment.level.87=LXXXVII
+enchantment.level.88=LXXXVIII
+enchantment.level.89=LXXXIX
+enchantment.level.90=XC
+enchantment.level.91=XCI
+enchantment.level.92=XCII
+enchantment.level.93=XCIII
+enchantment.level.94=XCIV
+enchantment.level.95=XCV
+enchantment.level.96=XCVI
+enchantment.level.97=XCVII
+enchantment.level.98=XCVIII
+enchantment.level.99=XCIX
+enchantment.level.100=C
+enchantment.level.101=CI
+enchantment.level.102=CII
+enchantment.level.103=CIII
+enchantment.level.104=CIV
+enchantment.level.105=CV
+enchantment.level.106=CVI
+enchantment.level.107=CVII
+enchantment.level.108=CVIII
+enchantment.level.109=CIX
+enchantment.level.110=CX
+enchantment.level.111=CXI
+enchantment.level.112=CXII
+enchantment.level.113=CXIII
+enchantment.level.114=CXIV
+enchantment.level.115=CXV
+enchantment.level.116=CXVI
+enchantment.level.117=CXVII
+enchantment.level.118=CXVIII
+enchantment.level.119=CXIX
+enchantment.level.120=CXX
+enchantment.level.121=CXXI
+enchantment.level.122=CXXII
+enchantment.level.123=CXXIII
+enchantment.level.124=CXXIV
+enchantment.level.125=CXXV
+enchantment.level.126=CXXVI
+enchantment.level.127=CXXVII
+enchantment.level.128=CXXVIII
+enchantment.level.129=CXXIX
+enchantment.level.130=CXXX
+enchantment.level.131=CXXXI
+enchantment.level.132=CXXXII
+enchantment.level.133=CXXXIII
+enchantment.level.134=CXXXIV
+enchantment.level.135=CXXXV
+enchantment.level.136=CXXXVI
+enchantment.level.137=CXXXVII
+enchantment.level.138=CXXXVIII
+enchantment.level.139=CXXXIX
+enchantment.level.140=CXL
+enchantment.level.141=CXLI
+enchantment.level.142=CXLII
+enchantment.level.143=CXLIII
+enchantment.level.144=CXLIV
+enchantment.level.145=CXLV
+enchantment.level.146=CXLVI
+enchantment.level.147=CXLVII
+enchantment.level.148=CXLVIII
+enchantment.level.149=CXLIX
+enchantment.level.150=CL
+enchantment.level.151=CLI
+enchantment.level.152=CLII
+enchantment.level.153=CLIII
+enchantment.level.154=CLIV
+enchantment.level.155=CLV
+enchantment.level.156=CLVI
+enchantment.level.157=CLVII
+enchantment.level.158=CLVIII
+enchantment.level.159=CLIX
+enchantment.level.160=CLX
+enchantment.level.161=CLXI
+enchantment.level.162=CLXII
+enchantment.level.163=CLXIII
+enchantment.level.164=CLXIV
+enchantment.level.165=CLXV
+enchantment.level.166=CLXVI
+enchantment.level.167=CLXVII
+enchantment.level.168=CLXVIII
+enchantment.level.169=CLXIX
+enchantment.level.170=CLXX
+enchantment.level.171=CLXXI
+enchantment.level.172=CLXXII
+enchantment.level.173=CLXXIII
+enchantment.level.174=CLXXIV
+enchantment.level.175=CLXXV
+enchantment.level.176=CLXXVI
+enchantment.level.177=CLXXVII
+enchantment.level.178=CLXXVIII
+enchantment.level.179=CLXXIX
+enchantment.level.180=CLXXX
+enchantment.level.181=CLXXXI
+enchantment.level.182=CLXXXII
+enchantment.level.183=CLXXXIII
+enchantment.level.184=CLXXXIV
+enchantment.level.185=CLXXXV
+enchantment.level.186=CLXXXVI
+enchantment.level.187=CLXXXVII
+enchantment.level.188=CLXXXVIII
+enchantment.level.189=CLXXXIX
+enchantment.level.190=CXC
+enchantment.level.191=CXCI
+enchantment.level.192=CXCII
+enchantment.level.193=CXCIII
+enchantment.level.194=CXCIV
+enchantment.level.195=CXCV
+enchantment.level.196=CXCVI
+enchantment.level.197=CXCVII
+enchantment.level.198=CXCVIII
+enchantment.level.199=CXCIX
+enchantment.level.200=CC
+enchantment.level.201=CCI
+enchantment.level.202=CCII
+enchantment.level.203=CCIII
+enchantment.level.204=CCIV
+enchantment.level.205=CCV
+enchantment.level.206=CCVI
+enchantment.level.207=CCVII
+enchantment.level.208=CCVIII
+enchantment.level.209=CCIX
+enchantment.level.210=CCX
+enchantment.level.211=CCXI
+enchantment.level.212=CCXII
+enchantment.level.213=CCXIII
+enchantment.level.214=CCXIV
+enchantment.level.215=CCXV
+enchantment.level.216=CCXVI
+enchantment.level.217=CCXVII
+enchantment.level.218=CCXVIII
+enchantment.level.219=CCXIX
+enchantment.level.220=CCXX
+enchantment.level.221=CCXXI
+enchantment.level.222=CCXXII
+enchantment.level.223=CCXXIII
+enchantment.level.224=CCXXIV
+enchantment.level.225=CCXXV
+enchantment.level.226=CCXXVI
+enchantment.level.227=CCXXVII
+enchantment.level.228=CCXXVIII
+enchantment.level.229=CCXXIX
+enchantment.level.230=CCXXX
+enchantment.level.231=CCXXXI
+enchantment.level.232=CCXXXII
+enchantment.level.233=CCXXXIII
+enchantment.level.234=CCXXXIV
+enchantment.level.235=CCXXXV
+enchantment.level.236=CCXXXVI
+enchantment.level.237=CCXXXVII
+enchantment.level.238=CCXXXVIII
+enchantment.level.239=CCXXXIX
+enchantment.level.240=CCXL
+enchantment.level.241=CCXLI
+enchantment.level.242=CCXLII
+enchantment.level.243=CCXLIII
+enchantment.level.244=CCXLIV
+enchantment.level.245=CCXLV
+enchantment.level.246=CCXLVI
+enchantment.level.247=CCXLVII
+enchantment.level.248=CCXLVIII
+enchantment.level.249=CCXLIX
+enchantment.level.250=CCL
+enchantment.level.251=CCLI
+enchantment.level.252=CCLII
+enchantment.level.253=CCLIII
+enchantment.level.254=CCLIV
+enchantment.level.255=CCLV
+enchantment.level.256=CCLVI

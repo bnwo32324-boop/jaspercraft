@@ -336,3 +336,8 @@ Nothing is half-written. State on disk:
   559 (+6; only the two guide books changed), 16 new models. Live world: 1854 existing chunks, 5 cells decided, 1 site planned
   (b017 ancient overgrown stone manor at 256,224). One restart, 0 players. Backups .runtime/plugin-backup-20260926-112139-muse,
   .runtime/site-backup-20260926-112139-muse.
+- 2026-09-26 11:45 SO MANY ENCHANTMENTS LIVE (owner: port SME 1.0.9 client and server side as faithfully as possible; include it
+  in the looting system). New plugin JasprEnchantments 1.0.0 (130 enchantments, ids 72-201; self-test 39/39 with all live plugins,
+  0 errors). Client 20260926-sme1: registry stage (130/130 registered in a browser boot test, 0 failures) + lang/sounds in
+  assets.epk and site/lang; client-side dig/jump/swim/strafe hooks. HB 3.27.5 and Muse loot pick SME books automatically now.
+  One restart, 0 players. Backup .runtime/site-backup-20260926-114543-sme (no plugin replaced).

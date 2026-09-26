@@ -1,0 +1,10 @@
+name: JasprEnchantments
+main: chat.jaspr.enchant.EnchantPlugin
+version: 1.0.0
+load: STARTUP
+description: So Many Enchantments 1.0.9 port (130 enchantments, ids 72-201)
+author: JasperCraft
+commands:
+  jsme:
+    description: So Many Enchantments test helpers (ops)
+    usage: /jsme stats | book <regname> [level] | enchant <regname> <level>
