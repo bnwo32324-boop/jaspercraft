@@ -355,3 +355,10 @@ Nothing is half-written. State on disk:
   cave rooms, /where correct), city Gloamhaven (72 chunks, 5.5 ms/chunk, /where + title), 8 pre-city plans all protected,
   0 valuable blocks in 602 new chunks, 0 server errors. tests/nether-lostcities.test.cjs 6/6. Release candidate with
   DEPLOY.md: candidate/nether-lostcities-20260926 (not deployed; owner to approve the restart).
+- 2026-09-26 15:57 BETTERNETHER + NETHEREX AND LOST CITIES LIVE (owner: "Deploy."). Deployed the checkpoint above (4b131a0):
+  JasprHorrorBiomes 3.27.6, JasprImportedWorldgen 1.2.2, JasprMuseMaps 1.0.1 (via plugins/update), new JasprNether 1.0.0 and
+  JasprLostCities 1.0.0. Live log: NETHER_REGENERATED movedRegionFiles=4 (old Nether in plugins/JasprNether/nether-before-v1),
+  NETHER_READY attached=true, LOST_CITIES_BOUNDARY_READY existingChunks=2165 committedSites=8 committedSnapshot=new,
+  LOST_CITIES_READY, MUSE_BOUNDARY_READY importer=linked, no CITY_* failures; gateway online. Other live plugins unchanged
+  (another agent's uncommitted portal-gun Apocalypse left as it was). One restart, 0 players. Backups
+  .runtime/plugin-backup-20260926-155736-nether-cities, .runtime/nether-backup-20260926-155736.
