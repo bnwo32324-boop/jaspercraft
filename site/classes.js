@@ -50432,7 +50432,7 @@ var JasprRecipeBook = (function () {
    * empty cells shown -- then the result and how many it makes. Always the same place and size. */
   RB.recipeCard = function (book, prepared, hover, rects, texts, items) {
     var card = book.card;
-    if (!card) return;
+    if (!card || hover < 0) return;   // only while pointing at a recipe
     var PAD = card.pad, x = card.x, y = card.y, w = card.w;
     rects.push({x: x - 1, y: y - 1, w: w + 2, h: card.h + 2, color: 0xFF5000A0});
     rects.push({x: x, y: y, w: w, h: card.h, color: 0xF0100010});
@@ -50599,7 +50599,7 @@ var JasprRecipeBook = (function () {
 
     // A click on the recipe section is ours: outside the window, vanilla would throw the cursor's item.
     var card = book.card;
-    if (card && localX >= card.x && localX < card.x + card.w && localY >= card.y && localY < card.y + card.h) return [];
+    if (card && book.hover >= 0 && localX >= card.x && localX < card.x + card.w && localY >= card.y && localY < card.y + card.h) return [];
 
     var index = book.hover;
     if (index === null || index === undefined || index < 0) return null;

@@ -178,6 +178,7 @@ test('the recipe section: fixed place, exact 3x3 crafting grid, never over the w
       Object.assign(b, {gui, search, focused: false, scroll: 0});
       RB.layout(b);
       const first = RB.plan(b, -1000, -1000);
+      assert.equal(first.items.filter(it => it.i === undefined).length + first.rects.filter(r => r.color === 0xF0100010).length, 0, 'no recipe section without a hovered recipe');
       const icon = first.items.find(it => it.i === index(key));
       assert.ok(icon, key + ' listed');
       const plan = RB.plan(b, icon.x + 4, icon.y + 4);
