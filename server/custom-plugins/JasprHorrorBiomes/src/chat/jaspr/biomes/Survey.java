@@ -33,6 +33,7 @@ public final class Survey {
             + ChatColor.DARK_GRAY + "  chunk " + (x >> 4) + ", " + (z >> 4)
             + "  (" + (x & 15) + "," + (z & 15) + " in chunk)");
 
+        if (HorrorPlugin.netherOwned(w)) return true;   // JasprNether prints the Nether biome and structure lines
         if (!(w.getGenerator() instanceof HorrorGenerator)) {
             sender.sendMessage(ChatColor.GRAY + "World " + ChatColor.WHITE + w.getName()
                 + ChatColor.GRAY + " — biome " + ChatColor.WHITE + w.getBiome(x, z).name());

@@ -1,0 +1,14 @@
+name bn_altar_04
+size 7 7 7
+palette 10
+minecraft:netherrack 0 0
+betternether:cincinnasite_bricks_pillar 0 0
+betternether:cincinnasite_bricks 0 0
+betternether:cincinnasite_brick_plate 0 0
+betternether:nether_brick_tile_stairs 2 0
+minecraft:air 0 0
+betternether:nether_brick_tile_stairs 0 0
+betternether:nether_brick_tile_stairs 1 0
+betternether:cincinnasite_fire_bowl 0 0
+betternether:nether_brick_tile_stairs 3 0
+data /////////////////////wAAAP////8AAP8A////AP8A/////////////////////////wD/////AP8AAP//AAAAAAAA////AAAAAAAAAAAAAAD//wD//wD/////////////AAAAAAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/AAAAAAD//wQEBAQE/wYBAgICAQcGAgMBAwIHBgIBAQECBwYCAwEDAgcGAQICAgEH/wkJCQkJ//8FBQUFBf8FCAUFBQgFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQgFBQUIBf8FBQUFBf///wUFBf///wUFBQUF/wUFBQUFBQUFBQUFBQUFBQUFBQUFBf8FBQUFBf///wUFBf///////////////wX//////wUFBf///wUFBQUF////BQUF//////8F/////////////w==

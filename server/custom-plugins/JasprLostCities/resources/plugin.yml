@@ -1,0 +1,10 @@
+name: JasprLostCities
+version: 1.0.0
+main: chat.jaspr.lostcities.LostCitiesPlugin
+load: STARTUP
+depend: [JasprHorrorBiomes]
+description: The Lost Cities (1.12-2.0.22) ported to the HorrorBiomes overworld - one big city per region, built into new chunks only.
+commands:
+  lostcities:
+    description: Lost Cities status (operators).
+    usage: /lostcities [status|features|density [cells]|nearest]

@@ -1,0 +1,8 @@
+name bn_bone_03
+size 7 6 6
+palette 4
+betternether:bone_block 0 0
+betternether:bone_mushroom 0 0
+minecraft:air 0 0
+betternether:bone_mushroom 1 0
+data ////AAAA////AAAAAAD//wAAAAAA//8AAAAAAP///wAAAP///////////wAAAAD//wAAAAAAAP8AAAAAAAD/AAAAAAAA/wAAAAAAAP//AAAAAP//////AAAA////AAAAAAD//wAAAAAA//8AAAAAAP///wAAAP///////////////wH//////wEB/wH//wAA/wH//wAAAAD/Af8AAAAAA////wAAA/////////////////8D/////wEBAAP//wH/AAAAA////wMAA/////8BA///AgICAgICAgICAgICAgICAgICAgICAgICAQIBAgICAgIBAgICAgICAgIC

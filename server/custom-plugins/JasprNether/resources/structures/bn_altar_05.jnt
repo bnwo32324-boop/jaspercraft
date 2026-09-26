@@ -1,0 +1,23 @@
+name bn_altar_05
+size 7 8 5
+palette 19
+minecraft:netherrack 0 0
+betternether:bone_tile 0 0
+betternether:cincinnasite_pillar 0 0
+betternether:cincinnasite_forged 0 0
+betternether:reeds_block 0 0
+betternether:cincinnasite_stairs 2 0
+betternether:bone_wall 0 0
+minecraft:air 0 0
+betternether:cincinnasite_pot 0 0
+betternether:potted_plant_1 0 0
+betternether:cincinnasite_stairs 5 0
+betternether:cincinnasite_stairs 4 0
+betternether:cincinnasite_stairs 0 0
+betternether:cincinnasite_stairs 1 0
+betternether:cincinnasite_stairs 7 0
+betternether:cincinnasite_fire_bowl 0 0
+betternether:cincinnasite_stairs 6 0
+betternether:cincinnasite_stairs 3 0
+betternether:cincinnasite_wall 0 0
+data //8A/wD///8AAAAAAAAAAAAAAAD//wAAAAAAAP8A/wD///8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBBQUFAQEBBAQEBAQBAQQEBAQEAQEEBAQEBAEBAREREQEBAgYHBwcGAgYHBwcHBwYGBwcPBwcGBgcHBwcHBgISBwcHEgICCAcHBwgCBwcHBwcHBwcHBwcHBwcHBwcHBwcHAggHBwcIAgIJBwcHCQIHBwcHBwcHBwcHBwcHBwcHBwcHBwcCCQcHBwkCAwoHBwcLAw4HBwcHBw4HBwcHBwcHEAcHBwcHEAMKBwcHCwP/DAYGBg3/BQcHBwcHBQYHBwcHBwYRBwcHBwcR/wwGBgYN/w==

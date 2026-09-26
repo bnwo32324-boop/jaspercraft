@@ -341,3 +341,17 @@ Nothing is half-written. State on disk:
   0 errors). Client 20260926-sme1: registry stage (130/130 registered in a browser boot test, 0 failures) + lang/sounds in
   assets.epk and site/lang; client-side dig/jump/swim/strafe hooks. HB 3.27.5 and Muse loot pick SME books automatically now.
   One restart, 0 players. Backup .runtime/site-backup-20260926-114543-sme (no plugin replaced).
+- 2026-09-26 16:00 CHECKPOINT, NOT LIVE: BETTERNETHER + NETHEREX AND LOST CITIES (owner: port BetterNether, NetherEx and Lost
+  Cities; one-big-city Lost Cities biome spawning naturally and frequently; harmonise the two Nether mods, harder, regenerate
+  the current Nether; real modded blocks deferred by the owner -- mod blocks are vanilla look-alikes from one table).
+  New JasprNether 1.0.0 (14 biomes, 52 structures, 16 mobs incl. Ghast Queen, 71 items; self-test 83/83 + bot runs; one-shot
+  Nether regeneration on first start moves the old region files to plugins/JasprNether/nether-before-v1, never deletes).
+  New JasprLostCities 1.0.0 (the mod's generator and data; 64-chunk region grid, ~15% of new land; never writes pre-existing
+  chunks, HB sanctuaries or footprints other packs planned before the first city -- world/jaspr-cities-v1.committed).
+  Gates: JasprHorrorBiomes 3.27.6 (live 3.27.5 + Cities.reserved in Megaliths/Dungeons/StructurePlanner/RuinSupplies; Outer
+  Realms, ambience titles and /where step aside in a JasprNether Nether), JasprImportedWorldgen 1.2.2 (live 1.2.1 + city gate
+  in Admission), JasprMuseMaps 1.0.1 (city gate; unbegun pre-city sites yield). Integration on a copy of the live worlds with
+  every live plugin (ts3): Nether regenerated from scratch (307 chunks, 9 ms/chunk avg, Pigtificate Village, altars, gardens,
+  cave rooms, /where correct), city Gloamhaven (72 chunks, 5.5 ms/chunk, /where + title), 8 pre-city plans all protected,
+  0 valuable blocks in 602 new chunks, 0 server errors. tests/nether-lostcities.test.cjs 6/6. Release candidate with
+  DEPLOY.md: candidate/nether-lostcities-20260926 (not deployed; owner to approve the restart).

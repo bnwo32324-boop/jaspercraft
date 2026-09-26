@@ -248,6 +248,13 @@ public final class StructurePlanner {
      * and WHERE, so a site placed under older, denser rules is still recognised. Anything that changes which
      * structures get placed must not change which structures can be recognised. */
     private static Site planExpansion(long seed,int rx,int rz,boolean admit) {
+        return cityless(seed,planExpansionRaw(seed,rx,rz,admit));
+    }
+    /** Lost Cities (2026-09-26): no catalogue site is planned or recognised where a city will stand. */
+    private static Site cityless(long seed,Site s) {
+        return s!=null&&Cities.reserved(seed,s.x,s.z,s.width,s.depth)?null:s;
+    }
+    private static Site planExpansionRaw(long seed,int rx,int rz,boolean admit) {
         Terrain terrain=new Terrain(seed);
         // Independent deterministic admission preserves the complete v4 design mix while
         // removing 80% of its candidate frequency in expectation.
@@ -356,6 +363,9 @@ public final class StructurePlanner {
     }
     /** admit as in planExpansion: false identifies without the placement gates (3.20.0). */
     private static Site plan(long seed,int rx,int rz,boolean admit) {
+        return cityless(seed,planRaw(seed,rx,rz,admit));
+    }
+    private static Site planRaw(long seed,int rx,int rz,boolean admit) {
         Terrain terrain=new Terrain(seed);
         // The same relative gate applies to the original 1,024-block structure tier.
         if(admit&&!densityAdmitted(terrain,rx,rz,909))return null;

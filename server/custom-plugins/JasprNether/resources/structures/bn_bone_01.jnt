@@ -1,0 +1,13 @@
+name bn_bone_01
+size 9 7 3
+palette 9
+minecraft:bone_block 8 0
+betternether:bone_block 0 0
+minecraft:bone_block 4 0
+minecraft:bone_block 0 0
+betternether:bone_stairs 4 0
+betternether:bone_stairs 5 0
+betternether:bone_stairs 0 0
+betternether:bone_stairs 1 0
+betternether:bone_mushroom 1 0
+data ////BAAF//////8EAQABBf//////BAAF////////AP8A/////wQBAP8AAgX/////AP8A////////BgAH/////wMHBgAHBgP/////BgAH/////////////wj/CAP//////wP//////////wj//wj/////////CAMI////CAMI/////////////wj//////wj/BAP//////wMF/wj/////////////////////AQf//////wYB//////////8I

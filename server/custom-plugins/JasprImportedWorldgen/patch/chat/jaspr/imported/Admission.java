@@ -3,7 +3,7 @@
  * (C:\Users\AM\Documents\JasperCraft-Threefold-Structures-20260923); this file is the CFR 0.152 decompilation of
  * the 1.2.0 Admission, cleaned up, with one change: secondary() takes the cell size of the grid it yields to
  * (the old two-argument form keeps 48, grid 1), so grid 3 can yield to grid-1 and grid-2 plans by chaining it.
- * Apply the same change to the PC source. Rebuild the jar with scripts/patch-imported-worldgen.sh.
+ * 1.2.2 (live, 2026-09-26) adds the Lost Cities gate in ground().permits via Admission.city. Apply both changes to the PC source. Rebuild the jar with scripts/patch-imported-worldgen.sh.
  */
 package chat.jaspr.imported;
 
@@ -36,6 +36,10 @@ public final class Admission {
                 if (box != null && !box.permits(x, z, sizeX, sizeZ)) {
                     return false;
                 }
+                // 1.2.2 (2026-09-26): no imported structure where a Lost City (JasprLostCities) will stand.
+                if (Admission.city(seed, x, z, sizeX, sizeZ)) {
+                    return false;
+                }
                 if (cache != null && Occupancy.big(site)) {
                     Occupancy occupancy = cache.of(site);
                     if (ImportedWorldgenPlugin.expeditionEnvelope(seed, x, y, z, sizeX, sizeZ, occupancy)) {
@@ -49,6 +53,15 @@ public final class Admission {
                 return !claims.conflicts(terrain, x, y, z, site);
             }
         };
+    }
+
+    /** HorrorBiomes 3.27.6+ answers for JasprLostCities; an older HorrorBiomes reserves nothing. */
+    static boolean city(long seed, int x, int z, int sizeX, int sizeZ) {
+        try {
+            return chat.jaspr.biomes.Cities.reserved(seed, x, z, sizeX, sizeZ);
+        } catch (LinkageError e) {
+            return false;
+        }
     }
 
     public static CellPlanner.Ground secondary(CellPlanner.Ground ground, Primary primary) {

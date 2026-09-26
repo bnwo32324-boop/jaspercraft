@@ -209,7 +209,7 @@ public final class MusePlugin extends JavaPlugin implements Listener {
             for (long[] c : boundary.chunks())
                 cells.add(Ledger.key(Math.floorDiv((int) c[0], Planner.CELL_CHUNKS), Math.floorDiv((int) c[1], Planner.CELL_CHUNKS)));
             for (long k : cells) ctx.undecided.add(new long[]{(int) (k >> 32), (int) k});
-            for (Ledger.Record r : ledger.placed()) if (r.retrofit && !r.retrofitDone && !r.abandoned) queueRetrofit(ctx, r);
+            for (Ledger.Record r : ledger.placed()) if (r.retrofit && !r.retrofitDone && !r.abandoned && !yieldsToCity(ctx, r)) queueRetrofit(ctx, r);
             BlockPopulator populator = new MusePopulator(ctx);
             world.getPopulators().add(populator);
             populators.put(world.getUID(), populator);
@@ -229,6 +229,7 @@ public final class MusePlugin extends JavaPlugin implements Listener {
         // place players actually use untouched; the other packs' 600-block box would leave no explored land at all.)
         if (x < SPAWN_CORE && x + w > -SPAWN_CORE && z < SPAWN_CORE && z + dp > -SPAWN_CORE) return false;
         long seed = ctx.world.getSeed();
+        if (cityReserved(seed, x, z, w, dp)) return false;
         try {
             if (Planner.big(d)) {
                 Pack.Blocks occ = pack.blocks(d);
@@ -251,6 +252,22 @@ public final class MusePlugin extends JavaPlugin implements Listener {
             if (guarded(ctx.world, cx, cz)) return false;
             if (inhabited(ctx.world, cx, cz) > inhabitedLimit) return false;
         }
+        return true;
+    }
+
+    /** Lost Cities (2026-09-26): HorrorBiomes 3.27.6+ answers for JasprLostCities; an older HorrorBiomes reserves nothing. */
+    static boolean cityReserved(long seed, int x, int z, int w, int dp) {
+        try { return chat.jaspr.biomes.Cities.reserved(seed, x, z, w, dp); }
+        catch (LinkageError e) { return false; }
+    }
+
+    /** A site planned before JasprLostCities and not yet begun yields to a Lost City that will be built over it. */
+    private boolean yieldsToCity(Context ctx, Ledger.Record r) {
+        if (r.plan == null || r.abandoned || !r.stamped.isEmpty()) return false;
+        if (!cityReserved(ctx.world.getSeed(), r.plan.x, r.plan.z, r.plan.design.width(), r.plan.design.depth())) return false;
+        r.abandoned = true; r.cityYield = true;
+        try { ctx.ledger.save(r); } catch (IOException e) { fail("ledger", r.cx, r.cz, e); }
+        getLogger().info("MUSE_SITE_YIELDED_TO_CITY site=" + r.site + " x=" + r.x + " z=" + r.z);
         return true;
     }
 
@@ -331,7 +348,7 @@ public final class MusePlugin extends JavaPlugin implements Listener {
             Ledger.Record r;
             try { r = ctx.ledger.get(world.getSeed(), Math.floorDiv(cx, Planner.CELL_CHUNKS), Math.floorDiv(cz, Planner.CELL_CHUNKS), planner, ctx.ground); }
             catch (IOException e) { fail("ledger", cx, cz, e); return; }
-            if (r.plan == null || !r.plan.intersects(cx, cz) || r.abandoned) return;
+            if (r.plan == null || !r.plan.intersects(cx, cz) || r.abandoned || yieldsToCity(ctx, r)) return;
             if (!r.retrofit && touchesExisting(ctx, r.plan)) { r.retrofit = true; queueRetrofit(ctx, r); }
             build(ctx, r, chunk, false);
         }

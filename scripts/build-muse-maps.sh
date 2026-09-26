@@ -8,7 +8,8 @@ OUT=${1:-$ROOT/server/plugins}
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 SEP=':'; NATIVE_ROOT=$ROOT
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) SEP=';'; NATIVE_ROOT=$(cygpath -m "$ROOT");; esac
-CP="$NATIVE_ROOT/server/cache/patched_1.12.2.jar${SEP}$NATIVE_ROOT/server/plugins/JasprHorrorBiomes.jar"
+# MUSE_HB_JAR: compile against a newer (not yet deployed) JasprHorrorBiomes jar.
+CP="$NATIVE_ROOT/server/cache/patched_1.12.2.jar${SEP}${MUSE_HB_JAR:-$NATIVE_ROOT/server/plugins/JasprHorrorBiomes.jar}"
 mkdir -p "$WORK/code" "$WORK/pack"
 javac -nowarn --release 8 -encoding UTF-8 -Xlint:-options -cp "$CP" -d "$WORK/code" $(find "$P/src" -name '*.java')
 cp "$P/resources/"* "$WORK/code/"

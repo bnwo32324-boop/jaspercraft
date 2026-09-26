@@ -34,6 +34,8 @@ public final class Ledger {
         public boolean retrofitDone;
         /** Retrofit gave up (a player arrived first); the new-ground tiles still build. */
         public boolean abandoned;
+        /** Planned before JasprLostCities and not yet begun: yielded to the Lost City that will stand there (abandoned too). */
+        public boolean cityYield;
         public boolean bossDefeated;
         public long bossDefeatedAt;
         public boolean vaultOpened;

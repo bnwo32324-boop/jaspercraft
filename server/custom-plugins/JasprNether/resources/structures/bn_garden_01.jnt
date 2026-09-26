@@ -1,0 +1,15 @@
+name bn_garden_01
+size 7 7 9
+palette 11
+minecraft:netherrack 0 0
+betternether:nether_brick_tile_large 0 0
+betternether:nether_brick_tile_small 0 0
+betternether:nether_mycelium 0 0
+betternether:nether_brick_tile_stairs 2 0
+betternether:nether_brick_wall 0 0
+minecraft:air 0 0
+minecraft:lava 0 0
+betternether:red_mold 0 0
+betternether:egg_plant 0 0
+betternether:nether_brick_tile_stairs 3 0
+data /////////////////////wAAAP////8AAP////////8A/////////////////////////////////////////wAA//8A//8AAAAAAP//AAAAAAAAAAAAAAAA//8AAAAAAP8AAAAAAAAA/wAAAAAAAAAAAAAAAP//AP8A////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQQEAgQEAQEDAwcDAwEBAwMHAwMBAQMDBwMDAQEDAwcDAwEBAwMHAwMBAQMDBwMDAQEDAwcDAwEBCgoCCgoBBQYGBgYGBQUICAYJCQUFCAgGCQkFBQgIBgkJBQUICAYJCQUFCAgGCQkFBQgIBgkJBQUICAYJCQUFBgYGBgYF////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

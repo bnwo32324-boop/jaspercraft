@@ -1,0 +1,20 @@
+name bn_altar_02
+size 5 12 5
+palette 16
+minecraft:netherrack 0 0
+betternether:nether_brick_tile_small 0 0
+betternether:cincinnasite_tile_large 0 0
+betternether:nether_brick_tile_large 0 0
+betternether:nether_brick_tile_stairs 0 0
+betternether:nether_brick_tile_stairs 2 0
+minecraft:air 0 0
+betternether:nether_brick_tile_stairs 6 0
+betternether:nether_brick_tile_stairs 5 0
+betternether:nether_brick_tile_stairs 1 0
+betternether:nether_brick_tile_stairs 4 0
+betternether:nether_brick_tile_slab_half 0 0
+betternether:cincinnasite_fire_bowl 0 0
+betternether:nether_brick_wall 0 0
+betternether:nether_brick_tile_stairs 3 0
+betternether:nether_brick_tile_stairs 7 0
+data ////////////AP8A/wD//wAA////////////AP//AAAAAP//AAAAAAAAAAD//wAA//8A/wAA//8AAAAAAAAAAAAAAAAAAP8AAAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQFBQUFBAEBAQkBAQEBAQQBAQEJDg4ODg4GBgYGBgYGBgYGAwYMBgMGBgYGBgYGBgYGBgYGBgYGBgYGBg0GBgYNBgYGBgYGBgYGBgYGBgYGBgYGBgYNBgYGDQYGBgYGBgYGBgYGBgYGBgYGBgYGDQYGBg0GBgYGBgYGBgYGBgYGBgYGBgYGBgMGBgYDBgYGBgYGBgYGBgcHBwcICgICAggBAv8CAQoCAgIIDw8PDwj///////8LCwv//wv/C///CwsL////////

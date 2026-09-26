@@ -1,0 +1,16 @@
+name bn_pillar_01
+size 3 10 3
+palette 12
+betternether:nether_brick_tile_large 0 0
+betternether:cincinnasite_tile_large 0 0
+minecraft:air 0 0
+betternether:nether_brick_wall 0 0
+betternether:nether_brick_tile_stairs 2 0
+betternether:nether_brick_tile_stairs 4 0
+betternether:nether_brick_tile_stairs 6 0
+betternether:nether_brick_tile_stairs 5 0
+betternether:nether_brick_tile_stairs 0 0
+betternether:nether_brick_tile_stairs 1 0
+betternether:nether_brick_tile_stairs 3 0
+betternether:nether_brick_tile_stairs 7 0
+data /wD/AAAA/wD//wD/AAEA/wD/AgMCAwEDAgMCAgMCAwEDAgMCAgMCAwEDAgMCAgMCAwEDAgMCAgMCAwEDAgMCAgQCCAAJAgoC/wD/AAAA/wD/BQYHBQAHCwsH

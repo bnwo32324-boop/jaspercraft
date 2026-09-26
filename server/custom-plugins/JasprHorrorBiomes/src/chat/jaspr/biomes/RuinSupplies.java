@@ -9,7 +9,8 @@ public final class RuinSupplies extends BlockPopulator {
         // chests are tile entities, and ChunkData carries block ids only.
         try {
             Terrain t=new Terrain(w.getSeed());
-            Dungeons.populate(w,c,t,new Caves(t));
+            // Lost Cities (2026-09-26): a city chunk gets no rooms, set pieces or spawner rooms; the city fills it.
+            if(!Cities.reserved(w.getSeed(),c.getX()*16,c.getZ()*16,16,16))Dungeons.populate(w,c,t,new Caves(t));
         } catch(RuntimeException e){
             Bukkit.getLogger().warning("[JasprHorrorBiomes] DUNGEON_FAILED chunk="+c.getX()+","+c.getZ()+" "+e);
         }

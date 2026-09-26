@@ -1,0 +1,26 @@
+name bn_respawn_point_02
+size 5 9 5
+palette 21
+minecraft:netherrack 0 0
+betternether:reeds_block 0 0
+betternether:cincinnasite_forged 0 0
+betternether:bone_tile 0 0
+minecraft:bone_block 0 0
+minecraft:air 0 0
+betternether:cincinnasite_stairs 2 0
+betternether:cincinnasite_stairs 1 0
+betternether:cincinnasite_stairs 0 0
+betternether:cincinnasite_pot 0 0
+betternether:potted_plant_1 0 0
+betternether:cincinnasite_pedestal 0 0
+betternether:pig_statue_01 0 0
+betternether:cincinnasite_stairs 6 0
+betternether:cincinnasite_wall 0 0
+betternether:reeds_fence 0 0
+betternether:cincinnasite_stairs 4 0
+betternether:cincinnasite_stairs 5 0
+betternether:cincinnasite_slab_half 0 0
+betternether:cincinnasite_stairs 3 0
+betternether:cincinnasite_stairs 7 0
+data /////////wD///8AAAD//wAAAP////////8AAAD//wAAAP8AAAAAAAAAAAAAAAAAAAAFBgYHBQUIAQcFBggBBwYIAQEBAhMTExMHBQUFBQUFBQkFBQUFCwUFDgMEAw4FBQUFBQUFBQUFBQUKBQUFBQwFBQ8DBAMPBQUFBQUFBQUFBQUFBQUFBQUFBQUPAwQDDwUFBQUF/wUFBf8FBQUFBQUFBQUFDgMEAw4FBQUFBf//Bf//BQUFBQUNDQ0NDRACAgIRFBQUFBH/////////Bf///wUFBf8FEhISBf8FBQX/
+marker 2 4 2 statue -

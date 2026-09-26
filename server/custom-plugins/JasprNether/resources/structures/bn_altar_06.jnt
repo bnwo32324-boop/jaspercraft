@@ -1,0 +1,25 @@
+name bn_altar_06
+size 7 11 7
+palette 21
+minecraft:netherrack 0 0
+betternether:cincinnasite_forged 0 0
+betternether:nether_brick_tile_large 0 0
+betternether:nether_brick_tile_stairs 0 0
+betternether:nether_brick_tile_stairs 2 0
+betternether:nether_brick_tile_stairs 1 0
+minecraft:air 0 0
+betternether:nether_brick_wall 0 0
+betternether:reeds_fence 0 0
+betternether:nether_brick_tile_stairs 5 0
+betternether:nether_brick_tile_stairs 4 0
+betternether:nether_brick_tile_slab_half 0 0
+betternether:nether_brick_tile_stairs 6 0
+betternether:nether_brick_tile_stairs 7 0
+betternether:cincinnasite_stairs 2 0
+betternether:cincinnasite_stairs 1 0
+minecraft:flowing_lava 0 0
+betternether:cincinnasite_stairs 0 0
+minecraft:lava 0 0
+betternether:nether_brick_tile_stairs 3 0
+betternether:cincinnasite_stairs 3 0
+data ////////////AAAA////AAAAAAD//wAAAAAA//8AAAAAAP///wAAAP///////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADBAQEBAQFAwEBAQEBBQMBAgICAQUDAQICAgEFAwECAgIBBQMBAgICAQUDExMTExMTBgYGBgYGBgYHBgYGBwYGBwQEBAcGBgcDEAUHBgYHAwIFBwYGBwMTBQcGBgYGBgYGBgYGBgYGBgYGCAYGBggGBgYGBgYGBgYGBhAGBgYGBgwSDAYGBggKDQkIBgYGBgYGBgYGBgYGBgYGBggGBgYIBgYGBgYGBgYGBgYGBgYGBgYDDAUGBgYIExMTCAYGBgYGBgYGBgYGBgYGBgYHBgYGBwYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBwYGBgcGBgYGBgYGBgYGBgYGBgYGAgYGBgIGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgIGBgYCBgYGBgYGBgb/BgYGBgb/BgIJBgoCBgYNBgYGDQYGBgYGBgYGBgwGBgYMBgYCCQYKAgb/BgYGBgb///8GBgb///8LAwwFC/8GBAEBAQQGBgoBBgEJBgYTAQEBEwb/CwMNBQv///8GBgb//////wb//////wYGBv///wYODg8G/wYGEQEPBgb/BhEUFAb///8GBgb//////wb///8=

@@ -1,0 +1,17 @@
+# JasprNether configuration
+# The Nether world this plugin decorates (Environment NETHER only). Overworld and End are never touched.
+world: world_nether
+# The owner asked for the existing Nether to be regenerated: on the first start only, the old Nether's region files
+# are moved (not deleted) to plugins/JasprNether/nether-before-v1/ and the Nether generates afresh as players explore.
+regenerate-once: true
+difficulty:
+  # monster spawn cap of the Nether world = server monster cap x this (NetherEx densities x1.5)
+  density-multiplier: 1.5
+  # Nether hostiles (vanilla and custom) get this much more health and damage
+  health-multiplier: 1.25
+  damage-multiplier: 1.25
+  # chance that a custom natural spawn (or a Hell ghast) is its biome's elite variant
+  elite-chance: 0.06
+mobs:
+  # hard cap on custom mobs tracked by the plugin (natural replacement stops at the cap)
+  max-tracked: 250

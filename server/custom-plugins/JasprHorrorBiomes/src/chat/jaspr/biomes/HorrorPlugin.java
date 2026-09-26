@@ -149,12 +149,16 @@ public final class HorrorPlugin extends JavaPlugin implements Listener {
             int n2=StructureRates.initializeV2(w);
             if(n2<0)getLogger().severe("RATES_V2_BOUNDARY_FAILED file="+StructureRates.BOUNDARY_FILE_V2+" -- the 3.28.0 extra structures are disabled; older placement is unaffected");
             else getLogger().info("RATES_V2_BOUNDARY_READY protectedChunks="+n2+" tier2=set-pieces,rooms-D,catalogue,sanctuaries vanillaRoomAttempts="+Dungeons.ATTEMPTS_V2);}
-        if(w.getEnvironment()!=World.Environment.NORMAL&&!w.getPopulators().stream().anyMatch(p->p instanceof OuterRealms))w.getPopulators().add(new OuterRealms());
+        // JasprNether (2026-09-26): BetterNether + NetherEx own the Nether; Outer Realms stays in the End only.
+        if(w.getEnvironment()!=World.Environment.NORMAL&&!netherOwned(w)&&!w.getPopulators().stream().anyMatch(p->p instanceof OuterRealms))w.getPopulators().add(new OuterRealms());
+    }
+    static boolean netherOwned(World w){
+        return w.getEnvironment()==World.Environment.NETHER&&Bukkit.getPluginManager().getPlugin("JasprNether")!=null;
     }
     public Catalog.Profile at(World w,int x,int z){return w.getEnvironment()==World.Environment.NORMAL?new Terrain(w.getSeed()).sample(x,z).profile:OuterRealms.profile(w,x,z);}
     private void ambience(){
         Set<UUID> online=new HashSet<>();for(Player p:Bukkit.getOnlinePlayers()){
-            online.add(p.getUniqueId());if(p.getWorld().getName().equals("jaspr_backrooms"))continue;Catalog.Profile b=at(p.getWorld(),p.getLocation().getBlockX(),p.getLocation().getBlockZ());Integer old=regions.put(p.getUniqueId(),b.index);
+            online.add(p.getUniqueId());if(p.getWorld().getName().equals("jaspr_backrooms")||netherOwned(p.getWorld()))continue;Catalog.Profile b=at(p.getWorld(),p.getLocation().getBlockX(),p.getLocation().getBlockZ());Integer old=regions.put(p.getUniqueId(),b.index);
             if(old==null||old!=b.index)p.sendTitle(ChatColor.GRAY+b.name,ChatColor.DARK_GRAY+"The world remembers.",10,45,15);
             // Low-rate local accents only: no blindness, forced sound settings, emissive entities or network frame loop.
             if(p.getWorld().getFullTime()%600<100){

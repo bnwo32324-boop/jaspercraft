@@ -1,0 +1,8 @@
+name bn_city_road_end_01
+size 5 2 2
+palette 3
+betternether:nether_brick_tile_large 0 0
+minecraft:air 0 0
+betternether:nether_brick_wall 0 0
+data AAAAAAAAAAAAAAIBAQECAgICAgI=
+marker 2 1 0 end -

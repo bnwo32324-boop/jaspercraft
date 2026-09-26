@@ -1,0 +1,14 @@
+name bn_altar_01
+size 3 3 3
+palette 6
+minecraft:netherrack 0 0
+betternether:cincinnasite_pillar 0 0
+minecraft:skull 1 3
+betternether:cincinnasite_wall 0 0
+minecraft:air 0 0
+betternether:cincinnasite_fire_bowl 0 0
+data AP8A/wD/AP8AAwQDBAEEAwQDAgQCBAUEAgQC
+marker 0 2 0 skull 1:14
+marker 2 2 0 skull 1:2
+marker 0 2 2 skull 1:10
+marker 2 2 2 skull 1:6

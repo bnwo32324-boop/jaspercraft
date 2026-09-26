@@ -1,0 +1,31 @@
+name bn_portal_02
+size 9 16 9
+palette 27
+minecraft:netherrack 0 0
+betternether:reeds_block 0 0
+betternether:cincinnasite_pillar 0 0
+betternether:cincinnasite_forged 0 0
+minecraft:obsidian 0 0
+betternether:reeds_stairs 2 0
+betternether:cincinnasite_pedestal 0 0
+minecraft:air 0 0
+betternether:reeds_fence 0 0
+betternether:cincinnasite_wall 0 0
+betternether:cincinnasite_slab_half 8 0
+betternether:reeds_stairs 1 0
+betternether:reeds_stairs 0 0
+betternether:reeds_stairs 5 0
+betternether:reeds_stairs 4 0
+betternether:cincinnasite_stairs 0 0
+betternether:cincinnasite_stairs 2 0
+betternether:cincinnasite_stairs 1 0
+betternether:cincinnasite_stairs 4 0
+betternether:cincinnasite_stairs 6 0
+betternether:cincinnasite_stairs 5 0
+betternether:reeds_stairs 3 0
+betternether:reeds_stairs 7 0
+betternether:reeds_stairs 6 0
+betternether:cincinnasite_fire_bowl 0 0
+betternether:cincinnasite_stairs 7 0
+betternether:cincinnasite_stairs 3 0
+data /////////////////////////////wD/AP////8AAAAA//////8AAAAAAP////8AAAAA////////AAAA/////////wD/////////////////////AP8A//////8AAAAAAAD/AAAAAAAAAAD//wAAAAAAAAAA/wAAAAAAAAAAAAAAAAAAAAD//wAAAAAAAAD///8AAAAAAP8A////AP8AAP//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQUFBQUFBQUBDAEBAQEBAQEBDAEBAQEBAQEBDAEBAQEBAQEBAQEBAQEBAQEBDAEBBAQEAQELDAEBAQEBAQELDAEBAQEBAQELARUVFQEVFRUBBgcHBwcHBwcGBwcHBwcHBwcHBwcHBwcHBwcHBxgHBwcHBxgHBgcCBwcHAgcGBwEEBwcHBAEHBwcBAQEBAQcHBwcHBwcHBwcHBgcHBwYHBwcGCAcHBwcHBwcIBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHCAcCBwcHAgcIBwEEBwcHBAEHBwcBAQEBAQcHBwcHBwcHBwcHCAcHBwgHBwcICAcHBwcHBwcIBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHCAcCBwcHAgcIBwEEBwcHBAEHBwcBAQEBAQcHBwcHBwcHBwcHCAcHBwgHBwcICQcHBwcHBwcJBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHCQcCBwcHAgcJBwEEBwcHBAEHBwcBAQEBAQcHBwcHBwcHBwcHCQcHBwkHBwcJAQoKCgoKCgoBCgcHBwcHBwcKCgcHBwcHBwcKCgcHBwcHBwcKAQcBBwcHAQcBCgEEBwcHBAEKCgcBAQEBAQcKCgcHBwcHBwcKAQoKCgEKCgoBAQsMDAELCwwBFQcHBwcHBwcVBQcHBwcHBwcFBQcHBwcHBwcFAQcBFxcXAQcBFQEEBAQEBAEVFQcBAQEBAQcVBQcHBwcHBwcFAQsMDAELCwwBAQ0ODgINDQ4BFgcHBwEHBwcWFwcHBwcHBwcXFwcHBwcHBwcXAgEBAQEBAQECFgcHBwcHBwEWFgcBAQEBAQcWFwcHBwcHBwcXAQ0ODgINDQ4BDxAQEAIQEBARDwMDAwMDAwMRDwMDAwMDAwMRDwMDAwMDAwMRAgMDAwMDAwMCDwMDAwMDAwMRDwMDAwMDAwMRDwMDAwMDAwMRGhoaGgIaGhoRBwcHBwIHBwcHBwEBAQEBAQEHBwEHBwcHBwEHBwEHBwcHBwEHAgEHBwcHBwECBwEHBwcHBwEHBwEHBwcHBwEHBwEBAQEBAQEHBwcHBwIHBwcHEhMTEgMUExMUEgEBAQEBAQEUEgEHBwcHBwEUEwEHBwcHBwETAwEHBwcHBwEDGQEHBwcHBwEZEgEHBwcHBwEUEgEBAQEBAQEUEhkZEgMUGRkZ//8HBwcHB////wwFBQUFBQX/BwwBAQEBAQsHBwwBAQEBAQsHBwwBAQEBAQsHBwwBAQEBAQsHBwwBAQEBAQsH/xUVFRUVFQv///8HBwcHB////////wf//////////wf/////////BwcH//////8HBwcHB///BwcHBwcHBwcH//8HBwcHB///////BwcH/////////wf//////////wf/////

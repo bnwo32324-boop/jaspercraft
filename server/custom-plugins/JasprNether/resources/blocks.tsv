@@ -1,0 +1,140 @@
+# JasprNether block emulation table -- the ONE place where BetterNether / NetherEx blocks become vanilla 1.12 blocks.
+# Structure templates keep the mod block ids; world generation and mechanics resolve every mod block through this file.
+# To use genuine custom blocks later, change the vanilla column (and meta) here only.
+#
+# source        mod block id (betternether:* or netherex:*)
+# meta          mod meta: * = any, or a number. Shaped blocks use the vanilla-shape encoding of the same family
+#               (stairs/doors/gates/ladders/slabs as vanilla: slab bottom 0 / top 8; facing 2-5 north/south/west/east;
+#               colour 0-15; huge-mushroom cap position 0-15).
+# vanilla       vanilla 1.12 block name, or "void" = place nothing (keep the world block).
+# vanilla_meta  number, "=" = same as the mod meta, "+N" = mod meta plus N.
+# role          structure (template decoration), worldgen (generated terrain/flora), mechanic (a plugin rule keys on it),
+#               player (only placed by players from a JasprNether item).
+# Pop-proof rule: stand-ins never need soil a physics update could remove (no grass, cactus, sugar cane, saplings, vines).
+#
+# source	meta	vanilla	vanilla_meta	role	note
+# ---------------------------------------------------------------- BetterNether: bone
+betternether:bone_block	*	minecraft:bone_block	0	structure	bone block
+betternether:bone_tile	*	minecraft:quartz_block	0	structure	bone-white tiles
+betternether:bone_stairs	*	minecraft:quartz_stairs	=	structure
+betternether:bone_slab_half	*	minecraft:stone_slab	+7	structure	quartz slab
+betternether:bone_wall	*	minecraft:birch_fence	0	structure	pale thin wall
+betternether:bone_cincinnasite_door	*	minecraft:birch_door	=	structure
+betternether:bone_reed_door	*	minecraft:spruce_door	=	structure
+betternether:bone_mushroom	0	minecraft:brown_mushroom	0	worldgen	floor spores on bone
+betternether:bone_mushroom	1	void	0	worldgen	wall spores: no pop-proof stand-in
+# ---------------------------------------------------------------- BetterNether: cincinnasite (golden metal)
+betternether:cincinnasite_ore	*	minecraft:redstone_ore	0	mechanic	drops Cincinnasite in the Nether
+betternether:cincinnasite_forged	*	minecraft:stained_hardened_clay	4	structure	yellow terracotta
+betternether:cincinnasite_bricks	*	minecraft:sandstone	2	structure	smooth sandstone
+betternether:cincinnasite_bricks_pillar	*	minecraft:sandstone	2	structure
+betternether:cincinnasite_pillar	*	minecraft:sandstone	2	structure
+betternether:cincinnasite_tile_large	*	minecraft:sandstone	2	structure
+betternether:cincinnasite_tile_small	*	minecraft:sandstone	0	structure
+betternether:cincinnasite_carved	*	minecraft:sandstone	1	structure	chiseled sandstone
+betternether:cincinnasite_pedestal	*	minecraft:sandstone	1	structure
+betternether:cincinnasite_stairs	*	minecraft:sandstone_stairs	=	structure
+betternether:cincinnasite_slab_half	*	minecraft:stone_slab	+1	structure	sandstone slab
+betternether:cincinnasite_slab_double	*	minecraft:double_stone_slab	1	structure
+betternether:cincinnasite_wall	*	minecraft:acacia_fence	0	structure	orange thin wall
+betternether:cincinnasite_bars	*	minecraft:iron_bars	0	structure
+betternether:cincinnasite_brick_plate	*	minecraft:carpet	4	structure	yellow carpet (worthless plate)
+betternether:cincinnasite_fire_bowl	*	minecraft:glowstone	0	structure	lit bowl, light 15
+betternether:cincinnasite_lantern	*	minecraft:glowstone	0	structure	light 15
+betternether:cincinnasite_pot	*	minecraft:flower_pot	0	structure
+betternether:cincinnasite_forge	*	minecraft:furnace	=	structure	working furnace
+betternether:potted_plant_1	*	minecraft:flower_pot	0	structure
+betternether:stalagnate_bowl_placed	*	minecraft:flower_pot	0	structure
+betternether:pig_statue_01	*	minecraft:stonebrick	3	mechanic	Respawner Statue (registered positions only)
+# ---------------------------------------------------------------- BetterNether: nether-brick tiles
+betternether:nether_brick_tile_large	*	minecraft:red_nether_brick	0	structure
+betternether:nether_brick_tile_small	*	minecraft:nether_brick	0	structure
+betternether:nether_brick_tile_stairs	*	minecraft:nether_brick_stairs	=	structure
+betternether:nether_brick_tile_slab_half	*	minecraft:stone_slab	+6	structure	nether brick slab
+betternether:nether_brick_wall	*	minecraft:nether_brick_fence	0	structure
+# ---------------------------------------------------------------- BetterNether: reeds and stalagnate wood
+betternether:reeds_block	*	minecraft:planks	1	structure	spruce planks
+betternether:reeds_fence	*	minecraft:spruce_fence	0	structure
+betternether:reeds_ladder	*	minecraft:ladder	=	structure
+betternether:reeds_slab_half	*	minecraft:wooden_slab	+1	structure
+betternether:reeds_stairs	*	minecraft:spruce_stairs	=	structure
+betternether:stalagnate_planks	*	minecraft:planks	2	structure	birch planks
+betternether:stalagnate_planks_fence	*	minecraft:birch_fence	0	structure
+betternether:stalagnate_planks_slab_half	*	minecraft:wooden_slab	+2	structure
+betternether:stalagnate_planks_stairs	*	minecraft:birch_stairs	=	structure
+betternether:stalagnate_stem	*	minecraft:brown_mushroom_block	15	structure	all-stem block
+# ---------------------------------------------------------------- BetterNether: glass
+betternether:quartz_glass_framed	*	minecraft:glass	0	structure
+betternether:quartz_glass_framed_pane	*	minecraft:glass_pane	0	structure
+betternether:quartz_stained_glass_framed	*	minecraft:stained_glass	=	structure	mod meta = colour
+# ---------------------------------------------------------------- BetterNether: terrain and flora
+betternether:nether_mycelium	*	minecraft:mycelium	0	worldgen	mushroom-forest ground
+betternether:netherrack_moss	*	minecraft:mossy_cobblestone	0	worldgen	jungle/grassland ground
+betternether:nether_grass	*	minecraft:nether_wart	0	worldgen	young wart sprout, placed only on soul sand
+betternether:wart_seed	*	void	0	worldgen	no pop-proof stand-in
+betternether:nether_reed	*	minecraft:jungle_fence	0	worldgen	reed stalks beside lava
+betternether:smoker	*	minecraft:cobblestone_wall	0	worldgen	chimney column (smoke particles)
+betternether:egg_plant	*	minecraft:web	0	mechanic	Poison IV on contact
+betternether:red_mold	*	minecraft:carpet	14	worldgen	red mat on mycelium
+betternether:gray_mold	*	minecraft:carpet	8	worldgen	gray mat on mycelium
+betternether:orange_mushroom	*	minecraft:red_mushroom	0	worldgen
+betternether:stalagnate_bottom	*	minecraft:brown_mushroom_block	15	worldgen	floor-to-ceiling column
+betternether:stalagnate_middle	*	minecraft:brown_mushroom_block	10	worldgen
+betternether:stalagnate_top	*	minecraft:brown_mushroom_block	15	worldgen
+betternether:lucis_mushroom	0	minecraft:glowstone	0	worldgen	glowing wall shelf, heart
+betternether:lucis_mushroom	1	minecraft:brown_mushroom_block	14	worldgen	shelf rim
+betternether:eye_vine	*	minecraft:nether_brick_fence	0	worldgen	hanging vine
+betternether:block_eyeball	*	minecraft:red_mushroom_block	14	worldgen	large eye
+betternether:block_eyeball_small	*	minecraft:nether_wart_block	0	worldgen	small eye
+betternether:nether_cactus	*	minecraft:stained_hardened_clay	13	worldgen	green column on gravel
+betternether:barrel_cactus	*	minecraft:melon_block	0	worldgen
+betternether:agave	*	minecraft:leaves	6	worldgen	birch leaves, no decay
+betternether:black_bush	*	minecraft:leaves2	5	worldgen	dark oak leaves, no decay
+betternether:ink_bush	*	minecraft:leaves	5	worldgen	spruce leaves, no decay
+betternether:black_apple	*	minecraft:leaves2	4	mechanic	acacia leaves; drops a Black Apple
+betternether:magma_flower	*	minecraft:carpet	1	worldgen	orange tuft on magma
+betternether:red_large_mushroom	0	minecraft:brown_mushroom_block	10	worldgen	stalk
+betternether:red_large_mushroom	1	minecraft:red_mushroom_block	14	worldgen	cap
+betternether:brown_large_mushroom	*	minecraft:brown_mushroom_block	=	worldgen	mod meta = huge-mushroom cap position
+# ---------------------------------------------------------------- NetherEx: terrain
+netherex:gloomy_netherrack	*	minecraft:stained_hardened_clay	12	worldgen	Ruthless Sands rock (brown terracotta)
+netherex:fiery_netherrack	*	minecraft:stained_hardened_clay	1	worldgen	Torrid Wasteland rock (orange terracotta)
+netherex:lively_netherrack	*	minecraft:stained_hardened_clay	2	worldgen	Fungi Forest rock (magenta terracotta)
+netherex:icy_netherrack	*	minecraft:stained_hardened_clay	3	worldgen	Arctic Abyss rock (light blue terracotta)
+netherex:basalt	*	minecraft:stained_hardened_clay	15	worldgen	black terracotta veins
+netherex:hyphae	*	minecraft:mycelium	0	worldgen	Fungi Forest ground
+netherex:frostburn_ice	*	minecraft:packed_ice	0	worldgen	Arctic Abyss ground
+netherex:ichor	*	minecraft:water	0	worldgen	Arctic Abyss pools
+netherex:quartz_ore	*	minecraft:quartz_ore	0	worldgen
+netherex:amethyst_ore	*	minecraft:emerald_ore	0	mechanic	drops Nether Amethyst Crystal in the Nether
+netherex:rime_ore	*	minecraft:lapis_ore	0	mechanic	drops Nether Rime Crystal in the Nether
+netherex:netherrack_path	*	minecraft:stained_hardened_clay	14	structure	trodden path (red terracotta)
+# ---------------------------------------------------------------- NetherEx: flora and fire
+netherex:thornstalk	*	minecraft:dark_oak_fence	0	mechanic	contact damage 1 (x1.25)
+netherex:brown_elder_mushroom_cap	*	minecraft:brown_mushroom_block	=	worldgen	mod meta = cap position
+netherex:red_elder_mushroom_cap	*	minecraft:red_mushroom_block	=	worldgen	mod meta = cap position
+netherex:elder_mushroom_stem	*	minecraft:brown_mushroom_block	10	worldgen
+netherex:enoki_mushroom_stem	*	minecraft:birch_fence	0	worldgen	hanging chorus-like stems
+netherex:enoki_mushroom_cap	*	minecraft:brown_mushroom_block	15	worldgen
+netherex:brown_elder_mushroom	*	minecraft:brown_mushroom	0	structure
+netherex:red_elder_mushroom	*	minecraft:red_mushroom	0	structure
+netherex:elder_mushroom	0	minecraft:red_mushroom	0	structure	old id, type=red
+netherex:elder_mushroom	1	minecraft:brown_mushroom	0	structure	old id, type=brown
+netherex:blue_fire	*	minecraft:fire	0	mechanic	Fire Burning on contact (registered spots / Arctic Abyss)
+netherex:urn_of_sorrow	*	minecraft:cauldron	0	mechanic	summons the Ghast Queen (registered urns)
+netherex:rime_block	*	minecraft:sea_lantern	0	player	freezer (registered when placed)
+netherex:amethyst_block	*	minecraft:purpur_block	0	player	Gold Golem head
+# ---------------------------------------------------------------- NetherEx: building blocks in templates
+netherex:lively_nether_brick	*	minecraft:purpur_block	0	structure	magenta brick
+netherex:lively_nether_brick_stairs	*	minecraft:purpur_stairs	=	structure
+netherex:lively_nether_brick_slab	*	minecraft:purpur_slab	+0	structure
+netherex:fiery_nether_brick	*	minecraft:red_sandstone	2	structure	orange brick
+netherex:fiery_nether_brick_stairs	*	minecraft:red_sandstone_stairs	=	structure
+netherex:fiery_nether_brick_slab	*	minecraft:stone_slab2	+0	structure
+netherex:fiery_nether_brick_wall	*	minecraft:acacia_fence	0	structure
+netherex:red_nether_brick_stairs	*	minecraft:nether_brick_stairs	=	structure
+netherex:nether_brick_fence_gate	*	minecraft:dark_oak_fence_gate	=	structure
+netherex:soul_sandstone	*	minecraft:red_sandstone	0	structure	unused-in-2.2.5 arch
+netherex:soul_sandstone_slab	*	minecraft:stone_slab2	+0	structure
+netherex:spoul_shroom_cap	*	minecraft:brown_mushroom_block	14	structure	unused-in-2.2.5 shroom
+netherex:spoul_shroom_stem	*	minecraft:brown_mushroom_block	15	structure

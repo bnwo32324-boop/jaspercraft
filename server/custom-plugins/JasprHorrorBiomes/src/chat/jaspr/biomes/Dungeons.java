@@ -1343,6 +1343,13 @@ public final class Dungeons {
 
     /** admit=false is recognition (locate): the anchor as the lattice gives it, before the admission test. */
     private static Anchor anchor(Terrain t, int cx, int cz, int cell, long salt, int sizeX, int sizeZ, boolean admit) {
+        return cityless(t, anchorRaw(t, cx, cz, cell, salt, sizeX, sizeZ, admit), sizeX, sizeZ);
+    }
+    /** Lost Cities (2026-09-26): a room is neither built nor recognised where a city will stand. */
+    private static Anchor cityless(Terrain t, Anchor a, int sizeX, int sizeZ) {
+        return a != null && Cities.reserved(t.seed, a.x, a.z, sizeX, sizeZ) ? null : a;
+    }
+    private static Anchor anchorRaw(Terrain t, int cx, int cz, int cell, long salt, int sizeX, int sizeZ, boolean admit) {
         int span = (Math.max(sizeX, sizeZ) >> 4) + 1;
         for (int ox = -span; ox <= span; ox++) {
             for (int oz = -span; oz <= span; oz++) {
@@ -1378,6 +1385,9 @@ public final class Dungeons {
 
     /** admit=false is recognition (locate), as for anchor(). */
     private static Anchor surfaceAnchor(Terrain t, int cx, int cz, int cell, long salt, int sizeX, int sizeZ, boolean admit) {
+        return cityless(t, surfaceAnchorRaw(t, cx, cz, cell, salt, sizeX, sizeZ, admit), sizeX, sizeZ);
+    }
+    private static Anchor surfaceAnchorRaw(Terrain t, int cx, int cz, int cell, long salt, int sizeX, int sizeZ, boolean admit) {
         int span = (Math.max(sizeX, sizeZ) >> 4) + 1;
         for (int ox = -span; ox <= span; ox++) {
             for (int oz = -span; oz <= span; oz++) {

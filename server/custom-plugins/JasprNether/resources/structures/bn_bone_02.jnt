@@ -1,0 +1,11 @@
+name bn_bone_02
+size 5 9 3
+palette 7
+betternether:bone_block 0 0
+betternether:bone_stairs 4 0
+betternether:bone_stairs 2 0
+betternether:bone_mushroom 1 0
+betternether:bone_stairs 1 0
+betternether:bone_stairs 0 0
+betternether:bone_stairs 3 0
+data //////////8A////////////AP///wAAAP///wD///8BAv//AQAABP//AQb///8C////AAAE////Bv///wP///8BAAT///8D/////wP///8AAAP//wP/////A/////8ABP////////////////8AA////wP///////////8F////////////

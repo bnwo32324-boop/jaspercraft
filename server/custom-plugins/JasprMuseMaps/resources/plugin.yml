@@ -1,9 +1,9 @@
 name: JasprMuseMaps
-version: 1.0.0
+version: 1.0.1
 main: chat.jaspr.muse.MusePlugin
 load: STARTUP
 depend: [JasprHorrorBiomes, JasprMuseMapsPack]
-softdepend: [JasprImportedWorldgen, JasprApocalypse, JasprGear, JasprEnchantments]
+softdepend: [JasprLostCities, JasprImportedWorldgen, JasprApocalypse, JasprGear, JasprEnchantments]
 description: The owner's Muse+GLM_Maps structure collection, with its dangers, bosses, Essences and weapons.
 commands:
   musemaps:

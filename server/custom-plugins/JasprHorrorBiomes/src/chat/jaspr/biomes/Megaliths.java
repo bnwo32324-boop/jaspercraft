@@ -338,6 +338,8 @@ public final class Megaliths {
     }
 
     private static boolean fits(Terrain t, int k, int x, int z) {
+        // Lost Cities (2026-09-26): no set piece where a city will stand (primary and secondary lattices both come here).
+        if (Cities.reserved(t.seed, x, z, C_SX[k], C_SZ[k])) return false;
         if (!C_ATMO[k].isEmpty()
                 && !C_ATMO[k].equals(t.sample(x + C_SX[k] / 2, z + C_SZ[k] / 2).profile.atmosphere)) return false;
         int lo = 999, hi = -999;
