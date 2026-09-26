@@ -1482,6 +1482,12 @@ public final class Megaliths {
                     inv.addItem(new ItemStack(org.bukkit.Material.IRON_NUGGET, 8 + r.nextInt(9 + tier * 8)));
                 }
             }
+            // Common sidearms (2026-09-26): a weak pistol at one and a half times the gun's odds, decided from a
+            // copy of r so the megalith builds exactly as before.
+            if (gun) {
+                ItemStack sidearm = ExpeditionLoot.sidearm(r, Math.min(0.75, 1.5 / Math.max(2, 6 - tier)), 2);
+                if (sidearm != null) inv.addItem(sidearm, new ItemStack(org.bukkit.Material.IRON_NUGGET, 8));
+            }
             // Survivor Gear (3.26.0): at most one trinket, depth tier 0-4 as gear tier 1-5, from a copy of r keyed
             // to this chest (GearLoot.at), so r and everything the builder places after this chest are unchanged.
             GearLoot.add(inv, GearLoot.at(r, wx, wy, wz), tier + 1);
@@ -1526,6 +1532,8 @@ public final class Megaliths {
                 inv.addItem(weapon);
                 inv.addItem(new ItemStack(org.bukkit.Material.IRON_NUGGET, 24 + r.nextInt(33)));
             }
+            ItemStack sidearm = ExpeditionLoot.sidearm(r, 1.0, 3);    // 2026-09-26: the trove always has a sidearm
+            if (sidearm != null) inv.addItem(sidearm, new ItemStack(org.bukkit.Material.IRON_NUGGET, 8));
             // Survivor Gear (3.26.0): the trove is the site's hardest box, gear tier 5 (see graded()).
             GearLoot.add(inv, GearLoot.at(r, wx, wy, wz), 5);
             // No chest.update() here (removed 3.21.0): getBlockInventory() is the LIVE tile
@@ -1559,6 +1567,10 @@ public final class Megaliths {
                     inv.setItem(r.nextInt(inv.getSize()), weapon);
                     inv.addItem(new ItemStack(org.bukkit.Material.IRON_NUGGET, 8 + r.nextInt(17)));
                 }
+            }
+            if (gun) {                                                   // 2026-09-26: common sidearm, 1.5x gun odds
+                ItemStack sidearm = ExpeditionLoot.sidearm(r, 0.3, 2);
+                if (sidearm != null) inv.addItem(sidearm, new ItemStack(org.bukkit.Material.IRON_NUGGET, 8));
             }
             // Survivor Gear (3.26.0): a flat table without a depth grade, gear tier 1 (see graded()).
             GearLoot.add(inv, GearLoot.at(r, wx, wy, wz), 1);

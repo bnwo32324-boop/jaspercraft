@@ -39,6 +39,49 @@ public final class ExpeditionLoot {
         selected.add(choice);return (ItemStack)call("ApocalypseItems","expedition",new Class<?>[]{String.class,int.class},choice,tier);
     }
     /**
+     * Guns in structure loot are halved (owner, 2026-09-26: "make all the guns spawn about 50% less, in every chest
+     * and structure"). The keep/drop decision never draws from the caller's Random - in set pieces and megaliths
+     * that same stream goes on to place blocks - but from a copy of it, or from a separate stream keyed to the
+     * chest, so every other item and everything built after the chest is unchanged. A dropped gun leaves one of
+     * the weak common sidearms behind instead (Military Salvage if the pistol cannot be made).
+     */
+    static final double GUN_KEEP=0.5;
+    private static Random copyOf(Random r){return copyOf(r,0x47554E53L);}
+    private static Random copyOf(Random r,long salt){
+        try{
+            java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream(128);
+            try(java.io.ObjectOutputStream out=new java.io.ObjectOutputStream(bytes)){out.writeObject(r);}
+            try(java.io.ObjectInputStream in=new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray()))){
+                return new Random(Terrain.mix(((Random)in.readObject()).nextLong()^salt));
+            }
+        }catch(Exception e){return null;}                     // fail open: the gun stays
+    }
+    private static ItemStack thinned(ItemStack gun,Random thin,int tier,Set<String> selected){
+        if(gun==null||thin.nextDouble()<GUN_KEEP)return gun;
+        return pistolOrScrap(thin,tier,selected);
+    }
+    /** One common sidearm not already in this chest, or null while JasprApocalypse cannot make it. */
+    private static ItemStack pistol(Random rnd,int tier,Set<String> selected){
+        if(!ready())return null;
+        List<String> ids=new ArrayList<>(WeaponLootRules.sidearms());ids.removeAll(selected);
+        if(ids.isEmpty())return null;
+        String choice=ids.get(rnd.nextInt(ids.size()));
+        try{ItemStack item=(ItemStack)call("ApocalypseItems","expedition",new Class<?>[]{String.class,int.class},choice,tier);selected.add(choice);return item;}
+        catch(RuntimeException e){return null;}
+    }
+    private static ItemStack pistolOrScrap(Random rnd,int tier,Set<String> selected){
+        ItemStack item=pistol(rnd,tier,selected);return item!=null?item:custom("scrap",1+rnd.nextInt(3));
+    }
+    /**
+     * An extra common sidearm with the given chance, for dungeons and megaliths. Decided from a copy of the caller's
+     * stream, never the stream itself, so every block and item after it is unchanged. Null on a miss.
+     */
+    public static ItemStack sidearm(Random r,double chance,int tier){
+        Random s=copyOf(r,0x504953544F4CL);
+        if(s==null||s.nextDouble()>=chance)return null;
+        try{return pistol(s,tier,new HashSet<>());}catch(RuntimeException e){return null;}
+    }
+    /**
      * One salvage-grade firearm, for the small dungeons rather than the planned vaults.
      * Returns null rather than throwing when the equipment plugin is not up yet, because
      * this runs from world generation and a missing gun must never cost a chunk.
@@ -48,18 +91,24 @@ public final class ExpeditionLoot {
         try{
             List<String> ids=WeaponLootRules.starterGuns();
             String choice=ids.get(r.nextInt(ids.size()));
+            Random keep=copyOf(r);
+            if(keep!=null&&keep.nextDouble()>=GUN_KEEP)return pistolOrScrap(keep,2,new HashSet<>());
             return (ItemStack)call("ApocalypseItems","expedition",new Class<?>[]{String.class,int.class},choice,2);
         }catch(RuntimeException e){return null;}
     }
     public static List<ItemStack> fold(long seed,int room){Random r=new Random(Terrain.mix(seed+room*273611L));List<ItemStack> a=new ArrayList<>();Set<String> selected=new HashSet<>();a.add(new ItemStack(Material.BREAD,3+r.nextInt(5)));a.add(new ItemStack(Material.IRON_NUGGET,12+r.nextInt(13)));a.add(book(r,3));a.add(equipment("material",r,3));if(room%4==0)a.add(custom("relic",1));if(room==15){a.add(equipment("melee",r,3,"backroom",selected));a.add(equipment("melee",r,3,"backroom",selected));}else if(room%4==3&&r.nextBoolean())a.add(equipment("melee",r,3,"backroom",selected));
         // 3.27.0: the Fold's chests roll for Survivor Gear too (tier 3), from their own stream so r is untouched.
         ItemStack gear=GearLoot.roll(new Random(Terrain.mix(seed^room*0x9E3779B97F4A7C15L^0x464F4C4447454152L)),3);if(gear!=null)a.add(gear);
+        // Common sidearms (2026-09-26): one Fold room in four holds a weak pistol, from its own stream.
+        Random side=new Random(Terrain.mix(seed^room*0x2545F4914F6CDD1DL^0x504953544F4CL));
+        if(side.nextInt(4)==0){ItemStack p=pistol(side,3,selected);if(p!=null)a.add(p);}
         return a;}
     private static ItemStack trophy(StructurePlanner.Site site,int tier){ItemStack i=custom("expedition_trophy",1);ItemMeta a=i.getItemMeta();a.setDisplayName(ChatColor.GOLD+site.design.name+" — Expedition Trophy");a.setLore(Arrays.asList(ChatColor.GRAY+"Recovered from a tier "+tier+" guarded vault.",ChatColor.DARK_GRAY+"X "+site.x+" / Z "+site.z));i.setItemMeta(a);return i;}
     private static ItemStack potion(boolean strong){ItemStack i=new ItemStack(Material.POTION);PotionMeta p=(PotionMeta)i.getItemMeta();p.setBasePotionData(new PotionData(PotionType.INSTANT_HEAL,false,strong));i.setItemMeta(p);return i;}
     private static ItemStack book(Random r,int tier){ItemStack i=new ItemStack(Material.ENCHANTED_BOOK);EnchantmentStorageMeta m=(EnchantmentStorageMeta)i.getItemMeta();Enchantment[] a={Enchantment.DURABILITY,Enchantment.DAMAGE_ALL,Enchantment.PROTECTION_ENVIRONMENTAL,Enchantment.DIG_SPEED,Enchantment.ARROW_DAMAGE,Enchantment.LOOT_BONUS_BLOCKS};Enchantment e=a[r.nextInt(a.length)];m.addStoredEnchant(e,Math.min(e.getMaxLevel(),Math.max(1,tier-1)),false);i.setItemMeta(m);return i;}
     public static List<ItemStack> roll(long seed,StructurePlanner.Site site,StructurePlanner.Marker marker){
         int tier=Math.max(1,Math.min(5,site.design.tier));Random r=new Random(Terrain.mix(seed^site.key.hashCode()*173L^marker.ordinal*918273L));String role=marker.kind;
+        Random thin=new Random(Terrain.mix(seed^site.key.hashCode()*0x5bd1e995L^marker.ordinal*0x27d4eb2dL^0x47554E53L));
         List<Entry> pool=new ArrayList<>();List<ItemStack> out=new ArrayList<>();Set<String> selectedWeapons=new HashSet<>();String family=site.design.family.toLowerCase(Locale.ROOT);
         add(pool,Material.BREAD,16,2,7,1);add(pool,Material.COAL,12,3,12,1);add(pool,Material.TORCH,12,6,20,1);add(pool,Material.IRON_INGOT,8,1,5,1);add(pool,Material.STRING,7,2,6,1);add(pool,Material.LEATHER,7,2,5,1);
         add(pool,Material.ARROW,9,6,20,1);add(pool,Material.COOKED_BEEF,8,2,6,1);add(pool,Material.EXP_BOTTLE,5,2,8,2);add(pool,Material.SULPHUR,8,2,8,2);
@@ -78,13 +127,13 @@ public final class ExpeditionLoot {
         if((role.equals("armory")||role.equals("relic"))&&tier>=3)out.add(equipment("material",r,tier));
         // Purpose-built weapon caches now pay out reliably. IDs are selected without replacement.
         if(role.equals("armory")&&tier>=2)out.add(equipment("melee",r,tier,family,selectedWeapons));
-        if(role.equals("armory")&&tier>=4){out.add(equipment("gun",r,tier,family,selectedWeapons));out.add(new ItemStack(Material.IRON_NUGGET,48));}
-        if(role.equals("armory")&&tier==5&&r.nextBoolean())out.add(equipment("gun",r,tier,family,selectedWeapons));
+        if(role.equals("armory")&&tier>=4){out.add(thinned(equipment("gun",r,tier,family,selectedWeapons),thin,tier,selectedWeapons));out.add(new ItemStack(Material.IRON_NUGGET,48));}
+        if(role.equals("armory")&&tier==5&&r.nextBoolean())out.add(thinned(equipment("gun",r,tier,family,selectedWeapons),thin,tier,selectedWeapons));
         if((role.equals("medical")||role.equals("supply"))&&tier>=2&&r.nextInt(role.equals("medical")?5:6)==0)out.add(equipment("melee",r,tier,family,selectedWeapons));
         if(role.equals("relic")&&tier>=3&&r.nextBoolean())out.add(equipment("melee",r,tier,family,selectedWeapons));
         if(role.equals("relic")&&tier>=4&&r.nextInt(5)==0)out.add(equipment("armor",r,tier));
         if(role.equals("vault")){
-            if(tier>=4){out.add(equipment("gun",r,tier,family,selectedWeapons));out.add(equipment("gun",r,tier,family,selectedWeapons));out.add(equipment("melee",r,tier,family,selectedWeapons));out.add(equipment("armor",r,tier));out.add(new ItemStack(Material.IRON_NUGGET,64));}
+            if(tier>=4){out.add(thinned(equipment("gun",r,tier,family,selectedWeapons),thin,tier,selectedWeapons));out.add(thinned(equipment("gun",r,tier,family,selectedWeapons),thin,tier,selectedWeapons));out.add(equipment("melee",r,tier,family,selectedWeapons));out.add(equipment("armor",r,tier));out.add(new ItemStack(Material.IRON_NUGGET,64));}
             else if(tier>=2){out.add(equipment("melee",r,tier,family,selectedWeapons));if(tier==3){out.add(equipment("melee",r,tier,family,selectedWeapons));out.add(equipment("material",r,tier));}}
         }
         // Ecological supplies and clues are additional, not substitutes for the role's loot.
@@ -97,6 +146,12 @@ public final class ExpeditionLoot {
             int total=0;for(Entry e:pool)total+=e.weight;int pick=r.nextInt(total),index=0;while((pick-=pool.get(index).weight)>=0)index++;
             Entry e=pool.remove(index);int count=e.min+r.nextInt(e.max-e.min+1);out.add(e.material!=null?new ItemStack(e.material,count):custom(e.id,count));
         }
+        // Common sidearms (2026-09-26): weak pistols turn up far more often than guns ever did - every armory and
+        // vault, a quarter of the other caches, a second one in half the tier 3+ armories. Drawn from thin, so r's
+        // items above and the trinket below roll exactly as before.
+        double sidearmOdds=role.equals("armory")||role.equals("vault")?1.0:0.25;
+        if(thin.nextDouble()<sidearmOdds){ItemStack p=pistol(thin,tier,selectedWeapons);if(p!=null)out.add(p);}
+        if(role.equals("armory")&&tier>=3&&thin.nextBoolean()){ItemStack p=pistol(thin,tier,selectedWeapons);if(p!=null)out.add(p);}
         if(role.equals("vault"))out.add(trophy(site,tier));
         // Survivor Gear (3.26.0): at most one trinket at the site's tier I-V, drawn last from this chest's own r so
         // everything above rolls exactly as before (GearLoot; none while JasprGear is absent).

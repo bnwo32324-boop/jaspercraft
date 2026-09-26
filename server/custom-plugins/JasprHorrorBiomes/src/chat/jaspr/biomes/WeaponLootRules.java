@@ -12,8 +12,11 @@ public final class WeaponLootRules {
     /** Salvage-grade firearms: the only ones common finds are ever allowed to be. */
     private static final Set<String> STARTER_GUNS=ids("sepulcher turnstile cinder vesper whisper tunnelrat ossuary lockjaw cyclops bellringer tempest quarantine");
     public static List<String> starterGuns(){return new ArrayList<>(STARTER_GUNS);}
+    /** Common sidearms (2026-09-26): weak pistols that fill the loot the halved guns left. Never a tier 4/5 "gun" pick. */
+    private static final List<String> SIDEARMS=Collections.unmodifiableList(Arrays.asList("rapture","g18","magnum44","wingman","mozambique"));
+    public static List<String> sidearms(){return SIDEARMS;}
     private WeaponLootRules(){}
-    public static boolean eligible(String id,String category,int tier){return category.equals("gun")?tier>=4:!category.equals("melee")||tier>=3||tier==2&&STARTER_MELEE.contains(id);}
+    public static boolean eligible(String id,String category,int tier){return category.equals("gun")?tier>=4&&!SIDEARMS.contains(id):!category.equals("melee")||tier>=3||tier==2&&STARTER_MELEE.contains(id);}
     public static int weight(String family,String id){
         String f=family.toLowerCase(Locale.ROOT);
         boolean occult=f.matches(".*(castle|cathedral|crypt|catacomb|chapel|abbey|ossuary|tower|dungeon|shrine|monastery|fortress|reliquary|mortuary).*"),

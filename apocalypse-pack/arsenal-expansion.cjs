@@ -27,6 +27,12 @@ const gunSpecs = [
   ['pallbearer',1240,'belt',-9,2,'solid','steel'],
   ['ironpsalm',1230,'rotary',-7,2.25,'solid','gold'],
   ['deadfrequency',1220,'pulse',-10,1.6,'compact','green'],
+  // Common sidearms (2026-09-26): BioShock, Modern Warfare 2 and Titanfall 2 inspired.
+  ['rapture',1210,'pistol',-2,1.4,'none','gold'],
+  ['g18',1200,'machine',-1,1.25,'none','dark'],
+  ['magnum44',1190,'revolver',-5,1.55,'none','steel'],
+  ['wingman',1180,'revolver',-7,1.35,'none','energy'],
+  ['mozambique',1170,'triple',-3,1.9,'none','green'],
 ];
 const meleeSpecs = [
   ['gravespike',1450,'dirk',22,'dark'], ['railpick',1440,'pick',25,'steel'],

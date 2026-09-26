@@ -130,6 +130,13 @@ public final class Blueprints {
         add(map, "stormcoil", "gun/energy", "iiQ", "grD", "iRI");
         add(map, "pallbearer", "gun/energy", "iii", "hrU", "iDI");
         add(map, "ironpsalm", "gun/heavy", "iii", "hrU", "ipi");
+        // Common sidearms (2026-09-26): the cheapest a firearm may be (12 iron-equivalent), well under the arsenal's
+        // average of 28, but still an iron-block receiver, a redstone trigger and gunpowder, like every gun here.
+        add(map, "rapture", "gun/sidearm", "iII", "GRU", "SI.");    // brass Rapture furniture: gold fittings
+        add(map, "g18", "gun/sidearm", "iII", "SRt", "UI.");        // repeater: the burst selector
+        add(map, "magnum44", "gun/sidearm", "iII", "SRU", "OI.");   // obsidian-weighted heavy frame
+        add(map, "wingman", "gun/sidearm", "iIV", "SRU", ".II");    // glass: the Elite's precision sight
+        add(map, "mozambique", "gun/sidearm", "III", "iRU", "SU."); // three barrels over the receiver
         // Melee (2026-09-25 owner overhaul). Every one of these out-hits a diamond sword (7 damage, ~11 DPS):
         // 1.4-4x per hit and 1.2-2.5x per second. Cost follows power = sqrt(DPS ratio x hit ratio) against the
         // diamond sword (2 diamonds), in four bands, counted in diamond-equivalents (block = 9):

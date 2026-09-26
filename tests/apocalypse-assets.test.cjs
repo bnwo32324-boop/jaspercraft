@@ -11,9 +11,9 @@ const root=path.resolve(__dirname,'..');
 
 test('arsenal models pass every durability and held-hand orientation case',()=>{
   const result=validate();
-  assert.equal(result.models,90);
+  assert.equal(result.models,95);
   assert.equal(result.checked,9886);
-  assert.equal(result.heldOrientationCases,140);
+  assert.equal(result.heldOrientationCases,160);
   assert.equal(result.meleeOrientationCases,96);
 });
 
@@ -40,7 +40,7 @@ test('sentry head uses the six-times effective, flush body-top placement transfo
 test('client EPK merge resolves actual resources, changes only item models, and is idempotent',()=>{
   const input=fs.readFileSync(path.join(root,'site','assets.epk'));
   const result=merge(input,path.join(root,'apocalypse-pack'));
-  assert.equal(result.models.length,90);
+  assert.equal(result.models.length,95);
   assert.ok(result.unchangedEntries>=5750);
   const repeated=merge(result.output,path.join(root,'apocalypse-pack'));
   assert.deepEqual(repeated.output,result.output);
@@ -64,28 +64,38 @@ test('all pre-expansion weapon stats and 45 non-selector model files are byte-pr
   for(const line of legacy.melee)assert.ok(melee.includes(line),'Legacy melee unchanged: '+line);
 });
 
-test('exactly 24 guns and 16 melee append stable IDs with bounded late-expedition profiles',()=>{
-  assert.equal(expansion.gunSpecs.length,24);assert.equal(expansion.meleeSpecs.length,16);
-  assert.equal(new Set([...expansion.gunSpecs,...expansion.meleeSpecs].map(s=>s[0])).size,40);
+// 2026-09-26: five common sidearms (rapture, g18, magnum44, wingman, mozambique) append after the 24
+// late-expedition guns. They are deliberately far weaker and are held to their own, lower bounds below.
+const SIDEARMS=new Set(['rapture','g18','magnum44','wingman','mozambique']);
+test('exactly 29 guns (24 late-expedition + 5 common sidearms) and 16 melee append stable IDs with bounded profiles',()=>{
+  assert.equal(expansion.gunSpecs.length,29);assert.equal(expansion.meleeSpecs.length,16);
+  assert.equal(new Set([...expansion.gunSpecs,...expansion.meleeSpecs].map(s=>s[0])).size,45);
   for(const specs of [expansion.gunSpecs,expansion.meleeSpecs]) {
     assert.equal(new Set(specs.map(s=>s[1])).size,specs.length);
     assert.ok(specs.every(s=>s[1]>0&&s[1]<1460));
   }
   const java=fs.readFileSync(path.join(root,'server/custom-plugins/JasprApocalypse/src/chat/jaspr/apocalypse/Arsenal.java'),'utf8');
-  const guns=[...java.matchAll(/^\s+[A-Z]+\("([a-z]+)", "([^"]+)", ChatColor\.\w+, ([\d., ]+)(?:, Pattern\.(\w+))?\)/gm)];
-  assert.equal(guns.length,35);assert.equal(new Set(guns.map(g=>g[2])).size,35);
+  const guns=[...java.matchAll(/^\s+[A-Z][A-Z0-9_]*\("([a-z0-9]+)", "([^"]+)", ChatColor\.\w+, ([\d., ]+)(?:, Pattern\.(\w+))?\)/gm)];
+  assert.equal(guns.length,40);assert.equal(new Set(guns.map(g=>g[2])).size,40);
+  assert.equal(guns.filter(g=>SIDEARMS.has(g[1])).length,5);
   const profiles=new Set();
   for(const match of guns) {
     const [band,capacity,cost,damage,range,pellets,penetration,spread,shot,reload]=match[3].split(',').map(Number);
-    assert.ok(band>=1220&&band<=1560&&capacity>=2&&capacity<=28&&cost>=1&&cost<=8,match[1]);
-    assert.ok(damage>=10&&damage<=100&&range>=22&&range<=112,match[1]);
+    if(SIDEARMS.has(match[1])) {
+      // Common sidearms: weaker than every late-expedition gun (<=12 per hit, <=15 per trigger), short to mid range.
+      assert.ok(band>=1170&&band<=1210&&capacity>=2&&capacity<=28&&cost>=1&&cost<=2,match[1]);
+      assert.ok(damage>=2&&damage<=12&&damage*pellets<=15&&range>=12&&range<=60,match[1]);
+    } else {
+      assert.ok(band>=1220&&band<=1560&&capacity>=2&&capacity<=28&&cost>=1&&cost<=8,match[1]);
+      assert.ok(damage>=10&&damage<=100&&range>=22&&range<=112,match[1]);
+    }
     assert.ok(pellets>=1&&pellets<=12&&penetration>=1&&penetration<=4&&spread>=0&&spread<=.14,match[1]);
     assert.ok(shot>=240&&shot<=2450&&reload>=1800&&reload<=5200,match[1]);
     assert.ok(damage*pellets<=156,'Bounded volley: '+match[1]);
     if(match[4]==='BURST')assert.ok(shot>=1600,'Burst finishes before recovery gate');
     profiles.add([damage,range,shot].join('/'));
   }
-  assert.equal(profiles.size,35,'Thirty-five mechanically different profiles');
+  assert.equal(profiles.size,40,'Forty mechanically different profiles');
   const equipment=fs.readFileSync(path.join(root,'server/custom-plugins/JasprApocalypse/src/chat/jaspr/apocalypse/ExpeditionEquipment.java'),'utf8');
   const blades=[...equipment.matchAll(/melee\("([a-z_]+)", "([^"]+)", (\d+), (\d+), (\d+),/g)];
   assert.equal(blades.length,24);assert.equal(new Set(blades.map(b=>b[2])).size,24);

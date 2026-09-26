@@ -82,7 +82,7 @@ public final class ApocalypseItems {
             "THE DEAD\n\nOrdinary siege dead jump and build short pillars to reach you. Teal Wall Crawlers scale tall walls. Roofs need an escape route.\n\nBreachers smash stone. TNT carriers hiss before exploding. Beds and storage survive their block damage.",
             "THE OTHER SIDE\n\nEvery third night is a Blood Moon. Revenants and Grave Wardens rise more often. Their shrines and sealed bunkers hold Echo Relics.\n\nThe dead are affected by darkness. Smoke and whispers reveal the supernatural ones.",
             "SURVIVE, THEN SALVAGE\n\nStart with ordinary tools, armor, food and torches. Loot ruins for supplies.\n\nExoskeletons are true end-game crafts: a full set costs 8 diamond blocks, 8 iron blocks, 6 gold blocks, 4 Nether Stars and 4 specialized vanilla cores.",
-            "THE ARSENAL\n\n35 firearms and 24 melee weapons await. Every firearm can be forged from vanilla materials; stronger weapons demand heavier metal frames and rarer components.\n\nUse the crafting-table recipe browser. Right-click fires. Sneak + right-click reloads. Keep iron nuggets on you.",
+            "THE ARSENAL\n\n40 firearms and 24 melee weapons await. Every firearm can be forged from vanilla materials; stronger weapons demand heavier metal frames and rarer components.\n\nUse the crafting-table recipe browser. Right-click fires. Sneak + right-click reloads. Keep iron nuggets on you.",
             "A WORLD WORTH LOSING\n\nThis expedition begins in a reset world. Explore beyond camp for major ruins, rare vaults and dangerous discoveries.\n\nThe small cat returns you to Jaspr.chat. Share your discoveries, gather survivors, then enter the world again."
         );
         book.addPage(Arsenal.recipePages());

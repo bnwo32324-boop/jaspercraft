@@ -184,7 +184,7 @@ function validate() {
   const blades = [...equipmentJava.matchAll(/melee\("([a-z_]+)",[^\n]*?, (\d+),/g)].map(match => [Number(match[2]), match[1]]);
   assert.equal(blades.length, 24, 'Twenty-four distinct melee definitions');
   assert.equal(new Set(blades.map(([band])=>band)).size, 24, 'Unique sword model bands');
-  assert.equal(guns.size, 35, 'Thirty-five distinct gun bands');
+  assert.equal(guns.size, 40, 'Forty distinct gun bands');
   const bands = [['diamond_sword', 1561, blades]];
   for (const [part,max] of Object.entries({helmet:363,chestplate:528,leggings:495,boots:429})) {
     bands.push(['diamond_'+part, max, ['bulwark','ranger','spectre','hazmat'].map((set,i)=>[10+i*10,set+'_'+part])]);

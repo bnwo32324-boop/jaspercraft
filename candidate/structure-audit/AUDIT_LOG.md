@@ -295,3 +295,25 @@ Nothing is half-written. State on disk:
   kills refund iron-nugget ammo). Arsenal keeps lore lines after its own 7 so the "- Gunsmith -" block survives every shot.
   Bot test on a test server: Gunsmith opened, 5 purchases, rifle 18->22 mag, 2400->2040 ms reload, 300->270 ms shot, 64->73.6 range;
   a shot at an iron golem did 40.96 (32 x Legendary 1.28) and set it burning. Backup .runtime/plugin-backup-20260925-144539-gunsmith.
+- 2026-09-26 09:06 GUNS IN LOOT HALVED (owner: "about 50% less, all chests and every structure"): JasprHorrorBiomes 3.27.3 = live
+  3.27.2 + ExpeditionLoot. Every structure-loot gun (catalogue armories/vaults via roll(), and rareWeapon() for dungeons, megalith
+  graded/trove/loot chests and anomalies) is kept with p=0.5. The keep/drop draw never touches the chest's Random (set pieces and
+  megaliths build with it): roll() uses a separate per-chest "thin" stream, rareWeapon() a serialized copy of r. Probe n=20000:
+  kept 10048, streamMismatch 0. Siege-zombie salvage gun drops (config siege.salvage-gun-odds 1/500) unchanged.
+  Backup .runtime/plugin-backup-20260926-090641-JasprHorrorBiomes.
+- 2026-09-26 09:31 FIVE COMMON SIDEARMS LIVE (owner: pistols in place of the halved guns, based on BioShock / MW2 / Titanfall 2,
+  expensive but cheap relative to other guns, "exceedingly less powerful", "spawn more"). JasprApocalypse 3.6.5 = live 3.6.4 +
+  Arsenal/Blueprints/ApocalypseItems classes (HEAD source bytecode-identical to live; Ruins/SiegeRules drift not shipped).
+  Rapture Service Pistol 6 dmg, G18 Machine Pistol 3 dmg x3 burst, .44 Magnum 11, Wingman Elite 9 (+35% past 32 m),
+  Mozambique 3x3 pellets / 16 m -- vs 24-100 for every other gun (rifle 32). Bands 1210..1170, recipes 12 iron-equivalent each
+  (arsenal 12-51, avg 26.2), 40 firearms. JasprHorrorBiomes 3.27.4 (live 3.27.3 + ExpeditionLoot, WeaponLootRules, Dungeons,
+  Megaliths from the live-matching 48487dc tree; unchanged Dungeons/Megaliths verified bytecode-identical first): a thinned gun
+  becomes a sidearm (salvage only if the pistol cannot be made); extra sidearms in every armory and vault, 25% of supply/medical/
+  relic caches, a second in half the tier 3+ armories, 1 Fold room in 4, dungeons and megalith chests at 1.5x the gun odds
+  (the megalith trove always). Sidearms are never a tier 4/5 "gun" pick. All extra draws use separate or copied streams.
+  Test server probe: catalogue 40, per-cache pistols 0.25-2.3 with 0 duplicates, rareWeapon 10048 guns / 9952 pistols / 0 salvage
+  streamMismatch 0, sidearm(0.3) 30.9% streamMismatch 0, Fold 838/3200 rooms, 5 shaped recipes. Bot fired each at an iron golem:
+  6 / 3+3+3 / 11 / 9 / 9 (Last Light 32). Client (classes.js, jaspr-client.js, assets.epk = 20260926-pistols1): Creative catalogue
+  +5 after deadfrequency, JasprBlueprintTable 94, recipe-table.json re-exported (+5, 0 removed, 2 guide books reworded),
+  5 new models + diamond_hoe selector (81 overrides). creative-catalog.cjs counts fixed to the live catalogue (supply 2, total 94).
+  One restart, 0 players. Backups .runtime/plugin-backup-20260926-093050-pistols, .runtime/site-backup-20260926-093050-pistols.

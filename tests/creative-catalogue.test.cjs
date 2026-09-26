@@ -10,11 +10,11 @@ const base=patch.unpatch(live),candidate=patch.build(live),catalogue=creative.ca
 const adapter=fs.readFileSync(path.join(root,'client-mods/creative-items-teavm.js'),'utf8');
 
 test('all server-defined custom gameplay items have unique, valid creative templates',()=>{
-  assert.equal(catalogue.length,89);
+  assert.equal(catalogue.length,94);
   assert.deepEqual(Object.fromEntries(['gun','melee','armor','material','consumable','supply','artifact','block']
     .map(category=>[category,catalogue.filter(item=>item.category===category).length])),
-    {gun:35,melee:24,armor:16,material:4,consumable:4,supply:3,artifact:2,block:1});
-  assert.equal(new Set(catalogue.map(item=>item.id)).size,89);
+    {gun:40,melee:24,armor:16,material:4,consumable:4,supply:2,artifact:2,block:1});
+  assert.equal(new Set(catalogue.map(item=>item.id)).size,94);
   for(const item of catalogue){
     assert.match(item.material,/^minecraft:[a-z0-9_]+$/);
     assert.match(item.snbt,new RegExp('JasprCreative:\\{id:'+JSON.stringify(item.id).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\}'));
@@ -48,14 +48,14 @@ function fixture(suspendName){
 
 test('native adapter places entries in Combat, Food, Misc, Blocks and searchable All Items',()=>{
   const f=fixture();
-  assert.equal(f.append(f.tabs.combat,[],false).length,75);
+  assert.equal(f.append(f.tabs.combat,[],false).length,80);
   assert.equal(f.append(f.tabs.food,[],false).length,4);
   assert.equal(f.append(f.tabs.misc,[],false).length,9);
   assert.equal(f.append(f.tabs.blocks,[],false).length,1);
   assert.equal(f.append(f.tabs.other,[],false).length,0);
-  assert.equal(f.append({text:''},[],true).length,89);
+  assert.equal(f.append({text:''},[],true).length,94);
   assert.equal(f.append({text:'exoskeleton'},[],true).length,16);
-  assert.equal(f.append({text:'gun'},[],true).length,35);
+  assert.equal(f.append({text:'gun'},[],true).length,40);
   assert.equal(f.append({text:'last broadcast'},[],true).length,1);
   assert.equal(f.append({text:'turret'},[],true).length,1);
   assert.equal(f.append({text:'sentry'},[],true).length,1);

@@ -13,7 +13,7 @@ final class WeaponLootProbe {
         Class<?> items=Class.forName("chat.jaspr.apocalypse.ApocalypseItems",true,Bukkit.getPluginManager().getPlugin("JasprApocalypse").getClass().getClassLoader());
         Method identify=items.getMethod("id",ItemStack.class),catalogue=items.getMethod("catalogue",String.class);
         Set<String> guns=((Map<String,String>)catalogue.invoke(null,"gun")).keySet(),melee=((Map<String,String>)catalogue.invoke(null,"melee")).keySet();
-        check(guns.size()==35&&melee.size()==24,"Expanded weapon catalogues");Set<String> seenGuns=new HashSet<>(),seenMelee=new HashSet<>();
+        check(guns.size()==40&&melee.size()==24&&guns.containsAll(WeaponLootRules.sidearms()),"Expanded weapon catalogues with 5 common sidearms");Set<String> seenGuns=new HashSet<>(),seenMelee=new HashSet<>();
         Constructor<StructurePlanner.Site> siteConstructor=StructurePlanner.Site.class.getDeclaredConstructor(long.class,StructureCatalog.Design.class,int.class,int.class,String.class,int.class,int.class);siteConstructor.setAccessible(true);
         Constructor<StructurePlanner.Marker> markerConstructor=StructurePlanner.Marker.class.getDeclaredConstructor(int.class,int.class,int.class,String.class,int.class);markerConstructor.setAccessible(true);
         for(int tier=1;tier<=5;tier++){
@@ -22,20 +22,20 @@ final class WeaponLootProbe {
             for(String role:Arrays.asList("supply","medical","armory","relic","vault")){
                 StructurePlanner.Marker marker=markerConstructor.newInstance(0,70,0,role,1);
                 for(int roll=0;roll<160;roll++){
-                    List<ItemStack> loot=ExpeditionLoot.roll(roll,site,marker);Set<String> selected=new HashSet<>();int gunCount=0,meleeCount=0,ammo=0;
+                    List<ItemStack> loot=ExpeditionLoot.roll(roll,site,marker);Set<String> selected=new HashSet<>();int gunCount=0,sidearms=0,meleeCount=0,ammo=0;
                     check(loot.size()<=27,"One chest slot budget");
                     for(ItemStack item:loot){
                         check(item.getAmount()>0&&item.getAmount()<=item.getMaxStackSize(),"Native valid stack size");
                         String id=(String)identify.invoke(null,item);
-                        if(guns.contains(id)){gunCount++;seenGuns.add(id);check(selected.add(id),"Distinct guns in same cache");}
+                        if(guns.contains(id)){if(WeaponLootRules.sidearms().contains(id))sidearms++;else gunCount++;seenGuns.add(id);check(selected.add(id),"Distinct guns in same cache");}
                         if(melee.contains(id)){meleeCount++;seenMelee.add(id);check(selected.add(id),"Distinct melee in same cache");check(WeaponLootRules.eligible(id,"melee",tier),"Melee tier eligibility");}
                         if(id.equals("ammo"))ammo+=item.getAmount();
                     }
                     check(tier>=4||gunCount==0,"Guns remain late-game tier 4/5");
                     check(tier>=2||meleeCount==0,"Tier 1 uses ordinary weapons");
                     if(role.equals("armory")&&tier>=2)check(meleeCount>=1,"Armory guarantees custom melee");
-                    if(role.equals("armory")&&tier>=4)check(gunCount>=1&&ammo>=48,"Late armory guarantees gun and ammunition");
-                    if(role.equals("vault")&&tier>=4)check(gunCount==2&&meleeCount==1&&ammo>=64,"Guarded vault guarantees 2 unique guns, melee and ammunition");
+                    if(role.equals("armory"))check(sidearms>=1,"Every armory holds a common sidearm");
+                    if(role.equals("vault")&&tier>=4)check(gunCount+sidearms>=3&&gunCount<=2&&meleeCount==1,"Guarded vault: 2 gun slots (each a gun or a sidearm), a sidearm and melee");
                     if(role.equals("vault")&&tier==3)check(meleeCount==2,"Mid-tier vault has 2 distinct melee weapons");
                     if(role.equals("vault")&&tier==2)check(meleeCount==1,"Low-tier vault has an eligible melee weapon");
                 }

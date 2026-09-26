@@ -2101,6 +2101,10 @@ public final class Dungeons {
                     inv.addItem(new ItemStack(org.bukkit.Material.IRON_NUGGET, 6 + luck.nextInt(11)));
                 }
             }
+            // Common sidearms (2026-09-26): a weak pistol, one and a half times the gun's odds, decided from a copy
+            // of the keyed stream so the trinket below rolls as before.
+            ItemStack sidearm = ExpeditionLoot.sidearm(luck, rich ? 3.0 / 32 : 3.0 / 80, rich ? 2 : 1);
+            if (sidearm != null) inv.addItem(sidearm, new ItemStack(org.bukkit.Material.IRON_NUGGET, 8));
             // Survivor Gear (3.26.0): at most one trinket from the same keyed stream, gear tier 0 for a room's
             // ordinary chests and 1 for its rich ones.
             GearLoot.add(inv, luck, rich ? 1 : 0);
@@ -2149,6 +2153,12 @@ public final class Dungeons {
                 inv.addItem(new ItemStack(org.bukkit.Material.IRON_NUGGET, 6 + r.nextInt(11)));
                 placed += 2;
             }
+        }
+        // Common sidearms (2026-09-26): as above, from a copy of r so the room builds exactly as before.
+        ItemStack sidearm = ExpeditionLoot.sidearm(r, rich ? 3.0 / 32 : 3.0 / 80, rich ? 2 : 1);
+        if (sidearm != null) {
+            inv.addItem(sidearm, new ItemStack(org.bukkit.Material.IRON_NUGGET, 8));
+            placed += 2;
         }
         if (gearTier >= 0 && GearLoot.add(inv, r, gearTier)) placed++;
         return placed;

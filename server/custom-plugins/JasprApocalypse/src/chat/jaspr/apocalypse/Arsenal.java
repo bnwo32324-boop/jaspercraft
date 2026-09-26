@@ -117,7 +117,14 @@ public final class Arsenal implements Listener {
         HEXBREAKER("hexbreaker", "Hexbreaker Reliquary Beam", ChatColor.LIGHT_PURPLE, 1250, 5, 5, 39, 64, 2, 2, 0.012, 1550, 3800, Pattern.PLASMA),
         PALLBEARER("pallbearer", "Pallbearer Belt Cannon", ChatColor.DARK_GRAY, 1240, 20, 4, 49, 60, 1, 2, 0, 700, 5000, Pattern.BRACED),
         IRONPSALM("ironpsalm", "Iron Psalm Rotary Gun", ChatColor.GOLD, 1230, 28, 3, 34, 48, 1, 1, 0, 380, 5200, Pattern.BRACED),
-        DEADFREQUENCY("deadfrequency", "Dead Frequency Pulse Rifle", ChatColor.DARK_AQUA, 1220, 15, 4, 45, 74, 1, 1, 0, 1900, 4200, Pattern.BURST);
+        DEADFREQUENCY("deadfrequency", "Dead Frequency Pulse Rifle", ChatColor.DARK_AQUA, 1220, 15, 4, 45, 74, 1, 1, 0, 1900, 4200, Pattern.BURST),
+        // Five common sidearms (owner, 2026-09-26): far weaker than every other firearm (3-11 damage against 24-100),
+        // cheap to feed, and much more common in loot. Modelled on BioShock, Modern Warfare 2 and Titanfall 2.
+        RAPTURE("rapture", "Rapture Service Pistol", ChatColor.DARK_AQUA, 1210, 12, 1, 6, 34, 1, 1, 0, 450, 1900),
+        MACHINE_PISTOL("g18", "G18 Machine Pistol", ChatColor.RED, 1200, 18, 1, 3, 28, 1, 1, 0, 1600, 2100, Pattern.BURST),
+        MAGNUM("magnum44", ".44 Magnum", ChatColor.WHITE, 1190, 6, 2, 11, 38, 1, 1, 0, 900, 3000),
+        WINGMAN("wingman", "Wingman Elite", ChatColor.LIGHT_PURPLE, 1180, 6, 2, 9, 56, 1, 1, 0, 700, 2400, Pattern.DISTANT),
+        MOZAMBIQUE("mozambique", "Mozambique", ChatColor.DARK_GREEN, 1170, 3, 2, 3, 16, 3, 1, 0.09, 800, 2600);
 
         final String id, title;
         final ChatColor color;
@@ -286,7 +293,7 @@ public final class Arsenal implements Listener {
             "Requiem: 9 x 10 damage pellets, 28 blocks, 6 shells; 2 iron nuggets per shell.",
             "Gravebreaker: 100 damage, 96 blocks, up to 3 bodies, 3 shots; 8 iron nuggets per shot.",
             "Armor, shields, PvP rules and damage protection apply; solid collision shapes stop all shots.",
-            "All 35 firearms have distinct 3x3 bench recipes made only from ordinary vanilla items.",
+            "All 40 firearms have distinct 3x3 bench recipes made only from ordinary vanilla items.",
             "Iron blocks form receivers; ingots form barrels; redstone controls triggers and gunpowder drives conventional actions.",
             "Repeaters control burst weapons, glass and quartz form optics, pistons work bolts, and hoppers feed heavy guns.",
             "Energy weapons replace gunpowder with redstone blocks, gold conductors and rarer vanilla minerals.",
@@ -296,7 +303,7 @@ public final class Arsenal implements Listener {
             "Reloads: 2.4s / 3s / 4.2s. Switching slots, dropping, inventory edits or travel cancels.",
             "Rare expedition caches also hold Whisper, Tempest, Bastion, Longwatch, Sunlance, Adjudicator, Cyclops and Frostbite.",
             "Tempest fires three aimed shots 0.55s apart; switching items or travel cancels the remaining shots.",
-            "The expanded arsenal has 35 firearms: service pistols, revolvers, patrol carbines, bolt rifles, scatterguns, occult projectors and heavy weapons.",
+            "The expanded arsenal has 40 firearms: service pistols, revolvers, patrol carbines, bolt rifles, scatterguns, occult projectors and heavy weapons.",
             "Black Box and Dead Frequency also use tracked three-shot bursts. Vesper and Whiteout are suppressed. Every gun is craftable and can also appear empty in expedition loot.",
             "The built-in apocalypse models give each firearm a distinct appearance."
         ));
@@ -305,7 +312,7 @@ public final class Arsenal implements Listener {
     /** Compact, ready-to-append BookMeta pages; recipes use one ingredient per occupied slot. */
     public static String[] recipePages() {
         return new String[] {
-            "FIREARM CRAFTING\n\nAll 35 firearms can be forged at a 3x3 bench using only vanilla items.\n\nOpen a crafting table and use its recipe browser. Search a gun by name, then click it to load the exact pattern.\n\nCrafted guns begin empty.",
+            "FIREARM CRAFTING\n\nAll 40 firearms can be forged at a 3x3 bench using only vanilla items.\n\nOpen a crafting table and use its recipe browser. Search a gun by name, then click it to load the exact pattern.\n\nCrafted guns begin empty.",
             "FRAME LANGUAGE\n\nIron blocks: receivers\nIron ingots: barrels\nRedstone: triggers\nGunpowder: firing action\nRepeaters: burst control\nGlass/quartz: optics\nPistons: bolts\nHoppers: belt feeds\n\nAdvanced guns add gold, diamonds and redstone blocks.",
             "LAST LIGHT\n\nB B I\nS R N\nP G I\n\nB: Iron Block (2)\nI: Iron Ingot (2)\nS: Stick; R: Redstone\nN: Nether Star\nP: Gunpowder\nG: Gold Ingot\n\n18 rounds; 32 damage.",
             "REQUIEM\n\nB B I\nS R N\nP P B\n\nB: Iron Block (3)\nI: Iron Ingot\nS: Stick; R: Redstone\nN: Nether Star\nP: Gunpowder (2)\n\n6 shells; 9 x 10 damage.",
@@ -455,6 +462,9 @@ public final class Arsenal implements Listener {
             case SUNLANCE: return "Three plasma rays; pierces 2 bodies";
             case ADJUDICATOR: return "+30% damage while stationary";
             case CYCLOPS: return "12-pellet close-range volley";
+            case RAPTURE: return "Rapture-made service pistol: light, reliable, forgiving";
+            case MAGNUM: return ".44 hand cannon: slow, heavy, kicks like a mule";
+            case MOZAMBIQUE: return "Three-barrel pistol shotgun: point blank only";
             case FROSTBITE: return "Pierces 4 bodies; retains 70% per body";
             default: return gun == Gun.RAILGUN ? "Pierces 3 bodies; retains 80% per body" :
                     gun.durability < 1460 ? (gun.pellets > 1 ? gun.pellets + "-pellet salvage scattergun" : "Recovered late-expedition firearm") : "Relic-forged firearm";

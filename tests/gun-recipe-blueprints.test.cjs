@@ -116,7 +116,7 @@ function vanillaSignatures() {
 
 const blueprints = parseBlueprints();
 const client = clientTable();
-assert.equal(blueprints.length, 89, 'server blueprint count');
+assert.equal(blueprints.length, 94, 'server blueprint count');
 assert.deepEqual(client.map(entry => ({ id: entry.id, shape: entry.shape })),
   blueprints.map(entry => ({ id: entry.id, shape: entry.shape })), 'client/server recipe parity');
 
@@ -124,7 +124,7 @@ const arsenalSource = fs.readFileSync(ARSENAL, 'utf8');
 const enumBody = arsenalSource.match(/private enum Gun \{([\s\S]*?);\s*\r?\n\s*final String id/)[1];
 const gunIds = [...enumBody.matchAll(/^[ \t]*[A-Z_]+\("([^"]+)"/gm)].map(match => match[1]);
 const guns = blueprints.filter(entry => entry.kind.startsWith('gun/'));
-assert.equal(gunIds.length, 35, 'arsenal gun count');
+assert.equal(gunIds.length, 40, 'arsenal gun count');
 assert.deepEqual(new Set(guns.map(entry => entry.id)), new Set(gunIds), 'every firearm is craftable');
 
 const byId = new Map(client.map(entry => [entry.id, entry]));
