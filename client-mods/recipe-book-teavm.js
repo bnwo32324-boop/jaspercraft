@@ -575,7 +575,8 @@ var JasprRecipeBook = (function () {
   RB.key = function (book, ch, code) {
     if (!book || !book.focused) return 0;
     if (code === 1) { book.focused = false; return 1; }          // escape leaves the box
-    if (ch === 8) {                                              // backspace
+    if (code === 211) { book.search = ""; book.scroll = 0; return 1; }   // delete clears the box
+    if (ch === 8 || code === 14) {                               // backspace (the client sends key 14, char 0)
       book.search = (book.search || "").slice(0, -1);
       book.scroll = 0;
       return 1;

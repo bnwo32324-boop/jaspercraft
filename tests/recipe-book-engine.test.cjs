@@ -204,3 +204,17 @@ test('the recipe section: fixed place, exact 3x3 crafting grid, never over the w
     if (screen.q >= 900) assert.ok(where['minecraft:shears'][0] >= gui.gv + 28, 'right of the gear column when there is room');
   }
 });
+
+test('the search box: typing, backspace as the client sends it (key 14), delete and escape', () => {
+  const b = {focused: true, search: ''};
+  for (const ch of 'shears') RB.key(b, ch.charCodeAt(0), 0);
+  assert.equal(b.search, 'shears');
+  RB.key(b, 0, 14); RB.key(b, 0, 14);
+  assert.equal(b.search, 'shea', 'backspace with char 0 and key 14');
+  RB.key(b, 8, 14);
+  assert.equal(b.search, 'she', 'one character per press even when both are set');
+  RB.key(b, 0, 211);
+  assert.equal(b.search, '', 'delete clears');
+  RB.key(b, 0, 1);
+  assert.equal(b.focused, false, 'escape leaves the box');
+});
