@@ -166,24 +166,40 @@ test('search covers every recipe, craftable or not', () => {
   assert.ok(RB.searchResults(b).map(i => TABLE.recipes[i].key).includes('jasprgear:satchel'));
 });
 
-test('the ingredient card shows every cell of the recipe and stays on a short screen', () => {
-  // A phone-shaped screen: 10 px above and below the crafting-table window (166 px tall).
-  const guiTop = 10, gui = {gx: 166, l7: guiTop, is: 200};
-  const check = (search, key, cells) => {
-    const b = book(3, []);
-    Object.assign(b, {gui, perRow: 8, xOffset: -170, textBoxSize: 155, search, focused: false, scroll: 0});
-    const first = RB.plan(b, -1000, -1000);
-    const icon = first.items.find(it => it.i === index(key));
-    assert.ok(icon, key + ' listed');
-    const plan = RB.plan(b, icon.x + 4, icon.y + 4);
-    assert.equal(b.hover, index(key), key + ' hovered');
-    const shown = plan.items.filter(it => it.i === undefined);
-    assert.equal(shown.length, cells, key + ': every ingredient cell drawn');
-    for (const it of shown) {
-      assert.ok(it.y >= -guiTop && it.y + 16 <= gui.gx + guiTop, key + ' ingredient on screen (y ' + it.y + ')');
-      assert.ok(it.x >= 0, key + ' ingredient beside the panel, not under its icons');
-    }
-  };
-  check('shears', 'minecraft:shears', 2);
-  check('portal gun', 'jasprapocalypse:jaspr_portal_gun', 9);
+test('the recipe section: fixed place, exact 3x3 crafting grid, never over the window or the list', () => {
+  // Window 176x166 (crafting table). Screens: a short, narrow one (the section is carved out of the list)
+  // and a wide one (the section sits right of the window, past the Survivor Gear column).
+  for (const screen of [{q: 447, L: 186}, {q: 900, L: 400}]) {
+    const gui = {gv: 176, gx: 166, q: screen.q, L: screen.L};
+    gui.is = (screen.q - 176) >> 1; gui.l7 = (screen.L - 166) >> 1;
+    const where = {};
+    const check = (search, key, cells) => {
+      const b = book(3, []);
+      Object.assign(b, {gui, search, focused: false, scroll: 0});
+      RB.layout(b);
+      const first = RB.plan(b, -1000, -1000);
+      const icon = first.items.find(it => it.i === index(key));
+      assert.ok(icon, key + ' listed');
+      const plan = RB.plan(b, icon.x + 4, icon.y + 4);
+      assert.equal(b.hover, index(key), key + ' hovered');
+      const list = plan.items.filter(it => it.i !== undefined), shown = plan.items.filter(it => it.i === undefined);
+      assert.equal(shown.length, cells + 1, key + ': every ingredient cell and the result drawn');
+      const card = b.card;
+      for (const it of shown) {
+        assert.ok(it.y >= -gui.l7 && it.y + 16 <= gui.gx + gui.l7, key + ' on screen vertically');
+        assert.ok(it.x >= -gui.is && it.x + 16 <= screen.q - gui.is, key + ' on screen horizontally');
+        assert.ok(it.x + 16 <= 0 || it.x >= gui.gv, key + ' never over the window');
+        for (const l of list) assert.ok(it.x >= l.x + 18 || it.x + 16 <= l.x || it.y >= l.y + 18 || it.y + 16 <= l.y, key + ' never over the list');
+      }
+      // The grid is the crafting table's: cell n of the recipe is drawn at column n%3, row n/3.
+      const cellList = RB.cells(RB.recipe(index(key)), 3);
+      const x0 = card.x + card.pad + 1, y0 = shown[0].y - 20 * ((cellList[0][0] / 3) | 0);
+      cellList.forEach(([at], n) => { assert.equal(shown[n].x, x0 + 20 * (at % 3)); assert.equal(shown[n].y, y0 + 20 * ((at / 3) | 0)); });
+      where[key] = [card.x, card.y, y0];
+    };
+    check('shears', 'minecraft:shears', 2);
+    check('portal gun', 'jasprapocalypse:jaspr_portal_gun', 9);
+    assert.deepEqual(where['minecraft:shears'], where['jasprapocalypse:jaspr_portal_gun'], 'same place for every recipe');
+    if (screen.q >= 900) assert.ok(where['minecraft:shears'][0] >= gui.gv + 28, 'right of the gear column when there is room');
+  }
 });

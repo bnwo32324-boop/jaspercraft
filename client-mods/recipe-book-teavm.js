@@ -108,10 +108,27 @@ var JasprRecipeBook = (function () {
       perRow = Math.max(1, ((gui.is | 0) - 10) / ITEM_SIZE | 0);
       offset = -ITEM_SIZE * perRow - 10;
     }
-    book.perRow = perRow;
+    // JasperCraft: a fixed recipe section (title, the crafting table's 3x3 grid, the result) that never
+    // covers the window. On the right of the screen when there is room past the Survivor Gear column
+    // (gui.q screen width, gui.gv window width, gui.is window left); otherwise carved out of the right
+    // of this panel, between the list and the window. Same place and same grid for every recipe.
+    var cardW = 3 * ITEM_SIZE + 2 * CARD_PAD;
+    var right = (gui.q | 0) - (gui.is | 0) - (gui.gv | 0) - GEAR_COLUMN;
+    var listCols = perRow;
+    if (right >= cardW + 4) {
+      book.card = {x: (gui.gv | 0) + GEAR_COLUMN + 2, w: Math.min(right - 4, 120)};
+    } else {
+      listCols = Math.max(1, perRow - Math.ceil((cardW + 6) / ITEM_SIZE));
+      var cx = offset + listCols * ITEM_SIZE + 4;
+      book.card = {x: cx, w: Math.max(cardW, -4 - cx)};
+    }
+    book.card.y = 0; book.card.pad = CARD_PAD; book.card.titleLines = CARD_TITLE_LINES;
+    book.card.h = CARD_PAD * 2 + CARD_TITLE_LINES * 10 + 20 + 3 * ITEM_SIZE + 4 + ITEM_SIZE;
+    book.perRow = listCols;
     book.xOffset = offset;
-    book.textBoxSize = -offset - 15;
+    book.textBoxSize = listCols * ITEM_SIZE - 5;
   }
+  var CARD_PAD = 4, CARD_TITLE_LINES = 3, GEAR_COLUMN = 28;
 
   function slots(book) { return book.gui.h2.cn; }
   function slotAt(book, index) {
@@ -285,6 +302,7 @@ var JasprRecipeBook = (function () {
     var prepared = RB.prepared();
     if (!prepared || !book.craftable) return null;
     var gui = book.gui;
+    RB.layout(book);   // the window moves when the inventory's own recipe book opens
     var height = gui.gx | 0, xOffset = book.xOffset;
     var texts = [], items = [], rects = [];
     var hover = -1;
@@ -356,45 +374,67 @@ var JasprRecipeBook = (function () {
     }
 
     book.hover = hover;
-    if (hover >= 0) {
-      var recipe = RB.recipe(hover), craftable = !!book.craftable.set[hover];
-      var fits = RB.cells(recipe, book.grid) !== null;
-      var title = recipe.title + (recipe.count > 1 ? " x" + recipe.count : "")
-        + (craftable ? "" : fits ? "  (missing ingredients)" : "  (needs a crafting table)");
-      var tick = (Date.now() / 333) | 0;
-      var cellList = RB.cells(recipe, 3) || [];
-      // The recipe as a card beside the panel: the exact grid shape (a 2x2 recipe is 2x2, empty cells
-      // shown), always wholly on screen. It used to hang under the window, where a short screen (a
-      // phone, a small laptop window) cut off every row but the first -- shears looked like one ingot.
-      var cols = 1, rowsUsed = 1;
-      for (var n = 0; n < cellList.length; n++) {
-        cols = Math.max(cols, cellList[n][0] % 3 + 1);
-        rowsUsed = Math.max(rowsUsed, ((cellList[n][0] / 3) | 0) + 1);
-      }
-      var PAD = 4, TITLE_H = 12, guiTop = gui.l7 | 0;
-      var cardW = Math.max(cols * SIZE, Math.min(170, title.length * 6)) + PAD * 2;
-      var cardH = TITLE_H + rowsUsed * SIZE + PAD * 2;
-      // Screen edges in window coordinates: the window is centred, so there is guiTop above and below it.
-      var cardX = 2, cardY = mouseY - (cardH >> 1);
-      if (cardY + cardH > height + guiTop - 2) cardY = height + guiTop - 2 - cardH;
-      if (cardY < 2 - guiTop) cardY = 2 - guiTop;
-      rects.push({x: cardX - 1, y: cardY - 1, w: cardW + 2, h: cardH + 2, color: 0xFF5000A0});
-      rects.push({x: cardX, y: cardY, w: cardW, h: cardH, color: 0xF0100010});
-      texts.push({s: title, x: cardX + PAD, y: cardY + PAD, color: craftable ? 0xFFFF00 : 0xFF7777});
-      var gridX = cardX + PAD, gridY = cardY + PAD + TITLE_H;
-      for (var r = 0; r < rowsUsed; r++)
-        for (var c = 0; c < cols; c++)
-          rects.push({x: gridX + c * SIZE, y: gridY + r * SIZE, w: SIZE - 2, h: SIZE - 2, color: 0xFF373737});
-      for (var n = 0; n < cellList.length; n++) {
-        var options = prepared.choices[cellList[n][1]];
-        if (!options || !options.length) continue;
-        var stack = options[tick % options.length];
-        var at = cellList[n][0];
-        if (stack) items.push({stack: stack, x: gridX + 1 + SIZE * (at % 3), y: gridY + 1 + SIZE * ((at / 3) | 0)});
-      }
-    }
+    RB.recipeCard(book, prepared, hover, rects, texts, items);
     return {rects: rects, texts: texts, items: items};
    } catch (error) { RB.die("plan", error); return null; }
+  };
+
+  /* The fixed recipe section (see layout): the recipe as it goes into a crafting table -- every
+   * ingredient in its own cell of the 3x3 grid (a 2x2 recipe in the top-left, as in the table),
+   * empty cells shown -- then the result and how many it makes. Always the same place and size. */
+  RB.recipeCard = function (book, prepared, hover, rects, texts, items) {
+    var card = book.card;
+    if (!card) return;
+    var PAD = card.pad, x = card.x, y = card.y, w = card.w;
+    rects.push({x: x - 1, y: y - 1, w: w + 2, h: card.h + 2, color: 0xFF5000A0});
+    rects.push({x: x, y: y, w: w, h: card.h, color: 0xF0100010});
+    var perLine = Math.max(4, ((w - 2 * PAD) / 6) | 0), line = y + PAD;
+    var recipe = hover >= 0 ? RB.recipe(hover) : null;
+    var lines = RB.wrap(recipe ? recipe.title : "Recipe", perLine, card.titleLines);
+    for (var l = 0; l < lines.length; l++) texts.push({s: lines[l], x: x + PAD, y: line + 10 * l, color: recipe ? 0xFFFFFF : 0xA0A0A0});
+    line += 10 * card.titleLines;
+    var status = [], statusColor = 0xA0A0A0;
+    if (!recipe) status = ["Point at a", "recipe"];
+    else {
+      var craftable = !!book.craftable.set[hover], fits = RB.cells(recipe, book.grid) !== null;
+      status.push(craftable ? "Can craft" : fits ? "Missing items" : "Needs a table");
+      statusColor = craftable ? 0x55FF55 : 0xFF7777;
+      if (recipe.type === "shapeless") status.push("Any layout");
+    }
+    for (var s = 0; s < status.length; s++) texts.push({s: status[s], x: x + PAD, y: line + 10 * s, color: s ? 0xA0A0A0 : statusColor});
+    line += 20;
+    var gridY = line;
+    for (var r = 0; r < 3; r++)
+      for (var c = 0; c < 3; c++)
+        rects.push({x: x + PAD + c * SIZE, y: gridY + r * SIZE, w: SIZE - 2, h: SIZE - 2, color: 0xFF373737});
+    var resultY = gridY + 3 * SIZE + 4;
+    rects.push({x: x + PAD, y: resultY, w: SIZE - 2, h: SIZE - 2, color: 0xFF5A4A1A});
+    if (!recipe) return;
+    var tick = (Date.now() / 333) | 0;
+    var cellList = RB.cells(recipe, 3) || [];
+    for (var n = 0; n < cellList.length; n++) {
+      var options = prepared.choices[cellList[n][1]];
+      if (!options || !options.length) continue;
+      var stack = options[tick % options.length], at = cellList[n][0];
+      if (stack) items.push({stack: stack, x: x + PAD + 1 + SIZE * (at % 3), y: gridY + 1 + SIZE * ((at / 3) | 0)});
+    }
+    if (prepared.results[hover]) items.push({stack: prepared.results[hover], x: x + PAD + 1, y: resultY + 1});
+    texts.push({s: "makes " + (recipe.count > 1 ? recipe.count : 1), x: x + PAD + SIZE + 2, y: resultY + 5, color: 0xFFFF55});
+  };
+
+  /* Word-wraps s into at most maxLines lines of at most perLine characters ("..." when cut). */
+  RB.wrap = function (s, perLine, maxLines) {
+    var words = String(s).split(" "), out = [], cur = "";
+    for (var i = 0; i < words.length; i++) {
+      var word = words[i];
+      while (word.length > perLine) { if (cur) { out.push(cur); cur = ""; } out.push(word.slice(0, perLine)); word = word.slice(perLine); }
+      if (!cur) cur = word;
+      else if ((cur + " " + word).length <= perLine) cur += " " + word;
+      else { out.push(cur); cur = word; }
+    }
+    if (cur) out.push(cur);
+    if (out.length > maxLines) { out = out.slice(0, maxLines); out[maxLines - 1] = out[maxLines - 1].slice(0, Math.max(1, perLine - 3)) + "..."; }
+    return out;
   };
 
   RB.scrollBy = function (book, ticks) {
@@ -508,6 +548,10 @@ var JasprRecipeBook = (function () {
       }
       book.focused = false;
     }
+
+    // A click on the recipe section is ours: outside the window, vanilla would throw the cursor's item.
+    var card = book.card;
+    if (card && localX >= card.x && localX < card.x + card.w && localY >= card.y && localY < card.y + card.h) return [];
 
     var index = book.hover;
     if (index === null || index === undefined || index < 0) return null;

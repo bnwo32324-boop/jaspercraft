@@ -371,3 +371,12 @@ Nothing is half-written. State on disk:
   (now Unbreakable, HideFlags 4, as crafted) + 41 JasprNether recipes. Client 20260926-craftfix1 (classes.js via
   build-recipe-book-client --upgrade: only the module region changed; assets.epk unchanged). No restart.
   Backup .runtime/site-backup-20260926-171629-craftfix.
+- 2026-09-26 17:43 EASIERCRAFTING RECIPE SECTION LIVE (owner: the card covered the inventory and player model and moved with the
+  cursor; wants a fixed section on the right, uniform and grid-like, showing what goes where in a crafting table). The recipe is
+  now a fixed section: title, status (can craft / missing items / needs a table, "any layout" for shapeless), the crafting
+  table's 3x3 grid with each ingredient in its cell (2x2 recipes top-left, empty cells shown), and the result with its count.
+  Placed right of the window past the Survivor Gear column when the screen has room, otherwise carved out of the right of the
+  recipe list; never over the window, the list or the gear column; clicks on it are consumed (no thrown cursor items).
+  Re-laid out every frame (the inventory's own recipe book moves the window). tests/recipe-book-engine.test.cjs 9/9 (both
+  placements, exact cell positions, same place for every recipe). Client 20260926-craftfix2. Backup
+  .runtime/site-backup-20260926-174330-craftfix2.
