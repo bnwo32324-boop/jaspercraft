@@ -67,6 +67,11 @@ const fixture = new URL(url);
       log.push('dragstart ' + [a, b, c, d].join(','));
     } else if (op === 'dragend') {
       await touch('touchEnd', []); log.push('dragend');
+    } else if (op === 'click') {
+      await send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: a, y: b}); await sleep(60);
+      await send('Input.dispatchMouseEvent', {type: 'mousePressed', x: a, y: b, button: 'left', clickCount: 1}); await sleep(90);
+      await send('Input.dispatchMouseEvent', {type: 'mouseReleased', x: a, y: b, button: 'left', clickCount: 1});
+      log.push('click ' + a + ',' + b);
     } else if (op === 'rclick') {
       await send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: a, y: b}); await sleep(40);
       await send('Input.dispatchMouseEvent', {type: 'mousePressed', x: a, y: b, button: 'right', clickCount: 1}); await sleep(90);

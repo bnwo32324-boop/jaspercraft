@@ -12,6 +12,7 @@
   var activeGameName = "";
   var observedSettings = Object.create(null);
   var settingsStorageObserved = false;
+  var joinedKey = storageNamespace + ".jasprJoined";
 
   function fullSettingKey(value) {
     var candidate = String(value || "");
@@ -319,6 +320,26 @@
     window.WebSocket = ObservedWebSocket;
   }
 
+  // Marks the account as having played once it reaches the world (synced like any game setting), so the
+  // character screen is only ever the first-time path.
+  function watchFirstWorldJoin() {
+    var startedAt = Date.now();
+    var timer = setInterval(function () {
+      var state = null;
+      try { state = window.JasprVideoMobileBridge && window.JasprVideoMobileBridge.state(); } catch (_) {}
+      if (!state || !state.playing) {
+        if (Date.now() - startedAt > 30 * 60 * 1000) clearInterval(timer);
+        return;
+      }
+      clearInterval(timer);
+      try {
+        if (window.localStorage.getItem(joinedKey) === "1") return;
+        window.localStorage.setItem(joinedKey, "1");
+        diagnostic("jaspercraft.engine.first_world_join", { firstRun: window.JasprFirstRun === true, afterMs: Date.now() - startedAt });
+      } catch (_) {}
+    }, 2000);
+  }
+
   // Video settings and auto-detection are owned by the native video adapter.
   window.JasperCraftClient = {
     start: function (session) {
@@ -358,10 +379,14 @@
           { addr: "wss://relay.shhnowisnottheti.me/", comment: "ayunami relay #1", primary: relayId === 2 }
         ]
       };
-      if (session.join) window.eaglercraftXOpts.joinServer = stableAddress;
+      // First-time players see Edit Profile ("create a character") first; its Done button joins (classes.js
+      // JASPR_FIRSTRUN_V1), after the engine has finished its first load instead of in the middle of it.
+      window.JasprFirstRun = session.firstRun === true;
+      if (session.join || window.JasprFirstRun) window.eaglercraftXOpts.joinServer = stableAddress;
       started = true;
-      diagnostic("jaspercraft.engine.starting", { autoJoin: Boolean(session.join), gameNameLength: session.gameName.length });
+      diagnostic("jaspercraft.engine.starting", { autoJoin: Boolean(session.join), firstRun: window.JasprFirstRun, gameNameLength: session.gameName.length });
       main();
+      watchFirstWorldJoin();
       setTimeout(function () { focusGameSurface("engine-started"); }, 0);
       setTimeout(function () { focusGameSurface("engine-settled"); }, 500);
     }

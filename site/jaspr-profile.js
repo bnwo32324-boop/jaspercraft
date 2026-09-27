@@ -4,6 +4,7 @@
   var namespace = "_eaglercraft_1122_tailscale_ui2";
   var key = namespace + ".p";
   var ownerKey = "jaspr.jaspercraft.settings.owner.v1";
+  var joinedKey = namespace + ".jasprJoined";
   var settingKeyPattern = new RegExp("^" + namespace.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\.[A-Za-z0-9_.-]{1,64}$");
   var limit = 32 * 1024 * 1024;
 
@@ -45,6 +46,14 @@
     settingKeys(storage).forEach(function (settingKey) { storage.removeItem(settingKey); });
     Object.keys(validated).forEach(function (settingKey) { storage.setItem(settingKey, validated[settingKey]); });
     storage.setItem(ownerKey, name);
+  }
+
+  // Accounts that have never reached the JasperCraft world pick their character (Edit Profile) before joining.
+  // Legacy players predate the joined marker, so a saved profile also counts as having played.
+  function firstRun(synced) {
+    var values = synced && synced.values && typeof synced.values === "object" ? synced.values : {};
+    if (values[joinedKey] === "1") return false;
+    return Boolean(synced && synced.initialized === true) || typeof values[key] !== "string";
   }
 
   function concat(parts) {
@@ -147,6 +156,8 @@
     namespace: namespace,
     key: key,
     ownerKey: ownerKey,
+    joinedKey: joinedKey,
+    firstRun: firstRun,
     settings: settings,
     initialSettings: initialSettings,
     applySettings: applySettings,

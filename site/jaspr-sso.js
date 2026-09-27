@@ -239,8 +239,10 @@
       gameName: name,
       initialValues: JasprProfile.initialSettings(name, localStorage)
     });
+    var firstRun = JasprProfile.firstRun(synced);
     JasprProfile.applySettings(name, localStorage, synced.values);
     diagnostic("jaspercraft.host.settings_restored", {
+      firstRun: firstRun,
       initialized: Boolean(synced.initialized),
       revision: Number(synced.revision) || 0,
       count: Object.keys(synced.values || {}).length
@@ -273,7 +275,7 @@
       }, { once: true });
       frame.addEventListener("error", function () { clearTimeout(timeout); reject(new Error("The game could not load.")); }, { once: true });
     });
-  frame.src = "client.html?build=20260927-tank1";
+  frame.src = "client.html?build=20260927-join1";
     byId("game-host").textContent = "";
     byId("game-host").appendChild(frame);
     byId("game-host").hidden = false;
@@ -287,7 +289,8 @@
     focusFrame(frame, "mounted");
     await loaded;
     if (attempt !== generation) return;
-    frame.contentWindow.JasperCraftClient.start({ gameName: name, serverAddress: connection.serverAddress, join: true });
+    // First-time players create their character before joining; everyone else joins straight away.
+    frame.contentWindow.JasperCraftClient.start({ gameName: name, serverAddress: connection.serverAddress, join: !firstRun, firstRun: firstRun });
     focusFrame(frame, "client-started");
     setTimeout(function () { if (attempt === generation) focusFrame(frame, "client-settled"); }, 500);
     byId("game-status").hidden = true;
