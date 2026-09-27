@@ -7,6 +7,13 @@ Players on phones and tablets get an advantage that makes up for touch controls:
 - **Automatic start:** the touch controls announce themselves once the server advertises tanks.
   - The player sees a "Mobile player detected" notice and starts in their last vehicle (Tank by default).
   - **Mode** swaps vehicles at any time. **Tank** hops out or back in. Both choices are remembered.
+- **Edit Profile toggle (client 20260927-vehicle1):** a **Mobile: Tank / Mobile: Orbital Sentinel** button sits under
+  Add Skin / Clear List, so the vehicle can be picked before joining (also on a first join).
+  - The choice is kept in the browser (`localStorage` `jaspr.vehicle.v1`) and rides along with the claim
+    (`/tank mobile sentinel`); the server switches a vehicle that already started on join.
+  - In game, a switch made with **Mode** (or `/tank mode`) becomes the saved choice. Against an older plugin the client
+    asks once with `/tank mode <choice>` about 1.5 s after the vehicle appears.
+  - Diagnostics: `JasprTankDiagnostics.status().vehicle` gives `{choice, pending, requests, button}`.
 - **Double health:** +20 maximum health while playing from a phone or tablet (`mobile.health-bonus`).
 - **Camera:** both vehicles start in third person. **View** switches to first person, and a centered reticle marks the aim.
 - **Inventory, stats and HUD are unchanged:** the player walks or flies inside the model, so they are never mounted on anything.

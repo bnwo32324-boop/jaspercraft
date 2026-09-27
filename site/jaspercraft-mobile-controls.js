@@ -7,6 +7,8 @@
  // Tank mode (JasprTanks): the server advertises tanks; these controls claim one and drive it.
  var tank={state:'none',view:'first',vehicle:'',pickup:null,claimed:false,polled:0,cooldownMs:1500,coolUntil:0},fireButton=null,tankButton=null,viewButton=null,modeButton=null,pickupButton=null,jumpButton=null,sneakButton=null,stickLabel=null,stickSprint=false;
  function bridge(){return window.JasprVideoMobileBridge;}
+ // Tank or Orbital Sentinel, as chosen on the Edit Profile screen (kept by the game client in this browser).
+ function vehicleChoice(){try{return localStorage.getItem('jaspr.vehicle.v1')==='sentinel'?'sentinel':'tank';}catch(e){return 'tank';}}
  function state(){return bridge()?bridge().state():{ready:false,playing:false,menu:false,enabled:true,sensitivity:1};}
  function key(field,down){if(!bridge()||held.has(field)===!!down)return;if(down)held.add(field);else held.delete(field);bridge().key(field,down);}
  function release(){held.forEach(function(field){if(bridge())bridge().key(field,false);});held.clear();pointers.clear();stickSprint=false;if(canvas)mouse('mouseup',0,0,0);
@@ -28,7 +30,7 @@
    modeButton.textContent=sky?'Mode: Sentinel':'Mode: Tank';fireButton.textContent=sky?'STRIKE':'FIRE';jumpButton.textContent=sky?'Up':'Jump';sneakButton.textContent=sky?'Down':'Sneak';
    pickupButton.textContent=pickup?'Pickup: Auto':'Pickup: Tap';}
   // Claim a tank once per connection, as soon as the server advertises them.
-  if(!t||!t.supported)tank.claimed=false;else if(!tank.claimed&&s.playing){tank.claimed=true;b.text('/tank mobile',true);}
+  if(!t||!t.supported)tank.claimed=false;else if(!tank.claimed&&s.playing){tank.claimed=true;b.text('/tank mobile '+vehicleChoice(),true);}
   var view=t&&t.view>0?'third':'first';if(view!==tank.view){tank.view=view;host.dataset.view=view;viewButton.textContent=view==='third'?'View: 3rd':'View: 1st';}
   if(state===tank.state)return;tank.state=state;host.dataset.tank=state;tankButton.textContent=state==='on'?'Tank: ON':'Tank: OFF';stickLabel.textContent=state==='on'?'DRIVE':'MOVE';
   if(state!=='on'&&stickSprint){stickSprint=false;key('bOT',false);}}

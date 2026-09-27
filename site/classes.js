@@ -27161,7 +27161,7 @@ function LpA(a){var b=new Zk();BOH(b,a);return b;}
 function BOH(a,b){var $p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:$p=1;case 1:GKv();if(B()){break _;}$p=2;case 2:BGm(a);if(B()){break _;}a.ru=0;a.FS=0;a.kp=0;a.m1=(-1);a.Az=0;a.mm=0;a.bdz=0;a.H4=0;a.N8=0;a.cva=C(6848);a.cat=b;return;default:FT();}}Ds().s(a,b,$p);}
 function E_t(a){var b,c,d,e,f,g,h,i,j,k,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();k=$T.l();j=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:HIu=1;b=C(6849);c=G(D,0);$p=1;case 1:$z=GWe(b,c);if(B()){break _;}b=$z;a.cva=b;b=new Ge;d=0;e=a.J;f=((a.q/2|0)-20|0)+1|0;g=((a.L/6|0)+24|0)+1|0;h=138;i=20;$p=2;case 2:FZ$(b,d,e,f,g,h,i);if(B()){break _;}a.X$=b;d=1;$p=3;case 3:D8s(b,d);if(B()){break _;}b=a.X$;$p=4;case 4:$z=EE7();if(B()){break _;}e
 =$z;$p=5;case 5:Dwt(b,e);if(B()){break _;}Ks(a.X$,16);d=HGm;a.kp=d==(-1)?HGn:d+HGz.g|0;b=a.be;e=new B3;d=0;i=(a.q/2|0)-100|0;f=(a.L/6|0)+168|0;j=C(6850);c=G(D,0);$p=6;case 6:$z=GWe(j,c);if(B()){break _;}j=$z;$p=7;case 7:B4K(e,d,i,f,j);if(B()){break _;}$p=8;case 8:Y(b,e);if(B()){break _;}b=a.be;e=new B3;i=1;f=(a.q/2|0)-21|0;g=(a.L/6|0)+110|0;h=71;k=20;j=C(6851);c=G(D,0);$p=9;case 9:$z=GWe(j,c);if(B()){break _;}j=$z;$p=10;case 10:Bq3(e,i,f,g,h,k,j);if(B()){break _;}$p=11;case 11:Y(b,e);if(B()){break _;}b=a.be;e
-=new B3;d=2;i=((a.q/2|0)-21|0)+71|0;f=(a.L/6|0)+110|0;g=72;h=20;j=C(6852);c=G(D,0);$p=12;case 12:$z=GWe(j,c);if(B()){break _;}j=$z;$p=13;case 13:Bq3(e,d,i,f,g,h,j);if(B()){break _;}$p=14;case 14:Y(b,e);if(B()){break _;}$p=15;case 15:ErU(a);if(B()){break _;}return;default:FT();}}Ds().s(a,b,c,d,e,f,g,h,i,j,k,$p);}
+=new B3;d=2;i=((a.q/2|0)-21|0)+71|0;f=(a.L/6|0)+110|0;g=72;h=20;j=C(6852);c=G(D,0);$p=12;case 12:$z=GWe(j,c);if(B()){break _;}j=$z;$p=13;case 13:Bq3(e,d,i,f,g,h,j);if(B()){break _;}$p=14;case 14:Y(b,e);if(B()){break _;}/*JASPR_VEHICLE_V1*/JasprVehicle.add(a);$p=15;case 15:ErU(a);if(B()){break _;}return;default:FT();}}Ds().s(a,b,c,d,e,f,g,h,i,j,k,$p);}
 function ErU(a){var b,c,d,e,f,g,h,i,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:$p=1;case 1:Ni();if(B()){break _;}b=HGD;$p=2;case 2:$z=Dw6();if(B()){break _;}c=$z;if(c.brY)d=b;else{d=G(EL,b.data.length-5|0);CK(b,0,d,0,d.data.length);}b=d.data;$p=3;case 3:Iq();if(B()){break _;}e=HGz.g;f=b.length;g=G(BI,e+f|0);d=g.data;h=0;if(h>=e){i=0;while(i<f){d[e+i|0]=b[i].cQq;i=i+1|0;}a.sE=g;return;}c=HGz;$p=4;case 4:$z
 =Bm(c,h);if(B()){break _;}c=$z;d[h]=c.b6D;h=h+1|0;if(h>=e){i=0;while(i<f){d[e+i|0]=b[i].cQq;i=i+1|0;}a.sE=g;return;}c=HGz;continue _;default:FT();}}Ds().s(a,b,c,d,e,f,g,h,i,$p);}
 function CO0(a,b,c,d){var e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,ba,bb,bc,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();bc=$T.l();bb=$T.l();ba=$T.l();z=$T.l();y=$T.l();x=$T.l();w=$T.l();v=$T.l();u=$T.l();t=$T.l();s=$T.l();r=$T.l();q=$T.l();p=$T.l();o=$T.l();n=$T.l();m=$T.l();l=$T.l();k=$T.l();j=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:$p=1;case 1:EpO(a);if(B()){break _;}e=a.J;f=a.cva;g=a.q/2|0;h=15;i=16777215;$p=2;case 2:Ck1(a,
@@ -27182,7 +27182,7 @@ $z;$p=71;case 71:DGW(w,x,b,c,i,r,f,e);if(B()){break _;}return;case 72:$z=FNw();i
 =771;$p=77;case 77:Fb_(v,w);if(B()){break _;}g=i+g|0;h=k+h|0;v=(-1157627904);$p=78;case 78:D49(i,k,g,h,v);if(B()){break _;}$p=79;case 79:CTP();if(B()){break _;}v=i+1|0;$p=80;case 80:D49(i,k,v,h,u);if(B()){break _;}v=k+1|0;$p=81;case 81:D49(i,k,g,v,u);if(B()){break _;}v=g-1|0;$p=82;case 82:D49(v,k,g,h,u);if(B()){break _;}k=h-1|0;$p=83;case 83:D49(i,k,g,h,u);if(B()){break _;}if(!n){i=0;f=Kp4;e=AKP(e);$p=84;continue _;}f=a.J;r=C(6860);i=h+8|0;$p=86;continue _;case 84:$z=FNw();if(B()){break _;}r=$z;$p=85;case 85:DGW(l,
 m,b,c,i,f,e,r);if(B()){break _;}return;case 86:Ck1(a,f,r,l,i,u);if(B()){break _;}i=0;f=Kp4;e=AKP(e);$p=84;continue _;default:FT();}}Ds().s(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,ba,bb,bc,$p);}
 function Cwr(a){var b,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:$p=1;case 1:Fpj(a);if(B()){break _;}if(a.ru){b=AI5();if(b<0)a.m1=a.m1+3|0;if(b>0){b=a.m1-3|0;a.m1=b;if(b<0)a.m1=0;}}return;default:FT();}}Ds().s(a,b,$p);}
-function E_1(a,b){var c,d,e,f,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:if(!a.ru){c=b.bF;if(!c){$p=1;continue _;}if(c==1){b=C(843);d=C(6861);$p=3;continue _;}if(c==2){$p=7;continue _;}}return;case 1:DZP(a);if(B()){break _;}$p=2;case 2:DUX();if(B()){break _;}if(!a.j.G.bQZ){$p=5;continue _;}b=a.j;d=a.cat;$p=4;continue _;case 3:CIU(b,d);if(B()){break _;}return;case 4:GGw(b,d);if(B()){break _;}return;case 5:$z=EE7();if(B()){break _;}b
+function E_1(a,b){var c,d,e,f,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:if(!a.ru){c=b.bF;/*JASPR_VEHICLE_V1*/if(JasprVehicle.pressed(b))return;if(!c){$p=1;continue _;}if(c==1){b=C(843);d=C(6861);$p=3;continue _;}if(c==2){$p=7;continue _;}}return;case 1:DZP(a);if(B()){break _;}$p=2;case 2:DUX();if(B()){break _;}if(!a.j.G.bQZ){$p=5;continue _;}b=a.j;d=a.cat;$p=4;continue _;case 3:CIU(b,d);if(B()){break _;}return;case 4:GGw(b,d);if(B()){break _;}return;case 5:$z=EE7();if(B()){break _;}b
 =$z;d=Fs(b);b=C(6862);$p=6;case 6:$z=GE1(d,b);if(B()){break _;}e=$z;if(!e){b=a.j;d=a.cat;$p=4;continue _;}b=a.j;d=new BV7;f=a.cat;$p=11;continue _;case 7:Fwf();if(B()){break _;}$p=8;case 8:DZP(a);if(B()){break _;}$p=9;case 9:DUX();if(B()){break _;}$p=10;case 10:ErU(a);if(B()){break _;}a.kp=0;return;case 11:BGm(d);if(B()){break _;}d.dS$=a;d.cIF=f;$p=12;case 12:GGw(b,d);if(B()){break _;}return;default:FT();}}Ds().s(a,b,c,d,e,f,$p);}
 function Cnb(a){var b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();q=$T.l();p=$T.l();o=$T.l();n=$T.l();m=$T.l();l=$T.l();k=$T.l();j=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:KP(a.X$);$p=1;case 1:$z=Fg8();if(B()){break _;}b=$z;if(!b){if(!a.ru)a.mm=0;else if(!Ld(0))a.mm=0;else{b=(a.q/2|0)-20|0;c=(a.L/6|0)+103|0;d=a.bdz;b=b+140|0;if(d>=(b-10|0)&&d<b){b=a.H4;if(b>=c&&b<(c+a.Az|0))a.mm=1;}if(a.mm){e=a.Az;b=W(e,
 a.FS);d=a.sE.data.length;f=b/d|0;a.m1=W((a.H4-c|0)-(f/2|0)|0,d)/e|0;}}return;}$p=2;case 2:$z=EqN();if(B()){break _;}g=$z;if(g===null){if(!a.ru)a.mm=0;else if(!Ld(0))a.mm=0;else{b=(a.q/2|0)-20|0;c=(a.L/6|0)+103|0;d=a.bdz;b=b+140|0;if(d>=(b-10|0)&&d<b){b=a.H4;if(b>=c&&b<(c+a.Az|0))a.mm=1;}if(a.mm){e=a.Az;b=W(e,a.FS);d=a.sE.data.length;f=b/d|0;a.m1=W((a.H4-c|0)-(f/2|0)|0,d)/e|0;}}return;}h=g.bxN;i=BTK(g.Es);$p=3;case 3:$z=FLN(h,i);if(B()){break _;}j=$z;if(j===null){g=g.Es;i=new O;Q(i);j=C(6863);$p=4;continue _;}b
@@ -54594,6 +54594,31 @@ JasprVideoExtra.push([959,'dhEnabled','Distant Horizons',[0,1],''],[960,'dhDista
  * blocks and starts in third person. Up to four riders sit on the hull stand; they are placed on the rear deck
  * and the track guards. state() is a cached, read-only view for the touch controls (no engine calls from DOM
  * handlers). */
+/* Vehicle choice for touch players: Tank or Orbital Sentinel, toggled on the Edit Profile screen and kept in this browser. */
+var JasprVehicle=(function(){
+  var KEY="jaspr.vehicle.v1",ID=7301,pending=true,lastMode=null,requests=0,settled=0;
+  function get(){try{return $rt_globals.localStorage.getItem(KEY)==="sentinel"?"sentinel":"tank";}catch(e){return "tank";}}
+  function put(v){try{$rt_globals.localStorage.setItem(KEY,v==="sentinel"?"sentinel":"tank");}catch(e){}}
+  function label(v){return $rt_str(v==="sentinel"?"Mobile: Orbital Sentinel":"Mobile: Tank");}
+  // Edit Profile: right column under Add Skin / Clear Skin, clear of the player preview and above Done.
+  function add(screen){var b=new B3;Bq3(b,ID,((screen.q/2|0)-21|0),((screen.L/6|0)+134|0),143,20,label(get()));Y(screen.be,b);}
+  function pressed(button){if(!button||button.bF!==ID)return false;var v=get()==="sentinel"?"tank":"sentinel";put(v);button.dd=label(v);pending=true;return true;}
+  function reset(){pending=true;lastMode=null;settled=0;}
+  // Once per connection or change: ask for the saved choice. Afterwards a switch made in game becomes the choice.
+  function sync(state){
+    // Wait ~1.5 s after the vehicle appears: the server applies the claim and its mode score arrives after the mount.
+    if(!state.supported||!state.active){settled=0;return;}if(++settled<3)return;
+    var want=get(),bridge=$rt_globals.JasprVideoMobileBridge;
+    if(pending){pending=false;lastMode=state.mode;if(state.mode!==want&&bridge){requests++;bridge.text("/tank mode "+want,true);}return;}
+    if(lastMode!==null&&state.mode!==lastMode)put(state.mode);
+    lastMode=state.mode;
+  }
+  // Diagnostics: the choice, sync state and, on the Edit Profile screen, where the toggle sits (GUI units).
+  function status(){var s=HEH&&HEH.cj,l=s instanceof Zk?s.be:null,i,b,button=null;
+    for(i=0;l&&i<l.g;i++){b=l.qN.data[i];if(b&&b.bF===ID)button={x:b.eh,y:b.d$,w:b.fg,h:b.i2,label:$rt_ustr(b.dd),screenW:s.q,screenH:s.L};}
+    return {choice:get(),pending:pending,requests:requests,button:button};}
+  return {get:get,add:add,pressed:pressed,reset:reset,sync:sync,status:status};
+})();
 var JasprTank=(function(){
   var STEP=1.0,VANILLA_STEP=0.6000000238418579,cache={supported:false,active:false,cooldown:30,view:0,mode:"tank",pickup:false},checked=0,failure=null,wasActive=false;
   // Rider seats in the hull frame: [back, right, drop] in blocks from the server seat (driver feet + 1.0). All four
@@ -54629,19 +54654,19 @@ var JasprTank=(function(){
     catch(e){failure=String(e&&e.message||e).slice(0,160);}
   }
   function tick(mc){
-    var p=mc&&mc.v;if(!p){cache.active=cache.supported=wasActive=false;return;}
+    var p=mc&&mc.v;if(!p){cache.active=cache.supported=wasActive=false;JasprVehicle.reset();return;}
     cache.active=parts(p)>0;
     if(cache.active){if(p.r5<STEP)p.r5=STEP;p.$jasprTankStep=1;}
     else if(p.$jasprTankStep){p.r5=VANILLA_STEP;p.$jasprTankStep=0;}
     // Drivers start behind their tank (third person); the View button or F5 switches back.
     if(cache.active&&!wasActive&&mc.G)mc.G.lv=1;
     wasActive=cache.active;cache.view=mc.G?mc.G.lv:0;
-    if(++checked>=10){checked=0;advertised(mc);}
+    if(++checked>=10){checked=0;advertised(mc);JasprVehicle.sync(cache);}
   }
   function state(){return {supported:cache.supported,active:cache.active,cooldown:cache.cooldown,view:cache.view,mode:cache.mode,pickup:cache.pickup};}
   // Diagnostics only: state names and counts, nothing identifying.
   $rt_globals.JasprTankDiagnostics={status:function(){var p=HEH&&HEH.v,s=p&&p.fS;return {supported:cache.supported,active:cache.active,cooldownTicks:cache.cooldown,
-    view:cache.view,mode:cache.mode,pickup:cache.pickup,parts:parts(p),riders:s instanceof HC?s.a1k.g:0,riding:s instanceof HC,stepHeight:p?p.r5:null,blocksPerSecond:p?Math.round(Math.sqrt((p.b-p.dn)*(p.b-p.dn)+(p.c-p.dv)*(p.c-p.dv))*200)/10:null,failure:failure};}};
+    view:cache.view,mode:cache.mode,pickup:cache.pickup,parts:parts(p),riders:s instanceof HC?s.a1k.g:0,riding:s instanceof HC,stepHeight:p?p.r5:null,blocksPerSecond:p?Math.round(Math.sqrt((p.b-p.dn)*(p.b-p.dn)+(p.c-p.dv)*(p.c-p.dv))*200)/10:null,vehicle:JasprVehicle.status(),failure:failure};}};
   return {tick:tick,align:align,free:free,state:state,view:view,parts:parts};
 })();
 /* JASPR_TANK_V1_END */

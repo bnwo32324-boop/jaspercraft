@@ -43,6 +43,10 @@ test('client stage: four fenced hooks, block refresh is idempotent, parses', () 
   const staged = build(live);
   assert.equal(staged.split('/*JASPR_TANK_V1*/').length - 1, 4);
   assert.equal(staged.split('/* JASPR_TANK_V1_BEGIN */').length - 1, 1);
+  assert.equal(staged.split('/*JASPR_VEHICLE_V1*/').length - 1, 2, 'Edit Profile toggle: button in initGui, press in actionPerformed');
+  assert.ok(staged.includes('JasprVehicle.add(a);$p=15;case 15:ErU(a);') && staged.includes('if(JasprVehicle.pressed(b))return;'), 'Edit Profile hooks');
+  assert.ok(staged.includes('localStorage.getItem(KEY)') && staged.includes('KEY="jaspr.vehicle.v1"'), 'choice kept in this browser');
+  assert.ok(staged.includes('bridge.text("/tank mode "+want,true)'), 'in game, the saved choice is requested once per connection or change');
   assert.equal(build(staged), staged, 'refreshing the fenced block is idempotent');
   assert.equal(staged, live, 'site/classes.js carries the current tank block');
   assert.ok(staged.includes('n==="mode"') && staged.includes('n==="pickup"'), 'client reads vehicle mode and pickup');
@@ -55,7 +59,8 @@ test('touch controls: claim, fire on swap-hands, hop in/out, view switch, reticl
   const file = fs.existsSync(path.join(root, 'site/jaspercraft-mobile-controls.js')) ? 'site/jaspercraft-mobile-controls.js' : 'candidate/tank-client/jaspercraft-mobile-controls.js';
   const js = read(file), css = read(file.replace(/\.js$/, '.css'));
   new vm.Script(js);
-  assert.match(js, /b\.text\('\/tank mobile',true\)/, 'claims once the server advertises tanks');
+  assert.match(js, /b\.text\('\/tank mobile '\+vehicleChoice\(\),true\)/, 'claims once the server advertises tanks, with the Edit Profile vehicle choice');
+  assert.match(js, /localStorage\.getItem\('jaspr\.vehicle\.v1'\)/, 'reads the same key the Edit Profile toggle writes');
   assert.match(js, /pulse\('bUd'\)/, 'FIRE uses the swap-hands key');
   assert.match(js, /bridge\(\)\.text\('\/tank',true\)/, 'Tank button toggles');
   assert.match(js, /tankView\(\)/, 'View button');

@@ -213,7 +213,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
             player.sendMessage(ChatColor.GREEN + "Mobile bonus: " + ChatColor.GRAY + "double health, plus your choice of vehicle. "
                 + ChatColor.WHITE + "Tank" + ChatColor.GRAY + ": TNT cannon, climbs blocks, " + MAX_RIDERS + " friends can ride (right-click you). "
                 + ChatColor.WHITE + "Orbital Sentinel" + ChatColor.GRAY + ": flies (Up/Down), drone strikes, tap an item to grab it, tap a player to follow them. "
-                + "Tap Mode to switch any time; Tank hops out.");
+                + "Tap Mode to switch any time, or pick one on the Edit Profile screen; Tank hops out.");
         } else {
             player.sendMessage(ChatColor.GREEN + "You're in your " + tank.mode.label() + ". " + ChatColor.GRAY
                 + (tank.mode == Tank.Mode.TANK ? "FIRE shoots TNT where you aim." : "STRIKE calls drones on where you aim.")
@@ -285,8 +285,13 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
                     return true;
                 }
                 claimed.add(id);
+                // The vehicle chosen on the Edit Profile screen (Tank or Orbital Sentinel) rides along with the claim;
+                // a phone may already be driving (entered on join), so an existing vehicle switches to it.
+                Tank.Mode chosen = args.length > 1 ? Tank.Mode.parse(args[1]) : null;
+                if (chosen != null && (chosen == Tank.Mode.SENTINEL ? sentinels.add(id) : sentinels.remove(id))) savePlayers();
                 health(player, true);
-                if (!optedOut.contains(id)) enter(player, "touch-controls");
+                if (tank != null && chosen != null) setMode(player, tank, chosen);
+                else if (!optedOut.contains(id)) enter(player, "touch-controls");
                 return true;
             case "on":
                 on(player);
