@@ -1,0 +1,35 @@
+{
+  "parent": "item/handheld",
+  "textures": {
+    "layer0": "items/iron_axe"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.003984
+      },
+      "model": "item/jaspr_tank_hull"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.007968
+      },
+      "model": "item/jaspr_tank_turret"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.011952
+      },
+      "model": "item/jaspr_vanilla_iron_axe"
+    },
+    {
+      "predicate": {
+        "damaged": 1
+      },
+      "model": "item/jaspr_vanilla_iron_axe"
+    }
+  ]
+}

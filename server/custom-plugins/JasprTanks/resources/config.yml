@@ -1,0 +1,35 @@
+# JasprTanks: players on phones and tablets drive a miniature tank.
+# The touch controls announce themselves with /tank mobile once the server advertises tanks.
+enabled: true
+# Let browsers whose user agent looks like a desktop drive tanks too (operators always may).
+desktop-players: false
+
+tank:
+  # Blocks the tank climbs without jumping (players normally step 0.6).
+  step-height: 1.0
+  # Driving speed as a multiple of walking. 2.25 matches an average horse (about 9.7 blocks/s,
+  # 12.6 when sprinting). Raises walk speed rather than the speed attribute, so the view does not widen.
+  speed-multiplier: 2.25
+  # Extra armor points (2 points = one chestplate icon).
+  armor: 6
+  # 1.0 = the tank is never pushed back by hits.
+  knockback-resistance: 1.0
+
+cannon:
+  # Reload time between shots, in ticks (20 ticks = 1 second).
+  cooldown-ticks: 30
+  # Explosion strength. Vanilla TNT is 4, a charged creeper is 6.
+  power: 6.0
+  # How far the crosshair aims, in blocks.
+  range: 96
+  # Shell speed in blocks per tick.
+  speed: 2.5
+  # Extra hit margin around targets, in blocks (makes touch aiming forgiving).
+  aim-assist: 0.45
+  # How sharply a shell curves toward the creature it was fired at, in degrees per tick (0 = straight).
+  homing-degrees: 9
+  # Shells never dig craters or break item frames, paintings, minecarts or dropped items unless this is true.
+  break-blocks: false
+  fire: false
+  # Shells hurt other players only in worlds with PvP on.
+  damage-players: true

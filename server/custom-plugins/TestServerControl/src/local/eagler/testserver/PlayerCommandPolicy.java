@@ -32,6 +32,8 @@ final class PlayerCommandPolicy {
             "giveup", "jasprrevive:giveup",
             // Survivor Gear: the player's own trinket slots, menu, XP bank and ability fallbacks.
             "gear", "trinkets", "kit", "jasprgear:gear", "jasprgear:trinkets", "jasprgear:kit",
+            // Touch players' own tank (JasprTanks): hop in or out, and the touch controls' claim.
+            "tank", "tanks", "jasprtanks:tank", "jasprtanks:tanks",
             "jasprapocalypse:waypoints", "jasprapocalypse:wp",
             "jasprapocalypse:dl", "jasprapocalypse:dynamiclights",
             "tp", "teleport", "tpa", "tpahere", "tpaccept", "tpdeny", "tpcancel",

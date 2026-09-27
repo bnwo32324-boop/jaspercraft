@@ -273,7 +273,7 @@
       }, { once: true });
       frame.addEventListener("error", function () { clearTimeout(timeout); reject(new Error("The game could not load.")); }, { once: true });
     });
-  frame.src = "client.html?build=20260926-craftfix4";
+  frame.src = "client.html?build=20260927-tank1";
     byId("game-host").textContent = "";
     byId("game-host").appendChild(frame);
     byId("game-host").hidden = false;

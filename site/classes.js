@@ -1390,7 +1390,7 @@ catch($$e){$$je=F($$e);g=$$je;}BJ(c);I(g);case 4:a:{b:{try{$z=E3i(g);if(B()){bre
 !==null){$p=35;continue _;}if(a.Yb){$p=39;continue _;}c=a.fU;e=a.cp?a.buv:a.J4.UM;$p=41;continue _;case 29:FVl(c);if(B()){break _;}c=HDv;$p=30;case 30:FVl(c);if(B()){break _;}f=36160;c=null;$p=23;continue _;case 31:FZg();if(B()){break _;}$p=32;case 32:EK6();if(B()){break _;}$p=33;case 33:$z=DzO();if(B()){break _;}d=$z;EjQ(a.cDL,BU(d,a.cUw));a.cUw=d;$p=36;continue _;case 34:E9_(i);if(B()){break _;}if(!a.cp){c=a.fA;$p=37;continue _;}c=a.fA;$p=38;continue _;case 35:$z=Eq0(c);if(B()){break _;}f=$z;if(f)a.G.lv=0;if
 (a.Yb){$p=39;continue _;}c=a.fU;e=a.cp?a.buv:a.J4.UM;$p=41;continue _;case 36:$z=E_G();if(B()){break _;}d=$z;if(EE(d,BG(a.ch6,N(1000))))return;f=a.cno;HEI=f;c=C(542);o=G(D,8);p=o.data;p[0]=U(f);p[1]=U(HE5);p[2]=HE5!=1?C(543):C(14);i=a.G.a3u;l=i;Lm();p[3]=l!==HE6.a8M?U(i):C(544);h=a.G;p[4]=!h.qQ?C(14):C(545);p[5]=!h.u8?C(546):C(14);i=h.Hz;p[6]=!i?C(14):i!=1?C(547):C(548);p[7]=C(14);$p=44;continue _;case 37:FdR(c);if(B()){break _;}a.cFd=i;$p=31;continue _;case 38:Gde(c);if(B()){break _;}a.cFd=i;$p=31;continue _;case 39:$z
 =DzO();if(B()){break _;}b=$z;a.ded=b;$p=40;case 40:ECi();if(B()){break _;}$p=13;continue _;case 41:Fj1(c,e,b);if(B()){break _;}c=a.H2;g=new Ov;$p=42;case 42:CNY(g,a);if(B()){break _;}$p=43;case 43:Efh(c,g);if(B()){break _;}$p=39;continue _;case 44:$z=GJ2(c,o);if(B()){break _;}c=$z;a.cgE=c;HE5=0;a.ch6=BG(a.ch6,N(1000));a.cno=0;$p=36;continue _;default:FT();}}Ds().s(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,$p);}
-function Gq3(a){var b,c,d,e,f,g,h,i,j,k,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();k=$T.l();j=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:JasprRevive.tick();JasprDH.maintain();$p=99;case 99:JasprVideoTick(a);if(B()){break _;}if(!HE7)a.G.qQ=0;else HE8=a.G.qQ;if(!a.G.qQ){$p=2;continue _;}b=0;$p=1;case 1:C88(b);if(B()){break _;}a:{if(!a.czf){b=HE2;if(b==HE9&&HE3==HE$&&HA5===HE_)b=0;else{HE9=b;HE$=HE3;HE_=HA5;b=1;}if(!b){$p=5;continue _;}b=a.gk;c=a.fV;d=a.a0I;a.gk=HE2;a.fV=HE3;if((-1.0)===(-1.0)){$p=6;continue _;}a.a0I=(-1.0);e
+function Gq3(a){var b,c,d,e,f,g,h,i,j,k,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();k=$T.l();j=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:JasprRevive.tick();JasprDH.maintain();/*JASPR_TANK_V1*/JasprTank.tick(a);$p=99;case 99:JasprVideoTick(a);if(B()){break _;}if(!HE7)a.G.qQ=0;else HE8=a.G.qQ;if(!a.G.qQ){$p=2;continue _;}b=0;$p=1;case 1:C88(b);if(B()){break _;}a:{if(!a.czf){b=HE2;if(b==HE9&&HE3==HE$&&HA5===HE_)b=0;else{HE9=b;HE$=HE3;HE_=HA5;b=1;}if(!b){$p=5;continue _;}b=a.gk;c=a.fV;d=a.a0I;a.gk=HE2;a.fV=HE3;if((-1.0)===(-1.0)){$p=6;continue _;}a.a0I=(-1.0);e
 =a.gk;if(e!=b)break a;if(a.fV!=c)break a;if((-1.0)!==d)break a;}return;}if(e<=0)a.gk=1;if(a.fV<=0)a.fV=1;b=a.gk;c=a.fV;a.gk=B6(1,b);a.fV=B6(1,c);f=new Ov;$p=7;continue _;case 2:$z=CJZ(a);if(B()){break _;}b=$z;g=b;Lm();if(g>=HE6.a8M?0:1){$p=3;continue _;}b=0;$p=1;continue _;case 3:$z=CJZ(a);if(B()){break _;}b=$z;$p=4;case 4:C88(b);if(B()){break _;}a:{if(!a.czf){b=HE2;if(b==HE9&&HE3==HE$&&HA5===HE_)b=0;else{HE9=b;HE$=HE3;HE_=HA5;b=1;}if(!b){$p=5;continue _;}b=a.gk;c=a.fV;d=a.a0I;a.gk=HE2;a.fV=HE3;if((-1.0)===
 (-1.0)){$p=6;continue _;}a.a0I=(-1.0);e=a.gk;if(e!=b)break a;if(a.fV!=c)break a;if((-1.0)!==d)break a;}return;}if(e<=0)a.gk=1;if(a.fV<=0)a.fV=1;b=a.gk;c=a.fV;a.gk=B6(1,b);a.fV=B6(1,c);f=new Ov;$p=7;continue _;case 5:a:{$z=Fca();if(B()){break _;}g=$z;g=GL(g,1.0);if(g!==a.a0I){b=a.gk;c=a.fV;d=a.a0I;a.gk=HE2;a.fV=HE3;if(g===(-1.0)){$p=6;continue _;}a.a0I=g;e=a.gk;if(e!=b)break a;if(a.fV!=c)break a;if(g!==d)break a;}return;}if(e<=0)a.gk=1;if(a.fV<=0)a.fV=1;b=a.gk;c=a.fV;a.gk=B6(1,b);a.fV=B6(1,c);f=new Ov;$p=7;continue _;case 6:$z
 =Fca();if(B()){break _;}g=$z;g=GL(g,1.0);a.a0I=g;e=a.gk;if(e==b&&a.fV==c&&g===d)return;if(e<=0)a.gk=1;if(a.fV<=0)a.fV=1;b=a.gk;c=a.fV;a.gk=B6(1,b);a.fV=B6(1,c);f=new Ov;$p=7;case 7:CNY(f,a);if(B()){break _;}a.nZ=f;h=a.cj;if(h===null){f=new AZv;$p=8;continue _;}c=f.f7;b=f.ff;$p=9;continue _;case 8:EYk(f,a);if(B()){break _;}a.HV=f;f=a.Q1;if(f===null){$p=10;continue _;}h=a.nZ;e=h.f7;c=h.ff;b=h.Di;$p=11;continue _;case 9:C9y(h,a,c,b);if(B()){break _;}f=new AZv;$p=8;continue _;case 10:$z=Dw6();if(B()){break _;}f
@@ -6663,7 +6663,7 @@ function GFz(a){var b,c,d,e,f,g,h,i,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();i=
 function DGA(a,b,c){var $p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:return 0;default:FT();}}Ds().s(a,b,c,$p);}
 function FaJ(a,b){var $p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:return null;default:FT();}}Ds().s(a,b,$p);}
 function Emq(a){var b,c,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:b=a.fS;$p=1;case 1:$z=E9Z(a);if(B()){break _;}c=$z;if(c&&b.ed){$p=5;continue _;}a.s=0.0;a.p=0.0;a.t=0.0;$p=2;case 2:a.dt();if(B()){break _;}$p=3;case 3:$z=E9Z(a);if(B()){break _;}c=$z;if(!c)return;$p=4;case 4:b.b8u(a);if(B()){break _;}return;case 5:a.b7r();if(B()){break _;}return;default:FT();}}Ds().s(a,b,c,$p);}
-function DJF(a,b){var c,d,e,f,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:$p=1;case 1:$z=EcG(a,b);if(B()){break _;}c=$z;if(!c)return;d=a.b;e=a.f;$p=2;case 2:$z=a.brb();if(B()){break _;}f=$z;e=e+f;$p=3;case 3:$z=b.bof();if(B()){break _;}f=$z;e=e+f;f=a.c;$p=4;case 4:b.RW(d,e,f);if(B()){break _;}return;default:FT();}}Ds().s(a,b,c,d,e,f,$p);}
+function DJF(a,b){var c,d,e,f,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:$p=1;case 1:$z=EcG(a,b);if(B()){break _;}c=$z;if(!c)return;d=a.b;e=a.f;$p=2;case 2:$z=a.brb();if(B()){break _;}f=$z;e=e+f;$p=3;case 3:$z=b.bof();if(B()){break _;}f=$z;e=e+f;f=a.c;$p=4;case 4:b.RW(d,e,f);if(B()){break _;}/*JASPR_TANK_V1*/JasprTank.align(a,b);return;default:FT();}}Ds().s(a,b,c,d,e,f,$p);}
 function Gxs(a,b){var $p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:return;default:FT();}}Ds().s(a,b,$p);}
 function CAr(a){var $p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();a=$T.l();}_:while(true){switch($p){case 0:return 0.0;default:FT();}}Ds().s(a,$p);}
 function C9Z(a){var $p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();a=$T.l();}_:while(true){switch($p){case 0:return a.bZ*0.75;default:FT();}}Ds().s(a,$p);}
@@ -28786,7 +28786,7 @@ function C$3(a){var $p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();a=$T.l();}_:while(
 function EUK(a,b,c,d){var e,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:e=c-b;while(e<(-180.0)){e=e+360.0;}while(e>=180.0){e=e-360.0;}return b+d*e;default:FT();}}Ds().s(a,b,c,d,e,$p);}
 function DWR(a,b,c,d,e,f,g){var h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,$$je,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();v=$T.l();u=$T.l();t=$T.l();s=$T.l();r=$T.l();q=$T.l();p=$T.l();o=$T.l();n=$T.l();m=$T.l();l=$T.l();k=$T.l();j=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:$p=1;case 1:Eu0();if(B()){break _;}$p=2;case 2:F1Q();if(B()){break _;}h=a.iK;$p=3;case 3:$z=C3W(b,g);if(B()){break _;}i=$z;h.v5=i;h=a.iK;$p=4;case 4:$z=E9Z(b);if(B()){break _;}j
 =$z;h.b$r=j;h=a.iK;$p=5;case 5:$z=b.bV5();if(B()){break _;}j=$z;h.ww=j;try{i=b.s1;k=b.cZ;$p=6;continue _;}catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;continue _;case 6:try{$z=EUK(a,i,k,g);if(B()){break _;}i=$z;k=b.zM;o=b.gN;$p=7;continue _;}catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;continue _;case 7:try{$z=EUK(a,k,o,g);if(B()){break _;}k=$z;o=k-i;$p=8;continue _;}catch($$e)
-{$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;continue _;case 8:try{$z=E9Z(b);if(B()){break _;}j=$z;if(j){$p=10;continue _;}k=b.c2;p=k+(b.bd-k)*g;$p=17;continue _;}catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;case 9:FAk(h,m,n);if(B()){break _;}j=33985;$p=11;continue _;case 10:try{$z=CqZ(b);if(B()){break _;}h=$z;if(h instanceof Co){$p=22;continue _;}k=b.c2;p=k+(b.bd-k)*g;$p=17;continue _;}
+{$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;continue _;case 8:try{$z=E9Z(b);if(B()){break _;}j=$z;if(j){$p=10;continue _;}k=b.c2;p=k+(b.bd-k)*g;$p=17;continue _;}catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;case 9:FAk(h,m,n);if(B()){break _;}j=33985;$p=11;continue _;case 10:try{$z=CqZ(b);if(B()){break _;}h=$z;if(h instanceof Co&&/*JASPR_TANK_V1*/!JasprTank.free(b,h)){$p=22;continue _;}k=b.c2;p=k+(b.bd-k)*g;$p=17;continue _;}
 catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;continue _;case 11:GnI(j);if(B()){break _;}$p=12;case 12:CQ6();if(B()){break _;}j=33984;$p=13;case 13:GnI(j);if(B()){break _;}$p=14;case 14:Ggy();if(B()){break _;}$p=15;case 15:ECi();if(B()){break _;}$p=16;case 16:DqP(a,b,c,d,e,f,g);if(B()){break _;}return;case 17:try{a.dqK(b,c,d,e);if(B()){break _;}$p=18;continue _;}catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n
 =G(D,1);n.data[0]=l;$p=9;continue _;case 18:try{$z=a.b9U(b,g);if(B()){break _;}q=$z;$p=19;continue _;}catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;continue _;case 19:try{a.a95(b,q,i,g);if(B()){break _;}$p=20;continue _;}catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;continue _;case 20:try{$z=DVF(a,b,g);if(B()){break _;}r=$z;s=0.0;t=0.0;$p=21;continue _;}catch($$e){$$je=F($$e);if
 ($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;continue _;case 21:try{$z=E9Z(b);if(B()){break _;}j=$z;if(j){$p=26;continue _;}i=b.qi;k=b.hp;s=i+(k-i)*g;t=b.CE-k*(1.0-g);$p=25;continue _;}catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n=G(D,1);n.data[0]=l;$p=9;continue _;case 22:try{$z=CqZ(b);if(B()){break _;}h=$z;h=h;i=h.s1;o=h.cZ;$p=23;continue _;}catch($$e){$$je=F($$e);if($$je instanceof P){l=$$je;}else{throw $$e;}}h=Lrh;m=C(7575);n
@@ -53367,7 +53367,7 @@ function JasprVideoTick(a){var b,c,d,e,f,$p=0,$z;
           },
           slot:function(index){if(HEH&&HEH.v&&index>=0&&index<9)HEH.v.bx.gP=index;},
           text:function(text,chat){if(JasprMobileQueue.length<4&&typeof text==='string')JasprMobileQueue.push({text:text.slice(0,256),chat:!!chat,screen:HEH&&HEH.cj,player:HEH&&HEH.v});},
-          bindings:function(){return HEH&&HEH.G;}};
+          bindings:function(){return HEH&&HEH.G;},/*JASPR_TANK_V1*/tank:function(){return JasprTank.state();},tankView:function(){return JasprTank.view(HEH);}};
       }
       if(!JasprVideoState)return;
       if(JasprMobileLookPlayer){
@@ -54587,6 +54587,62 @@ function JasprDHDetails(){
 JasprVideoExtra.push([959,'dhEnabled','Distant Horizons',[0,1],''],[960,'dhDistance','DH distance',[8,16,24,32,48,64],' chunks'],[961,'dhDetail','DH cell size',[1,2,4,8],' blocks'],[962,'dhBudget','DH frame budget',[.5,1,1.5,2,3,4],' ms'],[963,'dhCache','DH cache',[16,32,64,128,256],' MB'],[964,'dhFog','DH fog',[0,1],''],[965,'dhBrightness','DH brightness',[50,75,90,100,110,125,150],'%'],[966,'dhSaturation','DH saturation',[50,75,90,100,110,125,150],'%'],[967,'dhCaves','DH cave culling',[0,1],''],[968,'dhAdaptive','DH budget guard',[0,1],'']);
 
 /* JASPR_REVIVE_DH_V1_END */
+
+/* JASPR_TANK_V1_BEGIN */
+/* JasprTanks: the server seats two invisible armor stands wearing the hull and turret models on the driver,
+ * for clients only. The hull follows the driver's body yaw, the turret the head yaw; the driver steps up whole
+ * blocks and starts in third person. Up to four riders sit on the hull stand; they are placed on the rear deck
+ * and the track guards. state() is a cached, read-only view for the touch controls (no engine calls from DOM
+ * handlers). */
+var JasprTank=(function(){
+  var STEP=1.0,VANILLA_STEP=0.6000000238418579,cache={supported:false,active:false,cooldown:30,view:0},checked=0,failure=null,wasActive=false;
+  // Rider seats in the hull frame: [back, right, drop] in blocks from the server seat (driver feet + 1.0). All four
+  // sit on the track guards, so the driver's third-person view over the turret stays clear.
+  var SEATS=[[0.45,-0.8,-1.24],[0.45,0.8,-1.24],[-0.3,-0.8,-1.24],[-0.3,0.8,-1.24]];
+  function slotOf(list,entity){var k=0,i,e;for(i=0;i<list.g;i++){e=list.qN.data[i];if(e===entity)return k;if(e instanceof HC)k++;}return -1;}
+  function parts(p){var list=p&&p.a1k,n=0,i;if(!list)return 0;for(i=0;i<list.g;i++)if(list.qN.data[i] instanceof HC)n++;return n;}
+  function seat(stand,rider){
+    var driver=stand.fS,list=stand.a1k,i,s,yaw;
+    if(!(driver instanceof Cb)||slotOf(driver.a1k,stand)!==0)return;
+    for(i=0;i<list.g&&list.qN.data[i]!==rider;i++){}
+    s=SEATS[i];if(!s)return;yaw=driver.cZ*0.017453292519943295;
+    rider.RW(rider.b+Math.sin(yaw)*s[0]-Math.cos(yaw)*s[1],rider.f+s[2],rider.c-Math.cos(yaw)*s[0]-Math.sin(yaw)*s[1]);
+  }
+  function align(vehicle,passenger){
+    if(vehicle instanceof HC&&passenger instanceof Cb){seat(vehicle,passenger);return;}
+    if(!(vehicle instanceof Cb)||!(passenger instanceof HC))return;
+    var slot=slotOf(vehicle.a1k,passenger),prev,cur;
+    if(slot<0)return;
+    prev=slot===0?vehicle.s1:vehicle.zM;cur=slot===0?vehicle.cZ:vehicle.gN;
+    passenger.cy=prev;passenger.C=cur;passenger.s1=prev;passenger.cZ=cur;passenger.zM=prev;passenger.gN=cur;
+  }
+  function view(mc){var g=mc&&mc.G;if(!g)return 0;g.lv=g.lv===0?1:0;cache.view=g.lv;return g.lv;}
+  function free(entity,vehicle){return entity instanceof HC&&vehicle instanceof Cb;}
+  function advertised(mc){
+    var w=mc.X,sb=w&&w.k3,o,sc,i,s;cache.supported=false;
+    if(!sb){failure="no-scoreboard";return;}
+    try{o=Cbd(sb,$rt_str("jtk"));if(!o){failure="no-objective";return;}
+      if($rt_ustr(o.a47).indexOf("JTK v1")!==0){failure="display";return;}cache.supported=true;
+      sc=EEW(sb,o);for(i=0;sc&&i<sc.g;i++){s=sc.qN.data[i];if($rt_ustr(s.X5)==="cooldown")cache.cooldown=s.jk|0;}failure=null;}
+    catch(e){failure=String(e&&e.message||e).slice(0,160);}
+  }
+  function tick(mc){
+    var p=mc&&mc.v;if(!p){cache.active=cache.supported=wasActive=false;return;}
+    cache.active=parts(p)>0;
+    if(cache.active){if(p.r5<STEP)p.r5=STEP;p.$jasprTankStep=1;}
+    else if(p.$jasprTankStep){p.r5=VANILLA_STEP;p.$jasprTankStep=0;}
+    // Drivers start behind their tank (third person); the View button or F5 switches back.
+    if(cache.active&&!wasActive&&mc.G)mc.G.lv=1;
+    wasActive=cache.active;cache.view=mc.G?mc.G.lv:0;
+    if(++checked>=10){checked=0;advertised(mc);}
+  }
+  function state(){return {supported:cache.supported,active:cache.active,cooldown:cache.cooldown,view:cache.view};}
+  // Diagnostics only: state names and counts, nothing identifying.
+  $rt_globals.JasprTankDiagnostics={status:function(){var p=HEH&&HEH.v,s=p&&p.fS;return {supported:cache.supported,active:cache.active,cooldownTicks:cache.cooldown,
+    view:cache.view,parts:parts(p),riders:s instanceof HC?s.a1k.g:0,riding:s instanceof HC,stepHeight:p?p.r5:null,blocksPerSecond:p?Math.round(Math.sqrt((p.b-p.dn)*(p.b-p.dn)+(p.c-p.dv)*(p.c-p.dv))*200)/10:null,failure:failure};}};
+  return {tick:tick,align:align,free:free,state:state,view:view,parts:parts};
+})();
+/* JASPR_TANK_V1_END */
 }));
 
 //# sourceMappingURL=../classes.js.map

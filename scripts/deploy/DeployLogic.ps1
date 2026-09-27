@@ -23,6 +23,7 @@ $script:PluginReadyTokens = @{
     'JasprHorrorBiomes'     = @('HORROR_BIOMES_READY', 'STRUCTURES_READY')
     'JasprImportedWorldgen' = @('IMPORTED_ASSETS_READY')
     'JasprRevive'           = @('REVIVE_READY')
+    'JasprTanks'            = @('TANKS_READY')
 }
 
 # Known harmless log lines (never count as problems).

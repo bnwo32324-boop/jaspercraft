@@ -1,0 +1,21 @@
+name: JasprTanks
+version: 1.0.0
+main: chat.jaspr.tanks.TanksPlugin
+softdepend: [AuthMe, EaglercraftXServer, JasprRevive, TestServerControl]
+description: Touch-screen players drive a miniature tank with auto-step and an infinite TNT cannon.
+commands:
+  tank:
+    description: Hop in or out of your tank.
+    usage: /tank [on|off|status]
+    aliases: [tanks]
+    permission: jaspr.tanks.use
+permissions:
+  jaspr.tanks.use:
+    description: Drive a tank from a phone or tablet.
+    default: true
+  jaspr.tanks.desktop:
+    description: Drive a tank from a browser that reports a desktop user agent.
+    default: op
+  jaspr.tanks.admin:
+    description: See server-wide tank totals in /tank status.
+    default: op

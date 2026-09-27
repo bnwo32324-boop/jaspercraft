@@ -33,3 +33,23 @@ html.jaspr-touch-menu #game_frame{height:calc(100% - 48px - env(safe-area-inset-
 html.jaspr-touch-device #jaspr-voice{top:calc(max(6px,env(safe-area-inset-top)) + 48px);bottom:auto;left:8px;right:auto;align-items:flex-start;max-width:150px}
 html.jaspr-touch-menu #jaspr-voice{display:none}
 @media(max-width:500px){#jaspr-touch [data-zone="stats"]{top:calc(var(--safe-top) + 47px);right:98px}.jaspr-touch-stick{width:112px;height:112px}#jaspr-touch [data-zone="sprint"]{bottom:calc(var(--safe-bottom) + 158px)}}
+/* Tank mode (JasprTanks): FIRE and the Tank toggle appear only while the server advertises tanks. */
+#jaspr-touch [data-zone="fire"],#jaspr-touch [data-zone="tank"],#jaspr-touch [data-zone="view"],#jaspr-touch .jaspr-touch-reticle{display:none}
+#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="fire"],#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="view"]{display:block}
+#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"][data-view="third"] .jaspr-touch-reticle{display:block}
+#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="swap"]{display:none}
+#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="tank"],#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="off"] [data-zone="tank"]{display:block}
+#jaspr-touch [data-zone="tank"]{top:var(--safe-top);left:166px}
+#jaspr-touch[data-tank="on"] [data-zone="tank"]{border-color:#9fd27acc}
+#jaspr-touch [data-zone="fire"]{right:90px;bottom:calc(var(--safe-bottom) + 170px);width:76px;height:70px;border-radius:50%;overflow:hidden;background:radial-gradient(circle,#d9532bdd 0 55%,#7a2410dd 72%);border-color:#ffd2a8cc;font:800 15px system-ui;letter-spacing:.5px}
+#jaspr-touch [data-zone="fire"]:active{background:radial-gradient(circle,#ff7a45 0 55%,#9a2e14 72%)}
+#jaspr-touch [data-zone="fire"]::after{content:"";position:absolute;inset:0;background:#000a;transform:scaleY(0);transform-origin:bottom;pointer-events:none}
+#jaspr-touch [data-zone="fire"].jaspr-cooling::after{animation:jaspr-reload var(--jaspr-cool,1500ms) linear forwards}
+@keyframes jaspr-reload{from{transform:scaleY(1)}to{transform:scaleY(0)}}
+.jaspr-touch-stick span{pointer-events:none}
+.jaspr-touch-stick .jaspr-touch-knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:#c0c7d766;border:2px solid #ffffff88;box-sizing:border-box;pointer-events:none;transition:transform .12s ease-out}
+.jaspr-touch-stick.jaspr-held .jaspr-touch-knob{transition:none;background:#dfe6f5aa}
+#jaspr-touch[data-tank="on"] .jaspr-touch-stick{border-color:#9fd27aaa}
+#jaspr-touch [data-zone="view"]{top:calc(var(--safe-top) + 47px);left:166px}
+#jaspr-touch .jaspr-touch-reticle{position:fixed;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;pointer-events:none;border-radius:50%;border:2px solid #fffc;box-shadow:0 0 0 1px #0008,inset 0 0 0 1px #0008;box-sizing:border-box}
+#jaspr-touch .jaspr-touch-reticle::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px #0008}
