@@ -25,6 +25,7 @@ public final class TestServerControlPlugin extends JavaPlugin implements Listene
     private JasprSsoBridge sso;
     private NetworkDiagnostics networkDiagnostics;
     private ConnectionKeeper connectionKeeper;
+    private StallRescue stallRescue;
 
     @Override
     public void onEnable() {
@@ -49,6 +50,7 @@ public final class TestServerControlPlugin extends JavaPlugin implements Listene
         networkDiagnostics.start();
         connectionKeeper = new ConnectionKeeper(this);
         connectionKeeper.start();
+        stallRescue = new StallRescue(this);
 
         if (!runtimeRoot.isDirectory() && !runtimeRoot.mkdirs() && !runtimeRoot.isDirectory()) {
             throw new IllegalStateException("Could not create runtime directory: " + runtimeRoot);
@@ -85,6 +87,7 @@ public final class TestServerControlPlugin extends JavaPlugin implements Listene
         lastPlayerSeenMillis = System.currentTimeMillis();
         if (networkDiagnostics != null) networkDiagnostics.playerJoined(player);
         if (connectionKeeper != null) connectionKeeper.playerJoined(player);
+        if (stallRescue != null) stallRescue.playerJoined(player);
         player.sendMessage(ChatColor.AQUA + "Signing in with your Jaspr.chat account...");
     }
 
@@ -92,6 +95,7 @@ public final class TestServerControlPlugin extends JavaPlugin implements Listene
     public void onPlayerQuit(PlayerQuitEvent event) {
         if (networkDiagnostics != null) networkDiagnostics.playerQuit(event.getPlayer());
         if (connectionKeeper != null) connectionKeeper.playerQuit(event.getPlayer());
+        if (stallRescue != null) stallRescue.playerQuit(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -137,6 +141,16 @@ public final class TestServerControlPlugin extends JavaPlugin implements Listene
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("unstick")) {
+            // Owners only: from the console, or a verified Jaspr administrator in game.
+            if (sender instanceof Player && (sso == null || !sso.isPrivileged((Player) sender) || !sender.hasPermission("testserver.unstick"))) {
+                sender.sendMessage(ChatColor.RED + "A verified Jaspr administrator is required.");
+                return true;
+            }
+            if (args.length != 1) { sender.sendMessage(ChatColor.GRAY + "/unstick <player>: move a player to spawn, off any vehicle (now, or when they next join)."); return true; }
+            sender.sendMessage(ChatColor.GOLD + (stallRescue == null ? "Unavailable." : stallRescue.unstick(args[0])));
+            return true;
+        }
         if (!(sender instanceof Player)) {
             sender.sendMessage("This command can only be used by a player.");
             return true;

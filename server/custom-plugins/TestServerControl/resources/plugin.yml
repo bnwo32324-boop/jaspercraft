@@ -13,6 +13,10 @@ commands:
     description: Change your own game mode to Survival.
     usage: /survival
     permission: testserver.mode
+  unstick:
+    description: Move a stuck player to spawn and off any vehicle (now, or when they next join).
+    usage: /unstick <player>
+    permission: testserver.unstick
   jasprnet:
     description: Show live JasperCraft ping and server tick diagnostics.
     usage: /jasprnet [player]
@@ -20,6 +24,9 @@ commands:
 permissions:
   testserver.mode:
     description: Allows the owner to switch game mode.
+    default: op
+  testserver.unstick:
+    description: Allows the owner to rescue a stuck player.
     default: op
   testserver.network:
     description: Allows the owner to inspect live network diagnostics.

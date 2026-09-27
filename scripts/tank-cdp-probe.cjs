@@ -46,6 +46,8 @@ const fixture = new URL(url);
     entityShadows: 0, vsync: 0, mipmaps: 0, chunkUpdates: 1, fog: 1, viewBobbing: 0, resolution: 10, chunkBudget: 1, entityDistance: 32,
     fastVisibility: 1, animations: 0, ambientEffects: 0, weatherEffects: 0, particleEffects: 0, dynamicLights: 0, gore: 0, shader: 0,
     dhEnabled: 0, showFps: 1, showCoords: 1, mobileControls: 1, touchSensitivity: 100}};
+  // TANK_PROBE_VIDEO: JSON of values to override, to match a player's settings (e.g. {"dynamicLights":1}).
+  if (process.env.TANK_PROBE_VIDEO) Object.assign(video.values, JSON.parse(process.env.TANK_PROBE_VIDEO));
   await send('Page.addScriptToEvaluateOnNewDocument', {source: 'try{localStorage.setItem("jaspr.video.v1",' + JSON.stringify(JSON.stringify(video)) + ');}catch(e){}'});
   await send('Page.navigate', {url});
   const log = [];

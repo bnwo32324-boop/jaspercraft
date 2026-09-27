@@ -15,6 +15,11 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
   // Lean fixture: 1.12 browsers need only EaglerXServer (no Via/Rewind protocol translation).
   fs.copyFileSync(path.join(root, 'server/plugins/EaglerXServer.jar'), path.join(server, 'plugins/EaglerXServer.jar'));
   fs.copyFileSync(path.join(root, 'candidate/tanks/JasprTanks.jar'), path.join(server, 'plugins/JasprTanks.jar'));
+  // TANK_PREVIEW_REGIONS: comma-separated region files (copies of a live world area) to reproduce a spot there.
+  for (const region of (process.env.TANK_PREVIEW_REGIONS || '').split(',').filter(Boolean)) {
+    fs.mkdirSync(path.join(server, 'world/region'), {recursive: true});
+    fs.copyFileSync(region, path.join(server, 'world/region', path.basename(region)));
+  }
   write('server/eula.txt', 'eula=true\n');
   write('server/server.properties', `server-ip=127.0.0.1\nserver-port=${socketPort}\nonline-mode=false\nlevel-type=FLAT\ngenerator-settings=3;minecraft:bedrock,60*minecraft:stone,2*minecraft:dirt,minecraft:grass;1;\nlevel-name=world\nspawn-protection=0\nview-distance=3\ngenerate-structures=false\nallow-nether=false\nspawn-animals=true\nspawn-monsters=true\nspawn-npcs=true\nmax-players=3\nnetwork-compression-threshold=-1\nenable-rcon=false\nenable-query=false\ngamemode=0\ndifficulty=2\npvp=true\n`);
   write('server/bukkit.yml', 'settings:\n  allow-end: false\n');
