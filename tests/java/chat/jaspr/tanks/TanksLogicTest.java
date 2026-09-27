@@ -36,12 +36,18 @@ public final class TanksLogicTest {
         Settings defaults = Settings.load(new YamlConfiguration());
         ok(defaults.cooldownTicks == 30 && near(defaults.power, 6) && !defaults.breakBlocks, "defaults");
         ok(near(defaults.walkSpeed(), 0.45), "average-horse walk speed");
+        ok(near(defaults.healthBonus, 20), "mobile players get double health");
+        ok(defaults.cooldownFor(Tank.Mode.SENTINEL) == 50 && defaults.cooldownFor(Tank.Mode.TANK) == 30, "per-mode reload");
+        ok(Tank.Mode.parse("SENTINEL") == Tank.Mode.SENTINEL && Tank.Mode.parse("x") == Tank.Mode.TANK, "mode parsing");
         YamlConfiguration wild = new YamlConfiguration();
         wild.set("cannon.power", 500);
         wild.set("cannon.cooldown-ticks", 0);
         wild.set("tank.speed-multiplier", 40);
+        wild.set("sentinel.strike-drones", 99);
+        wild.set("mobile.health-bonus", 1000);
         Settings clamped = Settings.load(wild);
         ok(near(clamped.power, 10) && clamped.cooldownTicks == 5 && near(clamped.walkSpeed(), 0.6f), "config values are clamped");
+        ok(clamped.strikeDrones == 6 && near(clamped.healthBonus, 40), "sentinel and health values are clamped");
         System.out.println("TANKS_LOGIC_OK");
     }
 }

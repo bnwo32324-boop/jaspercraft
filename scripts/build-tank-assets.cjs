@@ -1,7 +1,8 @@
 'use strict';
-// JasprTanks models: code-native hull and turret worn as helmets by two invisible marker armor stands that
+// JasprTanks models: code-native vehicle parts worn as helmets by two invisible marker armor stands that
 // every client seats on the driver (passenger height 1.35 above the feet). The iron axe carries them on
-// unbreakable damage bands 1 (hull) and 2 (turret); ordinary and damaged axes keep the vanilla look.
+// unbreakable damage bands 1 (tank hull), 2 (tank turret), 3 (Orbital Sentinel drone) and 4 (sentinel sensor
+// pod); ordinary and damaged axes keep the vanilla look.
 // Writes the pack under server/custom-plugins/JasprTanks/pack and a candidate client archive
 // candidate/tanks/assets.epk that differs from site/assets.epk only in these four item models.
 const fs = require('node:fs');
@@ -27,6 +28,15 @@ const textures = {
   lamp: 'blocks/glowstone',
   wood: 'blocks/planks_big_oak',
   bore: 'blocks/obsidian',
+};
+const droneTextures = {
+  particle: 'blocks/iron_block',
+  steel: 'blocks/iron_block',
+  dark: 'blocks/coal_block',
+  rotor: 'blocks/obsidian',
+  stripe: 'blocks/lapis_block',
+  thruster: 'blocks/sea_lantern',
+  lamp: 'blocks/redstone_block',
 };
 const round = v => Math.round(v * 100) / 100;
 const faces = ['north', 'south', 'east', 'west', 'up', 'down'];
@@ -101,6 +111,43 @@ function turret() {
     textures, display: display(), elements: zfight.separate(elements)};
 }
 
+function drone() {
+  const elements = [
+    box('pod shell', [-0.45, 0.15, -0.45], [0.45, 0.8, 0.45], 'steel'),
+    box('pod skirt', [-0.5, 0.35, -0.5], [0.5, 0.55, 0.5], 'dark'),
+    box('stripe ring', [-0.46, 0.62, -0.46], [0.46, 0.66, 0.46], 'stripe'),
+    box('thruster', [-0.2, 0, -0.2], [0.2, 0.15, 0.2], 'thruster'),
+    box('status light facing negative Z', [-0.06, 0.66, -0.5], [0.06, 0.74, -0.46], 'lamp'),
+    box('arm north', [-0.06, 0.62, -1.1], [0.06, 0.7, -0.5], 'dark'),
+    box('arm south', [-0.06, 0.62, 0.5], [0.06, 0.7, 1.1], 'dark'),
+    box('arm west', [-1.1, 0.62, -0.06], [-0.5, 0.7, 0.06], 'dark'),
+    box('arm east', [0.5, 0.62, -0.06], [1.1, 0.7, 0.06], 'dark'),
+    box('hub north', [-0.1, 0.7, -1.2], [0.1, 0.8, -1.0], 'steel'),
+    box('hub south', [-0.1, 0.7, 1.0], [0.1, 0.8, 1.2], 'steel'),
+    box('hub west', [-1.2, 0.7, -0.1], [-1.0, 0.8, 0.1], 'steel'),
+    box('hub east', [1.0, 0.7, -0.1], [1.2, 0.8, 0.1], 'steel'),
+    box('rotor north', [-0.35, 0.8, -1.45], [0.35, 0.83, -0.75], 'rotor'),
+    box('rotor south', [-0.35, 0.8, 0.75], [0.35, 0.83, 1.45], 'rotor'),
+    box('rotor west', [-1.45, 0.8, -0.35], [-0.75, 0.83, 0.35], 'rotor'),
+    box('rotor east', [0.75, 0.8, -0.35], [1.45, 0.83, 0.35], 'rotor'),
+  ];
+  return {__comment: 'JasprTanks Orbital Sentinel drone / iron axe band 3 / pod, four rotors', ambientocclusion: true,
+    textures: droneTextures, display: display(), elements: zfight.separate(elements)};
+}
+
+function pod() {
+  const elements = [
+    box('sensor turret', [-0.18, 0.02, -0.62], [0.18, 0.2, -0.35], 'dark'),
+    box('sensor eye facing negative Z', [-0.08, 0.06, -0.66], [0.08, 0.16, -0.62], 'lamp'),
+    box('left strike rail', [-0.3, 0.08, -0.7], [-0.22, 0.14, -0.2], 'steel'),
+    box('right strike rail', [0.22, 0.08, -0.7], [0.3, 0.14, -0.2], 'steel'),
+    box('antenna', [0.3, 0.8, 0.3], [0.33, 1.3, 0.33], 'steel'),
+    box('antenna tip', [0.29, 1.3, 0.29], [0.34, 1.35, 0.34], 'lamp'),
+  ];
+  return {__comment: 'JasprTanks Orbital Sentinel sensor pod / iron axe band 4 / red eye toward -Z', ambientocclusion: true,
+    textures: droneTextures, display: display(), elements: zfight.separate(elements)};
+}
+
 function selector() {
   return {
     parent: 'item/handheld',
@@ -108,7 +155,9 @@ function selector() {
     overrides: [
       {predicate: {damaged: 0, damage: round4(1 / MAX)}, model: 'item/jaspr_tank_hull'},
       {predicate: {damaged: 0, damage: round4(2 / MAX)}, model: 'item/jaspr_tank_turret'},
-      {predicate: {damaged: 0, damage: round4(3 / MAX)}, model: 'item/jaspr_vanilla_iron_axe'},
+      {predicate: {damaged: 0, damage: round4(3 / MAX)}, model: 'item/jaspr_sentinel_drone'},
+      {predicate: {damaged: 0, damage: round4(4 / MAX)}, model: 'item/jaspr_sentinel_pod'},
+      {predicate: {damaged: 0, damage: round4(5 / MAX)}, model: 'item/jaspr_vanilla_iron_axe'},
       {predicate: {damaged: 1}, model: 'item/jaspr_vanilla_iron_axe'},
     ],
   };
@@ -120,6 +169,8 @@ function models() {
     'iron_axe.json': selector(),
     'jaspr_tank_hull.json': hull(),
     'jaspr_tank_turret.json': turret(),
+    'jaspr_sentinel_drone.json': drone(),
+    'jaspr_sentinel_pod.json': pod(),
     'jaspr_vanilla_iron_axe.json': {parent: 'item/handheld', textures: {layer0: 'items/iron_axe'}},
   };
 }
@@ -140,7 +191,9 @@ function validate(all) {
     const p = o.predicate; if ((p.damaged ?? 0) === 0 && damage / 250 >= (p.damage ?? 0)) m = o.model; } return m; };
   assert.equal(pick(1), 'item/jaspr_tank_hull');
   assert.equal(pick(2), 'item/jaspr_tank_turret');
-  assert.equal(pick(3), 'item/jaspr_vanilla_iron_axe');
+  assert.equal(pick(3), 'item/jaspr_sentinel_drone');
+  assert.equal(pick(4), 'item/jaspr_sentinel_pod');
+  assert.equal(pick(5), 'item/jaspr_vanilla_iron_axe');
   assert.equal(pick(0), null, 'a fresh axe keeps the base model');
 }
 

@@ -1,12 +1,12 @@
 name: JasprTanks
-version: 1.0.0
+version: 1.1.0
 main: chat.jaspr.tanks.TanksPlugin
 softdepend: [AuthMe, EaglercraftXServer, JasprRevive, TestServerControl]
-description: Touch-screen players drive a miniature tank with auto-step and an infinite TNT cannon.
+description: Mobile players get double health and a Tank or a flying Orbital Sentinel with an infinite TNT cannon or drone strikes.
 commands:
   tank:
-    description: Hop in or out of your tank.
-    usage: /tank [on|off|status]
+    description: Hop in or out of your tank, or switch to the Orbital Sentinel.
+    usage: /tank [on|off|mode|pickup|unlock|status]
     aliases: [tanks]
     permission: jaspr.tanks.use
 permissions:

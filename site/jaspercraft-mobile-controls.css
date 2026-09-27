@@ -34,8 +34,9 @@ html.jaspr-touch-device #jaspr-voice{top:calc(max(6px,env(safe-area-inset-top)) 
 html.jaspr-touch-menu #jaspr-voice{display:none}
 @media(max-width:500px){#jaspr-touch [data-zone="stats"]{top:calc(var(--safe-top) + 47px);right:98px}.jaspr-touch-stick{width:112px;height:112px}#jaspr-touch [data-zone="sprint"]{bottom:calc(var(--safe-bottom) + 158px)}}
 /* Tank mode (JasprTanks): FIRE and the Tank toggle appear only while the server advertises tanks. */
-#jaspr-touch [data-zone="fire"],#jaspr-touch [data-zone="tank"],#jaspr-touch [data-zone="view"],#jaspr-touch .jaspr-touch-reticle{display:none}
-#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="fire"],#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="view"]{display:block}
+#jaspr-touch [data-zone="fire"],#jaspr-touch [data-zone="tank"],#jaspr-touch [data-zone="view"],#jaspr-touch [data-zone="mode"],#jaspr-touch [data-zone="pickup"],#jaspr-touch .jaspr-touch-reticle{display:none}
+#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="fire"],#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="view"],#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="mode"]{display:block}
+#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"][data-vehicle="sentinel"] [data-zone="pickup"]{display:block}
 #jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"][data-view="third"] .jaspr-touch-reticle{display:block}
 #jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="swap"]{display:none}
 #jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="on"] [data-zone="tank"],#jaspr-touch[data-mode="play"][data-enabled="true"][data-tank="off"] [data-zone="tank"]{display:block}
@@ -50,6 +51,11 @@ html.jaspr-touch-menu #jaspr-voice{display:none}
 .jaspr-touch-stick .jaspr-touch-knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:#c0c7d766;border:2px solid #ffffff88;box-sizing:border-box;pointer-events:none;transition:transform .12s ease-out}
 .jaspr-touch-stick.jaspr-held .jaspr-touch-knob{transition:none;background:#dfe6f5aa}
 #jaspr-touch[data-tank="on"] .jaspr-touch-stick{border-color:#9fd27aaa}
-#jaspr-touch [data-zone="view"]{top:calc(var(--safe-top) + 47px);left:166px}
+#jaspr-touch [data-zone="mode"]{top:calc(var(--safe-top) + 47px);left:166px}
+#jaspr-touch [data-zone="view"]{top:calc(var(--safe-top) + 94px);left:166px}
+#jaspr-touch [data-zone="pickup"]{top:calc(var(--safe-top) + 141px);left:166px}
 #jaspr-touch .jaspr-touch-reticle{position:fixed;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;pointer-events:none;border-radius:50%;border:2px solid #fffc;box-shadow:0 0 0 1px #0008,inset 0 0 0 1px #0008;box-sizing:border-box}
 #jaspr-touch .jaspr-touch-reticle::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px #0008}
+#jaspr-touch[data-vehicle="sentinel"] [data-zone="fire"]{background:radial-gradient(circle,#2f86e0dd 0 55%,#123e80dd 72%);border-color:#a8d4ffcc;font-size:13px}
+#jaspr-touch[data-vehicle="sentinel"] [data-zone="fire"]:active{background:radial-gradient(circle,#59a8ff 0 55%,#1b4f9e 72%)}
+#jaspr-touch[data-vehicle="sentinel"] .jaspr-touch-stick{border-color:#8fc8ffaa}

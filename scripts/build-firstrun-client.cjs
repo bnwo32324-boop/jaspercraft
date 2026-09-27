@@ -37,7 +37,7 @@ function within(text, name, pairs) {
   let fn = text.slice(start, end);
   for (const [from, to, label] of pairs) {
     if (fn.split(from).length !== 2) throw new Error(label + ' anchor must occur exactly once in ' + name);
-    fn = fn.replace(from, to);
+    fn = fn.replace(from, () => to);
   }
   return text.slice(0, start) + fn + text.slice(end);
 }

@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,6 +34,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.AnimalTamer;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
@@ -45,6 +47,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.hanging.HangingBreakEvent;
+import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -66,35 +69,50 @@ import org.bukkit.util.EulerAngle;
 import org.bukkit.util.Vector;
 
 /**
- * Touch-screen players drive a miniature tank: 1-block auto-step, tank plating and an infinite TNT cannon
- * on the swap-hands key (the touch FIRE button). The tank body is two invisible marker armor stands wearing
- * the hull and turret models (iron-axe bands 1 and 2). They stay independent entities on the server and are
- * mounted on the driver only in clients' eyes, so teleports keep working and the model follows the
- * player's own interpolated position with no lag.
+ * Mobile players get double health and a vehicle they can swap at any time:
+ * <ul>
+ * <li>Tank: 1-block auto-step, horse speed, plating, an infinite TNT cannon and up to four riders.</li>
+ * <li>Orbital Sentinel: a flying drone with drone strikes; tap an item to pull it in (or auto-pickup), tap a
+ * player to lock on and follow them.</li>
+ * </ul>
+ * The body is two invisible marker armor stands wearing the models (iron-axe bands 1-4). They stay
+ * independent entities on the server and are mounted on the driver only in clients' eyes, so teleports keep
+ * working and the model follows the player's own interpolated position with no lag. The weapon fires on the
+ * swap-hands key (the touch FIRE / STRIKE button).
  */
 public final class TanksPlugin extends JavaPlugin implements Listener {
     static final String TAG = "jaspr_tank", HULL_TAG = "jaspr_tank_hull", TURRET_TAG = "jaspr_tank_turret";
     static final String SHELL_TAG = "jaspr_tank_shell";
     static final short HULL_BAND = 1, TURRET_BAND = 2;
-    /** Hidden scoreboard objective that tells the browser this server has tanks (and the reload time). */
+    /** Hidden scoreboard objective that tells the browser this server has tanks (reload, mode, pickup). */
     static final String OBJECTIVE = "jtk", DISPLAY = "JTK v1";
     /** Height at which clients seat a passenger on a standing player (1.8 * 0.75). */
     static final double RIDE_OFFSET = 1.35;
     /** Barrel tip of the turret model, relative to the driver's feet. */
     static final double MUZZLE_HEIGHT = 0.85, MUZZLE_REACH = 1.55;
     static final double PROXIMITY = 0.35;
-    static final int MAX_SHELLS_PER_DRIVER = 6, MAX_SHELLS = 64;
-    /** Riders sit on the hull stand; clients place them on the rear deck and the track guards. */
+    static final int MAX_SHELLS_PER_DRIVER = 9, MAX_SHELLS = 72;
+    /** Riders sit on the hull stand; clients place them on the track guards. */
     static final int MAX_RIDERS = 4;
+    static final float VANILLA_FLY_SPEED = 0.1f;
     private static final UUID ARMOR_ID = UUID.fromString("7a0f3a52-4d2e-4f53-9c8b-6e1d7a3b5c02");
     private static final UUID KNOCKBACK_ID = UUID.fromString("7a0f3a52-4d2e-4f53-9c8b-6e1d7a3b5c03");
+    private static final UUID HEALTH_ID = UUID.fromString("7a0f3a52-4d2e-4f53-9c8b-6e1d7a3b5c04");
 
     private final Map<UUID, Tank> tanks = new HashMap<UUID, Tank>();
     private final Set<UUID> parts = new HashSet<UUID>();
     private final List<Shell> shells = new ArrayList<Shell>();
     private final Set<UUID> claimed = new HashSet<UUID>();
     private final Set<UUID> optedOut = new HashSet<UUID>();
+    private final Set<UUID> sentinels = new HashSet<UUID>();
+    private final Set<UUID> autoPickup = new HashSet<UUID>();
     private final Set<UUID> advertised = new HashSet<UUID>();
+    private final Set<UUID> noticed = new HashSet<UUID>();
+    private final Map<UUID, Long> fallSafe = new HashMap<UUID, Long>();
+    private final Map<UUID, Long> lastTap = new HashMap<UUID, Long>();
+    private final Map<UUID, Long> joinedAt = new HashMap<UUID, Long>();
+    /** Mobile claims arrive a few seconds after joining; leftovers are only cleaned up after this grace. */
+    static final long JOIN_GRACE_TICKS = 600;
     private Settings settings = new Settings();
     private Device device;
     private File playersFile;
@@ -118,7 +136,8 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         getServer().getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         for (Player player : getServer().getOnlinePlayers()) joined(player);
         getLogger().info("TANKS_READY enabled=" + settings.enabled + " cooldownTicks=" + settings.cooldownTicks
-            + " power=" + settings.power + " range=" + settings.range + " breakBlocks=" + settings.breakBlocks);
+            + " power=" + settings.power + " range=" + settings.range + " breakBlocks=" + settings.breakBlocks
+            + " sentinel=true healthBonus=" + settings.healthBonus);
     }
 
     @Override
@@ -126,14 +145,14 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         for (Tank tank : tanks.values()) {
             Player driver = getServer().getPlayer(tank.driver);
             removeParts(tank);
-            if (driver != null) buffs(driver, false);
+            if (driver != null) vehicleBuffs(driver, null);
         }
         tanks.clear();
         for (Shell shell : shells) shell.tnt.remove();
         shells.clear();
         // A reload would otherwise add the objective twice, which clients reject.
         for (Player player : getServer().getOnlinePlayers())
-            if (advertised.contains(player.getUniqueId())) Nms.advertise(player, OBJECTIVE, DISPLAY, 0, false);
+            if (advertised.contains(player.getUniqueId())) Nms.advertise(player, OBJECTIVE, DISPLAY, Collections.<String, Integer>emptyMap(), false);
         advertised.clear();
         savePlayers();
     }
@@ -144,33 +163,64 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
     public void onJoin(PlayerJoinEvent event) { joined(event.getPlayer()); }
 
     private void joined(final Player player) {
-        // Crash leftovers: attribute modifiers are saved with the player.
-        buffs(player, false);
+        UUID id = player.getUniqueId();
+        joinedAt.put(id, now);
+        // A sentinel that logged out in the air keeps its flight until its vehicle is back (or the grace ends).
+        if (Math.abs(player.getFlySpeed() - (float) settings.flySpeed) < 1.0E-4) fallSafe.put(id, now + JOIN_GRACE_TICKS + 200);
         getServer().getScheduler().runTaskLater(this, () -> {
             if (!player.isOnline()) return;
             advertise(player);
-            if (settings.enabled && device.of(player) == Device.Kind.MOBILE && !optedOut.contains(player.getUniqueId()))
+            if (settings.enabled && device.of(player) == Device.Kind.MOBILE && !optedOut.contains(id))
                 enter(player, "mobile-browser");
         }, 20L);
+        // Crash leftovers (walk/fly speed, flight, attribute modifiers are saved with the player): undo them only
+        // for players who did not get a vehicle back.
+        getServer().getScheduler().runTaskLater(this, () -> {
+            if (player.isOnline() && !tanks.containsKey(id)) vehicleBuffs(player, null);
+        }, JOIN_GRACE_TICKS);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        Tank tank = tanks.remove(player.getUniqueId());
-        if (tank != null) { removeParts(tank); buffs(player, false); }
-        claimed.remove(player.getUniqueId());
-        advertised.remove(player.getUniqueId());
+        UUID id = player.getUniqueId();
+        Tank tank = tanks.remove(id);
+        if (tank != null) { removeParts(tank); vehicleBuffs(player, null); }
+        for (Tank other : tanks.values()) if (id.equals(other.follow)) other.follow = null;
+        claimed.remove(id);
+        advertised.remove(id);
+        noticed.remove(id);
+        fallSafe.remove(id);
+        lastTap.remove(id);
+        joinedAt.remove(id);
+    }
+
+    private boolean mobile(Player player) {
+        return claimed.contains(player.getUniqueId()) || device.of(player) == Device.Kind.MOBILE;
     }
 
     boolean enter(Player player, String reason) {
         if (!settings.enabled) return false;
-        if (tanks.containsKey(player.getUniqueId())) return true;
-        tanks.put(player.getUniqueId(), new Tank(player.getUniqueId(), reason));
-        buffs(player, true);
-        player.sendMessage(ChatColor.GREEN + "You're driving a tank! " + ChatColor.GRAY + "FIRE shoots TNT where you aim ("
-            + seconds(settings.cooldownTicks) + " reload). Up to " + MAX_RIDERS + " friends can hop on with right-click (Use). The Tank button hops out.");
-        getLogger().info("TANK_ENTER player=" + player.getName() + " reason=" + reason);
+        UUID id = player.getUniqueId();
+        if (tanks.containsKey(id)) return true;
+        Tank tank = new Tank(id, reason);
+        tank.mode = sentinels.contains(id) ? Tank.Mode.SENTINEL : Tank.Mode.TANK;
+        tank.autoPickup = autoPickup.contains(id);
+        tanks.put(id, tank);
+        vehicleBuffs(player, tank);
+        if (mobile(player) && noticed.add(id)) {
+            player.sendTitle(ChatColor.GREEN + "Mobile player detected", ChatColor.GRAY + "Tank or Orbital Sentinel · tap Mode to switch", 10, 80, 20);
+            player.sendMessage(ChatColor.GREEN + "Mobile bonus: " + ChatColor.GRAY + "double health, plus your choice of vehicle. "
+                + ChatColor.WHITE + "Tank" + ChatColor.GRAY + ": TNT cannon, climbs blocks, " + MAX_RIDERS + " friends can ride (right-click you). "
+                + ChatColor.WHITE + "Orbital Sentinel" + ChatColor.GRAY + ": flies (Up/Down), drone strikes, tap an item to grab it, tap a player to follow them. "
+                + "Tap Mode to switch any time; Tank hops out.");
+        } else {
+            player.sendMessage(ChatColor.GREEN + "You're in your " + tank.mode.label() + ". " + ChatColor.GRAY
+                + (tank.mode == Tank.Mode.TANK ? "FIRE shoots TNT where you aim." : "STRIKE calls drones on where you aim.")
+                + " Mode switches vehicles; Tank hops out.");
+        }
+        sendScores(player);
+        getLogger().info("TANK_ENTER player=" + player.getName() + " reason=" + reason + " mode=" + tank.mode.name().toLowerCase(Locale.ROOT));
         return true;
     }
 
@@ -178,9 +228,37 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         Tank tank = tanks.remove(player.getUniqueId());
         if (tank == null) return;
         removeParts(tank);
-        buffs(player, false);
-        player.sendMessage(ChatColor.GRAY + "You hopped out of your tank. Tap Tank (or /tank) to get back in.");
+        if (tank.mode == Tank.Mode.SENTINEL) fallSafe.put(player.getUniqueId(), now + 200);
+        vehicleBuffs(player, null);
+        sendScores(player);
+        player.sendMessage(ChatColor.GRAY + "You left your " + tank.mode.label() + ". Tap Tank (or /tank) to get back in.");
         getLogger().info("TANK_EXIT player=" + player.getName() + " reason=" + reason + " shots=" + tank.shots);
+    }
+
+    void setMode(Player player, Tank tank, Tank.Mode mode) {
+        if (tank.mode == mode) return;
+        UUID id = player.getUniqueId();
+        if (mode == Tank.Mode.SENTINEL) {
+            if (tank.hull != null && !tank.hull.getPassengers().isEmpty()) {
+                for (Entity rider : tank.hull.getPassengers()) if (rider instanceof Player) bar((Player) rider, ChatColor.GRAY + "The driver launched an Orbital Sentinel");
+                tank.hull.eject();
+            }
+            if (sentinels.add(id)) savePlayers();
+        } else {
+            tank.follow = null;
+            fallSafe.put(id, now + 200);
+            if (sentinels.remove(id)) savePlayers();
+        }
+        tank.mode = mode;
+        tank.readyAt = Math.max(tank.readyAt, now + 10);
+        tank.announced = false;
+        vehicleBuffs(player, tank);
+        if (tank.built()) { tank.hull.setHelmet(model(mode.bodyBand)); tank.turret.setHelmet(model(mode.topBand)); }
+        if (mode == Tank.Mode.SENTINEL) player.setVelocity(new Vector(0, 0.6, 0));
+        player.sendTitle("", ChatColor.GREEN + mode.label() + " online", 5, 30, 10);
+        player.playSound(player.getLocation(), mode == Tank.Mode.SENTINEL ? Sound.ENTITY_FIREWORK_LAUNCH : Sound.BLOCK_PISTON_CONTRACT, 0.8f, 1.2f);
+        sendScores(player);
+        getLogger().info("TANK_MODE player=" + player.getName() + " mode=" + mode.name().toLowerCase(Locale.ROOT));
     }
 
     private boolean eligible(Player player) {
@@ -198,6 +276,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         }
         Player player = (Player) sender;
         UUID id = player.getUniqueId();
+        Tank tank = tanks.get(id);
         switch (sub) {
             case "mobile":
                 // Sent automatically by the touch controls once this server advertises tanks.
@@ -206,43 +285,63 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
                     return true;
                 }
                 claimed.add(id);
+                health(player, true);
                 if (!optedOut.contains(id)) enter(player, "touch-controls");
                 return true;
             case "on":
-                return on(player);
+                on(player);
+                return true;
             case "off":
                 off(player);
                 return true;
             case "toggle":
-                if (tanks.containsKey(id)) off(player); else on(player);
+                if (tank != null) off(player); else on(player);
+                return true;
+            case "mode": {
+                if (tank == null) { if (!on(player)) return true; tank = tanks.get(id); if (tank == null) return true; }
+                Tank.Mode next = args.length > 1 ? Tank.Mode.parse(args[1])
+                    : tank.mode == Tank.Mode.TANK ? Tank.Mode.SENTINEL : Tank.Mode.TANK;
+                setMode(player, tank, next);
+                return true;
+            }
+            case "pickup": {
+                boolean auto = args.length > 1 ? "auto".equalsIgnoreCase(args[1]) || "on".equalsIgnoreCase(args[1]) : !autoPickup.contains(id);
+                if (auto ? autoPickup.add(id) : autoPickup.remove(id)) savePlayers();
+                if (tank != null) tank.autoPickup = auto;
+                bar(player, ChatColor.GREEN + "Sentinel pickup: " + (auto ? "automatic" : "tap items"));
+                sendScores(player);
+                return true;
+            }
+            case "unlock":
+                if (tank != null && tank.follow != null) { tank.follow = null; bar(player, ChatColor.GRAY + "Stopped following"); }
                 return true;
             case "status":
                 status(player);
                 return true;
             default:
-                player.sendMessage(ChatColor.GRAY + "/tank [on|off|status]");
+                player.sendMessage(ChatColor.GRAY + "/tank [on|off|mode tank|mode sentinel|pickup auto|pickup tap|unlock|status]");
                 return true;
         }
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length != 1) return Collections.emptyList();
+        List<String> options = args.length == 1 ? Arrays.asList("on", "off", "mode", "pickup", "unlock", "status")
+            : args.length == 2 && "mode".equalsIgnoreCase(args[0]) ? Arrays.asList("tank", "sentinel")
+            : args.length == 2 && "pickup".equalsIgnoreCase(args[0]) ? Arrays.asList("auto", "tap") : Collections.<String>emptyList();
         List<String> out = new ArrayList<String>();
-        for (String option : Arrays.asList("on", "off", "status"))
-            if (option.startsWith(args[0].toLowerCase(Locale.ROOT))) out.add(option);
+        for (String option : options) if (option.startsWith(args[args.length - 1].toLowerCase(Locale.ROOT))) out.add(option);
         return out;
     }
 
     private boolean on(Player player) {
-        if (!settings.enabled) { player.sendMessage(ChatColor.GRAY + "Tanks are switched off on this server."); return true; }
+        if (!settings.enabled) { player.sendMessage(ChatColor.GRAY + "Tanks are switched off on this server."); return false; }
         if (!eligible(player)) {
             player.sendMessage(ChatColor.GRAY + "Tanks are for phone and tablet players.");
-            return true;
+            return false;
         }
         if (optedOut.remove(player.getUniqueId())) savePlayers();
-        enter(player, "command");
-        return true;
+        return enter(player, "command");
     }
 
     private void off(Player player) {
@@ -253,14 +352,19 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
     private void status(Player player) {
         Tank tank = tanks.get(player.getUniqueId());
         if (tank == null) player.sendMessage(ChatColor.GRAY + "You're on foot. " + (eligible(player) ? "/tank gets you in." : ""));
-        else player.sendMessage(ChatColor.GREEN + "Tank: " + (now >= tank.readyAt ? "cannon ready" : "reloading")
-            + ChatColor.GRAY + ", " + tank.shots + " shots this session.");
+        else {
+            Player target = tank.follow == null ? null : getServer().getPlayer(tank.follow);
+            player.sendMessage(ChatColor.GREEN + tank.mode.label() + ": " + (now >= tank.readyAt ? "weapon ready" : "reloading")
+                + ChatColor.GRAY + ", " + tank.shots + " shots this session"
+                + (tank.mode == Tank.Mode.SENTINEL ? ", pickup " + (tank.autoPickup ? "automatic" : "by tap")
+                    + (target != null ? ", following " + target.getName() : "") : "") + ".");
+        }
         if (player.hasPermission("jaspr.tanks.admin"))
-            player.sendMessage(ChatColor.GRAY + "Server: " + tanks.size() + " tanks, " + shells.size() + " shells in flight, "
+            player.sendMessage(ChatColor.GRAY + "Server: " + tanks.size() + " vehicles, " + shells.size() + " shells in flight, "
                 + totalShots + " shots since start, block damage " + (settings.breakBlocks ? "on" : "off") + ".");
     }
 
-    // -- the tank body ---------------------------------------------------------------------------------
+    // -- the vehicle body --------------------------------------------------------------------------------
 
     private void tick() {
         now++;
@@ -277,10 +381,21 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
             if (now >= tank.nextMount) { mount(tank, driver); tank.nextMount = now + 20; }
             if (!tank.announced && now >= tank.readyAt) {
                 tank.announced = true;
-                bar(driver, ChatColor.GREEN + "Cannon ready");
+                bar(driver, ChatColor.GREEN + (tank.mode == Tank.Mode.TANK ? "Cannon ready" : "Drones ready"));
                 driver.playSound(driver.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 0.5f, 1.5f);
             }
-            if (now % 20 == 0) buffs(driver, true);
+            if (tank.mode == Tank.Mode.SENTINEL) {
+                if (tank.follow != null && now % 2 == 0) guard(driver, tank);
+                if (tank.autoPickup && now % 10 == 0) vacuum(driver);
+            }
+            if (now % 20 == 0) vehicleBuffs(driver, tank);
+        }
+        if (now % 20 == 0) for (Player player : getServer().getOnlinePlayers()) {
+            // The bonus stays across rejoins (removing it would clamp a 40-point player to 20 each time) and is
+            // only taken away from players who are clearly not on a phone.
+            Long since = joinedAt.get(player.getUniqueId());
+            if (mobile(player)) health(player, true);
+            else if (since != null && now - since > JOIN_GRACE_TICKS) health(player, false);
         }
         if (now % 40 == 0) for (Player player : getServer().getOnlinePlayers()) advertise(player);
         tickShells();
@@ -308,8 +423,8 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         removeParts(tank);
         if (now < tank.retryAt) return; // back off after a refused spawn
         try {
-            tank.hull = part(driver, HULL_TAG, HULL_BAND);
-            tank.turret = part(driver, TURRET_TAG, TURRET_BAND);
+            tank.hull = part(driver, HULL_TAG, tank.mode.bodyBand);
+            tank.turret = part(driver, TURRET_TAG, tank.mode.topBand);
         } catch (RuntimeException e) {
             tank.hull = tank.turret = null;
         }
@@ -349,7 +464,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         ItemMeta meta = item.getItemMeta();
         meta.setUnbreakable(true);
         meta.addItemFlags(ItemFlag.values());
-        meta.setDisplayName(band == HULL_BAND ? "Tank hull" : "Tank turret");
+        meta.setDisplayName(band <= TURRET_BAND ? "Tank" : "Orbital Sentinel");
         item.setItemMeta(meta);
         return item;
     }
@@ -414,16 +529,41 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         event.setDroppedExp(0);
     }
 
-    private void buffs(Player player, boolean on) {
+    /** Applies the buffs of the vehicle's mode and removes the other mode's; {@code tank == null} removes all. */
+    private void vehicleBuffs(Player player, Tank tank) {
+        boolean vehicle = tank != null, driving = vehicle && tank.mode == Tank.Mode.TANK, flying = vehicle && tank.mode == Tank.Mode.SENTINEL;
         // Walk speed, not the speed attribute: the client widens the view with the attribute, not with walk speed.
         float walk = settings.walkSpeed();
-        if (on && player.getWalkSpeed() != walk) player.setWalkSpeed(walk);
-        else if (!on && Math.abs(player.getWalkSpeed() - walk) < 1.0E-4) player.setWalkSpeed(0.2f);
+        if (driving && player.getWalkSpeed() != walk) player.setWalkSpeed(walk);
+        else if (!driving && Math.abs(player.getWalkSpeed() - walk) < 1.0E-4) player.setWalkSpeed(0.2f);
+        Nms.stepHeight(player, driving ? (float) settings.stepHeight : Nms.VANILLA_STEP);
         modifier(player, Attribute.GENERIC_ARMOR, ARMOR_ID, "jaspr_tank_armor",
-            on ? settings.armor : 0, AttributeModifier.Operation.ADD_NUMBER);
+            vehicle ? settings.armor : 0, AttributeModifier.Operation.ADD_NUMBER);
         modifier(player, Attribute.GENERIC_KNOCKBACK_RESISTANCE, KNOCKBACK_ID, "jaspr_tank_knockback",
-            on ? settings.knockbackResistance : 0, AttributeModifier.Operation.ADD_NUMBER);
-        Nms.stepHeight(player, on ? (float) settings.stepHeight : Nms.VANILLA_STEP);
+            vehicle ? settings.knockbackResistance : 0, AttributeModifier.Operation.ADD_NUMBER);
+        boolean survival = player.getGameMode() == GameMode.SURVIVAL || player.getGameMode() == GameMode.ADVENTURE;
+        float fly = (float) settings.flySpeed;
+        if (flying) {
+            if (!player.getAllowFlight()) player.setAllowFlight(true);
+            if (!player.isFlying()) player.setFlying(true);
+            if (player.getFlySpeed() != fly) player.setFlySpeed(fly);
+        } else if (Math.abs(player.getFlySpeed() - fly) < 1.0E-4) {
+            // Only undo flight this plugin granted (our fly speed is the marker).
+            player.setFlySpeed(VANILLA_FLY_SPEED);
+            if (survival) { player.setFlying(false); player.setAllowFlight(false); }
+        }
+    }
+
+    /** Mobile players get double health (config mobile.health-bonus, +20 by default). */
+    private void health(Player player, boolean on) {
+        AttributeInstance max = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        if (max == null) return;
+        boolean had = false;
+        for (AttributeModifier modifier : max.getModifiers()) if (modifier.getUniqueId().equals(HEALTH_ID)) had = true;
+        if (had == on && (!on || settings.healthBonus > 0)) return;
+        modifier(player, Attribute.GENERIC_MAX_HEALTH, HEALTH_ID, "jaspr_mobile_health", on ? settings.healthBonus : 0,
+            AttributeModifier.Operation.ADD_NUMBER);
+        if (!on && !player.isDead() && player.getHealth() > max.getValue()) player.setHealth(max.getValue());
     }
 
     private static void modifier(Player player, Attribute attribute, UUID id, String name, double amount, AttributeModifier.Operation operation) {
@@ -440,13 +580,13 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
 
     // -- riders ------------------------------------------------------------------------------------------
 
-    /** Right-click (touch: Use) a tank driver to hop on; sneak hops off. */
+    /** Right-click (touch: Use) a tank driver to hop on; sneak hops off. Sentinels carry no riders. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBoard(PlayerInteractEntityEvent event) {
         if (event.getHand() != EquipmentSlot.HAND || !(event.getRightClicked() instanceof Player)) return;
         Player driver = (Player) event.getRightClicked(), rider = event.getPlayer();
         Tank tank = tanks.get(driver.getUniqueId());
-        if (tank == null || !tank.built() || !shown(driver) || tanks.containsKey(rider.getUniqueId())) return;
+        if (tank == null || tank.mode != Tank.Mode.TANK || !tank.built() || !shown(driver) || tanks.containsKey(rider.getUniqueId())) return;
         if (rider.isSneaking() || rider.isInsideVehicle() || rider.getGameMode() == GameMode.SPECTATOR || !authenticated(rider) || downed(rider)) return;
         if (!rider.getWorld().equals(driver.getWorld()) || rider.getLocation().distanceSquared(driver.getLocation()) > 25) return;
         event.setCancelled(true);
@@ -457,15 +597,172 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         getLogger().info("TANK_RIDE player=" + rider.getName() + " driver=" + driver.getName() + " riders=" + tank.hull.getPassengers().size());
     }
 
+    // -- orbital sentinel: taps, following, pickup ---------------------------------------------------------
+
+    /** A tap (touch) or left click: lock onto the player under the crosshair, or pull in the item there. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onTap(PlayerAnimationEvent event) {
+        Player driver = event.getPlayer();
+        Tank tank = tanks.get(driver.getUniqueId());
+        if (tank == null || tank.mode != Tank.Mode.SENTINEL || !tank.built() || !shown(driver)) return;
+        Long last = lastTap.get(driver.getUniqueId());
+        if (last != null && now - last < 5) return; // held attack swings every few ticks
+        lastTap.put(driver.getUniqueId(), now);
+        World world = driver.getWorld();
+        Location eye = driver.getEyeLocation();
+        double[] origin = {eye.getX(), eye.getY(), eye.getZ()};
+        double[] look = Aim.direction(eye.getYaw(), eye.getPitch());
+        double blockAt = solidHit(world, origin, look, settings.pickupRange + 24);
+        double[] at = new double[1];
+        Player friend = firstPlayer(world, origin, look, blockAt >= 0 ? blockAt : settings.pickupRange + 24, driver, at);
+        if (friend != null) { toggleFollow(driver, tank, friend); return; }
+        Item item = firstItem(world, origin, look, blockAt >= 0 ? blockAt + 1 : settings.pickupRange, driver);
+        if (item != null) pull(driver, item, true);
+    }
+
+    private void toggleFollow(Player driver, Tank tank, Player friend) {
+        if (friend.getUniqueId().equals(tank.follow)) {
+            tank.follow = null;
+            bar(driver, ChatColor.GRAY + "Stopped following " + friend.getName());
+            return;
+        }
+        tank.follow = friend.getUniqueId();
+        bar(driver, ChatColor.GREEN + "Following " + friend.getName() + ChatColor.GRAY + " · tap them again to stop");
+        bar(friend, ChatColor.GREEN + driver.getName() + "'s Orbital Sentinel is guarding you");
+        driver.playSound(driver.getLocation(), Sound.BLOCK_NOTE_PLING, 0.6f, 1.6f);
+        getLogger().info("TANK_FOLLOW player=" + driver.getName() + " target=" + friend.getName());
+    }
+
+    /** Keeps a following sentinel above and just behind its friend: glides when close, jumps when far. */
+    private void guard(Player driver, Tank tank) {
+        Player friend = getServer().getPlayer(tank.follow);
+        if (friend == null || !friend.isOnline() || friend.isDead() || friend.getGameMode() == GameMode.SPECTATOR
+                || !friend.getWorld().equals(driver.getWorld())) {
+            tank.follow = null;
+            bar(driver, ChatColor.GRAY + "Lost your lock");
+            return;
+        }
+        Location target = friend.getLocation();
+        double yaw = Math.toRadians(target.getYaw());
+        Location spot = target.clone().add(Math.sin(yaw) * settings.followDistance, settings.followHeight, -Math.cos(yaw) * settings.followDistance);
+        Vector delta = spot.toVector().subtract(driver.getLocation().toVector());
+        double distance = delta.length();
+        if (distance > 64) { tank.follow = null; bar(driver, ChatColor.GRAY + "Lock lost: " + friend.getName() + " is too far"); return; }
+        if (distance > 12) {
+            Location jump = spot.clone();
+            jump.setYaw(driver.getLocation().getYaw());
+            jump.setPitch(driver.getLocation().getPitch());
+            driver.teleport(jump, PlayerTeleportEvent.TeleportCause.PLUGIN);
+            return;
+        }
+        if (distance < 0.4) return;
+        Vector push = delta.multiply(0.35);
+        if (push.length() > 1.4) push.normalize().multiply(1.4);
+        driver.setVelocity(push);
+    }
+
+    /** Auto-pickup: pulls nearby items in (never the driver's own drops, so throwing things away still works). */
+    private void vacuum(Player driver) {
+        double r = settings.autoPickupRadius;
+        int pulled = 0;
+        for (Entity entity : driver.getNearbyEntities(r, r, r)) {
+            if (!(entity instanceof Item) || !entity.isValid()) continue;
+            if (driver.getName().equals(Nms.thrower((Item) entity))) continue;
+            if (entity.getLocation().distanceSquared(driver.getLocation()) < 2.25) continue;
+            pull(driver, (Item) entity, false);
+            if (++pulled >= 6) break;
+        }
+    }
+
+    /** Tractor beam: the item jumps to the sentinel and vanilla pickup (and its rules) takes it from there. */
+    private void pull(Player driver, Item item, boolean tapped) {
+        Location from = item.getLocation(), to = driver.getLocation().add(0, 0.5, 0);
+        Vector step = to.toVector().subtract(from.toVector());
+        double length = step.length();
+        if (length > 0.01) {
+            int points = (int) Math.min(30, Math.ceil(length / 0.8));
+            step.multiply(1.0 / points);
+            Location dot = from.clone();
+            for (int i = 0; i < points; i++) { dot.add(step); driver.getWorld().spawnParticle(Particle.END_ROD, dot, 1, 0, 0, 0, 0); }
+        }
+        item.setVelocity(new Vector(0, 0, 0));
+        item.teleport(to);
+        if (tapped) driver.playSound(to, Sound.ENTITY_ITEM_PICKUP, 0.6f, 0.8f);
+    }
+
+    private Player firstPlayer(World world, double[] o, double[] d, double max, Player self, double[] at) {
+        double half = max / 2 + 3;
+        Location middle = new Location(world, o[0] + d[0] * max / 2, o[1] + d[1] * max / 2, o[2] + d[2] * max / 2);
+        Player best = null;
+        double bestAt = max;
+        for (Entity entity : world.getNearbyEntities(middle, half, half, half)) {
+            if (!(entity instanceof Player) || entity.equals(self)) continue;
+            Player player = (Player) entity;
+            if (player.isDead() || player.getGameMode() == GameMode.SPECTATOR || !self.canSee(player)) continue;
+            double[] box = Nms.box(player);
+            if (box == null) continue;
+            double t = Aim.ray(o[0], o[1], o[2], d[0], d[1], d[2], Aim.grow(box, 0.7), bestAt);
+            if (t >= 0 && t <= bestAt) { best = player; bestAt = t; }
+        }
+        at[0] = bestAt;
+        return best;
+    }
+
+    private Item firstItem(World world, double[] o, double[] d, double max, Player self) {
+        double half = max / 2 + 2;
+        Location middle = new Location(world, o[0] + d[0] * max / 2, o[1] + d[1] * max / 2, o[2] + d[2] * max / 2);
+        Item best = null;
+        double bestAt = max;
+        for (Entity entity : world.getNearbyEntities(middle, half, half, half)) {
+            if (!(entity instanceof Item) || !entity.isValid()) continue;
+            double[] box = Nms.box(entity);
+            if (box == null) continue;
+            double t = Aim.ray(o[0], o[1], o[2], d[0], d[1], d[2], Aim.grow(box, 1.2), bestAt);
+            if (t >= 0 && t <= bestAt) { best = (Item) entity; bestAt = t; }
+        }
+        return best;
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onSentinelHit(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player) || !(event.getEntity() instanceof Player)) return;
+        Tank tank = tanks.get(event.getDamager().getUniqueId());
+        // A sentinel taps players to lock on; it fights with drone strikes, never its fists.
+        if (tank != null && tank.mode == Tank.Mode.SENTINEL) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onFall(EntityDamageEvent event) {
+        if (event.getCause() != EntityDamageEvent.DamageCause.FALL || !(event.getEntity() instanceof Player)) return;
+        UUID id = event.getEntity().getUniqueId();
+        Tank tank = tanks.get(id);
+        Long safeUntil = fallSafe.get(id);
+        if ((tank != null && tank.mode == Tank.Mode.SENTINEL) || (safeUntil != null && now < safeUntil)) event.setCancelled(true);
+    }
+
     // -- server advertisement for the browser ----------------------------------------------------------
+
+    private Map<String, Integer> scores(Player player) {
+        Tank tank = tanks.get(player.getUniqueId());
+        boolean sentinel = tank != null ? tank.mode == Tank.Mode.SENTINEL : sentinels.contains(player.getUniqueId());
+        Map<String, Integer> scores = new LinkedHashMap<String, Integer>();
+        scores.put("cooldown", settings.cooldownFor(sentinel ? Tank.Mode.SENTINEL : Tank.Mode.TANK));
+        scores.put("mode", sentinel ? 1 : 0);
+        scores.put("pickup", autoPickup.contains(player.getUniqueId()) ? 1 : 0);
+        return scores;
+    }
 
     /** Once per connection: the hidden objective survives scoreboard swaps and dimension changes client-side. */
     private void advertise(Player player) {
         if (!settings.enabled || !player.isOnline() || advertised.contains(player.getUniqueId())) return;
-        if (Nms.advertise(player, OBJECTIVE, DISPLAY, settings.cooldownTicks, true)) advertised.add(player.getUniqueId());
+        if (Nms.advertise(player, OBJECTIVE, DISPLAY, scores(player), true)) advertised.add(player.getUniqueId());
     }
 
-    // -- cannon ------------------------------------------------------------------------------------------
+    private void sendScores(Player player) {
+        if (advertised.contains(player.getUniqueId())) Nms.scores(player, OBJECTIVE, scores(player));
+    }
+
+    // -- weapons ------------------------------------------------------------------------------------------
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onSwap(PlayerSwapHandItemsEvent event) {
@@ -474,6 +771,20 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         if (tank == null || !tank.built() || !shown(driver)) return;
         event.setCancelled(true);
         fire(driver, tank);
+    }
+
+    /** Whatever the crosshair is on: the first creature (with a forgiving margin) or solid block. */
+    private LivingEntity aim(Player driver, double[] origin, double[] look, double[] target) {
+        World world = driver.getWorld();
+        double blockAt = solidHit(world, origin, look, settings.range);
+        double reach = blockAt >= 0 ? blockAt : settings.range;
+        double[] hitAt = new double[1];
+        LivingEntity quarry = firstLiving(world, origin, look, reach, settings.aimAssist, driver.getUniqueId(), null, hitAt);
+        double[] middle = quarry != null ? center(quarry) : null;
+        if (middle != null) { System.arraycopy(middle, 0, target, 0, 3); return quarry; }
+        double t = blockAt >= 0 ? Math.max(0, blockAt - 0.3) : settings.range;
+        target[0] = origin[0] + look[0] * t; target[1] = origin[1] + look[1] * t; target[2] = origin[2] + look[2] * t;
+        return null;
     }
 
     private void fire(Player driver, Tank tank) {
@@ -488,18 +799,13 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         Location eye = driver.getEyeLocation();
         double[] origin = {eye.getX(), eye.getY(), eye.getZ()};
         double[] look = Aim.direction(eye.getYaw(), eye.getPitch());
-
-        // Whatever the crosshair is on: the first creature (with a forgiving margin) or solid block.
-        double blockAt = solidHit(world, origin, look, settings.range);
-        double reach = blockAt >= 0 ? blockAt : settings.range;
-        double[] hitAt = new double[1];
-        LivingEntity quarry = firstLiving(world, origin, look, reach, settings.aimAssist, driver.getUniqueId(), null, hitAt);
-        double[] target = quarry != null ? center(quarry) : null;
-        if (target == null) {
-            quarry = null;
-            double t = blockAt >= 0 ? Math.max(0, blockAt - 0.3) : settings.range;
-            target = new double[] {origin[0] + look[0] * t, origin[1] + look[1] * t, origin[2] + look[2] * t};
-        }
+        double[] target = new double[3];
+        LivingEntity quarry = aim(driver, origin, look, target);
+        tank.readyAt = now + settings.cooldownFor(tank.mode);
+        tank.announced = false;
+        tank.shots++;
+        totalShots++;
+        if (tank.mode == Tank.Mode.SENTINEL) { strike(driver, world, target, quarry); return; }
 
         // The shell leaves the barrel tip; hugging a wall fires from the hatch instead.
         Location feet = driver.getLocation();
@@ -507,15 +813,8 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         double[] hatch = {feet.getX(), feet.getY() + MUZZLE_HEIGHT, feet.getZ()};
         double[] muzzle = {feet.getX() + flat[0] * MUZZLE_REACH, feet.getY() + MUZZLE_HEIGHT, feet.getZ() + flat[2] * MUZZLE_REACH};
         if (solidHit(world, hatch, flat, MUZZLE_REACH) >= 0) muzzle = origin.clone();
-        double[] path = {target[0] - muzzle[0], target[1] - muzzle[1], target[2] - muzzle[2]};
-        double distance = Math.sqrt(path[0] * path[0] + path[1] * path[1] + path[2] * path[2]);
-        double[] dir = distance < 1.0E-6 ? look.clone() : new double[] {path[0] / distance, path[1] / distance, path[2] / distance};
-
-        tank.readyAt = now + settings.cooldownTicks;
-        tank.announced = false;
-        tank.shots++;
-        totalShots++;
-        final Location from = new Location(world, muzzle[0], muzzle[1], muzzle[2]);
+        Location from = new Location(world, muzzle[0], muzzle[1], muzzle[2]);
+        double[] dir = launch(driver, world, muzzle, target, quarry, (float) settings.power);
         world.playSound(from, Sound.ENTITY_GENERIC_EXPLODE, 0.8f, 1.7f);
         world.playSound(from, Sound.ENTITY_FIREWORK_LAUNCH, 1.0f, 0.6f);
         // Small puffs just past the barrel: a large blast particle here would white out the driver's view.
@@ -523,27 +822,50 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         world.spawnParticle(Particle.EXPLOSION_NORMAL, flash, 4, 0.08, 0.08, 0.08, 0.03);
         world.spawnParticle(Particle.SMOKE_LARGE, flash, 3, 0.1, 0.1, 0.1, 0.01);
         world.spawnParticle(Particle.FLAME, flash, 3, 0.05, 0.05, 0.05, 0.02);
+    }
 
+    /** Drone strike: a ring of drones leaves the sentinel and dives onto the target (or chases the creature). */
+    private void strike(Player driver, World world, double[] target, LivingEntity quarry) {
+        Location feet = driver.getLocation();
+        int drones = settings.strikeDrones;
+        for (int i = 0; i < drones; i++) {
+            double angle = 2 * Math.PI * i / drones, spread = quarry != null || drones == 1 ? 0 : 1.6;
+            double[] start = {feet.getX() + Math.cos(angle) * 0.6, feet.getY() + 1.9 + 0.25 * i, feet.getZ() + Math.sin(angle) * 0.6};
+            double[] aimAt = {target[0] + Math.cos(angle) * spread, target[1], target[2] + Math.sin(angle) * spread};
+            launch(driver, world, start, aimAt, quarry, (float) settings.strikePower);
+        }
+        world.playSound(feet, Sound.ENTITY_FIREWORK_LAUNCH, 1.0f, 1.4f);
+        world.playSound(feet, Sound.BLOCK_PISTON_EXTEND, 0.7f, 1.8f);
+        world.spawnParticle(Particle.FIREWORKS_SPARK, feet.clone().add(0, 2, 0), 12, 0.3, 0.2, 0.3, 0.05);
+    }
+
+    /** Spawns one shell flying from {@code start} toward {@code target}; returns its direction. */
+    private double[] launch(Player driver, World world, double[] start, double[] target, LivingEntity quarry, float power) {
+        double[] path = {target[0] - start[0], target[1] - start[1], target[2] - start[2]};
+        double distance = Math.sqrt(path[0] * path[0] + path[1] * path[1] + path[2] * path[2]);
+        double[] dir = distance < 1.0E-6 ? new double[] {0, -1, 0} : new double[] {path[0] / distance, path[1] / distance, path[2] / distance};
         final double[] velocity = {dir[0] * settings.speed, dir[1] * settings.speed, dir[2] * settings.speed};
         final int fuse = settings.shellLifetime() + 20;
+        final boolean fire = settings.fire;
         TNTPrimed tnt;
         try {
-            tnt = world.spawn(from, TNTPrimed.class, shell -> {
+            tnt = world.spawn(new Location(world, start[0], start[1], start[2]), TNTPrimed.class, shell -> {
                 shell.setFuseTicks(fuse);
-                shell.setYield((float) settings.power);
-                shell.setIsIncendiary(settings.fire);
+                shell.setYield(power);
+                shell.setIsIncendiary(fire);
                 shell.setGravity(false);
                 shell.addScoreboardTag(SHELL_TAG);
                 shell.setVelocity(new Vector(velocity[0], velocity[1], velocity[2]));
             });
         } catch (RuntimeException e) {
-            return;
+            return dir;
         }
         Nms.source(tnt, driver);
-        Shell shell = new Shell(tnt, driver.getUniqueId(), dir, target, distance, quarry);
+        Shell shell = new Shell(tnt, driver.getUniqueId(), dir, target, distance, quarry, power);
         shells.add(shell);
         // Point-blank: nothing to fly through.
         if (distance <= settings.speed && quarry == null) { detonate(shell, target); shells.remove(shell); }
+        return dir;
     }
 
     private void tickShells() {
@@ -602,8 +924,8 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         Location where = new Location(shell.tnt.getWorld(), at[0], at[1], at[2]);
         blasting = shell;
         try {
-            if (!Nms.explode(shell.tnt, where, (float) settings.power, settings.fire))
-                where.getWorld().createExplosion(at[0], at[1], at[2], (float) settings.power, settings.fire, settings.breakBlocks);
+            if (!Nms.explode(shell.tnt, where, shell.power, settings.fire))
+                where.getWorld().createExplosion(at[0], at[1], at[2], shell.power, settings.fire, settings.breakBlocks);
         } finally {
             blasting = null;
             shell.tnt.remove();
@@ -662,9 +984,10 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         return best;
     }
 
-    /** The driver's own pets and the friends riding their tank. */
+    /** The driver's own pets, the friends riding their tank, and the player their sentinel guards. */
     private boolean friendly(Entity entity, UUID shooter) {
         Tank tank = tanks.get(shooter);
+        if (tank != null && entity.getUniqueId().equals(tank.follow)) return true;
         Entity vehicle = entity.getVehicle();
         if (tank != null && vehicle != null && (vehicle.equals(tank.hull) || vehicle.equals(tank.turret))) return true;
         if (!(entity instanceof Tameable)) return false;
@@ -684,7 +1007,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         return null;
     }
 
-    // -- blast rules: the driver, their pets and (unless break-blocks) builds are never hurt -------------
+    // -- blast rules: the driver, their friends and (unless break-blocks) builds are never hurt -----------
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onExplode(EntityExplodeEvent event) {
@@ -738,7 +1061,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    /** JasprRevive's bleeding-out state: the revive presentation owns the player, so the tank steps aside. */
+    /** JasprRevive's bleeding-out state: the revive presentation owns the player, so the vehicle steps aside. */
     private boolean downed(Player player) {
         try {
             Plugin plugin = getServer().getPluginManager().getPlugin("JasprRevive");
@@ -766,19 +1089,33 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
 
     private void loadPlayers() {
         optedOut.clear();
+        sentinels.clear();
+        autoPickup.clear();
         if (!playersFile.isFile()) return;
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(playersFile);
-        for (String value : yaml.getStringList("opted-out")) {
-            try { optedOut.add(UUID.fromString(value)); } catch (IllegalArgumentException ignored) { }
+        readIds(yaml.getStringList("opted-out"), optedOut);
+        readIds(yaml.getStringList("sentinel"), sentinels);
+        readIds(yaml.getStringList("auto-pickup"), autoPickup);
+    }
+
+    private static void readIds(List<String> values, Set<UUID> into) {
+        for (String value : values) {
+            try { into.add(UUID.fromString(value)); } catch (IllegalArgumentException ignored) { }
         }
+    }
+
+    private static List<String> ids(Set<UUID> set) {
+        List<String> values = new ArrayList<String>();
+        for (UUID id : set) values.add(id.toString());
+        Collections.sort(values);
+        return values;
     }
 
     private void savePlayers() {
         YamlConfiguration yaml = new YamlConfiguration();
-        List<String> values = new ArrayList<String>();
-        for (UUID id : optedOut) values.add(id.toString());
-        Collections.sort(values);
-        yaml.set("opted-out", values);
+        yaml.set("opted-out", ids(optedOut));
+        yaml.set("sentinel", ids(sentinels));
+        yaml.set("auto-pickup", ids(autoPickup));
         try {
             getDataFolder().mkdirs();
             yaml.save(playersFile);

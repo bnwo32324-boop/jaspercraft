@@ -5,7 +5,7 @@
  if(!mobile)return;
  var host=null,canvas=null,lastMode='',lastEnabled='',held=new Set(),pointers=new Map(),rightClick=false,shiftClick=false,sheet=null;
  // Tank mode (JasprTanks): the server advertises tanks; these controls claim one and drive it.
- var tank={state:'none',view:'first',claimed:false,polled:0,cooldownMs:1500,coolUntil:0},fireButton=null,tankButton=null,viewButton=null,stickLabel=null,stickSprint=false;
+ var tank={state:'none',view:'first',vehicle:'',pickup:null,claimed:false,polled:0,cooldownMs:1500,coolUntil:0},fireButton=null,tankButton=null,viewButton=null,modeButton=null,pickupButton=null,jumpButton=null,sneakButton=null,stickLabel=null,stickSprint=false;
  function bridge(){return window.JasprVideoMobileBridge;}
  function state(){return bridge()?bridge().state():{ready:false,playing:false,menu:false,enabled:true,sensitivity:1};}
  function key(field,down){if(!bridge()||held.has(field)===!!down)return;if(down)held.add(field);else held.delete(field);bridge().key(field,down);}
@@ -18,8 +18,15 @@
  function fire(){var now=performance.now();if(tank.state!=='on'||now<tank.coolUntil)return;pulse('bUd');tank.coolUntil=now+tank.cooldownMs;
   fireButton.style.setProperty('--jaspr-cool',tank.cooldownMs+'ms');fireButton.classList.remove('jaspr-cooling');void fireButton.offsetWidth;fireButton.classList.add('jaspr-cooling');
   if(navigator.vibrate)try{navigator.vibrate(25);}catch(e){}}
+ function tapAim(x,y){if(!canvas||!bridge())return;var r=canvas.getBoundingClientRect(),half=r.height/2,t=Math.tan(35*Math.PI/180),
+   nx=(x-r.left-r.width/2)/half*t,ny=(y-r.top-half)/half*t,yaw=Math.atan(nx)*180/Math.PI,pitch=Math.atan(ny/Math.sqrt(1+nx*nx))*180/Math.PI;
+  bridge().look(yaw,pitch);setTimeout(function(){pulse('A$');},80);}
  function syncTank(s){var b=bridge(),now=performance.now();if(!host||now-tank.polled<250)return;tank.polled=now;
   var t=b&&b.tank?b.tank():null,state=!t||!t.supported?'none':t.active?'on':'off';if(t&&t.cooldown>0)tank.cooldownMs=t.cooldown*50;
+  var vehicle=t&&t.mode==='sentinel'?'sentinel':'tank',pickup=!!(t&&t.pickup);
+  if(vehicle!==tank.vehicle||pickup!==tank.pickup){tank.vehicle=vehicle;tank.pickup=pickup;host.dataset.vehicle=vehicle;var sky=vehicle==='sentinel';
+   modeButton.textContent=sky?'Mode: Sentinel':'Mode: Tank';fireButton.textContent=sky?'STRIKE':'FIRE';jumpButton.textContent=sky?'Up':'Jump';sneakButton.textContent=sky?'Down':'Sneak';
+   pickupButton.textContent=pickup?'Pickup: Auto':'Pickup: Tap';}
   // Claim a tank once per connection, as soon as the server advertises them.
   if(!t||!t.supported)tank.claimed=false;else if(!tank.claimed&&s.playing){tank.claimed=true;b.text('/tank mobile',true);}
   var view=t&&t.view>0?'third':'first';if(view!==tank.view){tank.view=view;host.dataset.view=view;viewButton.textContent=view==='third'?'View: 3rd':'View: 1st';}
@@ -37,13 +44,16 @@
   function up(e){e.preventDefault();if(released)return;released=true;if(hold){var remaining=e.type==='pointerup'&&hold==='bvG'?90-(performance.now()-began):0;if(remaining>0)timer=setTimeout(function(){key(hold,false);},remaining);else key(hold,false);}}
   b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('lostpointercapture',up);host.append(b);return b;}
  function attach(){
-  if(host)return;document.documentElement.classList.add('jaspr-touch-device');host=document.createElement('div');host.id='jaspr-touch';host.dataset.tank='none';host.dataset.view='first';host.setAttribute('aria-label','Minecraft touch controls');document.body.append(host);
+  if(host)return;document.documentElement.classList.add('jaspr-touch-device');host=document.createElement('div');host.id='jaspr-touch';host.dataset.tank='none';host.dataset.view='first';host.dataset.vehicle='tank';host.setAttribute('aria-label','Minecraft touch controls');document.body.append(host);
   button('Pause','pause',function(){press('Escape','Escape',27);});button('Bag','bag',function(){pulse('Hb');});button('Chat','chat',function(){textSheet(true);});
-  button('Jump','jump',null,'bvG');button('Mine / Attack','mine',null,'A$');button('Use / Place','use',null,'Nc');button('Sneak','sneak',null,'b3c');button('Sprint','sprint',null,'bOT');
+  jumpButton=button('Jump','jump',null,'bvG');button('Mine / Attack','mine',null,'A$');button('Use / Place','use',null,'Nc');sneakButton=button('Sneak','sneak',null,'b3c');button('Sprint','sprint',null,'bOT');
   button('Drop','drop',function(){pulse('bBx');});button('Swap','swap',function(){pulse('bUd');});button('Stats','stats',function(){pulse('$jasprStatsKey');});button('Waypoints','waypoints',function(){pulse('$jasprWaypointKey');});
   // The cannon fires on the swap-hands key; the server cancels the swap for tank drivers.
   fireButton=button('FIRE','fire',fire);tankButton=button('Tank','tank',function(){if(bridge())bridge().text('/tank',true);});
   viewButton=button('View','view',function(){var b=bridge();if(b&&b.tankView){b.tankView();tank.polled=0;}});
+  // Tank or Orbital Sentinel; the sentinel picks items up by tap or automatically.
+  modeButton=button('Mode','mode',function(){if(bridge())bridge().text('/tank mode',true);});
+  pickupButton=button('Pickup','pickup',function(){if(bridge())bridge().text('/tank pickup',true);});
   // Vanilla draws no crosshair in third person; the camera sits on the aim line, so the screen centre is the aim.
   var reticle=document.createElement('i');reticle.className='jaspr-touch-reticle';reticle.setAttribute('aria-hidden','true');host.append(reticle);
   button('Back','back',function(){press('Escape','Escape',27);});button('Keyboard','keyboard',function(){textSheet(false);});
@@ -63,22 +73,23 @@
  }
  function attachCanvas(c){
   if(canvas===c)return;canvas=c;canvas.style.touchAction='none';canvas.tabIndex=0;
-  canvas.addEventListener('pointerdown',function(e){if(e.pointerType!=='touch')return;e.preventDefault();canvas.setPointerCapture(e.pointerId);var s=state();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,menu:s.menu,button:rightClick?2:0});
+  canvas.addEventListener('pointerdown',function(e){if(e.pointerType!=='touch')return;e.preventDefault();canvas.setPointerCapture(e.pointerId);var s=state();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,menu:s.menu,button:rightClick?2:0,at:performance.now(),moved:0});
     if(s.menu){mouse('mousemove',e.clientX,e.clientY,0);mouse('mousedown',e.clientX,e.clientY,rightClick?2:0);}
   });
   canvas.addEventListener('pointermove',function(e){var p=pointers.get(e.pointerId);if(!p)return;e.preventDefault();var dx=e.clientX-p.x,dy=e.clientY-p.y,s=state();
     if(p.menu){if(pointers.size>1)canvas.dispatchEvent(new WheelEvent('wheel',{bubbles:true,cancelable:true,clientX:e.clientX,clientY:e.clientY,deltaY:-dy*3}));else mouse('mousemove',e.clientX,e.clientY,p.button);}
     else if(s.playing&&bridge())bridge().look(dx*.23*s.sensitivity,dy*.23*s.sensitivity);
-    p.x=e.clientX;p.y=e.clientY;
+    p.moved+=Math.abs(dx)+Math.abs(dy);p.x=e.clientX;p.y=e.clientY;
   });
-  function end(e){var p=pointers.get(e.pointerId);if(!p)return;e.preventDefault();if(p.menu)mouse('mouseup',e.clientX,e.clientY,p.button);pointers.delete(e.pointerId);}
+  function end(e){var p=pointers.get(e.pointerId);if(!p)return;e.preventDefault();if(p.menu)mouse('mouseup',e.clientX,e.clientY,p.button);pointers.delete(e.pointerId);
+   if(e.type==='pointerup'&&!p.menu&&p.moved<12&&performance.now()-p.at<250&&tank.state==='on'&&tank.vehicle==='sentinel')tapAim(e.clientX,e.clientY);}
   canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('lostpointercapture',end);
  }
  window.JasprMobile={sync:function(){if(!canvas||!canvas.isConnected){var c=document.querySelector('#game_frame canvas');if(!c)return;release();attach();attachCanvas(c);}var s=state(),mode=s.playing&&!sheet?'play':s.menu?'menu':'hidden',enabled=s.enabled?'true':'false';
    if(enabled!==lastEnabled){host.dataset.enabled=enabled;lastEnabled=enabled;}
    if(mode!==lastMode){release();host.dataset.mode=mode;document.documentElement.classList.toggle('jaspr-touch-menu',mode==='menu');lastMode=mode;}
    syncTank(s);
-  },release:release,status:function(){return {mobile:mobile,mode:lastMode,held:Array.from(held),pointers:pointers.size,tank:tank.state,view:tank.view,claimed:tank.claimed,cooldownMs:tank.cooldownMs};}};
+  },release:release,status:function(){return {mobile:mobile,mode:lastMode,held:Array.from(held),pointers:pointers.size,tank:tank.state,view:tank.view,vehicle:tank.vehicle,pickup:tank.pickup,claimed:tank.claimed,cooldownMs:tank.cooldownMs};}};
  // Small bounded bootstrap; after initialization the engine owns updates.
  var attempts=0,timer=setInterval(function(){window.JasprMobile.sync();if(bridge()||++attempts>120)clearInterval(timer);},250);
 })();

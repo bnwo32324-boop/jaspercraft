@@ -54595,7 +54595,7 @@ JasprVideoExtra.push([959,'dhEnabled','Distant Horizons',[0,1],''],[960,'dhDista
  * and the track guards. state() is a cached, read-only view for the touch controls (no engine calls from DOM
  * handlers). */
 var JasprTank=(function(){
-  var STEP=1.0,VANILLA_STEP=0.6000000238418579,cache={supported:false,active:false,cooldown:30,view:0},checked=0,failure=null,wasActive=false;
+  var STEP=1.0,VANILLA_STEP=0.6000000238418579,cache={supported:false,active:false,cooldown:30,view:0,mode:"tank",pickup:false},checked=0,failure=null,wasActive=false;
   // Rider seats in the hull frame: [back, right, drop] in blocks from the server seat (driver feet + 1.0). All four
   // sit on the track guards, so the driver's third-person view over the turret stays clear.
   var SEATS=[[0.45,-0.8,-1.24],[0.45,0.8,-1.24],[-0.3,-0.8,-1.24],[-0.3,0.8,-1.24]];
@@ -54619,11 +54619,13 @@ var JasprTank=(function(){
   function view(mc){var g=mc&&mc.G;if(!g)return 0;g.lv=g.lv===0?1:0;cache.view=g.lv;return g.lv;}
   function free(entity,vehicle){return entity instanceof HC&&vehicle instanceof Cb;}
   function advertised(mc){
-    var w=mc.X,sb=w&&w.k3,o,sc,i,s;cache.supported=false;
+    var w=mc.X,sb=w&&w.k3,o,sc,i,s,n;cache.supported=false;
     if(!sb){failure="no-scoreboard";return;}
     try{o=Cbd(sb,$rt_str("jtk"));if(!o){failure="no-objective";return;}
       if($rt_ustr(o.a47).indexOf("JTK v1")!==0){failure="display";return;}cache.supported=true;
-      sc=EEW(sb,o);for(i=0;sc&&i<sc.g;i++){s=sc.qN.data[i];if($rt_ustr(s.X5)==="cooldown")cache.cooldown=s.jk|0;}failure=null;}
+      sc=EEW(sb,o);for(i=0;sc&&i<sc.g;i++){s=sc.qN.data[i];n=$rt_ustr(s.X5);
+        if(n==="cooldown")cache.cooldown=s.jk|0;else if(n==="mode")cache.mode=(s.jk|0)===1?"sentinel":"tank";else if(n==="pickup")cache.pickup=(s.jk|0)===1;}
+      failure=null;}
     catch(e){failure=String(e&&e.message||e).slice(0,160);}
   }
   function tick(mc){
@@ -54636,10 +54638,10 @@ var JasprTank=(function(){
     wasActive=cache.active;cache.view=mc.G?mc.G.lv:0;
     if(++checked>=10){checked=0;advertised(mc);}
   }
-  function state(){return {supported:cache.supported,active:cache.active,cooldown:cache.cooldown,view:cache.view};}
+  function state(){return {supported:cache.supported,active:cache.active,cooldown:cache.cooldown,view:cache.view,mode:cache.mode,pickup:cache.pickup};}
   // Diagnostics only: state names and counts, nothing identifying.
   $rt_globals.JasprTankDiagnostics={status:function(){var p=HEH&&HEH.v,s=p&&p.fS;return {supported:cache.supported,active:cache.active,cooldownTicks:cache.cooldown,
-    view:cache.view,parts:parts(p),riders:s instanceof HC?s.a1k.g:0,riding:s instanceof HC,stepHeight:p?p.r5:null,blocksPerSecond:p?Math.round(Math.sqrt((p.b-p.dn)*(p.b-p.dn)+(p.c-p.dv)*(p.c-p.dv))*200)/10:null,failure:failure};}};
+    view:cache.view,mode:cache.mode,pickup:cache.pickup,parts:parts(p),riders:s instanceof HC?s.a1k.g:0,riding:s instanceof HC,stepHeight:p?p.r5:null,blocksPerSecond:p?Math.round(Math.sqrt((p.b-p.dn)*(p.b-p.dn)+(p.c-p.dv)*(p.c-p.dv))*200)/10:null,failure:failure};}};
   return {tick:tick,align:align,free:free,state:state,view:view,parts:parts};
 })();
 /* JASPR_TANK_V1_END */

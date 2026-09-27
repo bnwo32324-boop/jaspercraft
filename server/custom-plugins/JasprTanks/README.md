@@ -1,6 +1,6 @@
 # JasprTanks
 
-Touch-screen players drive a miniature tank: 1-block auto-step, horse speed, tank plating, an infinite TNT cannon on the swap-hands key and up to four riders. See `TANK_UPDATE.md` at the repository root for behaviour, safety rules and tests.
+Mobile players get double health and a vehicle they swap at any time: a Tank (auto-step, horse speed, infinite TNT cannon, four riders) or a flying Orbital Sentinel (drone strikes, tap-to-grab items, tap-to-follow a friend). See `TANK_UPDATE.md` at the repository root for behaviour, safety rules and tests.
 
 - `src/chat/jaspr/tanks/TanksPlugin.java`: enrolment, tank parts, cannon, riders and blast rules.
 - `Nms.java`: client-only mount packets, step height, explosion owner and hidden-objective packets (Paper 1.12.2 internals).

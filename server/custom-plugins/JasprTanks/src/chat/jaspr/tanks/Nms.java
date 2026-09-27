@@ -1,6 +1,7 @@
 package chat.jaspr.tanks;
 
 import java.lang.reflect.Field;
+import java.util.Map;
 import net.minecraft.server.v1_12_R1.AxisAlignedBB;
 import net.minecraft.server.v1_12_R1.EntityLiving;
 import net.minecraft.server.v1_12_R1.EntityTNTPrimed;
@@ -15,9 +16,11 @@ import net.minecraft.server.v1_12_R1.ScoreboardScore;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.v1_12_R1.CraftWorld;
 import org.bukkit.craftbukkit.v1_12_R1.entity.CraftEntity;
+import org.bukkit.craftbukkit.v1_12_R1.entity.CraftItem;
 import org.bukkit.craftbukkit.v1_12_R1.entity.CraftPlayer;
 import org.bukkit.craftbukkit.v1_12_R1.entity.CraftTNTPrimed;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TNTPrimed;
 
@@ -85,7 +88,7 @@ final class Nms {
      * two packets; the server keeps no scoreboard state. Clients refuse a second add of the same name, so
      * callers send each add once per connection and remove it before sending again.
      */
-    static boolean advertise(Player player, String name, String display, int cooldown, boolean add) {
+    static boolean advertise(Player player, String name, String display, Map<String, Integer> scores, boolean add) {
         try {
             Scoreboard board = new Scoreboard();
             ScoreboardObjective objective = board.registerObjective(name, IScoreboardCriteria.criteria.get("dummy"));
@@ -96,14 +99,36 @@ final class Nms {
                 connection.sendPacket(new PacketPlayOutScoreboardObjective(objective, 1));
                 return true;
             }
-            ScoreboardScore score = board.getPlayerScoreForObjective("cooldown", objective);
-            score.setScore(cooldown);
             connection.sendPacket(new PacketPlayOutScoreboardObjective(objective, 0));
-            connection.sendPacket(new PacketPlayOutScoreboardScore(score));
+            for (Map.Entry<String, Integer> entry : scores.entrySet()) {
+                ScoreboardScore score = board.getPlayerScoreForObjective(entry.getKey(), objective);
+                score.setScore(entry.getValue());
+                connection.sendPacket(new PacketPlayOutScoreboardScore(score));
+            }
             return true;
         } catch (Throwable e) {
             return false;
         }
+    }
+
+    /** Updates scores of an objective already advertised to this client (mode, pickup, reload time). */
+    static void scores(Player player, String name, Map<String, Integer> scores) {
+        try {
+            Scoreboard board = new Scoreboard();
+            ScoreboardObjective objective = board.registerObjective(name, IScoreboardCriteria.criteria.get("dummy"));
+            PlayerConnection connection = ((CraftPlayer) player).getHandle().playerConnection;
+            if (connection == null) return;
+            for (Map.Entry<String, Integer> entry : scores.entrySet()) {
+                ScoreboardScore score = board.getPlayerScoreForObjective(entry.getKey(), objective);
+                score.setScore(entry.getValue());
+                connection.sendPacket(new PacketPlayOutScoreboardScore(score));
+            }
+        } catch (Throwable ignored) { }
+    }
+
+    /** Name of whoever dropped this item, or null (the sentinel never vacuums a player's own drops). */
+    static String thrower(Item item) {
+        try { return ((net.minecraft.server.v1_12_R1.EntityItem) ((CraftItem) item).getHandle()).n(); } catch (Throwable e) { return null; }
     }
 
     /**

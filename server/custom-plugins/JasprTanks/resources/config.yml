@@ -1,8 +1,13 @@
-# JasprTanks: players on phones and tablets drive a miniature tank.
+# JasprTanks: players on phones and tablets get double health and a vehicle they can swap at any time:
+# a miniature Tank or a flying Orbital Sentinel.
 # The touch controls announce themselves with /tank mobile once the server advertises tanks.
 enabled: true
 # Let browsers whose user agent looks like a desktop drive tanks too (operators always may).
 desktop-players: false
+
+mobile:
+  # Extra maximum health for mobile players (20 = double a normal 20-point health bar).
+  health-bonus: 20
 
 tank:
   # Blocks the tank climbs without jumping (players normally step 0.6).
@@ -33,3 +38,17 @@ cannon:
   fire: false
   # Shells hurt other players only in worlds with PvP on.
   damage-players: true
+
+sentinel:
+  # Flying speed (vanilla creative flight is 0.1).
+  fly-speed: 0.12
+  # Drones per strike, the blast of each (TNT is 4) and the reload between strikes, in ticks.
+  strike-drones: 3
+  strike-power: 4.0
+  strike-cooldown-ticks: 50
+  # How far a tap reaches for an item, and the radius of automatic pickup.
+  pickup-range: 24
+  auto-pickup-radius: 8
+  # Where a sentinel hovers while following a friend: blocks above and behind them.
+  follow-height: 3.0
+  follow-distance: 2.0
