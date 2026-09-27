@@ -1,0 +1,289 @@
+package chat.jaspr.ruins;
+
+import chat.jaspr.lostcities.CityApi;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.lang.reflect.Proxy;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.imageio.ImageIO;
+import org.bukkit.Material;
+import org.bukkit.block.Biome;
+import org.bukkit.generator.ChunkGenerator.BiomeGrid;
+import org.bukkit.generator.ChunkGenerator.ChunkData;
+import org.bukkit.material.MaterialData;
+
+/**
+ * Offline check of the Ancient Ruins generator (no server): runs the real generator on in-memory chunks, checks it
+ * is deterministic and that the populator's recomputed chests/spawners match the generated blocks, exercises the
+ * weathering hook and portal-frame detection, times generation, and renders top-down previews of an old city and one
+ * site of every kind into the directory given as the first argument.
+ */
+public final class RuinsPreview {
+    static final long SEED = 0x1234ABCDL ^ RuinsPlugin.SALT;
+
+    /** A 16x256x16 chunk in memory, behind Bukkit's ChunkData interface. */
+    static final class Chunk {
+        final char[] blocks = new char[16 * 256 * 16];
+        static int i(int x, int y, int z) { return (x * 16 + z) * 256 + y; }
+        int id(int x, int y, int z) { return y < 0 || y > 255 ? 0 : blocks[i(x, y, z)] >> 4; }
+        int data(int x, int y, int z) { return blocks[i(x, y, z)] & 15; }
+        void set(int x, int y, int z, int id, int data) { if (y >= 0 && y < 256 && x >= 0 && x < 16 && z >= 0 && z < 16) blocks[i(x, y, z)] = (char) (id << 4 | data & 15); }
+
+        @SuppressWarnings("deprecation")
+        ChunkData proxy() {
+            return (ChunkData) Proxy.newProxyInstance(ChunkData.class.getClassLoader(), new Class<?>[] {ChunkData.class}, (p, m, a) -> {
+                switch (m.getName()) {
+                    case "getMaxHeight": return 256;
+                    case "setBlock": {
+                        int x = (Integer) a[0], y = (Integer) a[1], z = (Integer) a[2];
+                        if (a[3] instanceof Material) set(x, y, z, ((Material) a[3]).getId(), 0);
+                        else if (a[3] instanceof MaterialData) set(x, y, z, ((MaterialData) a[3]).getItemTypeId(), ((MaterialData) a[3]).getData());
+                        else set(x, y, z, (Integer) a[3], a.length > 4 ? ((Number) a[4]).intValue() : 0);
+                        return null;
+                    }
+                    case "setRegion": {
+                        int id, data = 0;
+                        if (a[6] instanceof Material) id = ((Material) a[6]).getId();
+                        else if (a[6] instanceof MaterialData) { id = ((MaterialData) a[6]).getItemTypeId(); data = ((MaterialData) a[6]).getData(); }
+                        else { id = (Integer) a[6]; if (a.length > 7) data = ((Number) a[7]).intValue(); }
+                        for (int x = Math.max(0, (Integer) a[0]); x < Math.min(16, (Integer) a[3]); x++)
+                            for (int y = Math.max(0, (Integer) a[1]); y < Math.min(256, (Integer) a[4]); y++)
+                                for (int z = Math.max(0, (Integer) a[2]); z < Math.min(16, (Integer) a[5]); z++) set(x, y, z, id, data);
+                        return null;
+                    }
+                    case "getTypeId": return id((Integer) a[0], (Integer) a[1], (Integer) a[2]);
+                    case "getData": return (byte) data((Integer) a[0], (Integer) a[1], (Integer) a[2]);
+                    case "getType": return Material.getMaterial(id((Integer) a[0], (Integer) a[1], (Integer) a[2]));
+                    case "getTypeAndData": return new MaterialData(id((Integer) a[0], (Integer) a[1], (Integer) a[2]), (byte) data((Integer) a[0], (Integer) a[1], (Integer) a[2]));
+                    case "hashCode": return System.identityHashCode(p);
+                    case "equals": return p == a[0];
+                    case "toString": return "Chunk";
+                    default: throw new UnsupportedOperationException(m.getName());
+                }
+            });
+        }
+    }
+
+    static BiomeGrid biomes() {
+        Biome[] b = new Biome[256];
+        return (BiomeGrid) Proxy.newProxyInstance(BiomeGrid.class.getClassLoader(), new Class<?>[] {BiomeGrid.class}, (p, m, a) -> {
+            if (m.getName().equals("setBiome")) { b[(Integer) a[0] * 16 + (Integer) a[1]] = (Biome) a[2]; return null; }
+            if (m.getName().equals("getBiome")) return b[(Integer) a[0] * 16 + (Integer) a[1]];
+            if (m.getName().equals("hashCode")) return System.identityHashCode(p);
+            return null;
+        });
+    }
+
+    static final Map<Long, Chunk> cache = new HashMap<>();
+    static long genNanos, genChunks;
+
+    static Chunk chunk(RuinsGenerator gen, int cx, int cz) {
+        long k = (long) cx << 32 ^ (cz & 0xffffffffL);
+        Chunk c = cache.get(k);
+        if (c != null) return c;
+        c = new Chunk();
+        long t = System.nanoTime();
+        gen.fill(c.proxy(), biomes(), cx, cz);
+        genNanos += System.nanoTime() - t;
+        genChunks++;
+        cache.put(k, c);
+        return c;
+    }
+
+    static void check(boolean ok, String what) { if (!ok) throw new AssertionError(what); }
+
+    public static void main(String[] args) throws Exception {
+        File out = new File(args.length > 0 ? args[0] : "ruins-preview");
+        out.mkdirs();
+        // Offline the Lost Cities plan is its pure region geometry (plus the one-chunk ring).
+        Plans.Reserved reserved = (x, z, w, d) -> {
+            for (int cx = Math.floorDiv(x, 16) - 1; cx <= Math.floorDiv(x + w - 1, 16) + 1; cx++)
+                for (int cz = Math.floorDiv(z, 16) - 1; cz <= Math.floorDiv(z + d - 1, 16) + 1; cz++)
+                    if (CityApi.cityRegion(SEED, cx, cz)) return true;
+            return false;
+        };
+        int[] failures = {0};
+        RuinsGenerator gen = new RuinsGenerator(SEED, reserved, (w, e) -> { failures[0]++; e.printStackTrace(); });
+
+        // 1. An old city and one site of every kind near the origin.
+        Plans.City city = null;
+        for (int r = 0; r <= 8 && city == null; r++)
+            for (int i = -r; i <= r && city == null; i++)
+                for (int j = -r; j <= r && city == null; j++) if (Math.max(Math.abs(i), Math.abs(j)) == r) city = gen.plans.city(i, j);
+        check(city != null, "an old city within 8 cells");
+        Map<Plans.Kind, Plans.Site> sites = new HashMap<>();
+        for (int r = 0; r <= 30 && sites.size() < Plans.Kind.values().length; r++)
+            for (int i = -r; i <= r; i++)
+                for (int j = -r; j <= r; j++) {
+                    if (Math.max(Math.abs(i), Math.abs(j)) != r) continue;
+                    Plans.Site s = gen.plans.site(i, j);
+                    if (s != null) sites.putIfAbsent(s.kind, s);
+                }
+        check(sites.size() == Plans.Kind.values().length, "every kind of site appears: " + sites.keySet());
+
+        // 2. Render and verify the city.
+        int reach = city.half + 24;
+        render(gen, city.x - reach, city.z - reach, 2 * reach, 2 * reach, new File(out, "city-" + city.name + ".png"));
+        int chests = 0, spawners = 0;
+        for (int cx = Math.floorDiv(city.x - reach, 16); cx <= Math.floorDiv(city.x + reach, 16); cx++)
+            for (int cz = Math.floorDiv(city.z - reach, 16); cz <= Math.floorDiv(city.z + reach, 16); cz++) {
+                int[] n = verifyTiles(gen, cx, cz);
+                chests += n[0];
+                spawners += n[1];
+            }
+        check(chests > 3, "the city has chests: " + chests);
+
+        // 3. Every site kind: a preview tile each, tiles verified.
+        int tile = 64, cols = 5;
+        BufferedImage sheet = new BufferedImage(cols * tile * 2, (Plans.Kind.values().length + cols - 1) / cols * tile * 2, BufferedImage.TYPE_INT_RGB);
+        int n = 0;
+        for (Plans.Kind k : Plans.Kind.values()) {
+            Plans.Site s = sites.get(k);
+            BufferedImage img = image(gen, s.x - tile / 2, s.z - tile / 2, tile, tile);
+            for (int x = 0; x < tile * 2; x++)
+                for (int z = 0; z < tile * 2; z++) sheet.setRGB((n % cols) * tile * 2 + x, (n / cols) * tile * 2 + z, img.getRGB(x / 2, z / 2));
+            for (int cx = Math.floorDiv(s.x - k.radius, 16); cx <= Math.floorDiv(s.x + k.radius, 16); cx++)
+                for (int cz = Math.floorDiv(s.z - k.radius, 16); cz <= Math.floorDiv(s.z + k.radius, 16); cz++) {
+                    int[] t = verifyTiles(gen, cx, cz);
+                    chests += t[0];
+                    spawners += t[1];
+                }
+            System.out.println("site " + k + " at " + s.x + "," + s.z + " base=" + s.base + " rot=" + s.rot + " name=" + s.name);
+            n++;
+        }
+        ImageIO.write(sheet, "png", new File(out, "sites.png"));
+
+        // 4. Determinism: a fresh generator draws the same chunk.
+        RuinsGenerator again = new RuinsGenerator(SEED, reserved, null);
+        Chunk a = chunk(gen, Math.floorDiv(city.x, 16), Math.floorDiv(city.z, 16)), b = new Chunk();
+        again.fill(b.proxy(), biomes(), Math.floorDiv(city.x, 16), Math.floorDiv(city.z, 16));
+        check(Arrays.equals(a.blocks, b.blocks), "generation is deterministic");
+
+        // 5. Weathering on a synthetic Lost Cities chunk.
+        char[] primer = new char[65536];
+        int ground = 70;
+        for (int x = 0; x < 16; x++)
+            for (int z = 0; z < 16; z++) {
+                for (int y = 1; y <= ground; y++) primer[x << 12 | z << 8 | y] = (char) (1 << 4);
+                primer[x << 12 | z << 8 | ground] = (char) (43 << 4);                          // street
+                if (x == 4) for (int y = ground + 1; y < ground + 60; y++) primer[x << 12 | z << 8 | y] = (char) ((y % 4 == 0 ? 20 : 4) << 4);   // a tall wall with glass
+            }
+        new Weathering(SEED).apply(0, 0, primer, true, ground);
+        int tall = 0, glass = 0, mossy = 0;
+        for (int z = 0; z < 16; z++)
+            for (int y = ground + 1; y < 256; y++) {
+                int id = primer[4 << 12 | z << 8 | y] >> 4;
+                if (y > ground + 55 && id != 0 && id != 106 && id != 18) tall++;
+                if (id == 20) glass++;
+                if (id == 48) mossy++;
+            }
+        check(glass < 30, "most glass shattered: " + glass);
+        check(mossy > 100, "cobblestone turned mossy: " + mossy);
+        long t0 = System.nanoTime();
+        for (int k = 0; k < 20; k++) new Weathering(SEED).apply(k, 3, primer.clone(), true, ground);
+        long weatherMs = (System.nanoTime() - t0) / 20_000_000L;
+
+        // 6. Portal frames: a 4x5 mossy frame is found from inside, broken or wrong frames are not.
+        Map<Long, Integer> world = new HashMap<>();
+        Portals.Blocks blocks = (x, y, z) -> world.getOrDefault(Portals.key(x, y, z), 0);
+        for (int x = 0; x <= 3; x++) { world.put(Portals.key(x, 64, 0), 48); world.put(Portals.key(x, 68, 0), 48); }
+        for (int y = 65; y <= 67; y++) { world.put(Portals.key(0, y, 0), 48); world.put(Portals.key(3, y, 0), 48); }
+        Portals.Portal p = Portals.detect(blocks, "world", 1, 66, 0, true);
+        check(p != null && p.w == 2 && p.h == 3 && p.x == 1 && p.y == 65, "4x5 mossy frame detected");
+        check(Portals.detect(blocks, "world", 1, 66, 0, false) == null, "not along the other axis");
+        world.put(Portals.key(0, 64, 0), 0);
+        world.put(Portals.key(3, 68, 0), 0);
+        check(Portals.detect(blocks, "world", 2, 65, 0, true) != null, "corners are optional");
+        world.put(Portals.key(0, 66, 0), 49);
+        check(Portals.detect(blocks, "world", 1, 66, 0, true) == null, "an obsidian block breaks a mossy frame");
+        check(Portals.Portal.decode(p.encode()).encode().equals(p.encode()), "portal registry round trip");
+
+        double ms = genNanos / 1e6 / Math.max(1, genChunks);
+        System.out.println("city " + city.name + " at " + city.x + "," + city.z + " half=" + city.half + " ground=" + city.ground);
+        System.out.println(String.format("chunks=%d avgMs=%.2f chests=%d spawners=%d weatherMs=%d failures=%d", genChunks, ms, chests, spawners, weatherMs, failures[0]));
+        check(failures[0] == 0, "no generation failures");
+        check(ms < 40, "chunks generate quickly: " + ms + " ms");
+        System.out.println("RUINS_OK");
+    }
+
+    /** Chests/spawners recomputed by the populator must be exactly the ones in the generated chunk. */
+    static int[] verifyTiles(RuinsGenerator gen, int cx, int cz) {
+        Chunk c = chunk(gen, cx, cz);
+        List<Canvas.Tile> tiles = RuinsPopulator.tilesOf(gen, cx, cz);
+        Set<Long> planned = new HashSet<>();
+        int chests = 0, spawners = 0;
+        for (Canvas.Tile t : tiles) {
+            int id = c.id(t.x & 15, t.y, t.z & 15);
+            if (t.chest) { check(id == 54, "chest block at " + t.x + "," + t.y + "," + t.z + " is " + id); chests++; }
+            else { check(id == 52, "spawner block at " + t.x + "," + t.y + "," + t.z + " is " + id); spawners++; }
+            planned.add(Portals.key(t.x & 15, t.y, t.z & 15));
+        }
+        for (int x = 0; x < 16; x++)
+            for (int z = 0; z < 16; z++)
+                for (int y = 0; y < 256; y++) {
+                    int id = c.id(x, y, z);
+                    if ((id == 54 || id == 52) && !planned.contains(Portals.key(x, y, z))) throw new AssertionError("unplanned tile " + id + " at chunk " + cx + "," + cz + " " + x + "," + y + "," + z);
+                }
+        return new int[] {chests, spawners};
+    }
+
+    static void render(RuinsGenerator gen, int x0, int z0, int w, int h, File file) throws Exception {
+        BufferedImage img = image(gen, x0, z0, w, h);
+        BufferedImage big = new BufferedImage(w * 2, h * 2, BufferedImage.TYPE_INT_RGB);
+        for (int x = 0; x < w * 2; x++) for (int z = 0; z < h * 2; z++) big.setRGB(x, z, img.getRGB(x / 2, z / 2));
+        ImageIO.write(big, "png", file);
+    }
+
+    static BufferedImage image(RuinsGenerator gen, int x0, int z0, int w, int h) {
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        int[][] top = new int[w][h];
+        for (int x = 0; x < w; x++)
+            for (int z = 0; z < h; z++) {
+                int wx = x0 + x, wz = z0 + z;
+                Chunk c = chunk(gen, Math.floorDiv(wx, 16), Math.floorDiv(wz, 16));
+                int lx = Math.floorMod(wx, 16), lz = Math.floorMod(wz, 16), y = 255;
+                while (y > 0 && (c.id(lx, y, lz) == 0 || small(c.id(lx, y, lz)))) y--;
+                top[x][z] = y;
+                int id = c.id(lx, y, lz), data = c.data(lx, y, lz), rgb = color(id, data);
+                if (id == 9 || id == 8) { int d = 0; while (d < 12 && (c.id(lx, y - d - 1, lz) == 9)) d++; rgb = mix(rgb, 0x10205a, d / 14.0); }
+                img.setRGB(x, z, rgb);
+            }
+        for (int x = 1; x < w; x++)
+            for (int z = 1; z < h; z++) {
+                int dy = top[x][z] - top[x - 1][z - 1];
+                double f = dy > 0 ? 1.18 : dy < 0 ? 0.8 : 1.0;
+                int rgb = img.getRGB(x, z);
+                img.setRGB(x, z, scale(rgb, f * (0.75 + Math.max(0, Math.min(1, (top[x][z] - 50) / 90.0)) * 0.4)));
+            }
+        return img;
+    }
+
+    static boolean small(int id) { return id == 31 || id == 37 || id == 38 || id == 175 || id == 39 || id == 106 || id == 30 || id == 111; }
+
+    static int color(int id, int data) {
+        switch (id) {
+            case 2: return 0x5f9f35; case 3: return data == 2 ? 0x5a3d22 : 0x866043; case 1: return data == 5 ? 0x8a8a8c : 0x7d7d7d;
+            case 4: return 0x6e6e6e; case 48: return 0x5f7a5a; case 98: return data == 1 ? 0x6f8a68 : data == 2 ? 0x646464 : data == 3 ? 0xa0a0a0 : 0x8c8c8c;
+            case 109: return 0x949494; case 44: case 43: return 0xa8a8a8; case 139: return 0x6f8a68;
+            case 9: case 8: return 0x3050d0; case 12: return 0xdbd3a0; case 13: return 0x857f7c; case 82: return 0x9fa4b1;
+            case 18: return 0x2f6b1f; case 17: return 0x6b5230; case 5: return 0xa0824e; case 54: return 0xff9a00; case 52: return 0x200020;
+            case 7: return 0x333333; case 101: return 0x505050; case 65: return 0xa0824e; case 118: return 0x303030; case 159: return 0x252525;
+            default: return 0xff00ff;
+        }
+    }
+
+    static int mix(int a, int b, double t) {
+        int r = (int) (((a >> 16) & 255) * (1 - t) + ((b >> 16) & 255) * t), g = (int) (((a >> 8) & 255) * (1 - t) + ((b >> 8) & 255) * t), bl = (int) ((a & 255) * (1 - t) + (b & 255) * t);
+        return r << 16 | g << 8 | bl;
+    }
+
+    static int scale(int rgb, double f) {
+        int r = Math.min(255, (int) (((rgb >> 16) & 255) * f)), g = Math.min(255, (int) (((rgb >> 8) & 255) * f)), b = Math.min(255, (int) ((rgb & 255) * f));
+        return r << 16 | g << 8 | b;
+    }
+}

@@ -54,6 +54,15 @@ public final class LostCitiesPlugin extends JavaPlugin implements Listener {
 
     private static volatile LostCitiesPlugin instance;
 
+    /** Worlds besides "world" that build Lost Cities (registered by other plugins through CityApi). */
+    static final Map<String, Extra> EXTRA = new ConcurrentHashMap<>();
+
+    static final class Extra {
+        final String titleFormat;
+        final CityApi.PrimerHook hook;
+        Extra(String titleFormat, CityApi.PrimerHook hook) { this.titleFormat = titleFormat; this.hook = hook; }
+    }
+
     private Assets assets;
     private Path protectionRoot;
     private final Map<UUID, Context> worlds = new ConcurrentHashMap<>();
@@ -78,6 +87,7 @@ public final class LostCitiesPlugin extends JavaPlugin implements Listener {
         /** Chunks known built this session (bounded; the guard file is the durable record). */
         final Lru<Long, Boolean> built = new Lru<>(131072);
         BlockPopulator populator;
+        String titleFormat = "The Lost City of %s";
         Context(World world, ChunkBoundary boundary, CityWorld w, Builder builder) {
             this.world = world; this.boundary = boundary; this.w = w; this.builder = builder;
         }
@@ -128,9 +138,12 @@ public final class LostCitiesPlugin extends JavaPlugin implements Listener {
 
     private synchronized Context attach(World world) {
         if (assets == null) return null;
-        if (!"world".equals(world.getName()) || world.getEnvironment() != World.Environment.NORMAL) return null;
+        Extra extra = EXTRA.get(world.getName());
+        boolean overworld = "world".equals(world.getName());
+        if ((!overworld && extra == null) || world.getEnvironment() != World.Environment.NORMAL) return null;
         Context existing = worlds.get(world.getUID());
         if (existing != null) return existing;
+        if (!overworld) return attachExtra(world, extra);
         try {
             ChunkBoundary boundary = ChunkBoundary.open(world.getWorldFolder(), world.getSeed(), "jaspr-cities-v1.boundary");
             Terrain terrain = new Terrain(world.getSeed());
@@ -155,6 +168,26 @@ public final class LostCitiesPlugin extends JavaPlugin implements Listener {
             return full;
         } catch (Throwable e) {
             getLogger().severe("LOST_CITIES_ATTACH_REFUSED " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
+            return null;
+        }
+    }
+
+    /** A registered world: its own seed and terrain, no sanctuaries or committed sites, the registrant's primer hook. */
+    private Context attachExtra(World world, Extra extra) {
+        try {
+            ChunkBoundary boundary = ChunkBoundary.open(world.getWorldFolder(), world.getSeed(), "jaspr-cities-v1.boundary");
+            CityWorld w = new CityWorld(world.getSeed(), assets, new Terrain(world.getSeed()), (x, z) -> boundary.contains(x, z), null);
+            Builder builder = new Builder(w, world, (cx, cz) -> guard(world, cx, cz), extra.hook);
+            Context ctx = new Context(world, boundary, w, builder);
+            if (extra.titleFormat != null) ctx.titleFormat = extra.titleFormat;
+            ctx.populator = new CityPopulator(ctx);
+            world.getPopulators().add(ctx.populator);
+            worlds.put(world.getUID(), ctx);
+            getLogger().info("LOST_CITIES_BOUNDARY_READY world=" + world.getName() + " existingChunks=" + boundary.count()
+                + " registered=true hook=" + (extra.hook != null) + " populators=" + world.getPopulators().size());
+            return ctx;
+        } catch (Throwable e) {
+            getLogger().severe("LOST_CITIES_ATTACH_REFUSED world=" + world.getName() + " " + e.getClass().getSimpleName() + ": " + safe(e.getMessage()));
             return null;
         }
     }
@@ -354,15 +387,16 @@ public final class LostCitiesPlugin extends JavaPlugin implements Listener {
             if (key.equals(lastRegion.get(id))) continue;
             lastRegion.put(id, key);
             String name = r.name;
-            if (!hbTitle) { cityTitle(p, name); continue; }
+            String format = ctx != null ? ctx.titleFormat : "The Lost City of %s";
+            if (!hbTitle) { cityTitle(p, name, format); continue; }
             Bukkit.getScheduler().runTaskLater(this, () -> {
-                if (p.isOnline() && key.equals(lastRegion.get(id))) cityTitle(p, name);
+                if (p.isOnline() && key.equals(lastRegion.get(id))) cityTitle(p, name, format);
             }, 72L);
         }
     }
 
-    private static void cityTitle(Player p, String name) {
-        p.sendTitle(ChatColor.GRAY + "The Lost City of " + name, ChatColor.DARK_GRAY + "Lost Cities", 10, 60, 20);
+    private static void cityTitle(Player p, String name, String format) {
+        p.sendTitle(ChatColor.GRAY + String.format(format, name), ChatColor.DARK_GRAY + "Lost Cities", 10, 60, 20);
     }
 
     private final Map<UUID, Integer> hbIndex = new HashMap<>();

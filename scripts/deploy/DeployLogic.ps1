@@ -23,6 +23,7 @@ $script:PluginReadyTokens = @{
     'JasprHorrorBiomes'     = @('HORROR_BIOMES_READY', 'STRUCTURES_READY')
     'JasprImportedWorldgen' = @('IMPORTED_ASSETS_READY')
     'JasprRevive'           = @('REVIVE_READY')
+    'JasprRuins'            = @('RUINS_READY')
     'JasprTanks'            = @('TANKS_READY')
 }
 

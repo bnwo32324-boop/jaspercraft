@@ -56,14 +56,18 @@ final class Builder {
     private final CityGenerator gen;
     private final World world;
     private final Guard guard;
+    private final CityApi.PrimerHook hook;   // registered worlds only (JasprRuins' weathering); null in the overworld
     private final char[] original = new char[65536];
     private double[] depth = new double[256];
 
-    Builder(CityWorld w, World world, Guard guard) {
+    Builder(CityWorld w, World world, Guard guard) { this(w, world, guard, null); }
+
+    Builder(CityWorld w, World world, Guard guard, CityApi.PrimerHook hook) {
         this.w = w;
         this.gen = new CityGenerator(w);
         this.world = world;
         this.guard = guard;
+        this.hook = hook;
     }
 
     Outcome build(Chunk chunk, java.util.function.LongPredicate built) throws Exception {
@@ -85,6 +89,10 @@ final class Builder {
             Surface.apply(w, cx, cz, primer, depth, surfaceRand, original, top);
         }
         int valuables = sanitize(primer);
+        if (hook != null) {
+            hook.apply(cx, cz, primer, info.isCity, info.isCity ? info.getCityGroundLevel() : -1);
+            valuables += sanitize(primer);
+        }
 
         Outcome out = new Outcome();
         out.city = info.isCity;

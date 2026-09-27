@@ -18,10 +18,31 @@ import org.bukkit.World;
  *     built, nor if generation is stopped. Thread-safe; results are cached; about 2 microseconds a call.</li>
  * </ul>
  * Neither method calls HorrorBiomes placement code (the sanctuary test is seed math on HorrorBiomes' lattice), so
- * HorrorBiomes may call them from its own placement code. Outside the "world" overworld nothing is reserved.
+ * HorrorBiomes may call them from its own placement code. Outside the "world" overworld and the worlds registered
+ * with {@link #registerWorld(String, String, PrimerHook)} nothing is reserved.
  */
 public final class CityApi {
     private CityApi() {}
+
+    /**
+     * Restyles each chunk the Lost Cities build in a registered world, after the city and its surface are generated
+     * and before anything is written (tile entities, loot and spawners follow the result). The primer holds
+     * {@code id << 4 | data} at index {@code x << 12 | z << 8 | y}. Valuable blocks it adds are sanitized again.
+     */
+    public interface PrimerHook {
+        /** @param groundLevel the city's ground level, or -1 for a non-city chunk the Lost Cities changed */
+        void apply(int chunkX, int chunkZ, char[] primer, boolean city, int groundLevel);
+    }
+
+    /**
+     * Builds the Lost Cities in another NORMAL world as well (JasprRuins' dimension). The world's own seed and the
+     * HorrorBiomes terrain of that seed drive the plan, so its generator must shape the land with the same
+     * {@code chat.jaspr.biomes.Terrain}. There are no sanctuaries or committed sites there. Register before the
+     * world loads. {@code titleFormat} names a city on entry, e.g. "The Ruins of %s".
+     */
+    public static void registerWorld(String worldName, String titleFormat, PrimerHook hook) {
+        LostCitiesPlugin.EXTRA.put(worldName, new LostCitiesPlugin.Extra(titleFormat, hook));
+    }
 
     static final AtomicLong CALLS = new AtomicLong(), RESERVED = new AtomicLong();
 

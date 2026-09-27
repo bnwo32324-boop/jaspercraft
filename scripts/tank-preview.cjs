@@ -15,13 +15,18 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
   // Lean fixture: 1.12 browsers need only EaglerXServer (no Via/Rewind protocol translation).
   fs.copyFileSync(path.join(root, 'server/plugins/EaglerXServer.jar'), path.join(server, 'plugins/EaglerXServer.jar'));
   fs.copyFileSync(path.join(root, 'candidate/tanks/JasprTanks.jar'), path.join(server, 'plugins/JasprTanks.jar'));
+  // TANK_PREVIEW_PLUGINS: comma-separated extra plugin jars (e.g. HorrorBiomes + LostCities + Ruins for the ruins dimension).
+  for (const jar of (process.env.TANK_PREVIEW_PLUGINS || '').split(',').filter(Boolean)) fs.copyFileSync(path.resolve(root, jar), path.join(server, 'plugins', path.basename(jar)));
+  // TANK_PREVIEW_LEVEL: a level name other than "world" keeps world-bound plugins (Lost Cities, HorrorBiomes) off the flat
+  // fixture world. TANK_PREVIEW_SEED fixes the seed (so planned ruins are where a test expects them).
+  const level = process.env.TANK_PREVIEW_LEVEL || 'world', seed = process.env.TANK_PREVIEW_SEED || '';
   // TANK_PREVIEW_REGIONS: comma-separated region files (copies of a live world area) to reproduce a spot there.
   for (const region of (process.env.TANK_PREVIEW_REGIONS || '').split(',').filter(Boolean)) {
-    fs.mkdirSync(path.join(server, 'world/region'), {recursive: true});
-    fs.copyFileSync(region, path.join(server, 'world/region', path.basename(region)));
+    fs.mkdirSync(path.join(server, level, 'region'), {recursive: true});
+    fs.copyFileSync(region, path.join(server, level, 'region', path.basename(region)));
   }
   write('server/eula.txt', 'eula=true\n');
-  write('server/server.properties', `server-ip=127.0.0.1\nserver-port=${socketPort}\nonline-mode=false\nlevel-type=FLAT\ngenerator-settings=3;minecraft:bedrock,60*minecraft:stone,2*minecraft:dirt,minecraft:grass;1;\nlevel-name=world\nspawn-protection=0\nview-distance=3\ngenerate-structures=false\nallow-nether=false\nspawn-animals=true\nspawn-monsters=true\nspawn-npcs=true\nmax-players=3\nnetwork-compression-threshold=-1\nenable-rcon=false\nenable-query=false\ngamemode=0\ndifficulty=2\npvp=true\n`);
+  write('server/server.properties', `server-ip=127.0.0.1\nserver-port=${socketPort}\nonline-mode=false\nlevel-type=FLAT\ngenerator-settings=3;minecraft:bedrock,60*minecraft:stone,2*minecraft:dirt,minecraft:grass;1;\nlevel-name=${level}\nlevel-seed=${seed}\nspawn-protection=0\nview-distance=3\ngenerate-structures=false\nallow-nether=false\nspawn-animals=true\nspawn-monsters=true\nspawn-npcs=true\nmax-players=3\nnetwork-compression-threshold=-1\nenable-rcon=false\nenable-query=false\ngamemode=0\ndifficulty=2\npvp=true\n`);
   write('server/bukkit.yml', 'settings:\n  allow-end: false\n');
   write('server/paper.yml', 'config-version: 13\nworld-settings:\n  default:\n    keep-spawn-loaded: false\n');
   write('server/spigot.yml', 'config-version: 11\nsettings:\n  late-bind: true\nworld-settings:\n  default:\n    view-distance: 3\n    mob-spawn-range: 1\n    entity-activation-range:\n      animals: 8\n      monsters: 16\n      misc: 4\n');
@@ -63,7 +68,7 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
   });
   web.listen(webPort, '127.0.0.1');
   const log = fs.createWriteStream(path.join(fixture, 'paper.log'));
-  child = spawn(path.join(java, 'java.exe'), ['-Xms128M', '-Xmx640M', '-XX:ActiveProcessorCount=1', '-XX:+UseSerialGC', '-Djava.awt.headless=true', '-Dcom.mojang.eula.agree=true', '-jar', 'paper.jar', '--nojline'], {cwd: server, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe']});
+  child = spawn(path.join(java, 'java.exe'), ['-Xms128M', '-Xmx' + (process.env.TANK_PREVIEW_XMX || '640M'), '-XX:ActiveProcessorCount=1', '-XX:+UseSerialGC', '-Djava.awt.headless=true', '-Dcom.mojang.eula.agree=true', '-jar', 'paper.jar', '--nojline'], {cwd: server, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe']});
   // Yield the CPU to the owner and other work on this PC.
   try { os.setPriority(child.pid, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch (e) { }
   let saving = true;
