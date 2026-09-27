@@ -63,6 +63,11 @@ test('touch controls: claim, fire on swap-hands, hop in/out, view switch, reticl
   assert.match(js, /bridge\(\)\.text\('\/tank pickup',true\)/, 'Pickup button toggles automatic pickup');
   assert.match(js, /tapAim\(e\.clientX,e\.clientY\)/, 'a short tap aims and taps (grab an item, lock onto a player)');
   assert.match(js, /'STRIKE'/);
+  assert.match(js, /button\('Chat','chat',openChat\)/, 'Chat opens the game chat too, so chat buttons (teleport ACCEPT/DENY) can be tapped');
+  const tpa = read('server/custom-plugins/JasprApocalypse/src/chat/jaspr/apocalypse/TeleportRequests.java');
+  assert.match(tpa, /button\("ACCEPT".*"\/tpaccept"/, 'teleport requests carry a clickable ACCEPT');
+  assert.match(tpa, /button\("DENY".*"\/tpdeny"/);
+  assert.match(tpa, /button\("CANCEL".*"\/tpcancel"/);
   assert.match(css, /\[data-tank="on"\] \[data-zone="fire"\]/);
   assert.match(css, /\[data-view="third"\] \.jaspr-touch-reticle/);
   assert.match(css, /\[data-vehicle="sentinel"\] \[data-zone="pickup"\]/);

@@ -5,6 +5,10 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -134,13 +138,23 @@ public final class TeleportRequests implements Listener {
             System.currentTimeMillis() + timeoutSeconds() * 1000L);
         incoming.put(made.recipient, made);
         outgoing.put(made.requester, made);
-        requester.sendMessage(ChatColor.GREEN + "Teleport request sent to " + recipient.getName() + ". Use /tpcancel to cancel it.");
+        // Tappable buttons: typing commands is hard on phones, so every answer is one click in the chat.
+        TextComponent sent = new TextComponent("Teleport request sent to " + recipient.getName() + ". ");
+        sent.setColor(net.md_5.bungee.api.ChatColor.GREEN);
+        requester.spigot().sendMessage(sent, button("CANCEL", net.md_5.bungee.api.ChatColor.GRAY, "/tpcancel", "Withdraw your request"));
         if (here) {
             recipient.sendMessage(ChatColor.AQUA + requester.getName() + " wants you to teleport to them.");
         } else {
             recipient.sendMessage(ChatColor.AQUA + requester.getName() + " wants to teleport to you.");
         }
-        recipient.sendMessage(ChatColor.GRAY + "Use /tpaccept or /tpdeny. This request expires in " + timeoutSeconds() + " seconds.");
+        TextComponent expires = new TextComponent("  expires in " + timeoutSeconds() + "s");
+        expires.setColor(net.md_5.bungee.api.ChatColor.GRAY);
+        recipient.spigot().sendMessage(
+            button("ACCEPT", net.md_5.bungee.api.ChatColor.GREEN, "/tpaccept",
+                here ? "Teleport to " + requester.getName() : "Let " + requester.getName() + " teleport to you"),
+            new TextComponent("  "),
+            button("DENY", net.md_5.bungee.api.ChatColor.RED, "/tpdeny", "Say no to " + requester.getName()),
+            expires);
         plugin.getLogger().info("TPA_REQUEST requester=" + requester.getName() + " recipient=" + recipient.getName()
             + " direction=" + (here ? "recipient-to-requester" : "requester-to-recipient"));
         return true;
@@ -255,6 +269,16 @@ public final class TeleportRequests implements Listener {
 
     private int timeoutSeconds() {
         return Math.max(15, Math.min(300, plugin.getConfig().getInt("teleport.request-timeout-seconds", 60)));
+    }
+
+    /** A chat button that runs {@code command} when clicked or tapped, with a hover hint. */
+    private static TextComponent button(String label, net.md_5.bungee.api.ChatColor color, String command, String hint) {
+        TextComponent button = new TextComponent("[" + label + "]");
+        button.setColor(color);
+        button.setBold(true);
+        button.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command));
+        button.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new BaseComponent[] {new TextComponent(hint)}));
+        return button;
     }
 
     private static void notify(Player player, String message) {

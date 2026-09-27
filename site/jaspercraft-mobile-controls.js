@@ -32,11 +32,14 @@
   var view=t&&t.view>0?'third':'first';if(view!==tank.view){tank.view=view;host.dataset.view=view;viewButton.textContent=view==='third'?'View: 3rd':'View: 1st';}
   if(state===tank.state)return;tank.state=state;host.dataset.tank=state;tankButton.textContent=state==='on'?'Tank: ON':'Tank: OFF';stickLabel.textContent=state==='on'?'DRIVE':'MOVE';
   if(state!=='on'&&stickSprint){stickSprint=false;key('bOT',false);}}
+ // Chat opens the game's own chat screen as well, so links in it (teleport ACCEPT / DENY) can be tapped.
+ var chatScreen=false;
+ function openChat(){if(state().playing){press('KeyT','t',84);chatScreen=true;}textSheet(true);}
  function textSheet(chat){
   release();if(sheet)sheet.remove();sheet=document.createElement('form');sheet.className='jaspr-touch-text';sheet.setAttribute('aria-label',chat?'Chat or command':'Type into selected game field');
-  var input=document.createElement('input');input.type='text';input.maxLength=256;input.autocomplete='off';input.autocapitalize='off';input.spellcheck=false;input.placeholder=chat?'Message or /command':'Text for selected field';input.setAttribute('aria-label',input.placeholder);
+  var input=document.createElement('input');input.type='text';input.maxLength=256;input.autocomplete='off';input.autocapitalize='off';input.spellcheck=false;input.placeholder=chat?'Message or /command (tap buttons in chat above)':'Text for selected field';input.setAttribute('aria-label',input.placeholder);
   var send=document.createElement('button');send.type='submit';send.textContent=chat?'Send':'Type';var cancel=document.createElement('button');cancel.type='button';cancel.textContent='Close';cancel.onclick=close;
-  function close(){if(sheet)sheet.remove();sheet=null;if(canvas)canvas.focus();}
+  function close(){if(sheet)sheet.remove();sheet=null;if(chat&&chatScreen){chatScreen=false;if(state().menu)press('Escape','Escape',27);}if(canvas)canvas.focus();}
   sheet.append(input,send,cancel);sheet.onsubmit=function(e){e.preventDefault();if(bridge()&&input.value)bridge().text(input.value,chat);close();};document.body.append(sheet);input.focus();
  }
  function button(label,zone,action,hold){var b=document.createElement('button'),began=0,released=true,timer=0;b.type='button';b.textContent=label;b.setAttribute('aria-label',label);b.dataset.zone=zone;
@@ -45,7 +48,7 @@
   b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('lostpointercapture',up);host.append(b);return b;}
  function attach(){
   if(host)return;document.documentElement.classList.add('jaspr-touch-device');host=document.createElement('div');host.id='jaspr-touch';host.dataset.tank='none';host.dataset.view='first';host.dataset.vehicle='tank';host.setAttribute('aria-label','Minecraft touch controls');document.body.append(host);
-  button('Pause','pause',function(){press('Escape','Escape',27);});button('Bag','bag',function(){pulse('Hb');});button('Chat','chat',function(){textSheet(true);});
+  button('Pause','pause',function(){press('Escape','Escape',27);});button('Bag','bag',function(){pulse('Hb');});button('Chat','chat',openChat);
   jumpButton=button('Jump','jump',null,'bvG');button('Mine / Attack','mine',null,'A$');button('Use / Place','use',null,'Nc');sneakButton=button('Sneak','sneak',null,'b3c');button('Sprint','sprint',null,'bOT');
   button('Drop','drop',function(){pulse('bBx');});button('Swap','swap',function(){pulse('bUd');});button('Stats','stats',function(){pulse('$jasprStatsKey');});button('Waypoints','waypoints',function(){pulse('$jasprWaypointKey');});
   // The cannon fires on the swap-hands key; the server cancels the swap for tank drivers.
