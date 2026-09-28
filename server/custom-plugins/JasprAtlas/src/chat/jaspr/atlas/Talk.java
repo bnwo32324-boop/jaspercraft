@@ -190,7 +190,7 @@ final class Talk implements Listener {
         List<List<String>> text = paginateLines(lines);
         List<String> last = text.get(text.size() - 1);
         int optionRows = 1;
-        for (String[] o : page.options) optionRows += rows(o[0]) + 1;
+        for (String[] o : page.options) optionRows += rows("> " + o[0]);
         if (rows(last) + optionRows > ROWS) { last = new ArrayList<>(); text.add(last); }
         List<BaseComponent[]> pages = new ArrayList<>();
         for (int i = 0; i < text.size() - 1; i++) pages.add(TextComponent.fromLegacyText(String.join("\n", text.get(i))));

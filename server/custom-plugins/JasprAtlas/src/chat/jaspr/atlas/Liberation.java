@@ -52,16 +52,25 @@ final class Liberation implements Listener {
         plugin.saveStateSoon();
         World w = plugin.atlas();
         String names = names(by);
-        Bukkit.broadcastMessage(ChatColor.GOLD + boss.title.split(",")[0] + " has fallen" + (names.isEmpty() ? "" : " to " + names) + ". " + ChatColor.YELLOW + cap(p.title) + " are free.");
+        Bukkit.broadcastMessage(ChatColor.GOLD + boss.title.split(",")[0] + " has fallen" + (names.isEmpty() ? "" : " to " + names) + ". " + ChatColor.YELLOW + cap(p.title) + (plural(p) ? " are" : " is") + " free.");
         if (w != null) {
             for (Player pl : w.getPlayers()) {
-                pl.sendTitle(ChatColor.GOLD + cap(p.title), ChatColor.YELLOW + "is free. The Ward of " + Anthrakion.wardName(p).charAt(0) + Anthrakion.wardName(p).substring(1).toLowerCase() + " goes dark.", 10, 80, 30);
+                pl.sendTitle(ChatColor.GOLD + cap(p.title), ChatColor.YELLOW + (plural(p) ? "are" : "is") + " free. The Ward of " + Anthrakion.wardName(p).charAt(0) + Anthrakion.wardName(p).substring(1).toLowerCase() + " goes dark.", 10, 80, 30);
                 pl.playSound(pl.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1f);
             }
             int cleared = plugin.dominion().clearProvince(w, p);
             plugin.getLogger().info("ATLAS_PROVINCE_CLEARED province=" + p.name() + " removed=" + cleared);
             healLoaded(w);
         }
+        // Captives of the freed province who were still held go free with it (to the House of Return).
+        int freedCaptives = 0;
+        for (Lore.Captive c : Lore.CAPTIVES.values()) {
+            if (c.province != p || s.captivesRescued.containsKey(c.id)) continue;
+            s.captivesRescued.put(c.id, by.isEmpty() ? "the liberators" : by.get(0).getName());
+            freedCaptives++;
+        }
+        if (w != null && freedCaptives > 0) plugin.captives().maintain(w);
+        if (freedCaptives > 0) plugin.getLogger().info("ATLAS_CAPTIVES_FREED_BY_LIBERATION province=" + p.name() + " count=" + freedCaptives);
         if (s.wardsDark() == 4) {
             Bukkit.broadcastMessage(ChatColor.GOLD + "All four Wards around Anthrakion are dark. " + ChatColor.YELLOW + "Its gate stands open. Archon Kleio will lend the Light of Theano.");
         }
@@ -107,6 +116,16 @@ final class Liberation implements Listener {
         e.setCustomName(ChatColor.WHITE + (comma > 0 ? n.substring(0, comma) : n) + ChatColor.GRAY + ", who sang in the Choir");
     }
 
+    /** After victory, whenever the Gate of Strangers is loaded: carve the names if they are not there yet. */
+    void carveIfNeeded(World w) {
+        if (!plugin.state().victory) return;
+        Registry.Spot m = plugin.registry().spot("monument");
+        if (m == null || !w.isChunkLoaded(m.x >> 4, m.z >> 4)) return;
+        Block first = w.getBlockAt(m.x - 2, m.y, m.z);
+        if (first.getState() instanceof Sign && "REKINDLERS".equals(((Sign) first.getState()).getLine(1))) return;
+        carveMonument(w);
+    }
+
     /** The Rekindlers' names on the plinth at the Gate of Strangers. */
     @SuppressWarnings("deprecation")
     void carveMonument(World w) {
@@ -133,6 +152,9 @@ final class Liberation implements Listener {
     }
 
     private static String names(List<Player> by) { List<String> n = new ArrayList<>(); for (Player p : by) n.add(p.getName()); return String.join(", ", n); }
+
+    /** "The Ashen Marches are", "the Petrified Weald is". */
+    static boolean plural(Realm.Province p) { return p == Realm.Province.MARCHES || p == Realm.Province.FORGES || p == Realm.Province.FALLEN; }
 
     private static String cap(String t) { return t.isEmpty() ? t : Character.toUpperCase(t.charAt(0)) + t.substring(1); }
 
@@ -186,9 +208,11 @@ final class Liberation implements Listener {
         int cx = chunk.getX(), cz = chunk.getZ(), now = plugin.state().liberated;
         int was = gen.masks.get(cx, cz, now);
         if (was == now) return;
+        if (unchanging(cx, cz)) { gen.masks.put(cx, cz, now); return; }
         Drawing before = new Drawing(), after = new Drawing();
         gen.fill(before, before, cx, cz, was);
         gen.fill(after, after, cx, cz, now);
+        if (java.util.Arrays.equals(before.ids, after.ids) && java.util.Arrays.equals(before.data, after.data)) { gen.masks.put(cx, cz, now); return; }
         ChunkSnapshot snap = chunk.getChunkSnapshot(false, false, false);
         int changed = 0;
         for (int y = 0; y < 256; y++)
@@ -228,6 +252,17 @@ final class Liberation implements Listener {
         blocksHealed += changed;
         batchChunks++;
         batchBlocks += changed;
+    }
+
+    /** Concord land (and the Line and the Rim) far from any Dominion place is drawn the same whatever is liberated. */
+    static boolean unchanging(int cx, int cz) {
+        int x0 = cx << 4, z0 = cz << 4;
+        for (int[] c : new int[][] {{0, 0}, {15, 0}, {0, 15}, {15, 15}, {8, 8}}) {
+            Realm.Zone z = Realm.zone(x0 + c[0], z0 + c[1]);
+            if (z != Realm.Zone.CONCORD && z != Realm.Zone.LINE && z != Realm.Zone.RIM) return false;
+        }
+        for (Realm.Place p : Realm.Place.values()) if (p.province != null && p.near(x0 + 8, z0 + 8, 140)) return false;
+        return true;
     }
 
     private static boolean empty(InventoryHolder h) {

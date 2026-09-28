@@ -94,6 +94,19 @@ final class Captives implements Listener {
 
     // ------------------------------------------------------------------ labour camps
 
+    /** The nearest shackle post within r blocks of a location, or null (for owner tests). */
+    static Block nearestPost(Location at, int r) {
+        Block best = null;
+        double bd = Double.MAX_VALUE;
+        for (int x = -r; x <= r; x++) for (int z = -r; z <= r; z++) for (int y = -6; y <= 6; y++) {
+            Block b = at.getWorld().getBlockAt(at.getBlockX() + x, at.getBlockY() + y, at.getBlockZ() + z);
+            if (b.getType() != Material.OBSIDIAN || !isPost(b)) continue;
+            double d = b.getLocation().distanceSquared(at);
+            if (d < bd) { bd = d; best = b; }
+        }
+        return best;
+    }
+
     static boolean isPost(Block b) {
         if (b.getType() != Material.OBSIDIAN) return false;
         Block up = b.getRelative(BlockFace.UP), down = b.getRelative(BlockFace.DOWN);
@@ -117,7 +130,7 @@ final class Captives implements Listener {
 
     private final Map<java.util.UUID, Long> told = new HashMap<>();
 
-    private void breakPost(Player p, Block b) {
+    void breakPost(Player p, Block b) {
         Plans.Site site = plugin.plans().siteAt(b.getX(), b.getZ(), 6);
         String camp = site != null ? site.i + ":" + site.j : "post:" + b.getX() + ":" + b.getZ();
         State s = plugin.state();
@@ -208,6 +221,7 @@ final class Captives implements Listener {
             }
         }
         for (Entity e : stale) e.remove();
+        plugin.liberation().carveIfNeeded(w);
         if (!plugin.registry().ready()) return;
         for (String id : s.captivesRescued.keySet()) {
             if (atBerth.containsKey(id)) continue;
@@ -221,7 +235,7 @@ final class Captives implements Listener {
             w.spawn(spot.at(w), Villager.class, v -> {
                 v.setProfession(c.profession);
                 v.setCustomName(ChatColor.WHITE + c.name + ChatColor.GRAY + ", " + c.title);
-                v.setCustomNameVisible(true);
+                v.setCustomNameVisible(false);
                 v.setRemoveWhenFarAway(false);
                 v.setAI(false);
                 v.setInvulnerable(true);

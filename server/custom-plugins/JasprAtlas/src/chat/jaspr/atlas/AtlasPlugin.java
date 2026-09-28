@@ -428,6 +428,14 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         String sub = args.length == 0 ? "codex" : args[0].toLowerCase(Locale.ROOT);
         Player player = sender instanceof Player ? (Player) sender : null;
+        // "/atlas as <player> <subcommand...>": the owner (or the console, for tests) acts as a player.
+        if (sub.equals("as") && args.length >= 3 && sender.hasPermission("jaspr.atlas.admin")) {
+            player = Bukkit.getPlayerExact(args[1]);
+            if (player == null) { sender.sendMessage("No such player online."); return true; }
+            args = Arrays.copyOfRange(args, 2, args.length);
+            sub = args[0].toLowerCase(Locale.ROOT);
+            getLogger().info("ATLAS_ADMIN_AS player=" + player.getName() + " sub=" + sub);
+        }
         switch (sub) {
             case "say": if (player != null && args.length > 1) talk.answer(player, args[1]); return true;
             case "go": if (player != null && args.length > 1) heliodromes.go(player, args[1].toLowerCase(Locale.ROOT)); return true;
@@ -473,7 +481,52 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
                 Registry.Spot s = registry.spot(arg);
                 if (w == null || s == null) { player.sendMessage(ChatColor.GRAY + "No such spot. e.g. key:kleio, boss:kallias, mech:font:0, berth:0, heliodrome:threshold"); return true; }
                 w.getChunkAt(s.x >> 4, s.z >> 4).load(true);
-                go(player, Bosses.standable(new Location(w, s.x + 0.5, s.y, s.z + 2.5)));
+                Location to = Bosses.standable(new Location(w, s.x + 0.5, s.y, s.z + 2.5));
+                to.setYaw(180f);   // facing the spot (north)
+                go(player, to);
+                return true;
+            }
+            case "find": {
+                World w = ensureAtlas();
+                Plans.SiteKind kind = null;
+                for (Plans.SiteKind k : Plans.SiteKind.values()) if (k.name().equalsIgnoreCase(arg)) kind = k;
+                if (w == null || kind == null) { player.sendMessage(ChatColor.GRAY + "/atlas find <" + Arrays.toString(Plans.SiteKind.values()).toLowerCase(Locale.ROOT) + ">"); return true; }
+                Location from = isAtlas(player.getWorld()) ? player.getLocation() : new Location(w, 0, 64, 0);
+                int i0 = Math.floorDiv(from.getBlockX(), Plans.SITE_GRID), j0 = Math.floorDiv(from.getBlockZ(), Plans.SITE_GRID);
+                for (int ring = 0; ring <= 24; ring++)
+                    for (int a = -ring; a <= ring; a++)
+                        for (int b = -ring; b <= ring; b++) {
+                            if (Math.max(Math.abs(a), Math.abs(b)) != ring) continue;
+                            Plans.Site s = plans().site(i0 + a, j0 + b);
+                            if (s == null || s.kind != kind) continue;
+                            getLogger().info("ATLAS_ADMIN_FIND kind=" + kind + " at=" + s.x + "," + s.z + " name=" + s.name.replace(' ', '_'));
+                            player.sendMessage(ChatColor.GRAY + s.name + " (" + s.kind.noun + ") at " + s.x + ", " + s.z);
+                            go(player, surface(w, s.x, s.z + s.kind.radius + 3));
+                            return true;
+                        }
+                player.sendMessage(ChatColor.GRAY + "None near.");
+                return true;
+            }
+            case "post": {
+                org.bukkit.block.Block post = Captives.nearestPost(player.getLocation(), 40);
+                if (post == null) { player.sendMessage(ChatColor.GRAY + "No shackle post within 40 blocks."); return true; }
+                getLogger().info("ATLAS_ADMIN_POST at=" + post.getX() + "," + post.getY() + "," + post.getZ());
+                captives.breakPost(player, post);
+                return true;
+            }
+            case "touch": case "strike": {
+                World w = atlas;
+                Registry.Spot s = registry.spot(arg);
+                if (w == null || s == null) { player.sendMessage(ChatColor.GRAY + "/atlas " + sub + " <mech:font:0|mech:edict:1|mech:governor:2>"); return true; }
+                org.bukkit.block.Block b = w.getBlockAt(s.x, s.y, s.z);
+                if (sub.equals("strike")) {
+                    for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) for (int dy = -2; dy <= 2; dy++) {
+                        org.bukkit.block.Block c = w.getBlockAt(s.x + dx, s.y + dy, s.z + dz);
+                        if (c.getType() == Material.END_ROD || c.getType() == Material.SEA_LANTERN) { b = c; dx = 3; dz = 3; break; }
+                    }
+                }
+                boolean handled = sub.equals("touch") ? mechanisms.use(player, b) : mechanisms.strikeAt(player, b);
+                getLogger().info("ATLAS_ADMIN_" + sub.toUpperCase(Locale.ROOT) + " spot=" + arg + " handled=" + handled + " mechanisms=" + state.mechanisms);
                 return true;
             }
             case "key": { ItemStack k = Items.key(arg); if (k == null) player.sendMessage(ChatColor.GRAY + "/atlas key <oath|hymn|counterpoint|charter|light>"); else Talk.give(player, k); return true; }
@@ -492,6 +545,39 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
                 Bosses.Boss b = Bosses.Boss.of(arg);
                 if (b == null || !isAtlas(player.getWorld())) { player.sendMessage(ChatColor.GRAY + "/atlas boss <id> (in Atlas; a test boss with no marker)"); return true; }
                 player.sendMessage(ChatColor.GRAY + "Use /atlas spot boss:" + b.id + " to go to its place; it rises when you are near.");
+                return true;
+            }
+            case "talk": case "trade": {
+                org.bukkit.entity.Entity best = null;
+                double bd = 16 * 16;
+                for (org.bukkit.entity.Entity e : player.getNearbyEntities(16, 8, 16)) {
+                    if (!Npcs.has(e, Npcs.TAG) || e instanceof Player) continue;
+                    if (!arg.isEmpty() && !e.getScoreboardTags().toString().contains(arg)) continue;
+                    if (sub.equals("trade") && Npcs.tagValue(e, Npcs.MERCHANT) == null) continue;
+                    double d = e.getLocation().distanceSquared(player.getLocation());
+                    if (d < bd) { bd = d; best = e; }
+                }
+                if (best == null) { player.sendMessage(ChatColor.GRAY + "Nobody to " + sub + " with nearby."); return true; }
+                getLogger().info("ATLAS_ADMIN_" + sub.toUpperCase(Locale.ROOT) + " player=" + player.getName() + " with=" + best.getScoreboardTags());
+                if (sub.equals("trade")) { trade.open(player, best); return true; }
+                Talk.Page page = talk.open(player, best, arg.startsWith("node=") ? arg.substring(5) : "start");
+                if (page != null) talk.show(player, best, page);
+                return true;
+            }
+            case "read": case "copy": {
+                org.bukkit.block.Block shelf = null;
+                for (int dx = -6; dx <= 6 && shelf == null; dx++) for (int dz = -6; dz <= 6 && shelf == null; dz++) for (int dy = -2; dy <= 4 && shelf == null; dy++) {
+                    org.bukkit.block.Block b = player.getLocation().getBlock().getRelative(dx, dy, dz);
+                    if (b.getType() == Material.BOOKSHELF) shelf = b;
+                }
+                if (shelf == null) { player.sendMessage(ChatColor.GRAY + "No shelf nearby."); return true; }
+                library.read(player, shelf, sub.equals("copy"));
+                return true;
+            }
+            case "ring": {
+                Registry.Spot here = registry.spot("heliodrome:" + arg);
+                if (here == null) { player.sendMessage(ChatColor.GRAY + "/atlas ring <heliodrome id>"); return true; }
+                heliodromes.open(player, here);
                 return true;
             }
             case "heal": { World w = atlas; if (w != null) liberation.healLoaded(w); player.sendMessage(ChatColor.GRAY + liberation.status()); return true; }

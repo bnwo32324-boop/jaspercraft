@@ -1390,7 +1390,7 @@ catch($$e){$$je=F($$e);g=$$je;}BJ(c);I(g);case 4:a:{b:{try{$z=E3i(g);if(B()){bre
 !==null){$p=35;continue _;}if(a.Yb){$p=39;continue _;}c=a.fU;e=a.cp?a.buv:a.J4.UM;$p=41;continue _;case 29:FVl(c);if(B()){break _;}c=HDv;$p=30;case 30:FVl(c);if(B()){break _;}f=36160;c=null;$p=23;continue _;case 31:FZg();if(B()){break _;}$p=32;case 32:EK6();if(B()){break _;}$p=33;case 33:$z=DzO();if(B()){break _;}d=$z;EjQ(a.cDL,BU(d,a.cUw));a.cUw=d;$p=36;continue _;case 34:E9_(i);if(B()){break _;}if(!a.cp){c=a.fA;$p=37;continue _;}c=a.fA;$p=38;continue _;case 35:$z=Eq0(c);if(B()){break _;}f=$z;if(f)a.G.lv=0;if
 (a.Yb){$p=39;continue _;}c=a.fU;e=a.cp?a.buv:a.J4.UM;$p=41;continue _;case 36:$z=E_G();if(B()){break _;}d=$z;if(EE(d,BG(a.ch6,N(1000))))return;f=a.cno;HEI=f;c=C(542);o=G(D,8);p=o.data;p[0]=U(f);p[1]=U(HE5);p[2]=HE5!=1?C(543):C(14);i=a.G.a3u;l=i;Lm();p[3]=l!==HE6.a8M?U(i):C(544);h=a.G;p[4]=!h.qQ?C(14):C(545);p[5]=!h.u8?C(546):C(14);i=h.Hz;p[6]=!i?C(14):i!=1?C(547):C(548);p[7]=C(14);$p=44;continue _;case 37:FdR(c);if(B()){break _;}a.cFd=i;$p=31;continue _;case 38:Gde(c);if(B()){break _;}a.cFd=i;$p=31;continue _;case 39:$z
 =DzO();if(B()){break _;}b=$z;a.ded=b;$p=40;case 40:ECi();if(B()){break _;}$p=13;continue _;case 41:Fj1(c,e,b);if(B()){break _;}c=a.H2;g=new Ov;$p=42;case 42:CNY(g,a);if(B()){break _;}$p=43;case 43:Efh(c,g);if(B()){break _;}$p=39;continue _;case 44:$z=GJ2(c,o);if(B()){break _;}c=$z;a.cgE=c;HE5=0;a.ch6=BG(a.ch6,N(1000));a.cno=0;$p=36;continue _;default:FT();}}Ds().s(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,$p);}
-function Gq3(a){var b,c,d,e,f,g,h,i,j,k,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();k=$T.l();j=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:JasprRevive.tick();JasprDH.maintain();/*JASPR_TANK_V1*/JasprTank.tick(a);/*JASPR_SKY_V1*/JasprSky.tick(a);/*JASPR_PORTAL_V1*/JasprPortal.tick(a);$p=99;case 99:JasprVideoTick(a);if(B()){break _;}if(!HE7)a.G.qQ=0;else HE8=a.G.qQ;if(!a.G.qQ){$p=2;continue _;}b=0;$p=1;case 1:C88(b);if(B()){break _;}a:{if(!a.czf){b=HE2;if(b==HE9&&HE3==HE$&&HA5===HE_)b=0;else{HE9=b;HE$=HE3;HE_=HA5;b=1;}if(!b){$p=5;continue _;}b=a.gk;c=a.fV;d=a.a0I;a.gk=HE2;a.fV=HE3;if((-1.0)===(-1.0)){$p=6;continue _;}a.a0I=(-1.0);e
+function Gq3(a){var b,c,d,e,f,g,h,i,j,k,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();k=$T.l();j=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:JasprRevive.tick();JasprDH.maintain();/*JASPR_TANK_V1*/JasprTank.tick(a);/*JASPR_SKY_V1*/JasprSky.tick(a);/*JASPR_PORTAL_V1*/JasprPortal.tick(a);/*JASPR_REALM_V1*/JasprRealm.tick(a);$p=99;case 99:JasprVideoTick(a);if(B()){break _;}if(!HE7)a.G.qQ=0;else HE8=a.G.qQ;if(!a.G.qQ){$p=2;continue _;}b=0;$p=1;case 1:C88(b);if(B()){break _;}a:{if(!a.czf){b=HE2;if(b==HE9&&HE3==HE$&&HA5===HE_)b=0;else{HE9=b;HE$=HE3;HE_=HA5;b=1;}if(!b){$p=5;continue _;}b=a.gk;c=a.fV;d=a.a0I;a.gk=HE2;a.fV=HE3;if((-1.0)===(-1.0)){$p=6;continue _;}a.a0I=(-1.0);e
 =a.gk;if(e!=b)break a;if(a.fV!=c)break a;if((-1.0)!==d)break a;}return;}if(e<=0)a.gk=1;if(a.fV<=0)a.fV=1;b=a.gk;c=a.fV;a.gk=B6(1,b);a.fV=B6(1,c);f=new Ov;$p=7;continue _;case 2:$z=CJZ(a);if(B()){break _;}b=$z;g=b;Lm();if(g>=HE6.a8M?0:1){$p=3;continue _;}b=0;$p=1;continue _;case 3:$z=CJZ(a);if(B()){break _;}b=$z;$p=4;case 4:C88(b);if(B()){break _;}a:{if(!a.czf){b=HE2;if(b==HE9&&HE3==HE$&&HA5===HE_)b=0;else{HE9=b;HE$=HE3;HE_=HA5;b=1;}if(!b){$p=5;continue _;}b=a.gk;c=a.fV;d=a.a0I;a.gk=HE2;a.fV=HE3;if((-1.0)===
 (-1.0)){$p=6;continue _;}a.a0I=(-1.0);e=a.gk;if(e!=b)break a;if(a.fV!=c)break a;if((-1.0)!==d)break a;}return;}if(e<=0)a.gk=1;if(a.fV<=0)a.fV=1;b=a.gk;c=a.fV;a.gk=B6(1,b);a.fV=B6(1,c);f=new Ov;$p=7;continue _;case 5:a:{$z=Fca();if(B()){break _;}g=$z;g=GL(g,1.0);if(g!==a.a0I){b=a.gk;c=a.fV;d=a.a0I;a.gk=HE2;a.fV=HE3;if(g===(-1.0)){$p=6;continue _;}a.a0I=g;e=a.gk;if(e!=b)break a;if(a.fV!=c)break a;if(g!==d)break a;}return;}if(e<=0)a.gk=1;if(a.fV<=0)a.fV=1;b=a.gk;c=a.fV;a.gk=B6(1,b);a.fV=B6(1,c);f=new Ov;$p=7;continue _;case 6:$z
 =Fca();if(B()){break _;}g=$z;g=GL(g,1.0);a.a0I=g;e=a.gk;if(e==b&&a.fV==c&&g===d)return;if(e<=0)a.gk=1;if(a.fV<=0)a.fV=1;b=a.gk;c=a.fV;a.gk=B6(1,b);a.fV=B6(1,c);f=new Ov;$p=7;case 7:CNY(f,a);if(B()){break _;}a.nZ=f;h=a.cj;if(h===null){f=new AZv;$p=8;continue _;}c=f.f7;b=f.ff;$p=9;continue _;case 8:EYk(f,a);if(B()){break _;}a.HV=f;f=a.Q1;if(f===null){$p=10;continue _;}h=a.nZ;e=h.f7;c=h.ff;b=h.Di;$p=11;continue _;case 9:C9y(h,a,c,b);if(B()){break _;}f=new AZv;$p=8;continue _;case 10:$z=Dw6();if(B()){break _;}f
@@ -26681,8 +26681,8 @@ function Esg(a){var b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,$p,$z;$p=0;if(FX()){var $T=Ds(
 =$z;m=16.0;n=16.0;$p=28;case 28:$z=EpJ(g,m,n);if(B()){break _;}g=$z;b=40;d=40;e=40;p=255;$p=29;case 29:$z=GzJ(g,b,d,e,p);if(B()){break _;}g=$z;$p=30;case 30:E74(g);if(B()){break _;}m=100.0;n=(-100.0);o=(-100.0);$p=31;case 31:$z=CUb(h,m,n,o);if(B()){break _;}g=$z;m=16.0;n=0.0;$p=32;case 32:$z=EpJ(g,m,n);if(B()){break _;}g=$z;b=40;d=40;e=40;p=255;$p=33;case 33:$z=GzJ(g,b,d,e,p);if(B()){break _;}g=$z;$p=34;case 34:E74(g);if(B()){break _;}$p=35;case 35:FE$(f);if(B()){break _;}$p=36;case 36:ECi();if(B()){break _;}c
 =c+1|0;if(c<6){$p=13;continue _;}b=1;$p=10;continue _;case 37:Gc9(i,j,k,l);if(B()){break _;}b=7;C5();g=HE4;$p=18;continue _;default:FT();}}Ds().s(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,$p);}
 function DJP(a,b,c){var d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,ba,$p,$z;$p=0;if(FX()){var $T=Ds();$p=$T.l();ba=$T.l();z=$T.l();y=$T.l();x=$T.l();w=$T.l();v=$T.l();u=$T.l();t=$T.l();s=$T.l();r=$T.l();q=$T.l();p=$T.l();o=$T.l();n=$T.l();m=$T.l();l=$T.l();k=$T.l();j=$T.l();i=$T.l();h=$T.l();g=$T.l();f=$T.l();e=$T.l();d=$T.l();c=$T.l();b=$T.l();a=$T.l();}_:while(true){switch($p){case 0:if(ADX(a.fd.X.b4.lE())==1){$p=1;continue _;}if(!a.fd.X.b4.TC())return;$p=2;continue _;case 1:Esg(a);if(B()){break _;}return;case 2:DCQ();if
-(B()){break _;}d=a.d8;e=a.fd;$p=3;case 3:$z=Gza(e);if(B()){break _;}e=$z;$p=4;case 4:$z=GuS(d,e,b);if(B()){break _;}e=$z;f=e.bh;g=e.bq;h=e.bi;/*JASPR_SKY_V1*/if(JasprSky.on){f=JasprSky.sky[0];g=JasprSky.sky[1];h=JasprSky.sky[2];}i=Bd(c,2);if(i){j=f*30.0;f=(j+g*59.0+h*11.0)/100.0;g=(j+g*70.0)/100.0;h=(j+h*70.0)/100.0;}$p=5;case 5:FU7(f,g,h);if(B()){break _;}$p=6;case 6:$z=GdM();if(B()){break _;}k=$z;$p=7;case 7:$z=Ecw(k);if(B()){break _;}d=$z;c=0;$p=8;case 8:EFX(c);if(B()){break _;}$p=9;case 9:FdH();if(B()){break _;}$p=10;case 10:FU7(f,g,h);if(B()){break _;}c=a.bYq;$p=11;case 11:Dle(c);if(B())
-{break _;}$p=12;case 12:GB$();if(B()){break _;}$p=13;case 13:Db2();if(B()){break _;}$p=14;case 14:CyM();if(B()){break _;}l=770;m=771;n=1;c=0;$p=15;case 15:B$p(l,m,n,c);if(B()){break _;}$p=16;case 16:DnA();if(B()){break _;}e=a.d8;o=e.b4;j=Q$(e,b);$p=17;case 17:$z=o.ej4(j,b);if(B()){break _;}p=$z;if(p===null){$p=18;continue _;}$p=32;continue _;case 18:CQ6();if(B()){break _;}c=770;l=1;m=1;n=0;$p=19;case 19:B$p(c,l,m,n);if(B()){break _;}$p=20;case 20:Eu0();if(B()){break _;}q=1.0-R$(a.d8,b);j=1.0;r=1.0;s=1.0;/*JASPR_SKY_V1*/if(JasprSky.on){r=0.22;s=0.18;}$p=
+(B()){break _;}d=a.d8;e=a.fd;$p=3;case 3:$z=Gza(e);if(B()){break _;}e=$z;$p=4;case 4:$z=GuS(d,e,b);if(B()){break _;}e=$z;f=e.bh;g=e.bq;h=e.bi;/*JASPR_SKY_V1*/if(JasprSky.on){f=JasprSky.sky[0];g=JasprSky.sky[1];h=JasprSky.sky[2];}/*JASPR_REALM_V1*/if(JasprRealm.sky){f=JasprRealm.sky[0];g=JasprRealm.sky[1];h=JasprRealm.sky[2];}i=Bd(c,2);if(i){j=f*30.0;f=(j+g*59.0+h*11.0)/100.0;g=(j+g*70.0)/100.0;h=(j+h*70.0)/100.0;}$p=5;case 5:FU7(f,g,h);if(B()){break _;}$p=6;case 6:$z=GdM();if(B()){break _;}k=$z;$p=7;case 7:$z=Ecw(k);if(B()){break _;}d=$z;c=0;$p=8;case 8:EFX(c);if(B()){break _;}$p=9;case 9:FdH();if(B()){break _;}$p=10;case 10:FU7(f,g,h);if(B()){break _;}c=a.bYq;$p=11;case 11:Dle(c);if(B())
+{break _;}$p=12;case 12:GB$();if(B()){break _;}$p=13;case 13:Db2();if(B()){break _;}$p=14;case 14:CyM();if(B()){break _;}l=770;m=771;n=1;c=0;$p=15;case 15:B$p(l,m,n,c);if(B()){break _;}$p=16;case 16:DnA();if(B()){break _;}e=a.d8;o=e.b4;j=Q$(e,b);$p=17;case 17:$z=o.ej4(j,b);if(B()){break _;}p=$z;if(p===null){$p=18;continue _;}$p=32;continue _;case 18:CQ6();if(B()){break _;}c=770;l=1;m=1;n=0;$p=19;case 19:B$p(c,l,m,n);if(B()){break _;}$p=20;case 20:Eu0();if(B()){break _;}q=1.0-R$(a.d8,b);j=1.0;r=1.0;s=1.0;/*JASPR_SKY_V1*/if(JasprSky.on){r=0.22;s=0.18;}/*JASPR_REALM_V1*/if(JasprRealm.sun){r=JasprRealm.sun[0];s=JasprRealm.sun[1];}$p=
 21;case 21:CFh(j,r,s,q);if(B()){break _;}j=(-90.0);r=0.0;s=1.0;t=0.0;$p=22;case 22:Gc9(j,r,s,t);if(B()){break _;}j=Q$(a.d8,b)*360.0;r=1.0;s=0.0;t=0.0;$p=23;case 23:Gc9(j,r,s,t);if(B()){break _;}d=a.bGW;$p=24;case 24:ACb();if(B()){break _;}e=Loz;$p=25;case 25:D17(d,e);if(B()){break _;}c=a.bTu;$p=26;case 26:Dle(c);if(B()){break _;}d=a.bGW;e=Loy;$p=27;case 27:D17(d,e);if(B()){break _;}c=CG4(a.d8);$p=28;case 28:$z=Fq8(a,c);if(B()){break _;}c=$z;$p=29;case 29:Dle(c);if(B()){break _;}$p=30;case 30:DCQ();if(B()){break _;}d
 =a.d8;$p=31;case 31:$z=Cub(d,b);if(B()){break _;}j=$z;u=j*q;if(u>0.0){$p=45;continue _;}j=1.0;r=1.0;s=1.0;t=1.0;$p=37;continue _;case 32:DCQ();if(B()){break _;}c=7425;$p=33;case 33:Gxj(c);if(B()){break _;}$p=34;case 34:Eu0();if(B()){break _;}j=90.0;r=1.0;s=0.0;t=0.0;$p=35;case 35:Gc9(j,r,s,t);if(B()){break _;}j=A$0(a.d8,b);$p=36;case 36:$z=D2_(j);if(B()){break _;}j=$z;j=j>=0.0?0.0:180.0;p=p.data;r=0.0;s=0.0;t=1.0;$p=56;continue _;case 37:CFh(j,r,s,t);if(B()){break _;}$p=38;case 38:CTP();if(B()){break _;}$p=
 39;case 39:D6M();if(B()){break _;}$p=40;case 40:FdH();if(B()){break _;}$p=41;case 41:ECi();if(B()){break _;}$p=42;case 42:DCQ();if(B()){break _;}s=0.0;j=0.0;r=0.0;$p=43;case 43:FU7(s,j,r);if(B()){break _;}d=a.fd.v;$p=44;case 44:$z=DWa(d,b);if(B()){break _;}d=$z;v=d.bq-C9G(a.d8);if(v<0.0){$p=47;continue _;}if(!a.d8.b4.cv2()){$p=58;continue _;}b=f*0.20000000298023224+0.03999999910593033;j=g*0.20000000298023224+0.03999999910593033;f=h*0.6000000238418579+0.10000000149011612;$p=59;continue _;case 45:/*JASPR_SKY_V1*/CFh(u,JasprSky.on?u*0.35:u,JasprSky.on?u*0.4:u,u);if
@@ -53173,7 +53173,7 @@ function GyZ(a, b) {
 }
 
 function GmS(a, b) {
-  GmS_orig(a, b);/*JASPR_SKY_V1*/JasprSky.fog(a);
+  GmS_orig(a, b);/*JASPR_SKY_V1*/JasprSky.fog(a);/*JASPR_REALM_V1*/JasprRealm.fogColor(a);
   if (!JasprShadersEnabled) return;
   var m = JasprShaders.fog();
   if (m) { a.eH *= m[0]; a.eF *= m[1]; a.eJ *= m[2]; }
@@ -54700,11 +54700,12 @@ var JasprSky=(function(){
 
 /* JASPR_PORTAL_V1_BEGIN */
 /* JasprPortal: portals take the colour of their frame. The frame block is found by walking down the portal column
- * (at most 24 blocks) in the client world; results are cached per block and cleared when the world changes.
+ * (at most 24 blocks) in the client world; results are cached per block and cleared when the world changes. A quartz
+ * frame splits its portal down the middle: the half nearer the west (or north) end burns blue, the other black.
  * Read-only; no engine calls from DOM handlers. */
 var JasprPortal=(function(){
-  var FRAMES={48:5111659},PURPLE=7671551,TINT={},mc=null,world=null,cache=new Map(),failure=null;
-  TINT[5111659]=[0.3,1,0.42];TINT[PURPLE]=[0.457,0.056,1];
+  var FRAMES={48:5111659},PURPLE=7671551,BLUE=4361471,BLACK=1511969,SEAM=2837903,TINT={},mc=null,world=null,cache=new Map(),failure=null;
+  TINT[5111659]=[0.3,1,0.42];TINT[PURPLE]=[0.457,0.056,1];TINT[BLUE]=[0.26,0.55,1];TINT[BLACK]=[0.09,0.07,0.13];TINT[SEAM]=[0.17,0.3,0.56];
   var api={ov:[0.457,0.056,1]};
   function key(x,y,z){return x+","+y+","+z;}
   api.tick=function(m){mc=m;var w=m&&m.X;if(w!==world){world=w;cache.clear();}};
@@ -54712,10 +54713,18 @@ var JasprPortal=(function(){
   api.tint=function(pos){
     var k=key(pos.m,pos.i,pos.l),c=cache.get(k);if(c!==undefined)return c;
     c=PURPLE;
-    try{var w=mc&&mc.X,p=pos,id=90,n=0;if(w){while(id===90&&n++<24){p=EoL(p);id=ENW(CZr(w,p).n);}if(FRAMES[id]!==undefined)c=FRAMES[id];}}
+    try{var w=mc&&mc.X,p=pos,id=90,n=0;if(w){while(id===90&&n++<24){p=EoL(p);id=ENW(CZr(w,p).n);}if(id===155)c=split(w,pos);else if(FRAMES[id]!==undefined)c=FRAMES[id];}}
     catch(e){failure=String(e&&e.message||e).slice(0,160);}
     if(cache.size>8192)cache.clear();cache.set(k,c);return c;
   };
+  // Which half of a quartz gate a portal block is in: count portal blocks to either side along the plane.
+  function portal(w,p){return ENW(CZr(w,p).n)===90;}
+  function side(w,pos,f){var p=pos,n=0;Bw();while(n<22){p=DWK(p,f,1);if(!portal(w,p))break;n++;}return n;}
+  function split(w,pos){
+    Bw();var alongX=portal(w,DWK(pos,KsT,1))||portal(w,DWK(pos,KsU,1));
+    var a=side(w,pos,alongX?KsT:KsV),b=side(w,pos,alongX?KsU:KsW);
+    return a<b?BLUE:a>b?BLACK:SEAM;
+  }
   function at(x,y,z){var c=cache.get(key(Math.floor(x),Math.floor(y),Math.floor(z)));return c===undefined?PURPLE:c;}
   // Portal particles spawned inside a coloured portal take its colour (vanilla: red .9, green .3, blue 1).
   api.particle=function(p,x,y,z,l){var c=at(x,y,z);if(c===PURPLE)return;var t=TINT[c]||[1,1,1];p.eC=l*t[0];p.ey=l*t[1];p.eu=l*t[2];};
@@ -54725,10 +54734,61 @@ var JasprPortal=(function(){
     try{var e=DWa(m.v,1.0);c=at(e.bh,e.bq,e.bi);if(c===PURPLE)c=at(e.bh,e.bq-1.0,e.bi);}catch(err){failure=String(err&&err.message||err).slice(0,160);}
     api.ov=TINT[c]||TINT[PURPLE];
   };
-  $rt_globals.JasprPortalDiagnostics={status:function(){var g=0,v=0;cache.forEach(function(c){if(c===PURPLE)v++;else g++;});return {coloured:g,purple:v,failure:failure};}};
+  $rt_globals.JasprPortalDiagnostics={status:function(){var g=0,v=0,b=0,k=0;cache.forEach(function(c){if(c===PURPLE)v++;else if(c===BLUE)b++;else if(c===BLACK)k++;else g++;});return {coloured:g,purple:v,blue:b,black:k,failure:failure};}};
   return api;
 })();
 /* JASPR_PORTAL_V1_END */
+
+/* JASPR_REALM_V1_BEGIN */
+/* JasprRealm: loads a realm's client module the first time the server marks the player as inside it (objective
+ * "jrm"), and gives it the marker's state and a small engine API every tick. Module failures are caught and counted;
+ * a module that fails to load is retried after 30 seconds. DOM callbacks only record the loaded module: all engine
+ * calls happen inside the game tick. */
+var JasprRealm=(function(){
+  var mcRef=null,state=null,module=null,moduleName=null,loading=false,retryAt=0,checked=0,failures=[],spawned=0,ticks=0,types=null,loadedMs=0;
+  var base=(function(){try{var s=document.currentScript&&document.currentScript.src;return s?s.slice(0,s.split("?")[0].lastIndexOf("/")+1):"";}catch(e){return "";}})();
+  var api={sky:null,sun:null,fog:null,fogw:0};
+  function fail(e){failures.push(String(e&&e.message||e).slice(0,160));if(failures.length>10)failures.shift();}
+  function ptype(name){if(!types){CC();types={smoke:Ky3,largesmoke:KxX,townaura:K7R,portal:Kum,flame:KB8,lava:K0j,cloud:LfZ,endRod:K_F,fallingdust:K0t};}return types[name]||null;}
+  var engine={
+    player:function(){var e=DWa(mcRef.v,1.0);return {x:e.bh,y:e.bq,z:e.bi};},
+    particle:function(name,x,y,z,vx,vy,vz,param){var t=ptype(name),w=mcRef&&mcRef.X;if(!t||!w)return false;
+      var q=Bh(param===undefined?0:1);if(param!==undefined)q.data[0]=param|0;FH1(w,t,x,y,z,vx||0,vy||0,vz||0,q);spawned++;return true;},
+    setSky:function(c){api.sky=c||null;},
+    setSun:function(c){api.sun=c||null;},
+    setFog:function(c,w){api.fog=c||null;api.fogw=c?Math.max(0,Math.min(1,+w||0)):0;}
+  };
+  function clear(){api.sky=null;api.sun=null;api.fog=null;api.fogw=0;}
+  function leave(){if(module&&module.leave){try{module.leave(engine);}catch(e){fail(e);}}state=null;clear();}
+  function load(name,ver){
+    var mods=$rt_globals.JasprRealmModules||{};
+    if(mods[name]){module=mods[name];moduleName=name;return;}
+    if(loading||Date.now()<retryAt)return;
+    loading=true;var t0=Date.now(),s=document.createElement("script");
+    s.src=base+"realms/"+name+".js?v="+encodeURIComponent(ver);s.async=true;
+    s.onload=function(){loading=false;var m=($rt_globals.JasprRealmModules||{})[name];if(m){module=m;moduleName=name;loadedMs=Date.now()-t0;}else{fail("module "+name+" did not register");retryAt=Date.now()+30000;}};
+    s.onerror=function(){loading=false;fail("could not load realms/"+name+".js");retryAt=Date.now()+30000;};
+    (document.head||document.documentElement).appendChild(s);
+  };
+  api.tick=function(mc){
+    mcRef=mc;var p=mc&&mc.v;if(!p){if(state)leave();return;}
+    if(++checked>=10){checked=0;
+      try{var w=mc.X,sb=w&&w.k3,o=sb?Cbd(sb,$rt_str("jrm")):null,d=o?$rt_ustr(o.a47):"",f=d.split(" ");
+        if(f.length>=7&&f[0]==="JRM"&&f[1]==="v1"&&/^[a-z]{1,16}$/.test(f[2])&&/^[A-Za-z0-9._-]{1,16}$/.test(f[3])){
+          if(state&&state.realm!==f[2])leave();
+          state={realm:f[2],version:f[3],zone:f[4],mask:parseInt(f[5],10)|0,victory:f[6]==="1"};
+          if(!module||moduleName!==f[2]){module=null;load(f[2],f[3]);}
+        }else if(state)leave();
+      }catch(e){fail(e);if(state)leave();}
+    }
+    if(state&&module&&module.tick){ticks++;try{module.tick(engine,state);}catch(e){fail(e);}}
+  };
+  // After the vanilla (and Ul'Nhaar) fog colour: blend toward the module's fog and clear to it.
+  api.fogColor=function(r){if(!api.fog||!state)return;var w=api.fogw,v=1-w;r.eH=r.eH*v+api.fog[0]*w;r.eF=r.eF*v+api.fog[1]*w;r.eJ=r.eJ*v+api.fog[2]*w;GuJ(r.eH,r.eF,r.eJ,0.0);};
+  $rt_globals.JasprRealmDiagnostics={status:function(){return {state:state,module:moduleName,loaded:!!module,loading:loading,loadedMs:loadedMs,ticks:ticks,particles:spawned,sky:api.sky,fog:api.fog,fogw:api.fogw,failures:failures.slice(),base:base};}};
+  return api;
+})();
+/* JASPR_REALM_V1_END */
 
 /* JASPR_FIRSTRUN_V1_BEGIN */
 /* First-time players (no saved JasperCraft data) see Edit Profile before joining; Done opens the connecting

@@ -39,7 +39,7 @@ test('portal assets: neutral animation, tinted faces, everything else untouched,
   }
   assert.ok(buildAssets(live, neutral).equals(live), 'rebuilding the installed archive changes nothing');
   assert.ok(read('site/jaspr-client.js').includes('assets.epk?build=20260927-portal1'), 'browsers fetch the new archive');
-  assert.ok(read('site/client.html').includes('classes.js?v=20260927-portal1') && read('site/client.html').includes('jaspr-client.js?build=20260927-portal1'));
+  assert.ok(read('site/client.html').includes('classes.js?v=20260927-atlas1') && read('site/client.html').includes('jaspr-client.js?build=20260927-atlas1'));
 });
 
 test('gates: linked pairs, return to the gate you came from, no ping-pong, step-down arrival, stray vanilla arrivals', () => {

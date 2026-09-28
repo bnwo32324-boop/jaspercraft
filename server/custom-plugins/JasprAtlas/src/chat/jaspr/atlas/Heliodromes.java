@@ -101,7 +101,11 @@ final class Heliodromes implements Listener {
         Registry.Spot here = ringAt(e.getClickedBlock());
         if (here == null) return;
         e.setCancelled(true);
-        Player p = e.getPlayer();
+        open(e.getPlayer(), here);
+    }
+
+    /** The list of rings a player can travel to from this one (book with tappable names, and chat). */
+    void open(Player p, Registry.Spot here) {
         if (!awake(here)) { p.sendMessage(ChatColor.GRAY + "The ring is dark. It will wake when this land is free."); return; }
         State.Player rec = plugin.state().player(p.getUniqueId(), p.getName());
         if (rec.heliodromes.add(id(here))) plugin.saveStateSoon();

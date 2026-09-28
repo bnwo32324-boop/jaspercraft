@@ -83,34 +83,37 @@ final class Mechanisms implements Listener {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getHand() != EquipmentSlot.HAND) return;
         Block b = e.getClickedBlock();
         if (b == null || !plugin.isAtlas(b.getWorld()) || !plugin.registry().ready()) return;
-        Player p = e.getPlayer();
+        if (use(e.getPlayer(), b)) e.setCancelled(true);
+    }
+
+    /** A player touches a block: if it belongs to a Font or an Edict Stone, the mechanism answers (true: handled). */
+    boolean use(Player p, Block b) {
         State s = plugin.state();
         for (Registry.Spot spot : plugin.registry().all("mech:font:")) {
             if (dist(b, spot) > 3.3 || Math.abs(b.getY() - spot.y) > 3) continue;
-            e.setCancelled(true);
             String key = spot.kind.substring(5);
-            if (s.mechanisms.contains(key) || s.bossesFallen.containsKey("melaina")) { p.sendMessage(ChatColor.GRAY + "This Font is only water now. It flows."); return; }
-            if (!Items.holding(p, "hymn")) { warn(p, ChatColor.GRAY + "The water is black and perfectly still. It refuses you. " + ChatColor.DARK_GRAY + "(Iaso of Hieranthe knows the Hymn that quiets the Fonts. Hold it and touch the Font.)"); return; }
+            if (s.mechanisms.contains(key) || s.bossesFallen.containsKey("melaina")) { p.sendMessage(ChatColor.GRAY + "This Font is only water now. It flows."); return true; }
+            if (!Items.holding(p, "hymn")) { warn(p, ChatColor.GRAY + "The water is black and perfectly still. It refuses you. " + ChatColor.DARK_GRAY + "(Iaso of Hieranthe knows the Hymn that quiets the Fonts. Hold it and touch the Font.)"); return true; }
             silence(key, p);
             quietFont(b.getWorld(), spot);
             int n = count("font:");
             say(b.getWorld(), spot, ChatColor.AQUA + p.getName() + " sings the Hymn of Passage over a Stilling Font. " + ChatColor.GRAY + "The black water shivers and remembers it may flow. (" + n + "/3)"
                 + (n == 3 ? ChatColor.GOLD + " The Stiller can be hurt now." : ""));
-            return;
+            return true;
         }
         for (Registry.Spot spot : plugin.registry().all("mech:edict:")) {
             if (dist(b, spot) > 4.6 || b.getY() < spot.y - 3 || b.getY() > spot.y + 14) continue;
-            e.setCancelled(true);
             String key = spot.kind.substring(5);
-            if (s.mechanisms.contains(key) || s.bossesFallen.containsKey("keleos")) { p.sendMessage(ChatColor.GRAY + "This stone no longer speaks."); return; }
-            if (!Items.holding(p, "charter")) { warn(p, ChatColor.GRAY + "The stone hums. You find you agree with it. " + ChatColor.DARK_GRAY + "(Hesper of Mnemeia keeps the Charter. Hold it and touch the stone.)"); return; }
+            if (s.mechanisms.contains(key) || s.bossesFallen.containsKey("keleos")) { p.sendMessage(ChatColor.GRAY + "This stone no longer speaks."); return true; }
+            if (!Items.holding(p, "charter")) { warn(p, ChatColor.GRAY + "The stone hums. You find you agree with it. " + ChatColor.DARK_GRAY + "(Hesper of Mnemeia keeps the Charter. Hold it and touch the stone.)"); return true; }
             silence(key, p);
             quietStone(b.getWorld(), spot);
             int n = count("edict:");
             say(b.getWorld(), spot, ChatColor.AQUA + p.getName() + " reads the First Article to an Edict Stone: " + ChatColor.WHITE + "\"No law shall bind the tongue of a free citizen.\" "
                 + ChatColor.GRAY + "The stone's hum falters, and stops. (" + n + "/3)" + (n == 3 ? ChatColor.GOLD + " The Magistrate can be hurt now." : ""));
-            return;
+            return true;
         }
+        return false;
     }
 
     private static double dist(Block b, Registry.Spot s) { double dx = b.getX() - s.x, dz = b.getZ() - s.z; return Math.sqrt(dx * dx + dz * dz); }
@@ -174,28 +177,32 @@ final class Mechanisms implements Listener {
     public void strike(BlockDamageEvent e) {
         Block b = e.getBlock();
         if (!plugin.isAtlas(b.getWorld()) || b.getType() != Material.END_ROD && b.getType() != Material.SEA_LANTERN || !plugin.registry().ready()) return;
+        if (strikeAt(e.getPlayer(), b)) e.setCancelled(true);
+    }
+
+    /** A player strikes a block: if it is one of the Great Engine's Governors, the Engine answers (true: handled). */
+    boolean strikeAt(Player p, Block b) {
         for (Registry.Spot spot : plugin.registry().all("mech:governor:")) {
             if (dist(b, spot) > 2.5 || Math.abs(b.getY() - spot.y) > 2) continue;
-            e.setCancelled(true);
-            Player p = e.getPlayer();
             State s = plugin.state();
             String key = spot.kind.substring(5);
             int k = Integer.parseInt(key.substring(9));
-            if (s.bossesFallen.containsKey("daidaros") || s.mechanisms.contains(key)) { warn(p, ChatColor.GRAY + "This Governor is silent."); return; }
+            if (s.bossesFallen.containsKey("daidaros") || s.mechanisms.contains(key)) { warn(p, ChatColor.GRAY + "This Governor is silent."); return true; }
             if (!Items.has(p, "counterpoint")) {
                 warn(p, ChatColor.GRAY + "Your blow rings off the Governor. You cannot find the point where its note breaks. " + ChatColor.DARK_GRAY + "(Perdix of Lampsa has Daidaros's Counterpoint.)");
-                return;
+                return true;
             }
             boolean inOrder = true;
             for (int j = 0; j < k; j++) if (!s.mechanisms.contains("governor:" + j)) inOrder = false;
-            if (!inOrder) { wrongOrder(p, b.getWorld()); return; }
+            if (!inOrder) { wrongOrder(p, b.getWorld()); return true; }
             silence(key, p);
             quietGovernor(b.getWorld(), spot);
             int n = count("governor:");
             say(b.getWorld(), spot, ChatColor.AQUA + p.getName() + " finds the breaking point of the " + (k == 0 ? "deep" : k == 1 ? "middle" : "high") + " Governor. "
                 + ChatColor.GRAY + "Its note stops. (" + n + "/3)" + (n == 3 ? ChatColor.GOLD + " The Engine's shield is down: the Forgemaster can be hurt." : ""));
-            return;
+            return true;
         }
+        return false;
     }
 
     /** The Engine punishes a Governor struck out of order: every silenced voice sings again, and the hand is burned. */

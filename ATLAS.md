@@ -5,6 +5,11 @@
 - **The Cinder Dominion:** an ash-black tyranny in the east, ruled by four Ash-Crowned witch-kings under the Pyrarch.
 - **The adventure:** learn from the Concord how each tyrant can be broken, cross the frontier, free the enslaved, break the
   four crowns, and bring the Hearthstar's light to the Cinder Heart. Liberation visibly heals the land.
+- **Getting there:** build a nether-portal-shaped frame of quartz blocks (at least 4 wide and 5 tall) in the
+  overworld and kindle it with lapis lazuli and coal (use them on the frame, or throw them in). Walk back into any
+  quartz gate to go home.
+- **Owner tools:** `/atlas status`, `/atlas tp [place]`, `/atlas spot <kind>`, `/atlas where`, `/atlas key <id>`;
+  players use `/atlas codex`.
 - **Status:** see the table at the end. Built in the isolated worktree `Documents\JasperCraft-Atlas` (branch
   `claude/atlas-dimension`). The owner approved the live deploy (2026-09-27) once it is tested.
 
@@ -146,26 +151,26 @@ Nothing is lost if an item is.
   - Embers at the forges and lumen motes in the Concord.
 
 ## 7. Status (checkpoints)
-Labels: **implemented** (code written and compiles), **offline-tested** (checked by `AtlasPreview` without a server),
-**server-tested** (checked on a test server), **browser-tested** (checked with real browser clients), **planned**.
+Labels: **offline-tested** (checked by `AtlasPreview` without a server), **server-tested** (checked on an isolated
+Paper test server), **browser-tested** (checked there with real headless browser clients, two at once),
+**planned** (not done).
 
 | Area | State |
 |---|---|
-| Workspace, design | done |
-| Terrain, zones, biomes | implemented, offline-tested (deterministic, 0.5 ms per chunk) |
-| Concord cities, buildings, interiors, countryside | implemented, offline-tested (every cell filled) |
-| Pharos Line, the Wound, Uzgar's hide | implemented, offline-tested |
-| Dominion provinces, strongholds, camps, Vesk's burrow | implemented, offline-tested (every cell filled) |
-| Story spots (10 figures, 12 bosses, 9 mechanisms, 12 captives, 16 berths, 10 heliodromes, 4 wards) | implemented, offline-tested |
-| Books (45 lore books, 5 key texts, 12 testimonies) fit their pages | implemented, offline-tested |
-| Plugin, world lifecycle (lazy load, unload when empty, login load), border, state | implemented; not yet server-tested |
-| Quartz gate (kindling, travel, return, Great Gate) | implemented; not yet server-tested |
-| Dialogue (book UI and chat), trading, reputation, libraries, Codex | implemented; not yet server-tested |
-| Dominion spawning, allegiances, talkers (Uzgar, Vesk, Thersites) | implemented; not yet server-tested |
-| Captives, House of Return, labour camps (shackle posts) | implemented; not yet server-tested |
-| Bosses (4 Ash-Crowned, 7 captains, the Pyrarch in 3 phases) and mechanisms | implemented; not yet server-tested |
-| The Veil, protection of cities, walls and heliodromes | implemented; not yet server-tested |
-| Liberation, healing (player changes kept), victory, monument | implemented; not yet server-tested |
-| Heliodromes (discover, travel; the Pylon's wakes when freed) | implemented; not yet server-tested |
-| Client: portal split, realm loader, atlas.js (sky, fog, ash) | planned |
-| Tests: fixture server, 2-player browser | planned |
+| Terrain, zones, biomes; cities, countryside, frontier, Dominion provinces and strongholds | offline-tested (deterministic, 0.5 ms per chunk, every cell filled on both sides); browser-tested (walked) |
+| Story spots (10 figures, 12 bosses, 9 mechanisms, 12 captives, 16 berths, 10 heliodromes, 4 wards, 2 talkers) | offline-tested |
+| Books (45 lore books, 5 key texts, 12 testimonies) fit their pages | offline-tested |
+| World lifecycle: lazy load (0.1 s), unload 60 s after the last player, login inside Atlas, border | browser-tested |
+| Persistence across unload and a full server restart (state, liberation, per-chunk masks, gates) | browser-tested |
+| Quartz gate: kindle with lapis and coal (any face), travel both ways, the Great Gate, dead players ignored | browser-tested |
+| Client: gates half blue, half black; realm module loaded lazily (25-45 ms); sky, fog, ash, embers, motes | browser-tested (ash only checked by diagnostics: the probe runs with particles off) |
+| Dialogue (book UI with tappable answers, chat fallback), key items given and re-issued | browser-tested (Philon, Kleio, Lysandra, a captive, a rescued captive) |
+| The Veil (turns back, ejects before the Pylon) | browser-tested |
+| Kallias (immune until the Oath is held near him), rewards once per participant | browser-tested (two players) |
+| Fonts + Hymn, Governors in order (wrong order resets), Edict Stones + Charter, the other three Ash-Crowned | server-tested (owner commands stand in for aiming) |
+| The Light of Theano; the Pyrarch's phases; the Heart broken by the Light; victory | server-tested and browser-tested (screens) |
+| Liberation: healing keeps player-changed blocks and full containers; land turns green, sky clears | browser-tested (464 chunks healed in the run) |
+| Captives (rescue blocked by guards, House of Return berths, freed with their province) and a labour camp | server-tested |
+| Trading (merchant screen), libraries (read and copy), heliodromes (find, list, travel), the Codex | browser-tested |
+| Protection of cities, walls and heliodromes | implemented; not exercised in a test run |
+| Deploy | approved by the owner (2026-09-27); goes live at the next restart with nobody online |

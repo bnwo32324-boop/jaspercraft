@@ -4,8 +4,11 @@
 // Usage: node scripts/tank-preview.cjs  (prints the page URL; GET /console?c=<command> runs a server command)
 const fs = require('node:fs'), path = require('node:path'), http = require('node:http'), net = require('node:net');
 const {spawn} = require('node:child_process'), crypto = require('node:crypto'), os = require('node:os');
-const root = path.resolve(__dirname, '..'), java = 'C:/Program Files/Eclipse Adoptium/jdk-17.0.20.8-hotspot/bin';
-const fixture = path.join(root, 'candidate/tank-preview-' + crypto.randomUUID()), server = path.join(fixture, 'server');
+// TANK_PREVIEW_ROOT: the checkout whose candidate/ and server/ files the fixture uses (a worktree can borrow the main
+// checkout's). TANK_PREVIEW_REUSE: an existing fixture folder to start again (its worlds and plugin data kept), for
+// restart tests. TANK_PREVIEW_SAVE=1 keeps chunk saving on.
+const root = path.resolve(process.env.TANK_PREVIEW_ROOT || path.join(__dirname, '..')), java = 'C:/Program Files/Eclipse Adoptium/jdk-17.0.20.8-hotspot/bin';
+const fixture = process.env.TANK_PREVIEW_REUSE ? path.resolve(process.env.TANK_PREVIEW_REUSE) : path.join(root, 'candidate/tank-preview-' + crypto.randomUUID()), server = path.join(fixture, 'server');
 fs.mkdirSync(path.join(server, 'plugins'), {recursive: true});
 function write(file, data) { const p = path.join(fixture, file); fs.mkdirSync(path.dirname(p), {recursive: true}); fs.writeFileSync(p, data); }
 async function port() { const s = net.createServer(); await new Promise(r => s.listen(0, '127.0.0.1', r)); const p = s.address().port; await new Promise(r => s.close(r)); return p; }
@@ -49,7 +52,7 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
     '/jaspercraft-mobile-controls.js': 'candidate/tank-client/jaspercraft-mobile-controls.js',
     '/jaspercraft-mobile-controls.css': 'candidate/tank-client/jaspercraft-mobile-controls.css',
   };
-  const tail = [];
+  const tail = [], realmFetches = [];
   let child;
   const web = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
@@ -66,11 +69,20 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8'); res.setHeader('Cache-Control', 'no-store'); res.end(core); return;
     }
     if (url.pathname === '/log') { res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.end(tail.join('')); return; }
+    if (url.pathname.startsWith('/realms/')) {
+      // Realm modules, fetched lazily by the client's JasprRealm stage (TANK_PREVIEW_REALMS: another folder).
+      const name = url.pathname.slice('/realms/'.length), dir = process.env.TANK_PREVIEW_REALMS || path.join(root, 'site/realms');
+      if (!/^[a-z0-9_-]+\.js$/.test(name) || !fs.existsSync(path.join(dir, name))) { res.writeHead(404); res.end(); return; }
+      realmFetches.push(name + ' ' + url.search);
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8'); res.setHeader('Cache-Control', 'no-store');
+      fs.createReadStream(path.join(dir, name)).pipe(res); return;
+    }
+    if (url.pathname === '/realm-fetches') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(realmFetches)); return; }
     const file = files[url.pathname];
     if (!file) { res.writeHead(404); res.end(); return; }
     res.setHeader('Content-Type', url.pathname.endsWith('.js') ? 'application/javascript; charset=utf-8' : url.pathname.endsWith('.css') ? 'text/css' : 'application/octet-stream');
     res.setHeader('Cache-Control', 'no-store');
-    fs.createReadStream(path.join(root, file)).pipe(res);
+    fs.createReadStream(path.resolve(root, file)).pipe(res);
   });
   web.listen(webPort, '127.0.0.1');
   const log = fs.createWriteStream(path.join(fixture, 'paper.log'));
@@ -80,7 +92,7 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
   let saving = true;
   const output = data => { log.write(data); tail.push(data.toString()); if (tail.length > 400) tail.splice(0, tail.length - 400);
     // Throwaway world: no chunk saving at all, so a busy disk cannot stall the test server.
-    if (saving && /Done \(/.test(data.toString())) { saving = false; child.stdin.write('save-off\n'); }
+    if (saving && /Done \(/.test(data.toString())) { saving = false; if (process.env.TANK_PREVIEW_SAVE !== '1') child.stdin.write('save-off\n'); }
     if (/TANK|Done \(|ERROR|SEVERE|logged in|Exception/.test(data.toString())) process.stdout.write(data); };
   child.stdout.on('data', output); child.stderr.on('data', output);
   process.stdin.on('data', data => child.stdin.write(data));

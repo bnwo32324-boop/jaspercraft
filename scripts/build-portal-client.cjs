@@ -2,7 +2,8 @@
 
 // Exact, candidate-only JasprPortal stage for the composed browser client (site/classes.js) and its resource archive
 // (site/assets.epk): every portal is coloured by its frame. A portal whose column stands on mossy cobblestone (a gate to
-// Ul'Nhaar) glows green; any other (obsidian: the Nether) keeps its purple. New gate kinds add a frame -> colour entry.
+// Ul'Nhaar) glows green; a quartz gate (to Atlas, the Divided Realm) burns half blue and half black at once, split down
+// its middle; any other (obsidian: the Nether) keeps its purple. New gate kinds add a frame -> colour entry.
 //  - assets: portal.png becomes a neutral (grey) animation, and portal_ns/portal_ew faces get tintindex 0;
 //  - BlockColors.colorMultiplier (FEI): portal blocks (id 90) are tinted by their frame (walks down to the frame block);
 //  - ParticlePortal factory (E_F): particles spawned inside a green portal are green;
@@ -23,16 +24,20 @@ const sha = value => crypto.createHash('sha256').update(value).digest('hex');
 const MARK = '/*JASPR_PORTAL_V1*/';
 // Vanilla purple as a multiplier over the neutral texture (least-squares fit of the original animation), and green.
 const PURPLE = [0.457, 0.056, 1.0], GREEN = [0.30, 1.0, 0.42];
+// Atlas's divided light: the Hearthstar's blue and the Cinder Heart's black (a little violet, so the swirl still shows),
+// and the seam between them where a gate is an odd number of blocks wide.
+const BLUE = [0.26, 0.55, 1.0], BLACK = [0.09, 0.07, 0.13], SEAM = [0.17, 0.30, 0.56];
 const rgb = c => Math.round(c[0] * 255) << 16 | Math.round(c[1] * 255) << 8 | Math.round(c[2] * 255);
 
 const BLOCK = [
   '/* JASPR_PORTAL_V1_BEGIN */',
   '/* JasprPortal: portals take the colour of their frame. The frame block is found by walking down the portal column',
-  ' * (at most 24 blocks) in the client world; results are cached per block and cleared when the world changes.',
+  ' * (at most 24 blocks) in the client world; results are cached per block and cleared when the world changes. A quartz',
+  ' * frame splits its portal down the middle: the half nearer the west (or north) end burns blue, the other black.',
   ' * Read-only; no engine calls from DOM handlers. */',
   'var JasprPortal=(function(){',
-  '  var FRAMES={48:' + rgb(GREEN) + '},PURPLE=' + rgb(PURPLE) + ',TINT={},mc=null,world=null,cache=new Map(),failure=null;',
-  '  TINT[' + rgb(GREEN) + ']=[' + GREEN.join(',') + '];TINT[PURPLE]=[' + PURPLE.join(',') + '];',
+  '  var FRAMES={48:' + rgb(GREEN) + '},PURPLE=' + rgb(PURPLE) + ',BLUE=' + rgb(BLUE) + ',BLACK=' + rgb(BLACK) + ',SEAM=' + rgb(SEAM) + ',TINT={},mc=null,world=null,cache=new Map(),failure=null;',
+  '  TINT[' + rgb(GREEN) + ']=[' + GREEN.join(',') + '];TINT[PURPLE]=[' + PURPLE.join(',') + '];TINT[BLUE]=[' + BLUE.join(',') + '];TINT[BLACK]=[' + BLACK.join(',') + '];TINT[SEAM]=[' + SEAM.join(',') + '];',
   '  var api={ov:[' + PURPLE.join(',') + ']};',
   '  function key(x,y,z){return x+","+y+","+z;}',
   '  api.tick=function(m){mc=m;var w=m&&m.X;if(w!==world){world=w;cache.clear();}};',
@@ -40,10 +45,18 @@ const BLOCK = [
   '  api.tint=function(pos){',
   '    var k=key(pos.m,pos.i,pos.l),c=cache.get(k);if(c!==undefined)return c;',
   '    c=PURPLE;',
-  '    try{var w=mc&&mc.X,p=pos,id=90,n=0;if(w){while(id===90&&n++<24){p=EoL(p);id=ENW(CZr(w,p).n);}if(FRAMES[id]!==undefined)c=FRAMES[id];}}',
+  '    try{var w=mc&&mc.X,p=pos,id=90,n=0;if(w){while(id===90&&n++<24){p=EoL(p);id=ENW(CZr(w,p).n);}if(id===155)c=split(w,pos);else if(FRAMES[id]!==undefined)c=FRAMES[id];}}',
   '    catch(e){failure=String(e&&e.message||e).slice(0,160);}',
   '    if(cache.size>8192)cache.clear();cache.set(k,c);return c;',
   '  };',
+  '  // Which half of a quartz gate a portal block is in: count portal blocks to either side along the plane.',
+  '  function portal(w,p){return ENW(CZr(w,p).n)===90;}',
+  '  function side(w,pos,f){var p=pos,n=0;Bw();while(n<22){p=DWK(p,f,1);if(!portal(w,p))break;n++;}return n;}',
+  '  function split(w,pos){',
+  '    Bw();var alongX=portal(w,DWK(pos,KsT,1))||portal(w,DWK(pos,KsU,1));',
+  '    var a=side(w,pos,alongX?KsT:KsV),b=side(w,pos,alongX?KsU:KsW);',
+  '    return a<b?BLUE:a>b?BLACK:SEAM;',
+  '  }',
   '  function at(x,y,z){var c=cache.get(key(Math.floor(x),Math.floor(y),Math.floor(z)));return c===undefined?PURPLE:c;}',
   '  // Portal particles spawned inside a coloured portal take its colour (vanilla: red .9, green .3, blue 1).',
   '  api.particle=function(p,x,y,z,l){var c=at(x,y,z);if(c===PURPLE)return;var t=TINT[c]||[1,1,1];p.eC=l*t[0];p.ey=l*t[1];p.eu=l*t[2];};',
@@ -53,7 +66,7 @@ const BLOCK = [
   '    try{var e=DWa(m.v,1.0);c=at(e.bh,e.bq,e.bi);if(c===PURPLE)c=at(e.bh,e.bq-1.0,e.bi);}catch(err){failure=String(err&&err.message||err).slice(0,160);}',
   '    api.ov=TINT[c]||TINT[PURPLE];',
   '  };',
-  '  $rt_globals.JasprPortalDiagnostics={status:function(){var g=0,v=0;cache.forEach(function(c){if(c===PURPLE)v++;else g++;});return {coloured:g,purple:v,failure:failure};}};',
+  '  $rt_globals.JasprPortalDiagnostics={status:function(){var g=0,v=0,b=0,k=0;cache.forEach(function(c){if(c===PURPLE)v++;else if(c===BLUE)b++;else if(c===BLACK)k++;else g++;});return {coloured:g,purple:v,blue:b,black:k,failure:failure};}};',
   '  return api;',
   '})();',
   '/* JASPR_PORTAL_V1_END */',
@@ -85,7 +98,20 @@ function refresh(input) {
   return output;
 }
 
+/** The engine names the quartz split relies on: EnumFacing's init (Bw), its WEST/EAST/NORTH/SOUTH fields and offset(DWK). */
+function checkNames(input) {
+  const flat = input.replace(/\r\n/g, '');
+  const facing = 'KsU=b;Lih=T(Gu,[HFo,KsS,KsV,KsW,KsT,b]);';
+  if (flat.split(facing).length !== 2) throw new Error('EnumFacing fields changed');
+  for (const [field, vec] of [['KsV', 'k=ZJ(0,0,(-1));'], ['KsW', 'k=ZJ(0,0,1);'], ['KsT', 'k=ZJ((-1),0,0);'], ['KsU', 'k=ZJ(1,0,0);']]) {
+    const at = flat.indexOf('{break _;}' + field + '=b;'), v = at < 0 ? -1 : flat.lastIndexOf(vec, at);
+    if (at < 0 || v < 0 || at - v > 120) throw new Error(field + ' is not the expected facing');
+  }
+  for (const fn of ['function Bw(', 'function DWK(']) if (input.split(fn).length !== 2) throw new Error(fn + ' must be defined once');
+}
+
 function build(input) {
+  checkNames(input);
   if (input.includes('JASPR_PORTAL_V1')) return refresh(input);
   let output = input;
   output = once(output, '/*JASPR_SKY_V1*/JasprSky.tick(a);', '/*JASPR_SKY_V1*/JasprSky.tick(a);' + MARK + 'JasprPortal.tick(a);', 'runTick hook (after the sky stage)');
@@ -154,4 +180,4 @@ if (require.main === module) {
   fs.writeFileSync(path.join(dir, 'build-report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
 }
-module.exports = {build, buildAssets, PURPLE, GREEN};
+module.exports = {build, buildAssets, PURPLE, GREEN, BLUE, BLACK, SEAM};

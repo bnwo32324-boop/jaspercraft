@@ -202,6 +202,20 @@ final class Gates implements Listener {
         return g != null ? g : detect(of(w), w.getName(), at.getX(), at.getY(), at.getZ(), false);
     }
 
+    /** The frame a clicked quartz block belongs to, whichever face was clicked (the inside, the front, the top...). */
+    private Gate frameOf(World w, Block clicked, BlockFace face) {
+        Gate g = findFrame(w, clicked.getRelative(face));
+        if (g != null) return g;
+        for (BlockFace f : new BlockFace[] {BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST}) {
+            if (f == face) continue;
+            Block n = clicked.getRelative(f);
+            if (!hollow(n.getTypeId())) continue;
+            g = findFrame(w, n);
+            if (g != null) return g;
+        }
+        return null;
+    }
+
     // ------------------------------------------------------------------ kindling: lapis (blue) and coal (black)
 
     private static int half(ItemStack item) {
@@ -214,15 +228,22 @@ final class Gates implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void kindle(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null || e.getBlockFace() == null) return;
+        if (e.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND && half(e.getItem()) == 0) return;   // the off hand's echo of a main-hand click
         World w = e.getClickedBlock().getWorld();
         if (!plugin.gateWorld(w) || e.getClickedBlock().getType() != Material.QUARTZ_BLOCK) return;
         ItemStack item = e.getItem();
-        Block at = e.getClickedBlock().getRelative(e.getBlockFace());
-        Gate g = findFrame(w, at);
-        if (g == null) return;
-        if (ids.containsKey(g.id())) return;   // already burning
         int half = half(item);
         Player p = e.getPlayer();
+        Gate g = frameOf(w, e.getClickedBlock(), e.getBlockFace());
+        if (g == null) {
+            if (half != 0) {
+                e.setCancelled(true);
+                p.sendMessage(ChatColor.GRAY + "This quartz is not a closed gate frame yet. Build it like a nether portal: a ring of quartz blocks at least "
+                    + ChatColor.WHITE + "4 wide and 5 tall" + ChatColor.GRAY + " (inside 2 by 3 or more), standing upright, then kindle it.");
+            }
+            return;
+        }
+        if (ids.containsKey(g.id())) return;   // already burning
         if (half == 0) {
             p.sendMessage(ChatColor.AQUA + "The quartz frame hums, waiting. " + ChatColor.GRAY + "Kindle it with both halves of the divided light: "
                 + ChatColor.BLUE + "lapis lazuli" + ChatColor.GRAY + " and " + ChatColor.DARK_GRAY + "coal" + ChatColor.GRAY + ".");
@@ -412,7 +433,7 @@ final class Gates implements Listener {
         checkThrown();
         if (gates.isEmpty()) { standing.clear(); return; }
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (!plugin.gateWorld(player.getWorld())) continue;
+            if (!plugin.gateWorld(player.getWorld()) || player.isDead()) continue;
             UUID id = player.getUniqueId();
             Gate g = touching(player.getLocation(), 0.3, 1.8);
             if (g == null) { standing.remove(id); mustLeave.remove(id); continue; }

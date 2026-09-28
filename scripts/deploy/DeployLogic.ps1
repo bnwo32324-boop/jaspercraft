@@ -24,6 +24,7 @@ $script:PluginReadyTokens = @{
     'JasprImportedWorldgen' = @('IMPORTED_ASSETS_READY')
     'JasprRevive'           = @('REVIVE_READY')
     'JasprRuins'            = @('RUINS_READY')
+    'JasprAtlas'            = @('ATLAS_READY')
     'JasprTanks'            = @('TANKS_READY')
 }
 

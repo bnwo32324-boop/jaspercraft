@@ -57,6 +57,11 @@ final class Library implements Listener {
         boolean copy = p.isSneaking();
         if (copy && p.getInventory().getItemInMainHand().getType() != Material.AIR) return;   // sneak-placing against a shelf stays possible
         e.setCancelled(true);
+        read(p, b, copy);
+    }
+
+    /** Reads (or copies) the book a shelf holds. */
+    void read(Player p, Block b, boolean copy) {
         String coll = collectionAt(b.getX(), b.getZ());
         LoreBooks.Book book = LoreBooks.shelf(coll, Hash.of(plugin.seed(), b.getX(), b.getY(), b.getZ()));
         if (book == null) return;
@@ -65,6 +70,7 @@ final class Library implements Listener {
             Talk.give(p, book.item());
             copies++;
             p.sendMessage(ChatColor.GRAY + "You take a copy of " + ChatColor.WHITE + book.title + ChatColor.GRAY + " (" + book.author + ").");
+            plugin.getLogger().info("ATLAS_LIBRARY_COPY player=" + p.getName() + " book=" + book.id);
             return;
         }
         List<String> lines = new ArrayList<>();
@@ -78,6 +84,7 @@ final class Library implements Listener {
         }
         Talk.openBook(p, pages);
         reads++;
+        plugin.getLogger().info("ATLAS_LIBRARY_READ player=" + p.getName() + " book=" + book.id + " shelf=" + coll);
         p.sendMessage(ChatColor.GRAY + "Reading " + ChatColor.WHITE + book.title + ChatColor.GRAY + ". Sneak and right-click the shelf with an empty hand to take a copy.");
     }
 }
