@@ -159,6 +159,8 @@ Paper test server), **browser-tested** (checked there with real headless browser
 |---|---|
 | Terrain, zones, biomes; cities, countryside, frontier, Dominion provinces and strongholds | offline-tested (deterministic, 0.5 ms per chunk, every cell filled on both sides); browser-tested (walked) |
 | Story spots (10 figures, 12 bosses, 9 mechanisms, 12 captives, 16 berths, 10 heliodromes, 4 wards, 2 talkers) | offline-tested |
+| Infill (2026-09-28): every bare 8x8 or 4x4 patch gets a scene or detail fitting its land; ground with nothing within 3 blocks went from 25-52% to 0.3-11% per region | offline-tested (measured), browser-tested (walked all regions) |
+| Redraw on design change (epoch 2): old chunks moved into `jaspr_atlas/retired-epoch1-*`, world, progress and gates kept, a player logging in inside new buildings is lifted out | server-tested |
 | Books (45 lore books, 5 key texts, 12 testimonies) fit their pages | offline-tested |
 | World lifecycle: lazy load (0.1 s), unload 60 s after the last player, login inside Atlas, border | browser-tested |
 | Persistence across unload and a full server restart (state, liberation, per-chunk masks, gates) | browser-tested |

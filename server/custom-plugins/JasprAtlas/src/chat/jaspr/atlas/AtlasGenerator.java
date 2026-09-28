@@ -62,16 +62,18 @@ public final class AtlasGenerator extends ChunkGenerator {
     }
 
     /** Terrain, then everything built on it. Separate from Bukkit's ChunkData factory so tests and healing can run it. */
-    void fill(ChunkData d, BiomeGrid biomes, int cx, int cz, int mask) {
+    void fill(ChunkData d, BiomeGrid biomes, int cx, int cz, int mask) { fill(d, biomes, cx, cz, mask, null); chunks++; }
+
+    /** The whole chunk drawn into {@code d}; the tiles it places are added to {@code tiles} when given. */
+    void fill(ChunkData d, BiomeGrid biomes, int cx, int cz, int mask, List<Canvas.Tile> tiles) {
         int[][] heights = heights(cx, cz);
         for (int x = 0; x < 16; x++)
             for (int z = 0; z < 16; z++) column(d, biomes, x, z, cx * 16 + x, cz * 16 + z, heights[x][z], mask);
         try {
-            stamp(new Canvas(seed, cx, cz, mask, d, heights, null));
+            stamp(new Canvas(seed, cx, cz, mask, d, heights, tiles));
         } catch (RuntimeException e) {
             reportFailure("chunk=" + cx + "," + cz, e);
         }
-        chunks++;
     }
 
     /** Everything built on the land, in order; later layers win. */
@@ -82,6 +84,7 @@ public final class AtlasGenerator extends ChunkGenerator {
         Line.draw(plans, c);
         Teeth.draw(plans, c);
         Places.draw(plans, c);
+        Infill.draw(plans, c);
     }
 
     // ------------------------------------------------------------------ biomes (chosen for how the browser client styles them)

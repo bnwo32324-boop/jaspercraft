@@ -95,6 +95,45 @@ public final class AtlasPreview {
 
     static void check(boolean ok, String what) { if (!ok) throw new AssertionError(what); }
 
+    /**
+     * Empty space in a square: the share of columns with nothing built within three blocks (a 7x7 window of bare ground:
+     * grass, flowers, dead bushes or ash, with nothing up to four blocks above).
+     */
+    static double bareness(AtlasGenerator gen, int x0, int z0, int size, int mask) {
+        boolean[][] bare = new boolean[size][size];
+        for (int cx = Math.floorDiv(x0, 16); cx <= Math.floorDiv(x0 + size - 1, 16); cx++)
+            for (int cz = Math.floorDiv(z0, 16); cz <= Math.floorDiv(z0 + size - 1, 16); cz++) {
+                Drawing d = new Drawing();
+                gen.fill(d, d, cx, cz, mask, null);
+                int[][] h = gen.heights(cx, cz);
+                for (int x = 0; x < 16; x++)
+                    for (int z = 0; z < 16; z++) {
+                        int ax = cx * 16 + x - x0, az = cz * 16 + z - z0;
+                        if (ax < 0 || az < 0 || ax >= size || az >= size) continue;
+                        boolean open = true;
+                        for (int y = h[x][z] + 1; y <= h[x][z] + 4 && open; y++) {
+                            int id = d.id(x, y, z);
+                            open = id == 0 || id == Canvas.TALLGRASS || id == Canvas.RED_FLOWER || id == Canvas.YELLOW_FLOWER || id == Canvas.DEADBUSH
+                                || id == Canvas.CARPET || id == Canvas.DOUBLE_PLANT;
+                        }
+                        int top = d.id(x, h[x][z], z);
+                        boolean ground = top == Canvas.GRASS || top == Canvas.DIRT || top == Canvas.GRAVEL || top == Canvas.POWDER || top == Canvas.SOUL_SAND
+                            || top == Canvas.CLAY || top == Canvas.STONE || top == Canvas.CONCRETE || top == Canvas.COBBLE || top == Canvas.NETHERRACK
+                            || top == Canvas.OBSIDIAN || top == Canvas.MOSSY || top == Canvas.MAGMA;
+                        bare[ax][az] = open && ground;
+                    }
+            }
+        int empty = 0, all = 0;
+        for (int x = 3; x < size - 3; x++)
+            for (int z = 3; z < size - 3; z++) {
+                all++;
+                boolean far = true;
+                for (int a = -3; a <= 3 && far; a++) for (int b = -3; b <= 3 && far; b++) far = bare[x + a][z + b];
+                if (far) empty++;
+            }
+        return empty / (double) all;
+    }
+
     public static void main(String[] args) throws Exception {
         File out = new File(args.length > 0 ? args[0] : "atlas-preview");
         out.mkdirs();
@@ -127,6 +166,25 @@ public final class AtlasPreview {
         // 4. Density: in a 384-block square of each side, nearly every cell holds something (not bare ground).
         density(gen, -500, -300, "concord");
         density(gen, 120, -300, "marches");
+        // Empty space: ground with nothing built within three blocks, in a 192-block square of each countryside (it was
+        // 25-52% before the infill layer; now a few percent), and how many people, foes and chests that adds per chunk.
+        int[][] bareAt = {{-400, -150}, {-150, 150}, {-40, 200}, {150, -250}, {540, -150}, {700, 150}, {760, 60}};
+        String[] bareNames = {"concord", "concord-frontier", "wound", "marches", "weald", "forges", "fallen"};
+        for (int k = 0; k < bareAt.length; k++) {
+            int people = 0, hostile = 0, chests = 0, chunksHere = 0;
+            for (int cx = Math.floorDiv(bareAt[k][0], 16); cx <= Math.floorDiv(bareAt[k][0] + 191, 16); cx++)
+                for (int cz = Math.floorDiv(bareAt[k][1], 16); cz <= Math.floorDiv(bareAt[k][1] + 191, 16); cz++) {
+                    chunksHere++;
+                    for (Canvas.Tile t : AtlasPopulator.tilesOf(gen, cx, cz, mask)) {
+                        if (t.kind == Canvas.NPC_TILE) { people++; if (t.what.startsWith("dominion:")) hostile++; }
+                        if (t.kind == Canvas.CHEST_TILE) chests++;
+                    }
+                }
+            System.out.println(String.format("entities %s per chunk: people %.2f hostile %.2f chests %.2f", bareNames[k], people / (double) chunksHere, hostile / (double) chunksHere, chests / (double) chunksHere));
+            double bare = bareness(gen, bareAt[k][0], bareAt[k][1], 192, mask);
+            System.out.println(String.format("empty %s %.1f%%", bareNames[k], bare * 100));
+            check(bare < 0.2, bareNames[k] + " is densely filled (empty " + Math.round(bare * 100) + "%)");
+        }
 
         // 5. Determinism and liberation: the same chunk twice; the Marches liberated differ only by healing.
         AtlasGenerator again = new AtlasGenerator(SEED, () -> mask, null);

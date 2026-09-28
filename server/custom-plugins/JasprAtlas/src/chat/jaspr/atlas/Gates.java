@@ -144,6 +144,14 @@ final class Gates implements Listener {
 
     Gate byId(String id) { return id == null ? null : ids.get(id); }
 
+    /** Forgets the player-built gates of a world whose land was drawn again (the Great Gate is drawn with it). */
+    int forgetWorld(String world) {
+        int n = 0;
+        for (Gate g : new ArrayList<>(gates)) if (g.world.equals(world) && !g.fixed) { unindex(g); n++; }
+        if (n > 0) save();
+        return n;
+    }
+
     private Gate innerAt(Block b) { Map<Long, Gate> m = inner.get(b.getWorld().getName()); return m == null ? null : m.get(key(b.getX(), b.getY(), b.getZ())); }
 
     private Gate frameAt(Block b) { Map<Long, Gate> m = frames.get(b.getWorld().getName()); return m == null ? null : m.get(key(b.getX(), b.getY(), b.getZ())); }

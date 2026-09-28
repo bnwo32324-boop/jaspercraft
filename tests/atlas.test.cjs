@@ -34,6 +34,10 @@ test('atlas generator: places, density, determinism, story spots, books, speed',
   assert.match(run.stdout, /spots keys=10 bosses=12 mechanisms=9 berths=\d+ wards=4 heliodromes=\d+ captives=12 choir=6 talkers=2 monument=true/);
   assert.match(run.stdout, /density concord cells=(\d+) filled=\1/, 'every Concord cell holds something');
   assert.match(run.stdout, /density marches cells=(\d+) filled=\1/, 'every Dominion cell holds something');
+  for (const land of ['concord', 'concord-frontier', 'wound', 'marches', 'weald', 'forges', 'fallen']) {
+    const m = run.stdout.match(new RegExp('empty ' + land + ' ([0-9.]+)%'));
+    assert.ok(m && Number(m[1]) < 20, land + ': little empty ground (' + (m && m[1]) + '%)');
+  }
   for (const p of ['GATE_OF_STRANGERS', 'ASTREION', 'LAMPSA', 'HIERANTHE', 'MNEMEIA', 'LAST_WATCH', 'PYLON', 'STILLED_GARDEN', 'GREAT_ENGINE', 'PELLENE', 'ANTHRAKION', 'UZGAR_HIDE', 'VESK_BURROW'])
     assert.match(run.stdout, new RegExp('place ' + p + ' tiles=\\d+ people=[1-9]'), p + ' is drawn and peopled');
 });

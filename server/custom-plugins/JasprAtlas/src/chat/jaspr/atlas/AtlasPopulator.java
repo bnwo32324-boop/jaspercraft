@@ -39,11 +39,11 @@ final class AtlasPopulator extends BlockPopulator {
         try { ores(chunk, random); } catch (RuntimeException e) { failures++; gen.reportFailure("ores chunk=" + cx + "," + cz, e); }
     }
 
-    /** The tiles the plan put in this chunk, found by drawing it again without a block target. */
+    /** The tiles the plan put in this chunk, found by drawing it again in memory. */
     static List<Canvas.Tile> tilesOf(AtlasGenerator gen, int cx, int cz, int mask) {
-        int[][] heights = gen.heights(cx, cz);
         List<Canvas.Tile> tiles = new ArrayList<>();
-        gen.stamp(new Canvas(gen.seed, cx, cz, mask, null, heights, tiles));
+        Drawing d = new Drawing();   // the infill layer reads the drawn chunk, so the blocks are drawn too
+        gen.fill(d, d, cx, cz, mask, tiles);
         return tiles;
     }
 

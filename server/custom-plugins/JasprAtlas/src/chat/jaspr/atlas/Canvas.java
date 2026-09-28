@@ -53,7 +53,7 @@ final class Canvas {
     final long seed;
     /** Liberation state the chunk is drawn for (bit per province, see {@link Realm.Province}). */
     final int mask;
-    private final ChunkData data;
+    final ChunkData data;   // null when only tiles are wanted without the blocks (never, since the infill layer)
     private final int[][] heights;
     private final List<Tile> tiles;
     private java.util.BitSet fixed;   // tile positions: the first tile placed on a spot keeps it from later drawing
@@ -195,6 +195,13 @@ final class Canvas {
     // ------------------------------------------------------------------ tiles
 
     private int key(int x, int y, int z) { return (x - x0) << 12 | (z - z0) << 8 | y; }
+
+    /** Whether any tile (person, chest, sign...) is already fixed in this column. */
+    boolean fixedColumn(int x, int z) {
+        if (fixed == null || !inside(x, z)) return false;
+        int from = key(x, 0, z), at = fixed.nextSetBit(from);
+        return at >= 0 && at < from + 256;
+    }
 
     /** Places a tile block unless another tile already holds the spot; the spot is then kept from later drawing. */
     private boolean tile(int x, int y, int z, int id, int meta) {
