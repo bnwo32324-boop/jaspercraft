@@ -25,8 +25,14 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
     fs.mkdirSync(path.join(server, level, 'region'), {recursive: true});
     fs.copyFileSync(region, path.join(server, level, 'region', path.basename(region)));
   }
+  // TANK_PREVIEW_COPY: 'source=>server-relative-dest;...' extra files (e.g. a plugin registry copied from live).
+  for (const pair of (process.env.TANK_PREVIEW_COPY || '').split(';').filter(Boolean)) {
+    const [from, to] = pair.split('=>');
+    fs.mkdirSync(path.dirname(path.join(server, to)), {recursive: true});
+    fs.copyFileSync(path.resolve(root, from), path.join(server, to));
+  }
   write('server/eula.txt', 'eula=true\n');
-  write('server/server.properties', `server-ip=127.0.0.1\nserver-port=${socketPort}\nonline-mode=false\nlevel-type=FLAT\ngenerator-settings=3;minecraft:bedrock,60*minecraft:stone,2*minecraft:dirt,minecraft:grass;1;\nlevel-name=${level}\nlevel-seed=${seed}\nspawn-protection=0\nview-distance=3\ngenerate-structures=false\nallow-nether=false\nspawn-animals=true\nspawn-monsters=true\nspawn-npcs=true\nmax-players=3\nnetwork-compression-threshold=-1\nenable-rcon=false\nenable-query=false\ngamemode=0\ndifficulty=2\npvp=true\n`);
+  write('server/server.properties', `server-ip=127.0.0.1\nserver-port=${socketPort}\nonline-mode=false\nlevel-type=FLAT\ngenerator-settings=3;minecraft:bedrock,60*minecraft:stone,2*minecraft:dirt,minecraft:grass;1;\nlevel-name=${level}\nlevel-seed=${seed}\nspawn-protection=0\nview-distance=3\ngenerate-structures=false\nallow-nether=${process.env.TANK_PREVIEW_NETHER === '1'}\nspawn-animals=true\nspawn-monsters=true\nspawn-npcs=true\nmax-players=3\nnetwork-compression-threshold=-1\nenable-rcon=false\nenable-query=false\ngamemode=0\ndifficulty=2\npvp=true\n`);
   write('server/bukkit.yml', 'settings:\n  allow-end: false\n');
   write('server/paper.yml', 'config-version: 13\nworld-settings:\n  default:\n    keep-spawn-loaded: false\n');
   write('server/spigot.yml', 'config-version: 11\nsettings:\n  late-bind: true\nworld-settings:\n  default:\n    view-distance: 3\n    mob-spawn-range: 1\n    entity-activation-range:\n      animals: 8\n      monsters: 16\n      misc: 4\n');
