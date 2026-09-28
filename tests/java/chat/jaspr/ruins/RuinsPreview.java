@@ -269,6 +269,9 @@ public final class RuinsPreview {
         world.put(Portals.key(0, 66, 0), 49);
         check(Portals.detect(blocks, "world", 1, 66, 0, true) == null, "an obsidian block breaks a mossy frame");
         check(Portals.Portal.decode(p.encode()).encode().equals(p.encode()), "portal registry round trip");
+        check(Portals.Portal.decode("world;z;-41;44;-22;2;3").link == null, "an unlinked gate from an older registry");
+        Portals.Portal linked = Portals.Portal.decode("world;z;-41;44;-22;2;3;jaspr_ruins;-41;73;-21");
+        check("jaspr_ruins;-41;73;-21".equals(linked.link) && linked.encode().equals("world;z;-41;44;-22;2;3;jaspr_ruins;-41;73;-21"), "linked gate round trip");
 
         double ms = genNanos / 1e6 / Math.max(1, genChunks);
         System.out.println("city " + city.name + " at " + city.x + "," + city.z + " half=" + city.half + " ground=" + city.ground);

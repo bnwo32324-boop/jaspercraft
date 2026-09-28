@@ -29,5 +29,5 @@ test('sky server side: hidden objective sent on entry, removed on leaving, ambie
   const sky = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Sky.java');
   assert.ok(sky.includes('JRS v1 eerie'), 'objective display name the client matches');
   assert.ok(sky.includes('OBJECTIVE = "jrs", DISPLAY = "JRS v1 eerie"'), 'objective name the client looks up');
-  assert.ok(read('site/client.html').includes('classes.js?v=20260927-sky1'), 'browsers fetch the new client');
+  assert.match(read('site/client.html'), /classes\.js\?v=\d{8}-\w+/, 'the client is versioned');
 });

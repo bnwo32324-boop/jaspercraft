@@ -125,7 +125,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
                 + " ambushes=" + horrors.ambushes + " shadows=" + horrors.shadows + " crumbles=" + horrors.crumbles) + " traps=" + p.traps
             + (sky == null ? "" : " skyFlashes=" + sky.flashes)
             + (bosses == null ? "" : " wardensSlain=" + bosses.wardensSlain + " heraldsSlain=" + bosses.heraldsSlain)
-            + (portals == null ? "" : " portalsLit=" + portals.lit + " portalsBuilt=" + portals.built + " travels=" + portals.travels + " portalsClosed=" + portals.closed));
+            + (portals == null ? "" : " portalsLit=" + portals.lit + " portalsBuilt=" + portals.built + " travels=" + portals.travels + " portalsClosed=" + portals.closed
+                + " portalsLinked=" + portals.linked + " strayArrivals=" + portals.strayArrivals));
     }
 
     // ------------------------------------------------------------------ the world on disk and in memory
@@ -151,7 +152,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         // Endless night over Ul'Nhaar: the horrors spawn on every stone, and beds do not work.
         w.setGameRuleValue("doDaylightCycle", "false");
         w.setTime(18000L);
-        w.setMonsterSpawnLimit(150);
+        w.setMonsterSpawnLimit(75);   // half of epoch 3's first 150: dangerous, not relentless
         w.setTicksPerMonsterSpawns(1);
         w.setAnimalSpawnLimit(0);
         w.setAmbientSpawnLimit(0);

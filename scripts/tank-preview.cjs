@@ -38,7 +38,7 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
 <body id="game_frame" style="margin:0;width:100%;height:100%;overflow:hidden;background:black"><script>addEventListener('DOMContentLoaded',function(){var name=(location.hash.slice(1)||'TankProbe');JasprProfile.prepare(name,localStorage).then(function(){window.eaglercraftXOpts={container:'game_frame',assetsURI:'/assets.epk',localStorageNamespace:'_eaglercraft_1122_tailscale_ui2',worldsDB:'tank_fixture_worlds',resourcePacksDB:'tank_fixture_packs',joinServer:/nojoin/.test(location.search)?undefined:'ws://127.0.0.1:${socketPort}/',servers:[{addr:'ws://127.0.0.1:${socketPort}/',name:'JasperCraft (fixture)',hideAddr:true}],relays:[],crashOnUncaughtExceptions:true};window.JasprFirstRun=/firstrun/.test(location.search);main();});});</script></body></html>`;
   const files = {
     '/classes.js': process.env.TANK_PREVIEW_CLASSES || 'site/classes.js',
-    '/assets.epk': 'candidate/tanks/assets.epk',
+    '/assets.epk': process.env.TANK_PREVIEW_ASSETS || 'candidate/tanks/assets.epk',
     '/jaspr-profile.js': 'site/jaspr-profile.js',
     '/jaspercraft-mobile-controls.js': 'candidate/tank-client/jaspercraft-mobile-controls.js',
     '/jaspercraft-mobile-controls.css': 'candidate/tank-client/jaspercraft-mobile-controls.css',

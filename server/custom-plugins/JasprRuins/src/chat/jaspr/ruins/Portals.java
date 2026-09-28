@@ -28,6 +28,7 @@ import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityPortalEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -38,8 +39,11 @@ import org.bukkit.util.Vector;
  * 2-21 wide and 3-21 tall, corners optional) built of mossy cobblestone and lit with flint and steel or a fire charge
  * fills with portal blocks. Vanilla would tear them down (they have no obsidian frame) and would send whoever stands in
  * them to the Nether, so their blocks are shielded from physics and vanilla portal travel; instead, standing in one for
- * three seconds (at once in creative) crosses to the same x/z in the other world, arriving in front of the nearest
- * mossy portal there or a new one built on the surface. Breaking or blowing up a frame block closes the portal.
+ * three seconds (at once in creative) crosses to the other world. Gates are linked in pairs: a gate goes to its partner;
+ * a player going back through the gate they arrived by returns to the gate they left from; an unlinked gate links to
+ * the nearest mossy gate within 48 blocks of the same x/z there, or to a new one built on the surface. Breaking or
+ * blowing up a frame block closes the portal. A vanilla Nether trip that lands in a mossy gate is moved out in front of
+ * it, so an obsidian portal next to a mossy one never hands a player on to the Ruins by mistake.
  */
 final class Portals implements Listener {
     static final int FRAME = 48, PORTAL = 90, AIR = 0, FIRE = 51;
@@ -50,17 +54,25 @@ final class Portals implements Listener {
         final String world;
         final boolean xAxis;
         final int x, y, z, w, h;
+        /** The partner gate's {@link #id()} in the other world, or null until someone first crosses. */
+        String link;
         Portal(String world, boolean xAxis, int x, int y, int z, int w, int h) {
             this.world = world; this.xAxis = xAxis; this.x = x; this.y = y; this.z = z; this.w = w; this.h = h;
         }
+        String id() { return world + ";" + x + ";" + y + ";" + z; }
         int dx() { return xAxis ? 1 : 0; }
         int dz() { return xAxis ? 0 : 1; }
         double cx() { return x + dx() * (w / 2.0) + (xAxis ? 0 : 0.5); }
         double cz() { return z + dz() * (w / 2.0) + (xAxis ? 0.5 : 0); }
-        String encode() { return world + ";" + (xAxis ? "x" : "z") + ";" + x + ";" + y + ";" + z + ";" + w + ";" + h; }
+        String encode() { return world + ";" + (xAxis ? "x" : "z") + ";" + x + ";" + y + ";" + z + ";" + w + ";" + h + (link == null ? "" : ";" + link); }
         static Portal decode(String s) {
             String[] f = s.split(";");
-            return new Portal(f[0], "x".equals(f[1]), Integer.parseInt(f[2]), Integer.parseInt(f[3]), Integer.parseInt(f[4]), Integer.parseInt(f[5]), Integer.parseInt(f[6]));
+            Portal p = new Portal(f[0], "x".equals(f[1]), Integer.parseInt(f[2]), Integer.parseInt(f[3]), Integer.parseInt(f[4]), Integer.parseInt(f[5]), Integer.parseInt(f[6]));
+            if (f.length >= 11) {
+                Integer.parseInt(f[8]); Integer.parseInt(f[9]); Integer.parseInt(f[10]);
+                p.link = f[7] + ";" + f[8] + ";" + f[9] + ";" + f[10];
+            }
+            return p;
         }
     }
 
@@ -73,10 +85,15 @@ final class Portals implements Listener {
     private final File file;
     private final List<Portal> portals = new ArrayList<>();
     private final Map<String, Map<Long, Portal>> inner = new HashMap<>(), frames = new HashMap<>();
+    private final Map<String, Portal> ids = new HashMap<>();
+    /** The gate each player last arrived through, and the gate they came from: going back returns them there. */
+    private final Map<UUID, String[]> cameThrough = new HashMap<>();
     private final Map<UUID, Integer> standing = new HashMap<>();
     private final Map<UUID, Long> cooldown = new HashMap<>();
+    /** Players who arrived by a gate: it cannot send them on again until they have stepped out of every portal. */
+    private final java.util.Set<UUID> mustLeave = new java.util.HashSet<>();
     private long tick;
-    long lit, travels, built, closed;
+    long lit, travels, built, closed, linked, strayArrivals;
 
     Portals(RuinsPlugin plugin) {
         this.plugin = plugin;
@@ -88,7 +105,7 @@ final class Portals implements Listener {
     // ------------------------------------------------------------------ registry
 
     void load() {
-        portals.clear(); inner.clear(); frames.clear();
+        portals.clear(); inner.clear(); frames.clear(); ids.clear();
         if (!file.isFile()) return;
         for (String s : YamlConfiguration.loadConfiguration(file).getStringList("portals")) {
             try { index(Portal.decode(s)); } catch (RuntimeException bad) { plugin.getLogger().warning("RUINS_PORTAL_SKIPPED entry=" + s.replaceAll("[^A-Za-z0-9_;:-]", "?")); }
@@ -110,6 +127,7 @@ final class Portals implements Listener {
 
     private void index(Portal p) {
         portals.add(p);
+        ids.put(p.id(), p);
         Map<Long, Portal> in = inner.computeIfAbsent(p.world, k -> new HashMap<>()), fr = frames.computeIfAbsent(p.world, k -> new HashMap<>());
         for (int a = 0; a < p.w; a++)
             for (int b = 0; b < p.h; b++) in.put(key(p.x + p.dx() * a, p.y + b, p.z + p.dz() * a), p);
@@ -131,6 +149,7 @@ final class Portals implements Listener {
 
     private void unindex(Portal p) {
         portals.remove(p);
+        if (ids.get(p.id()) == p) ids.remove(p.id());
         Map<Long, Portal> in = inner.get(p.world), fr = frames.get(p.world);
         if (in != null) in.values().removeIf(v -> v == p);
         if (fr != null) fr.values().removeIf(v -> v == p);
@@ -297,8 +316,34 @@ final class Portals implements Listener {
         if (innerAt(b) != null || innerAt(b.getRelative(0, -1, 0)) != null || innerAt(b.getRelative(0, 1, 0)) != null) e.setCancelled(true);
     }
 
+    /**
+     * A vanilla portal trip (an obsidian portal) can land in a mossy gate: the travel agent reuses any portal blocks
+     * nearby. Step the player out in front of it, so they are not carried on to the Ruins without meaning to.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void arrived(PlayerChangedWorldEvent e) {
+        Player player = e.getPlayer();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            Block feet = player.getLocation().getBlock();
+            Portal p = innerAt(feet);
+            if (p == null) p = innerAt(feet.getRelative(0, 1, 0));
+            if (p == null) return;
+            UUID id = player.getUniqueId();
+            Long until = cooldown.get(id);
+            if (until != null && tick < until) return;   // our own arrival (already placed in front, or boxed in)
+            cooldown.put(id, tick + 100);
+            standing.remove(id);
+            mustLeave.add(id);
+            Location out = arrival(player.getWorld(), p, player.getLocation());
+            player.teleport(out, PlayerTeleportEvent.TeleportCause.PLUGIN);
+            strayArrivals++;
+            plugin.getLogger().info("RUINS_PORTAL_STRAY_ARRIVAL player=" + player.getName() + " world=" + p.world + " from=" + e.getFrom().getName());
+        });
+    }
+
     @EventHandler
-    public void quit(PlayerQuitEvent e) { standing.remove(e.getPlayer().getUniqueId()); cooldown.remove(e.getPlayer().getUniqueId()); }
+    public void quit(PlayerQuitEvent e) { UUID id = e.getPlayer().getUniqueId(); standing.remove(id); cooldown.remove(id); mustLeave.remove(id); }
 
     // ------------------------------------------------------------------ travel
 
@@ -312,7 +357,8 @@ final class Portals implements Listener {
             Block feet = l.getBlock();
             Portal p = innerAt(feet);
             if (p == null) { feet = feet.getRelative(0, 1, 0); p = innerAt(feet); }
-            if (p == null || feet.getTypeId() != PORTAL) { standing.remove(id); continue; }
+            if (p == null || feet.getTypeId() != PORTAL) { standing.remove(id); mustLeave.remove(id); continue; }
+            if (mustLeave.contains(id)) continue;   // arrived inside a gate: step out first (no ping-pong)
             Long until = cooldown.get(id);
             if (until != null && tick < until) continue;
             int n = standing.merge(id, 1, Integer::sum);
@@ -329,9 +375,16 @@ final class Portals implements Listener {
         if (dst == null) return;
         long t0 = System.nanoTime();
         Location at = player.getLocation();
-        Portal target = nearest(dst.getName(), at.getX(), at.getZ());
+        // Back the way they came, else the gate's partner, else the nearest gate there, else a new one.
+        String[] came = cameThrough.get(player.getUniqueId());
+        Portal target = came != null && came[0].equals(from.id()) ? ids.get(came[1]) : null;
+        String route = target != null ? "return" : "link";
+        if (target == null && from.link != null) target = ids.get(from.link);
+        if (target != null && !target.world.equals(dst.getName())) target = null;
+        if (target == null) { target = nearest(dst.getName(), at.getX(), at.getZ()); route = "nearest"; }
         boolean made = false;
         if (target == null) {
+            route = "built";
             target = build(dst, at.getBlockX(), at.getBlockZ(), from.xAxis);
             if (target == null) {
                 player.sendMessage(ChatColor.GRAY + "The gate flickers: there is no room on the other side here.");
@@ -339,18 +392,25 @@ final class Portals implements Listener {
                 return;
             }
             index(target);
-            save();
             built++;
             made = true;
         }
+        // Link the pair. A gate keeps its first live partner (so the gate built for your base leads home for everyone);
+        // a player going back is routed by cameThrough instead.
+        boolean changed = false;
+        if (from.link == null || ids.get(from.link) == null) { from.link = target.id(); changed = true; }
+        if (target.link == null || ids.get(target.link) == null) { target.link = from.id(); changed = true; }
+        if (changed) { linked++; save(); } else if (made) save();
+        cameThrough.put(player.getUniqueId(), new String[] {target.id(), from.id()});
         Location arrive = arrival(dst, target, at);
         if (player.isInsideVehicle()) player.leaveVehicle();
         player.setFallDistance(0f);
         player.setVelocity(new Vector());
         boolean ok = player.teleport(arrive, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        if (ok) mustLeave.add(player.getUniqueId());
         travels++;
         plugin.getLogger().info("RUINS_TRAVEL player=" + player.getName() + " from=" + src.getName() + " to=" + dst.getName()
-            + " builtPortal=" + made + " ok=" + ok + " ms=" + (System.nanoTime() - t0) / 1_000_000L);
+            + " builtPortal=" + made + " route=" + route + " ok=" + ok + " ms=" + (System.nanoTime() - t0) / 1_000_000L);
         if (ok && plugin.isRuins(dst)) player.sendTitle(ChatColor.DARK_GREEN + "The Ancient Ruins", ChatColor.GRAY + "Moss-grown cities of a forgotten age", 10, 60, 20);
     }
 
@@ -365,17 +425,22 @@ final class Portals implements Listener {
         return best;
     }
 
-    /** In front of (or behind) the portal, facing away from it; inside it only if both sides are blocked. */
+    /**
+     * In front of (or behind) the portal, facing away from it, on the first floor within three blocks below its sill (a
+     * gate standing on a step or a raised frame); inside it only if both sides are blocked.
+     */
     @SuppressWarnings("deprecation")
     private static Location arrival(World w, Portal p, Location facing) {
         int mid = p.w / 2, bx = p.x + p.dx() * mid, bz = p.z + p.dz() * mid, px = p.dz(), pz = p.dx();
-        for (int side = 1; side >= -1; side -= 2) {
-            int x = bx + px * side, z = bz + pz * side;
-            if (passable(w.getBlockAt(x, p.y, z).getTypeId()) && passable(w.getBlockAt(x, p.y + 1, z).getTypeId()) && solid(w.getBlockAt(x, p.y - 1, z).getTypeId())) {
+        for (int drop = 0; drop <= 3; drop++)
+            for (int side = 1; side >= -1; side -= 2) {
+                int x = bx + px * side, z = bz + pz * side, y = p.y - drop;
+                boolean clear = solid(w.getBlockAt(x, y - 1, z).getTypeId());
+                for (int yy = y; clear && yy <= p.y + 1; yy++) clear = passable(w.getBlockAt(x, yy, z).getTypeId());
+                if (!clear) continue;
                 float yaw = (float) Math.toDegrees(Math.atan2(-px * side, pz * side));
-                return new Location(w, x + 0.5, p.y, z + 0.5, yaw, 0f);
+                return new Location(w, x + 0.5, y, z + 0.5, yaw, 0f);
             }
-        }
         return new Location(w, bx + 0.5, p.y, bz + 0.5, facing.getYaw(), 0f);
     }
 

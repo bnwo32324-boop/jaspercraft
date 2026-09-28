@@ -18,7 +18,20 @@ Herald pays out a hoard of unique items. The world loads only while someone is i
 
 ## Getting there
 - Build a nether-portal-shaped frame of **mossy cobblestone** (at least 4×5) and light it with flint and steel.
-- Stand in the portal for 3 s.
+- Stand in the portal for 3 s. Gates to Ul'Nhaar glow **green**; obsidian Nether portals stay purple (client
+  `20260927-portal1`).
+
+**Gates are linked in pairs:**
+- Going back through the gate you arrived by returns you to the gate you left from, even when two gates share one Ruins
+  gate.
+- Otherwise a gate goes to its partner (its first live link, kept in `portals.yml`). An unlinked gate links to the
+  nearest mossy gate within 48 blocks of the same x/z, or builds one.
+- You arrive beside the gate, stepping down up to 3 blocks to find floor, facing away from it. You arrive inside only
+  if both sides are walled in, and then the gate will not fire again until you step out (no ping-pong).
+- A vanilla Nether trip that lands inside a mossy gate is moved out in front of it (`RUINS_PORTAL_STRAY_ARRIVAL`).
+
+**The mix-up on 2026-09-27:** jasper_e_'s base has an obsidian Nether portal three blocks from the mossy gate, and both
+glowed the same purple, so the trip back went to the Nether. That is why the gates are now green.
 
 ## How to beat it (the Pilgrim's Primer)
 
@@ -104,7 +117,7 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
 - **Falling masonry:** about once a minute, anyone out in the ruins may hear stone crack, then be hit by blocks
   falling from above a second later. The blocks never land, so they leave no mess.
 - **Dart traps:** pressure plates in catacomb corridors and treasure rooms fire arrows from hidden floor dispensers.
-- **Spawn cap:** raised from 120 to 150 monsters.
+- **Spawn cap:** 75 monsters, half of epoch 3's first 150 after playtesting ("a little too aggressive").
 
 ## The world
 - **Ruin field:** every 24-block cell that no city, site, Lost City or the Door claims holds one monument:
@@ -174,6 +187,17 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
   4 Elders. It also produced 2 chest ambushes, 2 shadows, 1 masonry fall and 6 traps populated, with no generation
   failures.
 
+## Portal colours (client)
+`scripts/build-portal-client.cjs` installs four fenced `/*JASPR_PORTAL_V1*/` hooks in `site/classes.js` and
+changes `site/assets.epk`:
+- `portal.png` is replaced by a neutral grey animation (`server/custom-plugins/JasprRuins/pack/portal-neutral.png`),
+  and the two portal models get `tintindex 0`.
+- The block colour hook walks down each portal column to its frame block: mossy cobblestone gives green, anything else
+  gives the vanilla purple multiplier (a least-squares fit of the original animation).
+- Portal particles and the in-portal screen overlay follow the same colour.
+- Future gate kinds add a frame-block → colour entry to `FRAMES`.
+- **Diagnostics:** `JasprPortalDiagnostics.status()` returns `{coloured, purple, failure}`.
+
 ## Owner tools
 `/ruins [status|tp|back|where|find <city|lostcity|kind>|door [open|close]|guide|lore|seal [type]|trinket [type]|boss <type>|horror <kind>|dread|unload]`
 
@@ -181,5 +205,6 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
 `RUINS_READY`, `RUINS_WORLD_LOADED`, `RUINS_WORLD_UNLOADED`, `RUINS_REGENERATED`, `RUINS_WELCOME`, `RUINS_BOSS_WOKE`,
 `RUINS_BOSS_SLEPT`, `RUINS_WARDEN_SLAIN`, `RUINS_HERALD_SLAIN`, `RUINS_DOOR_SEAL`, `RUINS_DOOR_OPENED`,
 `RUINS_DOOR_SEALED`, `RUINS_PORTAL_*`, `RUINS_TRAVEL`, and `RUINS_METRICS` on shutdown. In epoch 3,
-`RUINS_METRICS` also counts `elders`, `ambushes`, `shadows`, `crumbles`, `traps` and `skyFlashes`. The Lost
+`RUINS_METRICS` also counts `elders`, `ambushes`, `shadows`, `crumbles`, `traps`, `skyFlashes`, `portalsLinked` and
+`strayArrivals`. `RUINS_TRAVEL` gives the route: `return`, `link`, `nearest` or `built`. The Lost
 Cities log `LOST_CITIES_DETACHED`.
