@@ -24,10 +24,16 @@ import org.bukkit.plugin.java.JavaPlugin;
 /**
  * JasprNether: BetterNether 0.1.8.6 and NetherEx 2.2.5 ported to Paper 1.12.2 as one harmonised Nether.
  * NetherEx supplies the large regions, BetterNether fills its Hell regions; both mods' features, structures, items,
- * mobs and the Ghast Queen coexist. Everything the browser client sees is vanilla.
+ * mobs and the Ghast Queen coexist. JasperCraft adds five mega structures (Mega), their garrisons and the wonders.
+ * Everything the browser client sees is vanilla.
  */
 public final class NetherPlugin extends JavaPlugin implements Listener {
-    static final String VERSION = "1.0.0";
+    static final String VERSION = "1.1.0";
+    /**
+     * Regeneration epoch. Raising it regenerates the Nether once more on the next start (v1 2026-09-26: the port;
+     * v2 2026-09-28: the owner asked for a fresh Nether with the mega structures and wonders).
+     */
+    static final int REGEN_EPOCH = 2;
     static final String OUTER_REALMS = "chat.jaspr.biomes.OuterRealms";
 
     String worldName = "world_nether";
@@ -41,6 +47,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
     Crafting crafting;
     Boss boss;
     Fireflies fireflies;
+    Garrisons garrisons;
 
     // generation health
     long populated, totalNanos, maxNanos, blocksWritten;
@@ -49,19 +56,20 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
     private int outerRealmsRemoved;
 
     /**
-     * The owner asked for the existing Nether to be regenerated. Once, before any world loads, the old Nether's region
-     * files (and this plugin's records of that terrain) are MOVED -- never deleted -- to
-     * plugins/JasprNether/nether-before-v1/; the marker file makes it one-shot. "regenerate-once: false" in config.yml
-     * skips it. To undo: stop the server and move nether-before-v1/region back to &lt;world&gt;/DIM-1/region.
+     * The owner asked for the Nether to be regenerated (the port, then again for the mega structures). Once per epoch,
+     * before any world loads, the old Nether's region files (and this plugin's records of that terrain) are MOVED --
+     * never deleted -- to plugins/JasprNether/nether-before-v&lt;epoch&gt;/; the marker file makes it one-shot.
+     * "regenerate-once: false" in config.yml skips it. To undo: stop the server and move nether-before-v&lt;epoch&gt;/region
+     * back to &lt;world&gt;/DIM-1/region.
      */
     @Override public void onLoad() {
         saveDefaultConfig();
         if (!getConfig().getBoolean("regenerate-once", true)) return;
-        File marker = new File(getDataFolder(), "regenerated-v1.txt");
+        File marker = new File(getDataFolder(), "regenerated-v" + REGEN_EPOCH + ".txt");
         if (marker.exists()) return;
         String name = getConfig().getString("world", "world_nether");
         File region = new File(new File(new File(Bukkit.getWorldContainer(), name), "DIM-1"), "region");
-        File backup = new File(getDataFolder(), "nether-before-v1");
+        File backup = new File(getDataFolder(), "nether-before-v" + REGEN_EPOCH);
         try {
             if (new File(backup, "region").exists()) throw new java.io.IOException("backup folder already exists");
             int files = 0;
@@ -76,7 +84,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             if (rime.exists()) { backup.mkdirs(); java.nio.file.Files.move(rime.toPath(), new File(backup, "rime.txt").toPath()); }
             java.nio.file.Files.write(marker.toPath(), ("regenerated " + java.time.Instant.now() + " world=" + name + " movedRegionFiles=" + files + "\n")
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            getLogger().info("NETHER_REGENERATED world=" + name + " movedRegionFiles=" + files + " backup=plugins/" + getDataFolder().getName() + "/nether-before-v1");
+            getLogger().info("NETHER_REGENERATED epoch=" + REGEN_EPOCH + " world=" + name + " movedRegionFiles=" + files + " backup=plugins/" + getDataFolder().getName() + "/nether-before-v" + REGEN_EPOCH);
         } catch (java.io.IOException | RuntimeException e) {
             getLogger().severe("NETHER_REGENERATE_FAILED reason=" + e.getClass().getSimpleName() + ": " + safe(e.getMessage()) + " -- the old Nether stays");
         }
@@ -101,7 +109,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         crafting = new Crafting(this);
         boss = new Boss(this);
         fireflies = new Fireflies(this);
+        garrisons = new Garrisons(this);
         Bukkit.getPluginManager().registerEvents(this, this);
+        Bukkit.getPluginManager().registerEvents(garrisons, this);
         Bukkit.getPluginManager().registerEvents(mobs, this);
         Bukkit.getPluginManager().registerEvents(mechanics, this);
         Bukkit.getPluginManager().registerEvents(crafting, this);
@@ -121,8 +131,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         readyLogged = true;
         int mobKinds = Mobs.netherExKinds() + 1; // NetherEx mobs + Ghast Queen + BetterNether firefly swarms
         getLogger().info("NETHER_READY version=" + VERSION + " biomes=" + Biomes.BIOME_COUNT + " mobs=" + mobKinds
-            + " structures=" + (Gen.TEMPLATE_NAMES.length + 1) + " items=" + Items.DEFS.size() + " blocks=" + BlockMap.rows
-            + " world=" + worldName + " attached=" + (gen != null) + " disabled=" + genDisabled);
+            + " structures=" + (Gen.TEMPLATE_NAMES.length + 1) + " mega=" + Mega.Kind.values().length + " wonders=8 items=" + Items.DEFS.size()
+            + " blocks=" + BlockMap.rows + " world=" + worldName + " attached=" + (gen != null) + " disabled=" + genDisabled
+            + " megaComplete=" + (gen != null && gen.megaComplete));
     }
 
     @Override public void onDisable() {
@@ -153,6 +164,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             nether = w;
             registry = new Registry(new File(getDataFolder(), "data" + File.separator + w.getName()), getLogger());
             gen = new Gen(this, w, registry);
+            gen.megaComplete = megaComplete(w);
             boolean present = false;
             for (BlockPopulator p : w.getPopulators()) if (p instanceof NetherPopulator) present = true;
             if (!present) w.getPopulators().add(new NetherPopulator());
@@ -163,6 +175,29 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             genDisabled = true;
             getLogger().severe("NETHER_ATTACH_FAILED world=" + w.getName() + " reason=" + t.getClass().getSimpleName() + ": " + safe(t.getMessage()));
         }
+    }
+
+    /**
+     * Whether every chunk of this Nether is populated by a JasprNether that plans mega structures: true when the world
+     * had no region files when this version first attached (the regenerated Nether), remembered in a marker file.
+     */
+    private boolean megaComplete(World w) {
+        File marker = new File(getDataFolder(), "data" + File.separator + w.getName() + File.separator + "mega-complete.txt");
+        if (marker.exists()) return true;
+        File region = new File(new File(w.getWorldFolder(), "DIM-1"), "region");
+        String[] files = region.isDirectory() ? region.list((dir, n) -> n.endsWith(".mca")) : null;
+        if (files != null && files.length > 0) {
+            getLogger().info("NETHER_MEGA_HISTORY complete=false regionFiles=" + files.length + " -- mega sites only where their centre is new land");
+            return false;
+        }
+        try {
+            marker.getParentFile().mkdirs();
+            java.nio.file.Files.write(marker.toPath(), ("fresh Nether at " + java.time.Instant.now() + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (java.io.IOException e) {
+            getLogger().warning("NETHER_MEGA_HISTORY_WRITE_FAILED reason=" + e.getClass().getSimpleName());
+        }
+        getLogger().info("NETHER_MEGA_HISTORY complete=true -- every mega site is built");
+        return true;
     }
 
     /** JasperCraft's other Nether populator (JasprHorrorBiomes OuterRealms) is removed from the Nether by class name. */
@@ -242,6 +277,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             effects.tick(ticks);
             mobs.tick(ticks);
             boss.tick(ticks);
+            garrisons.tick(ticks);
             if ((ticks & 3) == 0) mechanics.tick(ticks);
             if ((ticks % 5) == 0) fireflies.tick(ticks);
         } catch (Throwable t) {
@@ -269,11 +305,50 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         java.util.List<String> out = new java.util.ArrayList<>();
         int x = l.getBlockX(), y = l.getBlockY(), z = l.getBlockZ();
         out.add(ChatColor.GOLD + "Nether biome " + ChatColor.WHITE + gen.biomes.describe(x, y, z));
-        Registry.Entry s = registry.at(x, y, z, null);
-        if (s != null && !s.type.equals("urn") && !s.type.equals("bluefire"))
-            out.add(ChatColor.GOLD + "Nether structure " + ChatColor.WHITE + pretty(s.name) + ChatColor.GRAY + " ("
-                + (s.type.equals("bn") || s.type.equals("city") ? "BetterNether" : "NetherEx") + ")");
+        Registry.Entry s = registry.structureAt(x, y, z);
+        if (s != null) {
+            String name, origin;
+            if (s.type.equals("mega")) { Mega.Kind k = Mega.Kind.byId(s.name); name = k == null ? pretty(s.name) : k.display; origin = "JasperCraft"; }
+            else if (s.type.equals("wonder")) { name = Wonders.display(s.name); origin = "JasperCraft"; }
+            else { name = pretty(s.name); origin = s.type.equals("bn") || s.type.equals("city") ? "BetterNether" : "NetherEx"; }
+            out.add(ChatColor.GOLD + "Nether structure " + ChatColor.WHITE + name + ChatColor.GRAY + " (" + origin + ")");
+        }
         return out;
+    }
+
+    // ---- players who log in inside rock or lava -------------------------------------------------------------------
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(org.bukkit.event.player.PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        if (isNether(p.getWorld())) Bukkit.getScheduler().runTaskLater(this, () -> rescue(p), 10L);
+    }
+
+    int rescued;
+
+    /** A player who logs in inside rock or lava (the Nether was regenerated around them) is moved to the nearest safe floor. */
+    void rescue(Player p) {
+        if (!p.isOnline() || p.isDead() || !isNether(p.getWorld())) return;
+        Location l = p.getLocation();
+        org.bukkit.block.Block feet = l.getBlock(), head = feet.getRelative(0, 1, 0);
+        boolean stuck = feet.getType().isOccluding() || head.getType().isOccluding() || feet.isLiquid() || head.isLiquid();
+        if (!stuck) return;
+        int bx = l.getBlockX(), by = l.getBlockY(), bz = l.getBlockZ();
+        for (int r = 0; r <= 32; r += 2) for (int i = -r; i <= r; i += 2) for (int k = 0; k < 4; k++) {
+            if (r > 0 && Math.abs(i) == r && k > 0) continue;
+            int x = bx + (k == 0 ? i : k == 1 ? r : k == 2 ? -i : -r), z = bz + (k == 0 ? -r : k == 1 ? i : k == 2 ? r : -i);
+            Location to = Navigator.safe(p.getWorld(), x, z, by + 20, by - 20);
+            if (to == null || to.getBlock().isLiquid()) continue;
+            to.setYaw(l.getYaw());
+            p.teleport(to);
+            rescued++;
+            getLogger().info("NETHER_RESCUED cause=join moved=" + (to.getBlockX() - bx) + "," + (to.getBlockY() - by) + "," + (to.getBlockZ() - bz));
+            return;
+        }
+        feet.setType(org.bukkit.Material.AIR);
+        head.setType(org.bukkit.Material.AIR);
+        if (!feet.getRelative(0, -1, 0).getType().isSolid()) feet.getRelative(0, -1, 0).setType(org.bukkit.Material.NETHERRACK);
+        rescued++;
+        getLogger().info("NETHER_RESCUED cause=join moved=0,0,0 carved=true");
     }
 
     static String pretty(String n) {
@@ -307,6 +382,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                 if (gen != null) sender.sendMessage(ChatColor.GRAY + "phaseMs " + gen.phases(populated));
                 sender.sendMessage(ChatColor.GRAY + "mobs tracked=" + mobs.tracked() + " spawned=" + mobs.spawnedTotal + " effects=" + effects.active()
                     + " boss=" + boss.describe());
+                sender.sendMessage(ChatColor.GRAY + "garrisons roused=" + garrisons.rousedTotal + " spawned=" + garrisons.spawnedTotal
+                    + " peaceKept=" + mobs.peaceKept + " journals=" + structures.journals + " rescued=" + rescued
+                    + " megaComplete=" + (gen != null && gen.megaComplete));
                 if (gen != null) sender.sendMessage(ChatColor.GRAY + "placed " + gen.placed);
                 return true;
             }
@@ -356,12 +434,13 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                     + " fireflySwarms=" + fireflies.swarmsSpawned + " brewed=" + crafting.brewed);
                 return true;
             case "goto": {
-                if (p == null || args.length < 2 || gen == null) { sender.sendMessage("/jnether goto <biome|city|shrine|village|bn>"); return true; }
+                if (args.length >= 3) p = Bukkit.getPlayerExact(args[2]);   // /jnether goto <target> <player> (console, tests)
+                if (p == null || args.length < 2 || gen == null) { sender.sendMessage("/jnether goto <biome|city|shrine|village|bn|mega|wonder|golden_bazaar|soul_pyramid|cinder_forge|spore_cathedral|frozen_citadel>"); return true; }
                 Location from = isNether(p.getWorld()) ? p.getLocation() : new Location(nether, 0, 64, 0);
                 Location to = Navigator.find(this, from, args[1].toLowerCase(java.util.Locale.ROOT));
                 if (to == null) { sender.sendMessage(ChatColor.RED + "Nothing found for " + args[1]); return true; }
                 p.teleport(to);
-                sender.sendMessage(ChatColor.GREEN + "Teleported to " + args[1] + " at " + to.getBlockX() + " " + to.getBlockY() + " " + to.getBlockZ());
+                sender.sendMessage(ChatColor.GREEN + "Teleported " + p.getName() + " to " + args[1] + " at " + to.getBlockX() + " " + to.getBlockY() + " " + to.getBlockZ());
                 if (args[1].equalsIgnoreCase("urn") || args[1].equalsIgnoreCase("statue")) {
                     Registry.Entry u = registry.near(to.getBlockX(), to.getBlockZ(), 4, args[1].toLowerCase(java.util.Locale.ROOT)).stream().findFirst().orElse(null);
                     if (u != null) sender.sendMessage(ChatColor.GREEN + "Point " + u.x1 + " " + u.y1 + " " + u.z1);

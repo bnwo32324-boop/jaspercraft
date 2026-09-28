@@ -11,8 +11,9 @@ import org.bukkit.World;
 
 /**
  * One population pass for a Nether chunk: NetherEx terrain swaps, BetterNether cities / smoothing / structures /
- * flora / ores inside Hell regions, NetherEx biome traits and structures, then a single batched flush and the tile
- * work (loot, spawners, skulls, village residents). Deterministic from the world seed and chunk position.
+ * flora / ores inside Hell regions, NetherEx biome traits and structures, JasperCraft's mega structures (their own
+ * caverns; the mods' small structures stay out of them) and wonders, then a single batched flush and the tile work
+ * (loot, spawners, skulls, residents, registered points). Deterministic from the world seed and chunk position.
  */
 final class Gen {
     static final String[] TEMPLATE_NAMES = {
@@ -36,6 +37,10 @@ final class Gen {
     final Map<String, Template> templates = new HashMap<>();
     final BnGen bn;
     final Cities cities;
+    final Mega mega;
+    final Wonders wonders;
+    /** True when every chunk of this world was populated by a JasprNether that plans mega structures (set on attach). */
+    boolean megaComplete;
     final Map<String, Integer> placed = new java.util.TreeMap<>();
     private final Map<Long, Boolean> swapped = new LinkedHashMap<Long, Boolean>(4096, 0.75f, true) {
         @Override protected boolean removeEldestEntry(Map.Entry<Long, Boolean> e) { return size() > 8192; }
@@ -55,6 +60,18 @@ final class Gen {
         }
         this.bn = new BnGen(this);
         this.cities = new Cities(this);
+        this.mega = new Mega(seed, biomes::nex, this::cityReach);
+        this.wonders = new Wonders(this);
+    }
+
+    /** Whether a block box overlaps any planned Nether City's reach (mega sites keep out of cities). */
+    boolean cityReach(int x0, int z0, int x1, int z1) {
+        for (int cx = Math.floorDiv(x0 >> 4, Cities.GRID); cx <= Math.floorDiv(x1 >> 4, Cities.GRID); cx++)
+            for (int cz = Math.floorDiv(z0 >> 4, Cities.GRID); cz <= Math.floorDiv(z1 >> 4, Cities.GRID); cz++) {
+                Cities.City c = cities.city(cx, cz);
+                if (c.maxX >= x0 && c.minX <= x1 && c.maxZ >= z0 && c.minZ <= z1) return true;
+            }
+        return false;
     }
 
     Template t(String name) { return templates.get(name); }
@@ -70,9 +87,9 @@ final class Gen {
 
     // ------------------------------------------------------------------------------------------------------------
     /** Populates chunk (cx, cz). Returns the number of blocks written. */
-    /** Accumulated nanoseconds per phase: read, terrain, city, betternether, netherex, flush+light, tiles. */
-    final long[] phase = new long[7];
-    static final String[] PHASES = {"read", "terrain", "city", "bn", "nex", "flush", "tiles"};
+    /** Accumulated nanoseconds per phase: read, terrain, city, betternether, netherex, mega, wonders, flush+light, tiles. */
+    final long[] phase = new long[9];
+    static final String[] PHASES = {"read", "terrain", "city", "bn", "nex", "mega", "wonder", "flush", "tiles"};
 
     int populate(int cx, int cz) {
         long t = System.nanoTime(), t2;
@@ -82,18 +99,76 @@ final class Gen {
         t2 = System.nanoTime(); phase[1] += t2 - t; t = t2;
         Post post = new Post();
         Random rand = chunkRandom(cx, cz, 0x6A6E6574L);
+        int bx0 = a.ox + 8, bz0 = a.oz + 8, bx1 = bx0 + 15, bz1 = bz0 + 15;
+        // mega sites are drawn over the whole 2x2-chunk area (see Draw), so the sites reaching the area count
+        List<Mega.Site> sites = activeSites(a, a.ox, a.oz, a.ox + 31, a.oz + 31);
+        boolean quiet = false;              // inside a mega structure's reach the mods' small structures stay away
+        for (Mega.Site s : sites) if (s.maxX >= bx0 && s.minX <= bx1 && s.maxZ >= bz0 && s.minZ <= bz1) quiet = true;
         cities.populate(a, post);
         t2 = System.nanoTime(); phase[2] += t2 - t; t = t2;
-        bn.populate(a, rand, post);
+        bn.populate(a, rand, post, quiet);
         t2 = System.nanoTime(); phase[3] += t2 - t; t = t2;
         Biomes.Nex centre = biomes.nex(a.ox + 16, a.oz + 16);
-        nexTraits(a, chunkRandom(cx, cz, 0x4E4558L), centre, post);
+        nexTraits(a, chunkRandom(cx, cz, 0x4E4558L), centre, post, quiet);
         t2 = System.nanoTime(); phase[4] += t2 - t; t = t2;
-        a.flush();
+        for (Mega.Site s : sites) {
+            Template.Placed tiles = new Template.Placed();
+            Mega.draw(s, new Draw(a, a.ox, a.oz, a.ox + 31, a.oz + 31, bx0, bz0, bx1, bz1, tiles));
+            post.add(tiles, s.kind.id);
+        }
         t2 = System.nanoTime(); phase[5] += t2 - t; t = t2;
+        if (!quiet) wonders.populate(a, chunkRandom(cx, cz, 0x574F4EL), centre, post);
+        t2 = System.nanoTime(); phase[6] += t2 - t; t = t2;
+        a.flush();
+        t2 = System.nanoTime(); phase[7] += t2 - t; t = t2;
         post.apply(this, a);
-        phase[6] += System.nanoTime() - t;
+        phase[8] += System.nanoTime() - t;
         return a.writes;
+    }
+
+    /**
+     * The mega sites reaching this chunk's box that are built. The first chunk to reach a site decides, once: it is
+     * built when this world's whole history ran with mega structures (the regenerated Nether), or otherwise when its
+     * centre chunk has not been generated yet (so it is never drawn into land that already exists without it).
+     */
+    private List<Mega.Site> activeSites(Area a, int bx0, int bz0, int bx1, int bz1) {
+        List<Mega.Site> out = new ArrayList<>(1);
+        for (Mega.Site s : mega.touching(bx0, bz0, bx1, bz1)) {
+            Boolean on = registry.megaDecision(s.cellX, s.cellZ);
+            if (on == null) {
+                int ccx = s.x >> 4, ccz = s.z >> 4;
+                boolean centreHere = ccx >= a.cx && ccx <= a.cx + 1 && ccz >= a.cz && ccz <= a.cz + 1;
+                on = megaComplete || centreHere || !world.isChunkGenerated(ccx, ccz);
+                registry.setMegaDecision(s.cellX, s.cellZ, on);
+                if (on) {
+                    int[] b = Mega.box(s);
+                    registry.add("mega", s.kind.id, b[0], b[1], b[2], b[3], b[4], b[5]);
+                    count("mega_" + s.kind.id);
+                }
+                plugin.getLogger().info("NETHER_MEGA_PLANNED kind=" + s.kind.id + " at=" + s.x + "," + s.y + "," + s.z + " built=" + on
+                    + " complete=" + megaComplete);
+            }
+            if (on) out.add(s);
+        }
+        return out;
+    }
+
+    /** A built mega site whose reach contains the column, or null. */
+    Mega.Site builtSiteAt(int x, int z) {
+        Mega.Site s = mega.at(x, z);
+        if (s == null) return null;
+        Boolean on = registry.megaDecision(s.cellX, s.cellZ);
+        return on != null && on ? s : null;
+    }
+
+    /**
+     * The Golden Bazaar keeps the peace: no natural hostile spawns on its mesa, moat and bridges, and no natural ghasts
+     * anywhere in its cavern (they would shell the town).
+     */
+    boolean peaceful(int x, int z, boolean ghast) {
+        Mega.Site s = builtSiteAt(x, z);
+        if (s == null || s.kind != Mega.Kind.BAZAAR) return false;
+        return ghast || s.dist(x, z) < MegaBazaar.MESA + 22;
     }
 
     String phases(long chunks) {
@@ -140,7 +215,7 @@ final class Gen {
     }
 
     // ---- NetherEx biome traits ---------------------------------------------------------------------------------
-    private void nexTraits(Area a, Random r, Biomes.Nex b, Post post) {
+    private void nexTraits(Area a, Random r, Biomes.Nex b, Post post, boolean quiet) {
         int v = variant(b);
         switch (b) {
             case RUTHLESS_SANDS:
@@ -150,7 +225,7 @@ final class Gen {
                 fluids(a, r, 16, 10, 118, v, true);
                 for (int i = 0; i < 16; i++) thornstalk(a, r, a.ox + 8 + r.nextInt(16), 32 + r.nextInt(76), a.oz + 8 + r.nextInt(16));
                 ores(a, r, 16, 10, 108, Blocks.NEX_QUARTZ_ORE, v, 14);
-                if (r.nextInt(100) < 3) extra(a, r, "nex_soul_sandstone_arch_01", Blocks.SOUL_SAND, post, "arch");
+                if (r.nextInt(100) < 3 && !quiet) extra(a, r, "nex_soul_sandstone_arch_01", Blocks.SOUL_SAND, post, "arch");
                 break;
             case TORRID_WASTELAND:
                 for (int i = 0; i < 8; i++) pool(a, r, 10, 108, Blocks.LAVA << 4, v);
@@ -170,8 +245,8 @@ final class Gen {
                 for (int i = 0; i < 256; i++) bigMushroom(a, r, a.ox + 8 + r.nextInt(16), 32 + r.nextInt(76), a.oz + 8 + r.nextInt(16), false);
                 for (int i = 0; i < 32; i++) enoki(a, r, a.ox + 8 + r.nextInt(16), 48 + r.nextInt(70), a.oz + 8 + r.nextInt(16));
                 ores(a, r, 16, 10, 108, Blocks.NEX_QUARTZ_ORE, v, 14);
-                if (r.nextDouble() < 0.0125) shrine(a, r, post);
-                if (r.nextInt(100) < 15) extra(a, r, "nex_spoul_shroom_" + String.format("%02d", 1 + r.nextInt(12)), Blocks.HYPHAE >> 4, post, null);
+                if (r.nextDouble() < 0.0125 && !quiet) shrine(a, r, post);
+                if (r.nextInt(100) < 15 && !quiet) extra(a, r, "nex_spoul_shroom_" + String.format("%02d", 1 + r.nextInt(12)), Blocks.HYPHAE >> 4, post, null);
                 break;
             case ARCTIC_ABYSS:
                 for (int i = 0; i < 2; i++) if (r.nextDouble() < 0.125) pool(a, r, 36, 108, Blocks.ICHOR, Blocks.FROSTBURN_ICE);
@@ -183,7 +258,7 @@ final class Gen {
                 break;
             default: // Hell: vanilla features already exist; NetherEx adds amethyst ore and Pigtificate villages.
                 ores(a, r, 8, 10, 108, Blocks.AMETHYST_ORE, Blocks.NETHERRACK << 4, 7);
-                if (r.nextDouble() < 0.25) village(a, r, post);
+                if (r.nextDouble() < 0.25 && !quiet) village(a, r, post);
         }
     }
 
@@ -531,6 +606,7 @@ final class Gen {
                     if (k.equals("urn")) g.registry.add("urn", kind, v[0], v[1], v[2], v[0], v[1], v[2]);
                     else if (k.equals("bluefire")) g.registry.add("bluefire", kind, v[0], v[1], v[2], v[0], v[1], v[2]);
                     else if (k.equals("statue")) g.registry.add("statue", kind, v[0], v[1], v[2], v[0], v[1], v[2]);
+                    else if (k.startsWith("garrison:")) g.registry.add("garrison", k.substring(9), v[0], v[1], v[2], v[0], v[1], v[2]);
                 }
             }
             for (int[] v : golems) g.plugin.structures.spawnResident(g.world, v[0], v[1], v[2], "netherex:gold_golem");

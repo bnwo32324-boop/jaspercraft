@@ -25,6 +25,7 @@ $script:PluginReadyTokens = @{
     'JasprRevive'           = @('REVIVE_READY')
     'JasprRuins'            = @('RUINS_READY')
     'JasprAtlas'            = @('ATLAS_READY')
+    'JasprNether'           = @('NETHER_READY')
     'JasprTanks'            = @('TANKS_READY')
 }
 

@@ -22,7 +22,7 @@ import org.bukkit.craftbukkit.v1_12_R1.CraftWorld;
  * any chunk a player already watches gets its changed blocks flagged for resend. Tile entities (chests, spawners, skulls)
  * are placed afterwards through Bukkit by the caller.
  */
-final class Area {
+final class Area implements Canvas {
     static final int H = 128;                 // the Nether's generated height
     static final int SIZE = 32 * 32 * H;
     static final int BEDROCK = 7 << 4;
@@ -95,7 +95,7 @@ final class Area {
     }
 
     /** Combined (id << 4 | meta); outside the area reads as bedrock so nothing is placed against unknown terrain. */
-    int get(int x, int y, int z) {
+    @Override public int get(int x, int y, int z) {
         int lx = x - ox, lz = z - oz;
         if (lx < 0 || lx >= 32 || lz < 0 || lz >= 32 || y < 0 || y >= H) return BEDROCK;
         return data[(y << 10) | (lz << 5) | lx];
@@ -115,7 +115,7 @@ final class Area {
         dirty.set(i);
         writes++;
     }
-    void set(int x, int y, int z, int combined) { if (combined >= 0) set(x, y, z, combined >> 4, combined & 15); }
+    @Override public void set(int x, int y, int z, int combined) { if (combined >= 0) set(x, y, z, combined >> 4, combined & 15); }
     void setIfAir(int x, int y, int z, int id, int meta) { if (air(x, y, z)) set(x, y, z, id, meta); }
     void setIfAir(int x, int y, int z, int combined) { if (combined >= 0 && air(x, y, z)) set(x, y, z, combined >> 4, combined & 15); }
 

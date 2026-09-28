@@ -21,7 +21,7 @@ final class StructureOps {
         BlockFace.SOUTH_EAST, BlockFace.SOUTH_SOUTH_EAST};
 
     private final NetherPlugin plugin;
-    int chests, spawners, skulls, residents, lavaTicks;
+    int chests, spawners, skulls, residents, lavaTicks, journals;
 
     StructureOps(NetherPlugin plugin) { this.plugin = plugin; }
 
@@ -31,7 +31,13 @@ final class StructureOps {
         b.setTypeIdAndData(Blocks.CHEST, (byte) facing, false);
         BlockState s = b.getState();
         if (!(s instanceof Chest)) return;
-        Loot.fill(((Chest) s).getBlockInventory(), table, r); // live inventory; never update() afterwards
+        org.bukkit.inventory.Inventory inv = ((Chest) s).getBlockInventory();
+        Loot.fill(inv, table, r); // live inventory; never update() afterwards
+        if (table.equals("jaspr:wonder/camp") && plugin.gen != null) {
+            int slot = inv.firstEmpty();
+            if (slot >= 0) inv.setItem(slot, Wonders.journal(plugin.gen, x, z, r));
+            journals++;
+        }
         chests++;
     }
 
@@ -41,7 +47,7 @@ final class StructureOps {
         b.setType(Material.MOB_SPAWNER, false);
         BlockState s = b.getState();
         if (!(s instanceof CreatureSpawner)) return;
-        EntityType type = mob.endsWith("ghast") ? EntityType.GHAST : EntityType.BLAZE;
+        EntityType type = mob.endsWith("ghast") ? EntityType.GHAST : mob.equals("magma_cube") ? EntityType.MAGMA_CUBE : EntityType.BLAZE;
         ((CreatureSpawner) s).setSpawnedType(type);
         s.update(true, false);
         spawners++;
@@ -62,8 +68,10 @@ final class StructureOps {
     void spawnResident(World w, int x, int y, int z, String kind) {
         if (plugin.mobs == null || !w.isChunkLoaded(x >> 4, z >> 4)) return;
         String k = kind.replace("netherex:", "");
-        if (plugin.mobs.spawn(k.equals("gold_golem") ? "gold_golem" : "pigtificate", new org.bukkit.Location(w, x + 0.5, y, z + 0.5), false) != null)
-            residents++;
+        org.bukkit.entity.LivingEntity e = plugin.mobs.spawn(k.equals("gold_golem") ? "gold_golem" : "pigtificate", new org.bukkit.Location(w, x + 0.5, y, z + 0.5), false);
+        if (e == null) return;
+        plugin.mobs.setHome(e, x, y, z);   // residents keep to their post (stall, gate, vault)
+        residents++;
     }
 
     void tickLava(World w, int x, int y, int z) {

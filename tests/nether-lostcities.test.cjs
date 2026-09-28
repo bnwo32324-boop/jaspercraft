@@ -61,10 +61,13 @@ test('JasprNether: owns world_nether, loads at startup, and logs its readiness',
   assert.match(read(nether + '/resources/config.yml'), /^world: world_nether$/m);
   const plugin = read(nether + '/src/chat/jaspr/nether/NetherPlugin.java');
   assert.match(plugin, /NETHER_READY version=/);
-  // The owner's "regenerate the current Nether": one-shot, before worlds load, and a move (never a delete).
+  // The owner's "regenerate the Nether" (the port, then again for the mega structures): one-shot per epoch, before
+  // worlds load, and a move (never a delete).
   assert.match(read(nether + '/resources/config.yml'), /^regenerate-once: true$/m);
   assert.match(plugin, /@Override public void onLoad\(\)/);
-  assert.match(plugin, /"regenerated-v1\.txt"/);
+  assert.match(plugin, /static final int REGEN_EPOCH = 2;/);
+  assert.match(plugin, /"regenerated-v" \+ REGEN_EPOCH \+ "\.txt"/);
+  assert.match(plugin, /new File\(getDataFolder\(\), "nether-before-v" \+ REGEN_EPOCH\)/);
   assert.match(plugin, /java\.nio\.file\.Files\.move\(region\.toPath\(\), new File\(backup, "region"\)\.toPath\(\)\)/);
   assert.doesNotMatch(plugin, /\.delete\(\)|deleteIfExists|deleteRecursively/);
 });

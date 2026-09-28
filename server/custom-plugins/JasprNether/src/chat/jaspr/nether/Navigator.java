@@ -34,7 +34,18 @@ final class Navigator {
             }
             return new Location(w, best.x1 + 0.5, best.y1 + 1, best.z1 + 0.5);
         }
-        for (String type : new String[]{"city", "shrine", "village", "bn"}) {
+        Mega.Kind mk = Mega.Kind.byId(t);
+        if (mk != null || t.equals("mega")) {
+            // the plan knows every site, generated or not: arrive on the cavern floor in front of it
+            Mega.Site s = plugin.gen.mega.nearest(mk, from.getBlockX(), from.getBlockZ(), 8);
+            if (s == null) return null;
+            for (int back = 70; back >= 40; back -= 10) {
+                Location l = safe(w, s.x, s.z + back, s.y + 16, s.y - 4);
+                if (l != null) return l;
+            }
+            return new Location(w, s.x + 0.5, s.y + 30, s.z + 60.5);
+        }
+        for (String type : new String[]{"city", "shrine", "village", "bn", "wonder"}) {
             if (!t.equals(type) && !(type.equals("bn") && t.equals("structure"))) continue;
             List<Registry.Entry> list = plugin.registry.near(from.getBlockX(), from.getBlockZ(), 6000, type);
             Registry.Entry best = null;

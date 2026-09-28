@@ -86,7 +86,9 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
   });
   web.listen(webPort, '127.0.0.1');
   const log = fs.createWriteStream(path.join(fixture, 'paper.log'));
-  child = spawn(path.join(java, 'java.exe'), ['-Xms128M', '-Xmx' + (process.env.TANK_PREVIEW_XMX || '640M'), '-XX:ActiveProcessorCount=1', '-XX:+UseSerialGC', '-Djava.awt.headless=true', '-Dcom.mojang.eula.agree=true', '-jar', 'paper.jar', '--nojline'], {cwd: server, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe']});
+  // TANK_PREVIEW_JVM: extra space-separated JVM options (e.g. -Djaspr.nether.selftest=true for the Nether self-test).
+  const jvm = (process.env.TANK_PREVIEW_JVM || '').split(' ').filter(Boolean);
+  child = spawn(path.join(java, 'java.exe'), ['-Xms128M', '-Xmx' + (process.env.TANK_PREVIEW_XMX || '640M'), '-XX:ActiveProcessorCount=1', '-XX:+UseSerialGC', '-Djava.awt.headless=true', '-Dcom.mojang.eula.agree=true', ...jvm, '-jar', 'paper.jar', '--nojline'], {cwd: server, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe']});
   // Yield the CPU to the owner and other work on this PC.
   try { os.setPriority(child.pid, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch (e) { }
   let saving = true;

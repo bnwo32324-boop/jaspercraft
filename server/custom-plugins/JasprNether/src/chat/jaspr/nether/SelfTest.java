@@ -175,6 +175,84 @@ final class SelfTest implements Listener {
         check("feature_structure_tiles", plugin.structures.chests + plugin.structures.spawners > 0 || plugin.gen.placed.getOrDefault("pigtificate_village", 0) > 0,
             "chests=" + plugin.structures.chests + " spawners=" + plugin.structures.spawners + " residents=" + plugin.structures.residents
                 + " villages=" + plugin.gen.placed.getOrDefault("pigtificate_village", 0) + " shrines=" + plugin.gen.placed.getOrDefault("ghast_queen_shrine", 0));
+        int wonders = 0;
+        for (Map.Entry<String, Integer> e : plugin.gen.placed.entrySet()) if (e.getKey().startsWith("wonder_")) wonders += e.getValue();
+        check("feature_wonders", wonders > 0, "count=" + wonders);
+        later(5, this::mega);
+    }
+
+    // ---- stage 3b: the five mega structures ----------------------------------------------------------------------------
+    private final List<Mega.Site> megaSites = new ArrayList<>();
+
+    /** Generates the land around the nearest planned site of each kind, then inspects what was built there. */
+    private void mega() {
+        java.util.LinkedHashSet<Long> want = new java.util.LinkedHashSet<>();
+        for (Mega.Kind k : Mega.Kind.values()) {
+            Mega.Site s = plugin.gen.mega.nearest(k, 0, 0, 8);
+            if (s == null) { check("mega_planned_" + k.id, false, "no site within 8 cells"); continue; }
+            megaSites.add(s);
+            addSquare(want, s.x >> 4, s.z >> 4, Mega.REACH / 16 + 1);
+        }
+        List<long[]> list = new ArrayList<>();
+        for (long k : want) list.add(new long[]{k >> 32, (int) k});
+        plugin.getLogger().info("NETHER_SELFTEST mega sites=" + megaSites.size() + " chunks=" + list.size());
+        long t0 = System.currentTimeMillis();
+        megaBatch(list, 0, t0);
+    }
+
+    private void megaBatch(List<long[]> list, int from, long t0) {
+        int to = Math.min(list.size(), from + 24);
+        for (int i = from; i < to; i++) w.loadChunk((int) list.get(i)[0], (int) list.get(i)[1], true);
+        if (to < list.size()) { later(1, () -> megaBatch(list, to, t0)); return; }
+        later(10, () -> megaInspect(System.currentTimeMillis() - t0));
+    }
+
+    private void megaInspect(long wallMs) {
+        int[] forbidden = {41, 42, 57, 133, 22, 152, 138, 46, 90, 119, 137, 210, 211, 255, 166};
+        for (Mega.Site s : megaSites) {
+            // without players the generated chunks unload at once: load the whole reach again before looking
+            for (int cx = (s.x - Mega.REACH) >> 4; cx <= (s.x + Mega.REACH) >> 4; cx++)
+                for (int cz = (s.z - Mega.REACH) >> 4; cz <= (s.z + Mega.REACH) >> 4; cz++) w.getChunkAt(cx, cz);
+            Boolean built = plugin.registry.megaDecision(s.cellX, s.cellZ);
+            int chests = 0, filled = 0, bad = 0, garrisons = plugin.registry.near(s.x, s.z, Mega.REACH, "garrison").size();
+            for (int cx = (s.x - Mega.REACH) >> 4; cx <= (s.x + Mega.REACH) >> 4; cx++)
+                for (int cz = (s.z - Mega.REACH) >> 4; cz <= (s.z + Mega.REACH) >> 4; cz++) {
+                    org.bukkit.Chunk c = w.getChunkAt(cx, cz);
+                    for (org.bukkit.block.BlockState t : c.getTileEntities()) if (t instanceof Chest) {
+                        chests++;
+                        for (ItemStack it : ((Chest) t).getBlockInventory().getContents()) if (it != null) { filled++; break; }
+                    }
+                    ChunkSnapshot snap = c.getChunkSnapshot(false, false, false);
+                    for (int y = 1; y < 127; y++) for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) {
+                        int id = snap.getBlockTypeId(x, y, z);
+                        for (int f : forbidden) if (id == f) bad++;
+                    }
+                }
+            boolean named = String.join(" ", plugin.whereLines(new Location(w, s.x + 20, s.y + 20, s.z + 20))).contains(s.kind.display);
+            String detail = "at=" + s.x + "," + s.y + "," + s.z + " built=" + built + " chests=" + chests + " filled=" + filled + " garrisons=" + garrisons
+                + " forbidden=" + bad + " where=" + named;
+            boolean ok = Boolean.TRUE.equals(built) && chests >= 6 && filled == chests && bad == 0 && garrisons >= (s.kind == Mega.Kind.BAZAAR ? 1 : 3) && named;
+            if (s.kind == Mega.Kind.CATHEDRAL) {
+                List<Registry.Entry> urns = plugin.registry.near(s.x, s.z, 12, "urn");
+                boolean cauldron = !urns.isEmpty() && w.getBlockAt(urns.get(0).x1, urns.get(0).y1, urns.get(0).z1).getType() == Material.CAULDRON;
+                ok &= cauldron;
+                detail += " urn=" + cauldron;
+            }
+            if (s.kind == Mega.Kind.BAZAAR) {
+                boolean statue = !plugin.registry.near(s.x, s.z, 12, "statue").isEmpty();
+                int residents = 0;
+                for (org.bukkit.entity.Entity e : w.getNearbyEntities(new Location(w, s.x, s.y + 12, s.z), 80, 40, 80))
+                    if ("pigtificate".equals(plugin.mobs.kind(e)) || "gold_golem".equals(plugin.mobs.kind(e))) residents++;
+                ok &= statue && residents >= 8 && plugin.gen.peaceful(s.x, s.z, false);
+                detail += " statue=" + statue + " residents=" + residents;
+            }
+            check("mega_" + s.kind.id, ok, detail);
+        }
+        check("mega_gen_cost", plugin.avgMs() < 25, "avgMs=" + NetherPlugin.fmt(plugin.avgMs()) + " maxMs=" + NetherPlugin.fmt(plugin.maxNanos / 1e6) + " wallMs=" + wallMs
+            + " phaseMs[" + plugin.gen.phases(plugin.populated) + "]");
+        java.util.Random jr = new java.util.Random(3);
+        List<String> pages = Wonders.journalPages(plugin.gen, 0, 0, jr);
+        check("wonder_journal_rumours", pages.size() >= 4, "pages=" + pages.size() + " first=" + NetherPlugin.safe(pages.size() > 1 ? pages.get(1).replace('\n', ' ') : "-"));
         later(5, this::mobs);
     }
 
@@ -351,7 +429,7 @@ final class SelfTest implements Listener {
     // ---- stage 5: loot, items, brewing ------------------------------------------------------------------------------
     private void loot() {
         java.util.Random r = new java.util.Random(7);
-        for (String table : new String[]{"minecraft:chests/nether_bridge", "netherex:chest/temple_rare", "netherex:chest/base_village"}) {
+        for (String table : Loot.TABLES) {
             Block b = site.getBlock().getRelative(6, 0, -6);
             b.setType(Material.CHEST);
             Chest c = (Chest) b.getState();

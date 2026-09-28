@@ -122,7 +122,7 @@ final class Mobs implements Listener {
     private final Random random = new Random();
     private long now;
     private boolean spawning, dealing;
-    long spawnedTotal, replaced, elites, abilityUses;
+    long spawnedTotal, replaced, elites, abilityUses, peaceKept;
     final Map<String, Integer> abilityCounts = new java.util.TreeMap<>();
     private final Map<Long, int[]> packs = new HashMap<>();
     private final List<LivingEntity> scaleQueue = new ArrayList<>();
@@ -299,6 +299,7 @@ final class Mobs implements Listener {
         }
         EntityType type = en.getType();
         Location l = e.getLocation();
+        if (plugin.gen.peaceful(l.getBlockX(), l.getBlockZ(), type == EntityType.GHAST)) { e.setCancelled(true); peaceKept++; return; }
         Biomes.Nex region = plugin.gen.biomes.nex(l.getBlockX(), l.getBlockZ());
         if (region == Biomes.Nex.HELL || type == EntityType.BLAZE || type == EntityType.WITHER_SKELETON || type == EntityType.SKELETON) {
             queueScale(en);

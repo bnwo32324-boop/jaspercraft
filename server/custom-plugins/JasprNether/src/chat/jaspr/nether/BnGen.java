@@ -28,7 +28,7 @@ final class BnGen {
     private static boolean nr(int id) { return id == Blocks.NETHERRACK || id == Blocks.NETHER_MYCELIUM >> 4 || id == Blocks.NETHERRACK_MOSS >> 4; }
     private static boolean nrs(int id) { return nr(id) || id == Blocks.SOUL_SAND; }
 
-    void populate(Area a, Random r, Gen.Post post) {
+    void populate(Area a, Random r, Gen.Post post, boolean quiet) {
         int bx = a.ox + 8, bz = a.oz + 8;
         boolean[] hell = new boolean[256];
         boolean any = false;
@@ -36,7 +36,7 @@ final class BnGen {
             hell[x * 16 + z] = g.biomes.nex(bx + x, bz + z) == Biomes.Nex.HELL;
             any |= hell[x * 16 + z];
         }
-        structures(a, r, post, hell);
+        if (!quiet) structures(a, r, post, hell);
         if (!any) return;
         smooth(a, hell);
         Biomes.Bn[] memo = new Biomes.Bn[8 * 64 * 8];

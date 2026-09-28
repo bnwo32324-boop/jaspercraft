@@ -37,6 +37,7 @@ final class Registry {
     private final Logger log;
     private final Map<Long, List<Entry>> byRegion = new HashMap<>();
     private final Map<Long, Boolean> cities = new HashMap<>();
+    private final Map<Long, Boolean> megas = new HashMap<>();
     private int count;
     private BufferedWriter out;
     int writeFailures;
@@ -59,6 +60,8 @@ final class Registry {
                 try {
                     if (p[0].equals("citycell") && p.length == 4) {
                         cities.put(((long) Integer.parseInt(p[1]) << 32) ^ (Integer.parseInt(p[2]) & 0xffffffffL), p[3].equals("1"));
+                    } else if (p[0].equals("megacell") && p.length == 4) {
+                        megas.put(((long) Integer.parseInt(p[1]) << 32) ^ (Integer.parseInt(p[2]) & 0xffffffffL), p[3].equals("1"));
                     } else if (p.length == 8) {
                         index(new Entry(p[0], p[1], Integer.parseInt(p[2]), Integer.parseInt(p[3]), Integer.parseInt(p[4]),
                             Integer.parseInt(p[5]), Integer.parseInt(p[6]), Integer.parseInt(p[7])));
@@ -88,6 +91,14 @@ final class Registry {
     synchronized void setCityDecision(int cellX, int cellZ, boolean active) {
         cities.put(((long) cellX << 32) ^ (cellZ & 0xffffffffL), active);
         write("citycell " + cellX + " " + cellZ + (active ? " 1" : " 0"));
+    }
+
+    /** Whether a mega-structure cell's site is built (decided once, by the first chunk that reaches it). */
+    synchronized Boolean megaDecision(int cellX, int cellZ) { return megas.get(((long) cellX << 32) ^ (cellZ & 0xffffffffL)); }
+
+    synchronized void setMegaDecision(int cellX, int cellZ, boolean built) {
+        megas.put(((long) cellX << 32) ^ (cellZ & 0xffffffffL), built);
+        write("megacell " + cellX + " " + cellZ + (built ? " 1" : " 0"));
     }
 
     private void write(String line) {
@@ -120,6 +131,8 @@ final class Registry {
         try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, false), StandardCharsets.UTF_8))) {
             for (Map.Entry<Long, Boolean> c : cities.entrySet())
                 w.write("citycell " + (int) (c.getKey() >> 32) + " " + (int) (long) c.getKey() + (c.getValue() ? " 1" : " 0") + "\n");
+            for (Map.Entry<Long, Boolean> c : megas.entrySet())
+                w.write("megacell " + (int) (c.getKey() >> 32) + " " + (int) (long) c.getKey() + (c.getValue() ? " 1" : " 0") + "\n");
             for (Entry e : keep) { w.write(e.line()); w.newLine(); index(e); }
         } catch (IOException e) {
             log.warning("NETHER_REGISTRY_COMPACT_FAILED reason=" + e.getClass().getSimpleName());
@@ -134,6 +147,18 @@ final class Registry {
         for (Entry e : l) if ((type == null || e.type.equals(type)) && e.contains(x, y, z)) {
             if (best == null || volume(e) < volume(best)) best = e;
         }
+        return best;
+    }
+
+    /** Point records (urns, blue fire, statues, garrisons) are not structures. */
+    static boolean point(String type) { return type.equals("urn") || type.equals("bluefire") || type.equals("statue") || type.equals("garrison"); }
+
+    /** The smallest structure box (not a point record) containing the position, for /where. */
+    synchronized Entry structureAt(int x, int y, int z) {
+        List<Entry> l = byRegion.get(key(x, z));
+        if (l == null) return null;
+        Entry best = null;
+        for (Entry e : l) if (!point(e.type) && e.contains(x, y, z) && (best == null || volume(e) < volume(best))) best = e;
         return best;
     }
 
