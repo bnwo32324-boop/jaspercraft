@@ -1,0 +1,6 @@
+# JasprAtlas: Atlas, the Divided Realm (world "jaspr_atlas").
+enabled: true
+# Tell every player once, a few seconds after they join, how to build and kindle a quartz gate.
+hint-on-join: true
+# Version of site/realms/atlas.js the browser client should load (bump it with the file to refresh caches).
+client-module-version: "1"

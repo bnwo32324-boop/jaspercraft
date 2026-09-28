@@ -1,0 +1,543 @@
+package chat.jaspr.atlas;
+
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Difficulty;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.WorldCreator;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerLoginEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.world.WorldInitEvent;
+import org.bukkit.event.world.WorldSaveEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
+
+/**
+ * JasprAtlas: Atlas, the Divided Realm. A dimension of broad plains split between the luminous Asterian Concord in the
+ * west and the ash-black Cinder Dominion in the east, reached through quartz gates kindled with lapis and coal. Learn
+ * from the Concord how each Ash-Crowned can be broken, free the enslaved, break the four crowns and carry the Light of
+ * Theano into the Cinder Heart; liberated land heals, and a won Atlas stays won.
+ *
+ * <p>The world lives on disk while nobody is in it: it loads when someone enters (a gate, an owner command, or logging
+ * in where they left off) and is saved and fully unloaded a minute after its last player leaves. All progress lives in
+ * {@code state.yml} (and each chunk's liberation mask beside the world), so it survives unloads and restarts. Logs
+ * ATLAS_READY, ATLAS_WORLD_LOADED/UNLOADED, ATLAS_TRAVEL, ATLAS_GATE_*, ATLAS_BOSS_*, ATLAS_LIBERATED, ATLAS_VICTORY,
+ * ATLAS_HEALED, ATLAS_CAPTIVE_*, ATLAS_CAMP_FREED, ATLAS_MECHANISM, ATLAS_CLIENT_MARKER and ATLAS_METRICS.
+ */
+public final class AtlasPlugin extends JavaPlugin implements Listener {
+    static final String WORLD = "jaspr_atlas";
+    static final long SALT = 0x41746C6173L;   // "Atlas"
+    static final String MASK_FILE = "atlas-masks.bin";
+
+    private volatile World atlas;
+    private World main;
+    private long seed;
+    private AtlasGenerator generator;
+    private final State state = new State();
+    private File stateFile;
+    private Gates gates;
+    private Marker marker;
+    private Npcs npcs;
+    private Dominion dominion;
+    private Registry registry;
+    private Reputation reputation;
+    private Talk talk;
+    private Trade trade;
+    private Library library;
+    private Captives captives;
+    private Bosses bosses;
+    private Mechanisms mechanisms;
+    private Liberation liberation;
+    private Heliodromes heliodromes;
+    private Guard guard;
+    private final Map<UUID, String> place = new HashMap<>();
+    private final Set<UUID> diedHere = new HashSet<>();
+    private final Set<String> told = new HashSet<>();
+    private File toldFile;
+    private boolean saveQueued;
+    private long emptySince, loads, unloads, failuresLogged, saves;
+
+    @Override
+    public void onEnable() {
+        saveDefaultConfig();
+        if (!getConfig().getBoolean("enabled", true)) { getLogger().info("ATLAS_DISABLED by config"); return; }
+        main = Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0);
+        if (main == null) { getLogger().severe("ATLAS_REFUSED no overworld loaded"); return; }
+        stateFile = new File(getDataFolder(), "state.yml");
+        try { state.load(stateFile); } catch (RuntimeException e) { getLogger().severe("ATLAS_STATE_UNREADABLE " + e.getClass().getSimpleName() + "; starting from the saved file untouched"); }
+        File folder = new File(Bukkit.getWorldContainer(), WORLD);
+        seed = savedSeed(new File(folder, "level.dat"), main.getSeed() ^ SALT);
+        generator = new AtlasGenerator(seed, () -> state.liberated, this::generationFailed);
+        npcs = new Npcs(this);
+        generator.populator().sink = npcs;
+        registry = new Registry(this);
+        gates = new Gates(this);
+        gates.load();
+        marker = new Marker(this);
+        dominion = new Dominion(this);
+        reputation = new Reputation(this);
+        talk = new Talk(this);
+        trade = new Trade(this);
+        library = new Library(this);
+        captives = new Captives(this);
+        bosses = new Bosses(this);
+        mechanisms = new Mechanisms(this);
+        liberation = new Liberation(this);
+        heliodromes = new Heliodromes(this);
+        guard = new Guard(this);
+        for (Listener l : new Listener[] {this, gates, marker, dominion, reputation, talk, library, captives, bosses, mechanisms, liberation, heliodromes, guard})
+            Bukkit.getPluginManager().registerEvents(l, this);
+        toldFile = new File(getDataFolder(), "told.txt");
+        try { if (toldFile.isFile()) told.addAll(Files.readAllLines(toldFile.toPath(), StandardCharsets.UTF_8)); } catch (IOException ignored) { }
+        // The story's fixed places are found once, off the main thread (pure computation over the plan).
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            try { registry.scan(generator); } catch (RuntimeException e) { getLogger().severe("ATLAS_REGISTRY_FAILED " + e.getClass().getSimpleName() + ": " + e.getMessage()); }
+        });
+        Bukkit.getScheduler().runTaskTimer(this, gates::tick, 20L, 4L);
+        Bukkit.getScheduler().runTaskTimer(this, marker::tick, 40L, 20L);
+        Bukkit.getScheduler().runTaskTimer(this, liberation::tick, 40L, 1L);
+        Bukkit.getScheduler().runTaskTimer(this, guard::tick, 40L, 10L);
+        Bukkit.getScheduler().runTaskTimer(this, bosses::tick, 40L, 10L);
+        Bukkit.getScheduler().runTaskTimer(this, mechanisms::tick, 40L, 20L);
+        Bukkit.getScheduler().runTaskTimer(this, heliodromes::tick, 60L, 20L);
+        Bukkit.getScheduler().runTaskTimer(this, dominion::tick, 100L, 100L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> { World w = atlas; if (w != null) captives.maintain(w); }, 100L, 200L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> { World w = atlas; if (w != null) { registry.maintain(w); gates.repairGreatGate(w); } }, 200L, 600L);
+        Bukkit.getScheduler().runTaskTimer(this, reputation::tick, 1200L, 1200L);
+        Bukkit.getScheduler().runTaskTimer(this, this::places, 60L, 40L);
+        Bukkit.getScheduler().runTaskTimer(this, this::lifecycle, 100L, 40L);
+        Bukkit.getScheduler().runTaskTimer(this, this::saveMasks, 6000L, 6000L);
+        getLogger().info("ATLAS_READY world=" + WORLD + " loaded=false gates=" + gates.count() + " liberated=" + state.liberated + " victory=" + state.victory
+            + " fallen=" + state.bossesFallen.size() + " captivesHome=" + state.captivesRescued.size() + " clientModule=" + clientModuleVersion());
+    }
+
+    @Override
+    public void onDisable() {
+        if (generator == null) return;
+        if (bosses != null) bosses.clear();
+        saveState();
+        saveMasks();
+        getLogger().info("ATLAS_METRICS chunks=" + generator.chunks + " failures=" + generator.failures + " populated=" + generator.populator().populated
+            + " npcs=" + npcs.spawned + " fittings=" + npcs.finished + " loads=" + loads + " unloads=" + unloads + " travels=" + gates.travels + " gatesLit=" + gates.lit
+            + " vanillaBlocked=" + gates.vanillaBlocked + " raised=" + dominion.raised + " slain=" + dominion.slain + " spawnsBlocked=" + dominion.blocked
+            + " talks=" + talk.opened + " answers=" + talk.answered + " trades=" + trade.opened + " reads=" + library.reads + " copies=" + library.copies
+            + " rescues=" + captives.rescues + " campsFreed=" + captives.campsFreed + " boundFreed=" + captives.boundFreed + " bossesRisen=" + bosses.risen
+            + " bossesFallen=" + bosses.fallen + " silenced=" + mechanisms.silenced + " wrongOrder=" + mechanisms.wrongOrder + " healedChunks=" + liberation.chunksHealed
+            + " healedBlocks=" + liberation.blocksHealed + " healMs=" + liberation.healNanos / 1_000_000L + " heliodromeJumps=" + heliodromes.jumps
+            + " refused=" + guard.refused + " veilEjects=" + guard.veilEjects + " markers=" + marker.updates + " saves=" + saves);
+    }
+
+    // ------------------------------------------------------------------ accessors
+
+    World atlas() { return atlas; }
+    World main() { return main; }
+    long seed() { return seed; }
+    Plans plans() { return generator.plans; }
+    AtlasGenerator generator() { return generator; }
+    State state() { return state; }
+    Npcs npcs() { return npcs; }
+    Registry registry() { return registry; }
+    Reputation reputation() { return reputation; }
+    Dominion dominion() { return dominion; }
+    Captives captives() { return captives; }
+    Trade trade() { return trade; }
+    Talk talk() { return talk; }
+    Mechanisms mechanisms() { return mechanisms; }
+    Liberation liberation() { return liberation; }
+    Bosses bosses() { return bosses; }
+
+    String clientModuleVersion() { return getConfig().getString("client-module-version", "1").replaceAll("[^A-Za-z0-9._-]", ""); }
+
+    boolean isAtlas(World w) { return w != null && WORLD.equals(w.getName()); }
+    boolean gateWorld(World w) { return w != null && (w.equals(main) || isAtlas(w)); }
+
+    List<Player> atlasPlayers() { World w = atlas; return w == null ? Collections.emptyList() : w.getPlayers(); }
+
+    /** Saves state.yml a few seconds from now (many changes in a moment are one write). */
+    void saveStateSoon() {
+        if (saveQueued) return;
+        saveQueued = true;
+        Bukkit.getScheduler().runTaskLater(this, () -> { saveQueued = false; saveState(); }, 60L);
+    }
+
+    void saveState() {
+        try { state.save(stateFile); saves++; }
+        catch (IOException e) { getLogger().warning("ATLAS_STATE_UNSAVED " + e.getClass().getSimpleName()); }
+    }
+
+    private void saveMasks() {
+        World w = atlas;
+        if (w == null) return;
+        try { generator.masks.save(new File(w.getWorldFolder(), MASK_FILE)); }
+        catch (IOException e) { getLogger().warning("ATLAS_MASKS_UNSAVED " + e.getClass().getSimpleName()); }
+    }
+
+    // ------------------------------------------------------------------ the world on disk and in memory
+
+    /** Atlas, loading it from disk (or creating it) if nobody has it open. */
+    synchronized World ensureAtlas() {
+        World w = atlas;
+        if (w != null) return w;
+        long t0 = System.nanoTime();
+        w = Bukkit.getWorld(WORLD);
+        if (w == null) w = new WorldCreator(WORLD).environment(World.Environment.NORMAL).seed(seed).generator(generator).generateStructures(false).createWorld();
+        if (w == null || !(w.getGenerator() instanceof AtlasGenerator)) {
+            getLogger().severe("ATLAS_REFUSED world=" + WORLD + " is not using the Atlas generator");
+            return null;
+        }
+        atlas = w;
+        w.setKeepSpawnInMemory(false);
+        w.setDifficulty(main.getDifficulty() == Difficulty.PEACEFUL ? Difficulty.EASY : main.getDifficulty());
+        w.setGameRuleValue("doWeatherCycle", "false");
+        w.setGameRuleValue("doFireTick", "false");
+        w.setGameRuleValue("mobGriefing", "false");
+        w.setStorm(false);
+        w.setThundering(false);
+        w.getWorldBorder().setCenter(0, 0);
+        w.getWorldBorder().setSize(Realm.BORDER * 2);
+        Gates.Gate g = Gates.great();
+        w.setSpawnLocation(g.x + 2, g.y, g.z + g.w / 2);
+        loads++;
+        emptySince = 0;
+        getLogger().info("ATLAS_WORLD_LOADED ms=" + (System.nanoTime() - t0) / 1_000_000L + " loads=" + loads + " masks=" + generator.masks.size());
+        return w;
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void worldInit(WorldInitEvent e) {
+        if (!isAtlas(e.getWorld())) return;
+        e.getWorld().setKeepSpawnInMemory(false);
+        atlas = e.getWorld();
+        try { generator.masks.load(new File(e.getWorld().getWorldFolder(), MASK_FILE)); }
+        catch (IOException ex) { getLogger().warning("ATLAS_MASKS_UNREADABLE " + ex.getClass().getSimpleName() + "; treating every chunk as drawn with the current state"); }
+    }
+
+    @EventHandler
+    public void worldSaved(WorldSaveEvent e) { if (isAtlas(e.getWorld())) saveMasks(); }
+
+    /** Every two seconds: a minute after the last player leaves, save and unload Atlas. */
+    private void lifecycle() {
+        World w = atlas;
+        if (w == null) return;
+        if (!w.getPlayers().isEmpty()) { emptySince = 0; return; }
+        long now = System.currentTimeMillis();
+        if (emptySince == 0) { emptySince = now; return; }
+        if (now - emptySince < 60_000L) return;
+        long t0 = System.nanoTime();
+        int chunks = w.getLoadedChunks().length, entities = w.getEntities().size();
+        bosses.clear();
+        saveMasks();
+        saveState();
+        if (Bukkit.unloadWorld(w, true)) {
+            atlas = null;
+            unloads++;
+            place.clear();
+            getLogger().info("ATLAS_WORLD_UNLOADED chunks=" + chunks + " entities=" + entities + " ms=" + (System.nanoTime() - t0) / 1_000_000L + " unloads=" + unloads);
+        } else getLogger().warning("ATLAS_WORLD_UNLOAD_REFUSED chunks=" + chunks + "; will retry");
+        emptySince = 0;
+    }
+
+    /** A player who logged out inside Atlas finds it loaded again, instead of waking up at the overworld spawn. */
+    @EventHandler(priority = EventPriority.LOW)
+    public void login(PlayerLoginEvent e) {
+        if (atlas != null || e.getResult() != PlayerLoginEvent.Result.ALLOWED) return;
+        UUID worldId = uid(new File(Bukkit.getWorldContainer(), WORLD + File.separator + "uid.dat"));
+        if (worldId == null) return;
+        File data = new File(main.getWorldFolder(), "playerdata" + File.separator + e.getPlayer().getUniqueId() + ".dat");
+        if (!data.isFile()) return;
+        try (InputStream in = new FileInputStream(data)) {
+            net.minecraft.server.v1_12_R1.NBTTagCompound root = net.minecraft.server.v1_12_R1.NBTCompressedStreamTools.a(in);
+            if (root.getLong("WorldUUIDMost") == worldId.getMostSignificantBits() && root.getLong("WorldUUIDLeast") == worldId.getLeastSignificantBits()) {
+                ensureAtlas();
+                getLogger().info("ATLAS_WORLD_LOADED_FOR_LOGIN player=" + e.getPlayer().getName());
+            }
+        } catch (IOException | RuntimeException ignored) { }
+    }
+
+    private static UUID uid(File f) {
+        if (!f.isFile()) return null;
+        try (DataInputStream in = new DataInputStream(new FileInputStream(f))) { return new UUID(in.readLong(), in.readLong()); }
+        catch (IOException e) { return null; }
+    }
+
+    private long savedSeed(File level, long fallback) {
+        if (!level.isFile()) return fallback;
+        try (InputStream in = new FileInputStream(level)) {
+            return net.minecraft.server.v1_12_R1.NBTCompressedStreamTools.a(in).getCompound("Data").getLong("RandomSeed");
+        } catch (IOException | RuntimeException e) {
+            getLogger().warning("ATLAS_SEED_UNREADABLE " + e.getClass().getSimpleName() + "; using the overworld's");
+            return fallback;
+        }
+    }
+
+    void generationFailed(String where, Throwable e) {
+        if (++failuresLogged > 20) return;
+        StackTraceElement at = e.getStackTrace().length > 0 ? e.getStackTrace()[0] : null;
+        Throwable root = e;
+        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+        StackTraceElement rootAt = root.getStackTrace().length > 0 ? root.getStackTrace()[0] : null;
+        getLogger().severe("ATLAS_CHUNK_FAILED " + where + " " + e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()).replaceAll("[\\r\\n]", " ")
+            + (at == null ? "" : " at " + at.getClassName().replace("chat.jaspr.atlas.", "") + ":" + at.getLineNumber())
+            + (rootAt == null || root == e ? "" : " root " + root.getClass().getSimpleName() + " at " + rootAt.getClassName().replace("chat.jaspr.atlas.", "") + ":" + rootAt.getLineNumber()));
+    }
+
+    // ------------------------------------------------------------------ arriving, dying, reading the Codex
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void arrived(PlayerChangedWorldEvent e) {
+        Player p = e.getPlayer();
+        if (isAtlas(p.getWorld())) welcome(p);
+        else if (isAtlas(e.getFrom())) place.remove(p.getUniqueId());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void joined(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        marker.forget(p);
+        if (isAtlas(p.getWorld())) Bukkit.getScheduler().runTaskLater(this, () -> { if (p.isOnline()) welcome(p); }, 40L);
+        if (!getConfig().getBoolean("hint-on-join", true) || !told.add(p.getUniqueId().toString())) return;
+        try { getDataFolder().mkdirs(); Files.write(toldFile.toPath(), told, StandardCharsets.UTF_8); } catch (IOException ignored) { }
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+            if (!p.isOnline()) return;
+            p.sendMessage(ChatColor.AQUA + "New: Atlas, the Divided Realm. " + ChatColor.GRAY + "Build a nether-portal-shaped frame out of " + ChatColor.WHITE + "quartz blocks"
+                + ChatColor.GRAY + " (at least 4 wide, 5 tall) and kindle it with both halves of the light: " + ChatColor.BLUE + "lapis lazuli" + ChatColor.GRAY + " and "
+                + ChatColor.DARK_GRAY + "coal" + ChatColor.GRAY + " (use them on the frame, or throw them in).");
+        }, 260L);
+    }
+
+    @EventHandler
+    public void quit(PlayerQuitEvent e) { place.remove(e.getPlayer().getUniqueId()); }
+
+    /** First time in Atlas: the Codex and Philon's welcome; every time: the realm's name. */
+    void welcome(Player p) {
+        State.Player rec = state.player(p.getUniqueId(), p.getName());
+        p.sendTitle(ChatColor.AQUA + "Atlas", ChatColor.GRAY + (state.victory ? "the Rekindled Realm" : "the Divided Realm"), 10, 70, 20);
+        if (rec.welcomed) return;
+        rec.welcomed = true;
+        saveStateSoon();
+        if (!Items.has(p, "codex")) Talk.give(p, Items.codex());
+        Talk.give(p, Items.book("Welcome, Stranger", "Philon of the Threshold", "welcome", Lore.WELCOME));
+        p.sendMessage(ChatColor.AQUA + "Philon of the Threshold " + ChatColor.GRAY + "presses a book and a Codex into your hands. Read the book. Right-click the " + ChatColor.GOLD
+            + "Wayfarer's Codex" + ChatColor.GRAY + " to see what you know and what remains. Right-click anyone to talk.");
+        getLogger().info("ATLAS_WELCOME player=" + p.getName());
+    }
+
+    @EventHandler
+    public void died(PlayerDeathEvent e) { if (isAtlas(e.getEntity().getWorld())) diedHere.add(e.getEntity().getUniqueId()); else diedHere.remove(e.getEntity().getUniqueId()); }
+
+    /** Dying in Atlas brings you back in Atlas (your bed if it is here; else the Last Watch once you've crossed the Line, else the Threshold). */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void respawned(PlayerRespawnEvent e) {
+        Player p = e.getPlayer();
+        if (!diedHere.remove(p.getUniqueId())) return;
+        if (e.isBedSpawn() && isAtlas(e.getRespawnLocation().getWorld())) return;
+        World w = atlas;
+        if (w == null) return;
+        State.Player rec = state.player(p.getUniqueId(), p.getName());
+        Location at = rec.met.contains("menon") ? Bosses.standable(new Location(w, -57.5, Terrain.base(Realm.Place.LAST_WATCH) + 1, 6.5, 90f, 0f))
+            : Gates.arrival(w, Gates.great(), null);
+        e.setRespawnLocation(at);
+        getLogger().info("ATLAS_RESPAWN player=" + p.getName() + " at=" + (rec.met.contains("menon") ? "last_watch" : "threshold"));
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void codex(PlayerInteractEvent e) {
+        if (e.getHand() != EquipmentSlot.HAND || e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        ItemStack i = e.getItem();
+        if (i == null || i.getType() != Material.BOOK || !Items.is(i, "codex")) return;
+        e.setCancelled(true);
+        talk.openCodex(e.getPlayer());
+    }
+
+    // ------------------------------------------------------------------ names on entering
+
+    static String zoneTitle(Realm.Zone z) {
+        switch (z) {
+            case CONCORD: return "the Asterian Concord";
+            case LINE: return "the Pharos Line";
+            case WOUND: return "the Wound";
+            case MARCHES: return "the Ashen Marches";
+            case TEETH: return "the Teeth";
+            case GATE_ROAD: return "the Gate Road";
+            case WEALD: return "the Petrified Weald";
+            case FORGES: return "the Scorched Forges";
+            case FALLEN: return "the Fallen Cities";
+            case PLATEAU: return "the Plateau of Cinders";
+            default: return "the Rim of the World";
+        }
+    }
+
+    private void places() {
+        World w = atlas;
+        if (w == null) return;
+        for (Player p : w.getPlayers()) {
+            Location l = p.getLocation();
+            Realm.Place pl = Realm.placeAt(l.getBlockX(), l.getBlockZ());
+            Realm.Zone z = Realm.zone(l.getBlockX(), l.getBlockZ());
+            String now = pl != null ? "place:" + pl.name() : "zone:" + z.name();
+            String before = place.put(p.getUniqueId(), now);
+            if (now.equals(before)) continue;
+            boolean freed = z.province != null && state.liberated(z.province);
+            if (pl != null) p.sendTitle("", ChatColor.WHITE + pl.title, 10, 50, 20);
+            else p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent((z.concord ? ChatColor.AQUA : z.dominion() && !freed ? ChatColor.RED : ChatColor.GRAY)
+                + cap(zoneTitle(z)) + (freed ? ChatColor.GREEN + " (liberated)" : "")));
+        }
+    }
+
+    private static String cap(String t) { return Character.toUpperCase(t.charAt(0)) + t.substring(1); }
+
+    // ------------------------------------------------------------------ commands
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        String sub = args.length == 0 ? "codex" : args[0].toLowerCase(Locale.ROOT);
+        Player player = sender instanceof Player ? (Player) sender : null;
+        switch (sub) {
+            case "say": if (player != null && args.length > 1) talk.answer(player, args[1]); return true;
+            case "go": if (player != null && args.length > 1) heliodromes.go(player, args[1].toLowerCase(Locale.ROOT)); return true;
+            case "codex":
+                if (player == null) { status(sender); return true; }
+                if (!isAtlas(player.getWorld())) { player.sendMessage(ChatColor.GRAY + "The Codex reads only in Atlas."); return true; }
+                talk.openCodex(player);
+                return true;
+            default:
+        }
+        if (!sender.hasPermission("jaspr.atlas.admin")) { sender.sendMessage(ChatColor.GRAY + "/atlas codex"); return true; }
+        if (sub.equals("status")) { status(sender); return true; }
+        if (player == null) { sender.sendMessage("Players only."); return true; }
+        String arg = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        switch (sub) {
+            case "tp": {
+                World w = ensureAtlas();
+                if (w == null) return true;
+                Realm.Place target = arg.isEmpty() ? Realm.Place.GATE_OF_STRANGERS : parsePlace(arg);
+                if (target == null) { player.sendMessage(ChatColor.GRAY + "Places: " + placeNames()); return true; }
+                Location to = target == Realm.Place.GATE_OF_STRANGERS ? Gates.arrival(w, Gates.great(), null) : surface(w, target.x, target.z - target.radius - 4);
+                go(player, to);
+                return true;
+            }
+            case "at": {
+                World w = ensureAtlas();
+                if (w == null || args.length < 3) { player.sendMessage(ChatColor.GRAY + "/atlas at <x> <z>"); return true; }
+                go(player, surface(w, Integer.parseInt(args[1]), Integer.parseInt(args[2])));
+                return true;
+            }
+            case "back": go(player, main.getSpawnLocation().add(0.5, 0, 0.5)); return true;
+            case "where": {
+                Location l = player.getLocation();
+                Realm.Zone z = Realm.zone(l.getBlockX(), l.getBlockZ());
+                Realm.Place pl = Realm.placeAt(l.getBlockX(), l.getBlockZ());
+                Plans.Site s = isAtlas(l.getWorld()) ? plans().siteAt(l.getBlockX(), l.getBlockZ(), 0) : null;
+                player.sendMessage(ChatColor.GRAY + cap(zoneTitle(z)) + (pl != null ? ", " + pl.title : "") + (s != null ? ", " + s.name + " (" + s.kind.noun + ")" : "")
+                    + " chunkMask=" + generator.masks.get(l.getBlockX() >> 4, l.getBlockZ() >> 4, -1) + " realmMask=" + state.liberated);
+                return true;
+            }
+            case "spot": {
+                World w = ensureAtlas();
+                Registry.Spot s = registry.spot(arg);
+                if (w == null || s == null) { player.sendMessage(ChatColor.GRAY + "No such spot. e.g. key:kleio, boss:kallias, mech:font:0, berth:0, heliodrome:threshold"); return true; }
+                w.getChunkAt(s.x >> 4, s.z >> 4).load(true);
+                go(player, Bosses.standable(new Location(w, s.x + 0.5, s.y, s.z + 2.5)));
+                return true;
+            }
+            case "key": { ItemStack k = Items.key(arg); if (k == null) player.sendMessage(ChatColor.GRAY + "/atlas key <oath|hymn|counterpoint|charter|light>"); else Talk.give(player, k); return true; }
+            case "liberate": {
+                Realm.Province p = null;
+                for (Realm.Province x : Realm.Province.values()) if (x.name().equalsIgnoreCase(arg)) p = x;
+                if (p == null || p == Realm.Province.PLATEAU) { player.sendMessage(ChatColor.GRAY + "/atlas liberate <marches|weald|forges|fallen> (as if its Ash-Crowned fell; cannot be undone)"); return true; }
+                Bosses.Boss b = p == Realm.Province.MARCHES ? Bosses.Boss.KALLIAS : p == Realm.Province.WEALD ? Bosses.Boss.MELAINA : p == Realm.Province.FORGES ? Bosses.Boss.DAIDAROS : Bosses.Boss.KELEOS;
+                if (state.bossesFallen.containsKey(b.id)) { player.sendMessage(ChatColor.GRAY + "Already liberated."); return true; }
+                state.bossesFallen.put(b.id, System.currentTimeMillis());
+                getLogger().info("ATLAS_ADMIN_LIBERATE province=" + p.name() + " by=" + player.getName());
+                liberation.liberate(p, Collections.singletonList(player), b);
+                return true;
+            }
+            case "boss": {
+                Bosses.Boss b = Bosses.Boss.of(arg);
+                if (b == null || !isAtlas(player.getWorld())) { player.sendMessage(ChatColor.GRAY + "/atlas boss <id> (in Atlas; a test boss with no marker)"); return true; }
+                player.sendMessage(ChatColor.GRAY + "Use /atlas spot boss:" + b.id + " to go to its place; it rises when you are near.");
+                return true;
+            }
+            case "heal": { World w = atlas; if (w != null) liberation.healLoaded(w); player.sendMessage(ChatColor.GRAY + liberation.status()); return true; }
+            case "unload": emptySince = 1; lifecycle(); return true;
+            case "reload-state": state.load(stateFile); player.sendMessage(ChatColor.GRAY + "state reloaded"); return true;
+            default:
+                player.sendMessage(ChatColor.GRAY + "/atlas [codex|status|tp [place]|at <x> <z>|back|where|spot <kind>|key <id>|liberate <province>|heal|unload]");
+                return true;
+        }
+    }
+
+    private void status(CommandSender sender) {
+        World w = atlas;
+        sender.sendMessage(ChatColor.AQUA + "Atlas: " + ChatColor.GRAY + (w == null ? "unloaded (on disk)" : "loaded, " + w.getPlayers().size() + " players, " + w.getLoadedChunks().length
+            + " chunks, " + w.getEntities().size() + " entities") + "; " + generator.chunks + " chunks generated, " + gates.count() + " gates; loads " + loads + ", unloads " + unloads);
+        sender.sendMessage(ChatColor.GRAY + "liberated=" + state.liberated + " victory=" + state.victory + " wardsDark=" + state.wardsDark() + " captivesHome=" + state.captivesRescued.size()
+            + " campsFreed=" + state.campsFreed.size() + " mechanisms=" + state.mechanisms + " registry=" + (registry.ready() ? "ready" : "scanning"));
+        sender.sendMessage(ChatColor.GRAY + bosses.status());
+        sender.sendMessage(ChatColor.GRAY + liberation.status());
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (args.length == 1) return sender.hasPermission("jaspr.atlas.admin")
+            ? Arrays.asList("codex", "status", "tp", "at", "back", "where", "spot", "key", "liberate", "heal", "unload")
+            : Collections.singletonList("codex");
+        if (args.length == 2 && "tp".equalsIgnoreCase(args[0])) { List<String> n = new ArrayList<>(); for (Realm.Place p : Realm.Place.values()) n.add(p.name().toLowerCase(Locale.ROOT)); return n; }
+        if (args.length == 2 && "key".equalsIgnoreCase(args[0])) return Arrays.asList("oath", "hymn", "counterpoint", "charter", "light");
+        if (args.length == 2 && "liberate".equalsIgnoreCase(args[0])) return Arrays.asList("marches", "weald", "forges", "fallen");
+        return Collections.emptyList();
+    }
+
+    private static Realm.Place parsePlace(String s) { for (Realm.Place p : Realm.Place.values()) if (p.name().equalsIgnoreCase(s)) return p; return null; }
+
+    private static String placeNames() { List<String> n = new ArrayList<>(); for (Realm.Place p : Realm.Place.values()) n.add(p.name().toLowerCase(Locale.ROOT)); return String.join(", ", n); }
+
+    private void go(Player p, Location to) {
+        if (p.isInsideVehicle()) p.leaveVehicle();
+        p.setFallDistance(0f);
+        p.teleport(to, PlayerTeleportEvent.TeleportCause.PLUGIN);
+    }
+
+    private static Location surface(World w, int x, int z) {
+        for (int a = (x >> 4) - 1; a <= (x >> 4) + 1; a++) for (int b = (z >> 4) - 1; b <= (z >> 4) + 1; b++) w.loadChunk(a, b, true);
+        return new Location(w, x + 0.5, w.getHighestBlockYAt(x, z) + 0.1, z + 0.5);
+    }
+
+    static boolean playing(Player p) { return p.getGameMode() == GameMode.SURVIVAL || p.getGameMode() == GameMode.ADVENTURE; }
+}

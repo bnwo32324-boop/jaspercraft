@@ -1,0 +1,13 @@
+name: JasprAtlas
+version: 1.0.0
+main: chat.jaspr.atlas.AtlasPlugin
+author: Jaspr
+description: Atlas, the Divided Realm. The luminous Asterian Concord and the ash-black Cinder Dominion, reached through quartz gates kindled with lapis and coal.
+commands:
+  atlas:
+    description: Atlas conversations, heliodromes, the Codex, and owner tools.
+    usage: /atlas [codex|status|tp|where|...]
+permissions:
+  jaspr.atlas.admin:
+    description: Use the /atlas owner tools, and build in protected places while in creative mode.
+    default: op
