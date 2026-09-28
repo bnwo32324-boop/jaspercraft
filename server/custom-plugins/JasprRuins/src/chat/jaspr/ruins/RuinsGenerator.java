@@ -73,6 +73,7 @@ public final class RuinsGenerator extends ChunkGenerator {
     void stamp(Canvas c) {
         Plans.Door door = plans.door();
         if (door.near(c.x0 + 8, c.z0 + 8, 16)) Cult.door(door, c);
+        Catacombs.draw(plans, c);
         Field.draw(plans, c);
         Plans.City city = plans.city(Math.floorDiv(c.x0, Plans.CITY_GRID), Math.floorDiv(c.z0, Plans.CITY_GRID));
         if (city != null) OldCity.draw(city, c);

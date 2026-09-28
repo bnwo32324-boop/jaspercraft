@@ -21,7 +21,7 @@ final class Field {
                 if (cell == null) continue;
                 floor(plans, c, i, j);
                 minors(plans, c, cell, i, j);
-                if (cell.type != null) monument(c, cell);
+                if (cell.type != null) monument(plans, c, cell);
             }
     }
 
@@ -97,7 +97,7 @@ final class Field {
         }
     }
 
-    static void monument(Canvas c, Plans.Cell cell) {
+    static void monument(Plans plans, Canvas c, Plans.Cell cell) {
         int reach = Plans.CELL / 2 + 3;
         if (!c.touches(cell.x - reach, cell.z - reach, cell.x + reach, cell.z + reach)) return;
         Frame f = new Frame(c, cell.x, cell.z, cell.base, cell.rot);
@@ -115,6 +115,11 @@ final class Field {
             case SPIRE_CLUSTER: spires(f, h, cell.sea); break;
             case COLONNADE_ROW: colonnade(f, h); break;
             case CYCLOPEAN_BLOCKS: blocks(f, h); break;
+            case SHRINE_TEMPLE: shrineTemple(f, h); break;
+            case CATACOMB_GATE: Catacombs.gate(plans, f, h); break;
+            case WATCHER_STATUE: watcher(f, h); break;
+            case OBELISK_GROVE: grove(f, h); break;
+            case GIBBETS: gibbets(f, h); break;
             default: break;
         }
     }
@@ -354,6 +359,70 @@ final class Field {
                 f.pillar(lx, side * 3, 1, 9, broken);
             }
             if (both && Hash.unit(h, k, 0, 33) < 0.6) for (int b = -3; b <= 3; b++) f.eldritch(lx, 11, b);
+        }
+    }
+
+    /** A small temple: a portico of columns before a walled cella with an altar, sometimes an offering. */
+    static void shrineTemple(Frame f, long h) {
+        for (int a = -5; a <= 5; a++)
+            for (int b = -8; b <= 8; b++) { f.footing(a, b, -1); f.eldritch(a, 0, b); f.clear(a, b, 1, 10); }
+        for (int a = -4; a <= 4; a++)
+            for (int b = -2; b <= 7; b++) {
+                boolean wall = Math.abs(a) == 4 || b == -2 || b == 7;
+                if (!wall) continue;
+                for (int y = 1; y <= 7; y++) {
+                    if (b == -2 && Math.abs(a) <= 1 && y <= 3) continue;
+                    if (y == 7) f.glyph(a, y, b); else f.eldritch(a, y, b);
+                }
+            }
+        for (int a = -4; a <= 4; a += 2) { f.pillar(a, -6, 1, 6, f.roll(a, 0, -6, 130) < 0.3); f.eldritch(a, 8, -6); }
+        for (int a = -4; a <= 4; a++) for (int b = -6; b <= -3; b++) if (f.keep(a, 8, b, 0.6)) f.set(a, 8, b, SLAB, 5);
+        for (int a = -1; a <= 1; a++) f.set(a, 1, 5, OBSIDIAN);
+        f.set(0, 2, 5, SKULL, 1);
+        f.sign(2, 2, -3, 0, -1, Lore.chant(h ^ 11));
+        if (Hash.unit(h ^ 131) < 0.4) f.chest(0, 1, 6, 0, -1, Sites.JUNGLE, "lore:" + Hash.range(h, 0, 99) + ";trinket:0.15");
+        if (Hash.unit(h ^ 132) < 0.35) f.spawner(0, 0, 2, "ZOMBIE");
+    }
+
+    /** A faceless watcher: a robed colossus with its arms raised to the sky, its face a blank slab. */
+    static void watcher(Frame f, long h) {
+        for (int a = -2; a <= 2; a++) for (int b = -2; b <= 2; b++) { f.footing(a, b, -1); f.eldritch(a, 0, b); f.eldritch(a, 1, b); }
+        int top = 12 + Hash.range(h, 0, 4);
+        for (int y = 2; y <= top; y++) {
+            int r = y < top - 4 ? 1 : 0;
+            for (int a = -r; a <= r; a++) for (int b = -r; b <= r; b++) f.set(a, y, b, PRISMARINE, y % 5 == 0 ? 0 : 2);
+        }
+        for (int y = top + 1; y <= top + 3; y++) for (int a = -1; a <= 1; a++) f.set(a, y, 0, STONE, 6);
+        for (int side = -1; side <= 1; side += 2)
+            for (int k = 0; k < 6; k++) f.set(side * (2 + k / 2), top - 3 + k, 0, PRISMARINE, 2);
+        f.sign(0, 1, -3, 0, -1, "IT HAS NO\nFACE\nIT WATCHES\nANYWAY");
+    }
+
+    /** A grove of small obelisks around a skull on an obsidian stone. */
+    static void grove(Frame f, long h) {
+        int n = 5 + Hash.range(h, 0, 2);
+        for (int k = 0; k < n; k++) {
+            int a = Hash.range(Hash.of(h, k, 133), -9, 9), b = Hash.range(Hash.of(h, k, 134), -9, 9), height = 5 + Hash.range(Hash.of(h, k, 135), 0, 7);
+            f.footing(a, b, -1);
+            for (int y = 0; y <= height; y++) if (y % 4 == 2) f.glyph(a, y, b); else f.eldritch(a, y, b);
+            f.set(a, height + 1, b, OBSIDIAN);
+        }
+        f.footing(0, 0, -1);
+        f.set(0, 0, 0, OBSIDIAN);
+        f.set(0, 1, 0, SKULL, 1);
+    }
+
+    /** A row of gibbets: iron cages hung from posts, bones and skulls inside. */
+    static void gibbets(Frame f, long h) {
+        for (int k = -2; k <= 2; k++) {
+            int a = k * 4;
+            f.footing(a, 0, -1);
+            for (int y = 0; y <= 7; y++) f.eldritch(a, y, 0);
+            f.eldritch(a, 7, 1); f.eldritch(a, 7, 2);
+            for (int y = 3; y <= 5; y++) { f.set(a - 1, y, 2, IRON_BARS); f.set(a + 1, y, 2, IRON_BARS); f.set(a, y, 3, IRON_BARS); f.set(a, y, 1, IRON_BARS); }
+            f.set(a, 6, 2, IRON_BARS);
+            f.set(a, 3, 2, BONE, 0);
+            f.set(a, 4, 2, SKULL, 1);
         }
     }
 

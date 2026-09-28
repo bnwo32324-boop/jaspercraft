@@ -30,6 +30,7 @@ final class Sites {
             case GATEHOUSE: gatehouse(f, s.hash); break;
             case COLOSSUS: colossus(f, s.hash); break;
             case SANCTUM: case MONOLITHS: case PIT: case POOL: case CHAPEL: Cult.draw(s, c); break;
+            case FORTRESS: case LABYRINTH: case OSSUARY: case DEEP_TEMPLE: case OBSERVATORY: case GREAT_IDOL: Dungeons.draw(s, c); break;
             default: break;
         }
     }

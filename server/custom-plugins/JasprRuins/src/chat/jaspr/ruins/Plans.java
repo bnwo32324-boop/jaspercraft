@@ -16,9 +16,9 @@ final class Plans {
     static final int SEA = 62;
     static final int CITY_GRID = 320, CITY_MARGIN = 112, BLEND = 20;
     static final double CITY_CHANCE = 0.45;
-    static final int SITE_GRID = 96, SITE_MARGIN = 26;
-    static final double SITE_CHANCE = 0.8;
-    static final int CELL = 24, DOOR_RADIUS = 48;
+    static final int SITE_GRID = 80, SITE_MARGIN = 23;
+    static final double SITE_CHANCE = 0.85;
+    static final int CELL = 24, DOOR_RADIUS = 48, DISTRICT = 128;
     private static final long CITY_SALT = 0x43697479L, SITE_SALT = 0x53697465L;
     private static final int CACHE = 8192;
 
@@ -28,7 +28,10 @@ final class Plans {
         GATEHOUSE("Gatehouse", 13), COLOSSUS("Colossus", 11),
         // The cult arenas, each guarded by a Warden (a mini-boss holding one of the Door's Seals).
         SANCTUM("Sanctum of the Drowned Star", 18, true), MONOLITHS("Circle of the Watchers", 20, true),
-        PIT("Pit of Offerings", 14, true), POOL("Spawning Pool", 14, true), CHAPEL("Chapel of the Faceless", 13, true);
+        PIT("Pit of Offerings", 14, true), POOL("Spawning Pool", 14, true), CHAPEL("Chapel of the Faceless", 13, true),
+        // Greater ruins: dungeons above ground, temples and monuments.
+        FORTRESS("Bastion of the Choir", 22), LABYRINTH("Labyrinth of Angles", 21), OSSUARY("Ossuary Temple", 14),
+        DEEP_TEMPLE("Temple of the Deep", 16), OBSERVATORY("Star-Watcher's Spire", 12), GREAT_IDOL("Great Idol of Ythaqqua", 12);
         final String noun;
         final int radius;
         final boolean cult;
@@ -38,8 +41,9 @@ final class Plans {
 
     /** The field: every free 24-block cell holds one monument. */
     enum Filler { GIANT_PILLAR, OBELISK, PILLAR_GATE, CYCLOPEAN_WALL, STAIR_TO_NOWHERE, SUNKEN_PLAZA, ARCHWAY, IDOL, CULT_ALTAR,
-        SPIRE_CLUSTER, COLONNADE_ROW, CYCLOPEAN_BLOCKS }
-    private static final int[] FILLER_WEIGHTS = {18, 10, 10, 10, 6, 7, 7, 5, 8, 7, 7, 5};
+        SPIRE_CLUSTER, COLONNADE_ROW, CYCLOPEAN_BLOCKS, SHRINE_TEMPLE, CATACOMB_GATE, WATCHER_STATUE, OBELISK_GROVE, GIBBETS }
+    private static final int[] FILLER_WEIGHTS = {16, 9, 9, 9, 5, 6, 6, 5, 8, 6, 6, 5, 10, 9, 6, 6, 5};
+    private static final int FILLER_TOTAL = java.util.Arrays.stream(FILLER_WEIGHTS).sum();
 
     static final class Cell {
         final Filler type;
@@ -83,6 +87,25 @@ final class Plans {
     private final Reserved reserved;
     private final ConcurrentHashMap<Long, Object> cities = new ConcurrentHashMap<>(), sites = new ConcurrentHashMap<>(), cells = new ConcurrentHashMap<>();
     private volatile Door door;
+    private final ConcurrentHashMap<Long, Integer> depths = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Boolean> reservedChunks = new ConcurrentHashMap<>();
+
+    /** Floor level of the catacombs under a column: two dozen blocks below the lowest ground of its 128-block district. */
+    int depth(int wx, int wz) {
+        int di = Math.floorDiv(wx, DISTRICT), dj = Math.floorDiv(wz, DISTRICT);
+        return depths.computeIfAbsent(key(di, dj), k -> {
+            int min = 255;
+            for (int a = 0; a <= 8; a++)
+                for (int b = 0; b <= 8; b++) min = Math.min(min, terrain.sample(di * DISTRICT + a * 16, dj * DISTRICT + b * 16).y);
+            return Math.max(8, Math.min(70, min - 24));
+        });
+    }
+
+    /** Whether the Lost Cities own a chunk (cached; the catacombs keep out from under them). */
+    boolean reservedChunk(int cx, int cz) {
+        if (reservedChunks.size() > CACHE * 4) reservedChunks.clear();
+        return reservedChunks.computeIfAbsent(key(cx, cz), k -> reserved.test(cx * 16, cz * 16, 16, 16));
+    }
     private static final Object NONE = new Object();
 
     Plans(long seed, Reserved reserved) {
@@ -184,7 +207,8 @@ final class Plans {
         if (reserved.test(x - r, z - r, 2 * r + 1, 2 * r + 1)) return null;
         int base = kind == Kind.AQUEDUCT ? Math.min(150, top + 7) : Math.max(SEA + 1, (int) Math.round(sum / 9.0));
         int rot = Hash.range(Hash.mix(h ^ 8), 0, 3);
-        return new Site(kind, x, z, base, rot, h, kind.cult ? "The " + kind.noun : Names.site(Hash.mix(h ^ 9), kind.noun));
+        boolean named = kind.cult || kind.ordinal() >= Kind.FORTRESS.ordinal();
+        return new Site(kind, x, z, base, rot, h, named ? "The " + kind.noun : Names.site(Hash.mix(h ^ 9), kind.noun));
     }
 
     /** The site nearest to a point within its radius (for titles), or null. */
@@ -307,7 +331,7 @@ final class Plans {
             Filler[] wet = {Filler.GIANT_PILLAR, Filler.GIANT_PILLAR, Filler.OBELISK, Filler.SPIRE_CLUSTER, Filler.PILLAR_GATE};
             type = wet[Hash.range(Hash.mix(h ^ 1), 0, wet.length - 1)];
         } else {
-            int roll = Hash.range(Hash.mix(h ^ 1), 0, 99), acc = 0;
+            int roll = Hash.range(Hash.mix(h ^ 1), 0, FILLER_TOTAL - 1), acc = 0;
             type = Filler.GIANT_PILLAR;
             for (int t = 0; t < FILLER_WEIGHTS.length; t++) { acc += FILLER_WEIGHTS[t]; if (roll < acc) { type = Filler.values()[t]; break; } }
         }

@@ -49,7 +49,7 @@ test('ruins plugin wiring: Lost Cities registration, mossy portals, client-green
   assert.match(api, /public static void registerWorld\(String worldName, String titleFormat, PrimerHook hook\)/);
   assert.match(read('scripts/deploy/DeployLogic.ps1'), /'JasprRuins'\s+= @\('RUINS_READY'\)/);
   // The dimension lives on disk while empty and is regenerated for this design (the old world is renamed, not deleted).
-  assert.match(plugin, /static final int EPOCH = 2;/);
+  assert.match(plugin, /static final int EPOCH = 3;/);
   assert.ok(plugin.includes('Bukkit.unloadWorld(w, true)'), 'saved and unloaded after its last player leaves');
   assert.ok(plugin.includes('public void login(PlayerLoginEvent e)'), 'loaded for a player who logged out inside it');
   assert.ok(plugin.includes('folder.renameTo(retired)'), 'an older world is renamed aside, never deleted');
@@ -62,6 +62,12 @@ test('ruins plugin wiring: Lost Cities registration, mossy portals, client-green
   assert.match(read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Lore.java'), /STEP 5: SLAY THE HERALD/);
   const horrors = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Horrors.java');
   for (const k of ['DEEP_ONE', 'GHOUL', 'SHOGGOTH', 'NIGHTGAUNT', 'MI_GO', 'HOUND', 'STAR_SPAWN', 'CULT_ZEALOT', 'CULT_ADEPT', 'TOMB_CRAWLER']) assert.ok(horrors.includes(k + '(EntityType'), k);
+  // More dangers, and an eerie sky the patched client paints only while the server says so.
+  for (const k of ['void elder(', 'public void ambush(', 'private void crumble(', 'Something answers your fear.']) assert.ok(horrors.includes(k), k);
+  const sky = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Sky.java');
+  assert.ok(sky.includes('JRS v1 eerie'), 'sky objective name');
+  assert.ok(plugin.includes('sky::tick'), 'sky task scheduled');
+  for (const d of ['FORTRESS', 'LABYRINTH', 'OSSUARY', 'DEEP_TEMPLE', 'OBSERVATORY', 'GREAT_IDOL']) assert.ok(read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Plans.java').includes(d + '('), d);
   assert.match(read('server/custom-plugins/JasprDaylight/src/chat/jaspr/daylight/DaylightPlugin.java'), /jaspr_daylight_exempt/, 'horrors keep full speed in overworld daytime');
   assert.doesNotMatch(read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/RuinsPopulator.java'), /generateTree/, 'nothing grows');
   const yml = read('server/custom-plugins/JasprRuins/resources/plugin.yml');

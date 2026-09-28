@@ -52,7 +52,7 @@ import org.bukkit.util.Vector;
  * stands in darkness without a light, bringing whispers, nausea, weakness, blindness and finally harm.
  */
 final class Horrors implements Listener {
-    static final String TAG = "jaspr_horror", KIND_TAG = "jaspr_horror:", DAYLIGHT_EXEMPT = "jaspr_daylight_exempt";
+    static final String TAG = "jaspr_horror", KIND_TAG = "jaspr_horror:", DAYLIGHT_EXEMPT = "jaspr_daylight_exempt", ELITE = "jaspr_horror_elite";
 
     enum Kind {
         DEEP_ONE(EntityType.ZOMBIE, 22, "Deep One", 40, 7, 0.27),
@@ -96,7 +96,10 @@ final class Horrors implements Listener {
     private final Map<UUID, Integer> dread = new HashMap<>();
     private final Map<UUID, Long> lastWhisper = new HashMap<>();
     private boolean spawning;
-    long transformed, slain;
+    private final java.util.Set<Long> ambushed = new java.util.HashSet<>();
+    private final Map<UUID, Long> lastShadow = new HashMap<>();
+    private int dreadTicks;
+    long transformed, slain, elites, ambushes, shadows, crumbles;
 
     Horrors(RuinsPlugin plugin) { this.plugin = plugin; }
 
@@ -117,7 +120,10 @@ final class Horrors implements Listener {
         Kind kind = at.getBlock().isLiquid() ? Kind.DEEP_ONE
             : reason == CreatureSpawnEvent.SpawnReason.SPAWNER && entity.getType() == EntityType.CAVE_SPIDER ? Kind.TOMB_CRAWLER : pick(random);
         int group = kind == Kind.TOMB_CRAWLER ? 2 + random.nextInt(2) : kind == Kind.NIGHTGAUNT ? 1 + random.nextInt(2) : 1;
-        for (int i = 0; i < group; i++) spawn(kind, i == 0 ? at : at.clone().add(random.nextDouble() * 2 - 1, 0, random.nextDouble() * 2 - 1));
+        for (int i = 0; i < group; i++) {
+            LivingEntity h = spawn(kind, i == 0 ? at : at.clone().add(random.nextDouble() * 2 - 1, 0, random.nextDouble() * 2 - 1));
+            if (h != null && random.nextDouble() < 0.12) elder(h, kind);
+        }
         transformed++;
     }
 
@@ -130,6 +136,18 @@ final class Horrors implements Listener {
         } finally {
             spawning = false;
         }
+    }
+
+    /** An Elder: the same horror, older and worse, wreathed in a faint purple haze. */
+    void elder(LivingEntity e, Kind kind) {
+        e.addScoreboardTag(ELITE);
+        e.setCustomName(ChatColor.DARK_PURPLE + "Elder " + kind.title);
+        set(e, Attribute.GENERIC_MAX_HEALTH, kind.health * 1.8);
+        e.setHealth(kind.health * 1.8);
+        if (kind.damage > 0) set(e, Attribute.GENERIC_ATTACK_DAMAGE, kind.damage * 1.4);
+        if (kind.speed > 0) set(e, Attribute.GENERIC_MOVEMENT_SPEED, kind.speed * 1.08);
+        set(e, Attribute.GENERIC_ARMOR, 6);
+        elites++;
     }
 
     @SuppressWarnings("deprecation")
@@ -192,6 +210,7 @@ final class Horrors implements Listener {
             if (!isHorror(e) || Bosses.isBoss(e)) continue;
             Kind k = kindOf(e);
             if (k == null) continue;
+            if (e.getScoreboardTags().contains(ELITE)) w.spawnParticle(org.bukkit.Particle.SPELL_WITCH, e.getLocation().add(0, 1, 0), 3, 0.3, 0.6, 0.3, 0.0);
             switch (k) {
                 case HOUND: {
                     Player t = nearest(e, 28);
@@ -254,9 +273,10 @@ final class Horrors implements Listener {
     public void death(EntityDeathEvent e) {
         if (!isHorror(e.getEntity()) || Bosses.isBoss(e.getEntity())) return;
         slain++;
-        e.setDroppedExp(e.getDroppedExp() * 2 + 5);
+        boolean elder = e.getEntity().getScoreboardTags().contains(ELITE);
+        e.setDroppedExp(e.getDroppedExp() * (elder ? 4 : 2) + 5);
         double r = random.nextDouble();
-        if (r < 0.015) e.getDrops().add(Trinkets.random(random));
+        if (r < (elder ? 0.08 : 0.015)) e.getDrops().add(Trinkets.random(random));
         else if (r < 0.045) e.getDrops().add(Lore.book(random.nextInt(Lore.bookCount() - 1)));
     }
 
@@ -313,7 +333,63 @@ final class Horrors implements Listener {
                 p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 70, 0, true, false), true);
                 p.damage(2.0);
             }
+            // Something answers great fear.
+            Long last = lastShadow.get(id);
+            if (d >= 90 && (last == null || now - last > 20_000L) && random.nextInt(3) == 0) {
+                lastShadow.put(id, now);
+                Location behind = p.getLocation().clone().subtract(p.getLocation().getDirection().setY(0).normalize().multiply(3)).add(0, 1, 0);
+                if (!behind.getBlock().getType().isSolid()) {
+                    spawn(Kind.NIGHTGAUNT, behind);
+                    p.sendMessage(ChatColor.DARK_PURPLE + "" + ChatColor.ITALIC + "Something answers your fear.");
+                    shadows++;
+                }
+            }
         }
+        if (++dreadTicks % 30 == 0) crumble(w);
+    }
+
+    /** About once a minute, loose masonry may come down on someone in the ruins; the crack comes a moment first. */
+    @SuppressWarnings("deprecation")
+    private void crumble(World w) {
+        for (Player p : w.getPlayers()) {
+            if (p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR || random.nextInt(4) != 0) continue;
+            Location at = p.getLocation();
+            p.playSound(at, Sound.BLOCK_STONE_BREAK, 1.2f, 0.5f);
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (!p.isOnline() || p.getWorld() != w) return;
+                for (int k = 0; k < 4; k++) {
+                    Location drop = p.getLocation().clone().add(random.nextInt(5) - 2, 9 + random.nextInt(4), random.nextInt(5) - 2);
+                    if (drop.getBlock().getType() != Material.AIR) continue;
+                    org.bukkit.entity.FallingBlock b = w.spawnFallingBlock(drop, new MaterialData(Material.SMOOTH_BRICK, (byte) 2));
+                    b.setDropItem(false);
+                    b.setHurtEntities(true);
+                    b.addScoreboardTag(Bosses.STONE_TAG);
+                }
+                crumbles++;
+            }, 20L);
+        }
+    }
+
+    /** Opening an offering chest can wake its defenders (once per chest). */
+    @EventHandler(ignoreCancelled = true)
+    public void ambush(org.bukkit.event.inventory.InventoryOpenEvent e) {
+        if (!(e.getPlayer() instanceof Player) || !(e.getInventory().getHolder() instanceof org.bukkit.block.Chest)) return;
+        Player p = (Player) e.getPlayer();
+        Block b = ((org.bukkit.block.Chest) e.getInventory().getHolder()).getBlock();
+        if (!plugin.isRuins(b.getWorld()) || p.getGameMode() == GameMode.CREATIVE) return;
+        long key = (long) b.getX() << 38 ^ (long) (b.getZ() & 0x3FFFFFF) << 12 ^ b.getY();
+        if (!ambushed.add(key) || random.nextDouble() >= 0.3) return;
+        if (ambushed.size() > 50_000) ambushed.clear();
+        int n = 2 + random.nextInt(3);
+        for (int i = 0; i < n; i++) {
+            double t = random.nextDouble() * Math.PI * 2;
+            Location at = b.getLocation().add(0.5 + Math.cos(t) * 4, 1, 0.5 + Math.sin(t) * 4);
+            if (at.getBlock().getType().isSolid()) at = b.getLocation().add(0.5, 1, 0.5);
+            spawn(pick(random), at);
+        }
+        ambushes++;
+        p.sendTitle("", ChatColor.DARK_RED + "The Choir defends its offerings!", 5, 40, 10);
+        p.playSound(b.getLocation(), Sound.ENTITY_ZOMBIE_VILLAGER_CONVERTED, 1f, 0.5f);
     }
 
     int dreadOf(Player p) { return dread.getOrDefault(p.getUniqueId(), 0); }

@@ -77,6 +77,8 @@ final class Frame {
 
     void chest(int lx, int y, int lz, int dx, int dz, String table) { c.chest(wx(lx, lz), base + y, wz(lx, lz), facing(dx, dz), table); }
     void spawner(int lx, int y, int lz, String entity) { c.spawner(wx(lx, lz), base + y, wz(lx, lz), entity); }
+    /** A trap dispenser facing local (dx, dz), or straight up for (0, 0). */
+    void dispenser(int lx, int y, int lz, int dx, int dz) { c.dispenser(wx(lx, lz), base + y, wz(lx, lz), dx == 0 && dz == 0 ? 1 : facing(dx, dz)); }
 
     /** A block {@code dy} above the natural ground of a column (scattered stones, fallen columns). */
     void onGround(int lx, int lz, int dy, int id, int meta) {

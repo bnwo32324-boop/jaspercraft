@@ -28,7 +28,7 @@ import org.bukkit.inventory.ItemStack;
  */
 final class RuinsPopulator extends BlockPopulator {
     private final RuinsGenerator gen;
-    volatile long chests, spawners, signs, failures;
+    volatile long chests, spawners, signs, traps, failures;
 
     RuinsPopulator(RuinsGenerator gen) { this.gen = gen; }
 
@@ -78,6 +78,11 @@ final class RuinsPopulator extends BlockPopulator {
                 ((CreatureSpawner) state).setSpawnedType(EntityType.valueOf(t.what));
                 state.update(true, false);
                 spawners++;
+            } else if (t.kind == Canvas.DISPENSER_TILE) {
+                if (b.getType() != Material.DISPENSER) continue;
+                BlockState state = b.getState();
+                if (state instanceof org.bukkit.block.Dispenser) ((org.bukkit.block.Dispenser) state).getInventory().addItem(new ItemStack(Material.ARROW, 24));
+                traps++;
             } else {
                 if (b.getType() != Material.WALL_SIGN) continue;
                 BlockState state = b.getState();

@@ -61,7 +61,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     static final String WORLD = "jaspr_ruins";
     static final long SALT = 0x5275696E73L;   // "Ruins"
     /** Bumped when the dimension is redesigned: an older saved world is retired (renamed, not deleted) and regenerated. */
-    static final int EPOCH = 2;
+    static final int EPOCH = 3;
     static final String EPOCH_FILE = "jaspr-ruins-epoch.txt", COMPASS = "Drowned Star Compass", COMPASS_MARK = "Relic of Ul'Nhaar - compass";
 
     private volatile World ruins;
@@ -72,6 +72,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     private Horrors horrors;
     private Bosses bosses;
     private Trinkets trinkets;
+    private Sky sky;
     private final Map<UUID, String> place = new HashMap<>();
     private final Set<String> told = new HashSet<>();
     private final Set<UUID> compassAimed = new HashSet<>();
@@ -97,7 +98,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         generator = new RuinsGenerator(seed, (x, z, w, d) -> { World r = ruins; return r != null && CityApi.reserved(r, x, z, w, d); }, this::generationFailed);
         horrors = new Horrors(this);
         trinkets = new Trinkets(this);
-        for (Listener l : new Listener[] {this, portals, horrors, bosses, trinkets}) Bukkit.getPluginManager().registerEvents(l, this);
+        sky = new Sky(this);
+        for (Listener l : new Listener[] {this, portals, horrors, bosses, trinkets, sky}) Bukkit.getPluginManager().registerEvents(l, this);
         toldFile = new File(getDataFolder(), "told.txt");
         loadTold();
         Bukkit.getScheduler().runTaskTimer(this, portals::tick, 20L, 4L);
@@ -106,6 +108,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         Bukkit.getScheduler().runTaskTimer(this, horrors::dreadTick, 40L, 40L);
         Bukkit.getScheduler().runTaskTimer(this, bosses::tick, 40L, 10L);
         Bukkit.getScheduler().runTaskTimer(this, trinkets::tick, 40L, 20L);
+        Bukkit.getScheduler().runTaskTimer(this, sky::tick, 60L, 40L);
         Bukkit.getScheduler().runTaskTimer(this, this::lifecycle, 100L, 40L);
         getLogger().info("RUINS_READY world=" + WORLD + " epoch=" + EPOCH + " loaded=false lostCities=registered portals=" + portals.count()
             + " cityGrid=" + Plans.CITY_GRID + " siteGrid=" + Plans.SITE_GRID + " cell=" + Plans.CELL);
@@ -118,7 +121,9 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         RuinsPopulator p = generator.populator();
         getLogger().info("RUINS_METRICS chunks=" + generator.chunks + " failures=" + generator.failures + " chests=" + p.chests + " spawners=" + p.spawners
             + " signs=" + p.signs + " weatheredChunks=" + Weathering.chunks + " loads=" + loads + " unloads=" + unloads
-            + (horrors == null ? "" : " horrorsRisen=" + horrors.transformed + " horrorsSlain=" + horrors.slain)
+            + (horrors == null ? "" : " horrorsRisen=" + horrors.transformed + " horrorsSlain=" + horrors.slain + " elders=" + horrors.elites
+                + " ambushes=" + horrors.ambushes + " shadows=" + horrors.shadows + " crumbles=" + horrors.crumbles) + " traps=" + p.traps
+            + (sky == null ? "" : " skyFlashes=" + sky.flashes)
             + (bosses == null ? "" : " wardensSlain=" + bosses.wardensSlain + " heraldsSlain=" + bosses.heraldsSlain)
             + (portals == null ? "" : " portalsLit=" + portals.lit + " portalsBuilt=" + portals.built + " travels=" + portals.travels + " portalsClosed=" + portals.closed));
     }
@@ -146,7 +151,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         // Endless night over Ul'Nhaar: the horrors spawn on every stone, and beds do not work.
         w.setGameRuleValue("doDaylightCycle", "false");
         w.setTime(18000L);
-        w.setMonsterSpawnLimit(120);
+        w.setMonsterSpawnLimit(150);
         w.setTicksPerMonsterSpawns(1);
         w.setAnimalSpawnLimit(0);
         w.setAmbientSpawnLimit(0);

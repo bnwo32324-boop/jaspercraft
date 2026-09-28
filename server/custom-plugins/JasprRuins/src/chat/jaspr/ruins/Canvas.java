@@ -14,9 +14,10 @@ final class Canvas {
         BRICKS = 45, BOOKSHELF = 47, MOSSY = 48, OBSIDIAN = 49, TORCH = 50, SPAWNER = 52, CHEST = 54, LADDER = 65,
         STONE_STAIRS = 67, SNOW = 78, FENCE = 85, GLOWSTONE = 89, PORTAL = 90, TRAPDOOR = 96, BRICK = 98, BARS = 101,
         VINE = 106, BRICK_STAIRS = 109, WALL = 139, CAULDRON = 118, QUARTZ = 155, DOUBLE_PLANT = 175, SEA_LANTERN = 169,
-        PRISMARINE = 168, SKULL = 144, BONE = 216, CLAY = 159, WALL_SIGN = 68, SLIME = 165, IRON_BARS = 101, MAGMA = 213;
+        PRISMARINE = 168, SKULL = 144, BONE = 216, CLAY = 159, WALL_SIGN = 68, SLIME = 165, IRON_BARS = 101, MAGMA = 213,
+        PLATE = 70, DISPENSER = 23;
 
-    static final int CHEST_TILE = 0, SPAWNER_TILE = 1, SIGN_TILE = 2;
+    static final int CHEST_TILE = 0, SPAWNER_TILE = 1, SIGN_TILE = 2, DISPENSER_TILE = 3;
 
     /** Marker for a chest, spawner or carved sign to fill after generation. */
     static final class Tile {
@@ -35,6 +36,7 @@ final class Canvas {
     private final ChunkData data;
     private final int[][] heights;       // surface y per chunk column (after any city terracing)
     private final List<Tile> tiles;      // null while stamping in generateChunkData when tiles are not wanted
+    private java.util.BitSet fixed;      // tile positions in this chunk: the first tile placed there wins, later drawing skips it
 
     Canvas(long seed, int cx, int cz, ChunkData data, int[][] heights, List<Tile> tiles) {
         this.seed = seed;
@@ -57,6 +59,7 @@ final class Canvas {
 
     void set(int x, int y, int z, int id, int meta) {
         if (y < 1 || y > 254 || !inside(x, z)) return;
+        if (fixed != null && fixed.get(key(x, y, z))) return;
         if (data != null) data.setBlock(x - x0, y, z - z0, id, (byte) meta);
     }
 
@@ -166,29 +169,42 @@ final class Canvas {
         }
     }
 
+    private int key(int x, int y, int z) { return (x - x0) << 12 | (z - z0) << 8 | y; }
+
+    /** Places a tile block unless another tile already holds the spot; the spot is then kept from later drawing. */
+    private boolean tile(int x, int y, int z, int id, int meta) {
+        if (!inside(x, z) || y < 1 || y > 254 || fixed != null && fixed.get(key(x, y, z))) return false;
+        set(x, y, z, id, meta);
+        if (fixed == null) fixed = new java.util.BitSet(65536);
+        fixed.set(key(x, y, z));
+        return true;
+    }
+
     void chest(int x, int y, int z, int facing, String lootTable) {
-        if (!inside(x, z) || y < 1 || y > 254) return;
-        set(x, y, z, CHEST, facing);
+        if (!tile(x, y, z, CHEST, facing)) return;
         if (tiles != null) tiles.add(new Tile(x, y, z, true, lootTable));
     }
 
     /** A chest with extra contents for the populator: "lore:<book>" and/or "trinket:<chance>" (semicolon-separated). */
     void chest(int x, int y, int z, int facing, String lootTable, String extras) {
-        if (!inside(x, z) || y < 1 || y > 254) return;
-        set(x, y, z, CHEST, facing);
+        if (!tile(x, y, z, CHEST, facing)) return;
         if (tiles != null) tiles.add(new Tile(x, y, z, CHEST_TILE, lootTable, extras));
     }
 
     /** A wall sign (meta 2 north .. 5 east) whose text the populator carves; lines separated by newlines. */
     void sign(int x, int y, int z, int facing, String text) {
-        if (!inside(x, z) || y < 1 || y > 254) return;
-        set(x, y, z, WALL_SIGN, facing);
+        if (!tile(x, y, z, WALL_SIGN, facing)) return;
         if (tiles != null) tiles.add(new Tile(x, y, z, SIGN_TILE, text, null));
     }
 
+    /** A trap dispenser (meta 1 up, 2 north .. 5 east) the populator loads with arrows. */
+    void dispenser(int x, int y, int z, int facing) {
+        if (!tile(x, y, z, DISPENSER, facing)) return;
+        if (tiles != null) tiles.add(new Tile(x, y, z, DISPENSER_TILE, "ARROW", null));
+    }
+
     void spawner(int x, int y, int z, String entity) {
-        if (!inside(x, z) || y < 1 || y > 254) return;
-        set(x, y, z, SPAWNER);
+        if (!tile(x, y, z, SPAWNER, 0)) return;
         if (tiles != null) tiles.add(new Tile(x, y, z, false, entity));
     }
 }

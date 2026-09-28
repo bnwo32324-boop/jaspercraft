@@ -1,9 +1,20 @@
-# Ul'Nhaar, the drowned city (JasprRuins, epoch 2)
+# Ul'Nhaar, the drowned city (JasprRuins, epoch 3)
 
-**TL;DR:** the ruins dimension is regenerated as a dense cyclopean city of the Choir of the Drowned Star. There are no
-trees or plains, just a little grass and ivy. Endless night, Lovecraftian horrors everywhere, five Warden bosses, and a
-final boss, the Dreamer's Herald, behind the Great Door. Everyone who enters gets a guide book and a compass. Beating
-the Herald pays out a hoard of unique items. The world loads only while someone is in it.
+**TL;DR:** the ruins dimension is a dense cyclopean city of the Choir of the Drowned Star. There are no trees or
+plains, just a little grass and ivy. Endless night, Lovecraftian horrors everywhere, five Warden bosses, and a final
+boss, the Dreamer's Herald, behind the Great Door. Everyone who enters gets a guide book and a compass. Beating the
+Herald pays out a hoard of unique items. The world loads only while someone is in it.
+
+**Epoch 3 (regenerated again) adds:**
+- **Catacombs under everything:** vaulted rooms joined by corridors with dart traps, reached through gates in the field.
+- **Six greater ruins:** the Bastion of the Choir (fortress), the Labyrinth of Angles, the Ossuary Temple, the Temple
+  of the Deep, the Star-Watcher's Spire and the Great Idol of Ythaqqua.
+- **Denser land:** more sites and five new field monuments (shrine temples, catacomb gates, faceless watchers,
+  obelisk groves, gibbets).
+- **More dangers:** Elder horrors, chest ambushes, shadows that answer great fear, falling masonry, and a higher
+  monster cap.
+- **An eerie sky:** a sick green sky, a blood-red moon and stars, and a mist that turns slowly from corpse-green to
+  blood-red and back. Pale spores, distant wails and silent lightning are sent by the server.
 
 ## Getting there
 - Build a nether-portal-shaped frame of **mossy cobblestone** (at least 4×5) and light it with flint and steel.
@@ -49,7 +60,8 @@ Everyone who enters is handed the **Pilgrim's Primer** and a **Drowned Star Comp
 - The Hierophant also drops a totem.
 - Each respawns 30 minutes after it is killed.
 
-**Relics.** These are found only in Ul'Nhaar: on horrors (1.5%), in cult chests, from Wardens and from the Herald.
+**Relics.** These are found only in Ul'Nhaar: on horrors (1.5%, Elders 8%), in cult and catacomb chests, from Wardens
+and from the Herald.
 They work in any world:
 
 | Relic | Effect |
@@ -84,12 +96,40 @@ It is always night here, and every natural or spawner monster becomes a horror. 
 All horrors hit harder and have more health than vanilla mobs. They keep full speed during overworld daytime:
 JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
 
+**Other dangers (epoch 3):**
+- **Elders:** 12% of horrors rise as an Elder, wreathed in faint purple motes. They have 1.8× health, 1.4× damage,
+  armour and a little more speed, and give double XP. The motes are particles, not a glowing effect.
+- **Ambushes:** the first time a chest in Ul'Nhaar is opened, there is a 30% chance that 2–4 horrors rise around it.
+- **Shadows:** at Dread 90 or higher, a Nightgaunt may appear behind you (at most every 20 s).
+- **Falling masonry:** about once a minute, anyone out in the ruins may hear stone crack, then be hit by blocks
+  falling from above a second later. The blocks never land, so they leave no mess.
+- **Dart traps:** pressure plates in catacomb corridors and treasure rooms fire arrows from hidden floor dispensers.
+- **Spawn cap:** raised from 120 to 150 monsters.
+
 ## The world
 - **Ruin field:** every 24-block cell that no city, site, Lost City or the Door claims holds one monument:
   - leaning giant pillars (up to about 80 blocks tall), obelisks, pillar gates, cyclopean walls, stairs to nowhere;
   - sunken plazas, arches, idols of the Dreamer, cult altars, spire clusters, colonnades, fallen cyclopean blocks;
+  - shrine temples, catacomb gates, faceless watchers, obelisk groves and rows of gibbets (new in epoch 3);
   - two or three lesser remnants in its corners;
   - cracked paving strewn with rubble, bones and skulls. Pillars rise from the water too.
+- **Greater ruins (sites, one per 80-block grid square at 85%):**
+  - **Bastion of the Choir:** walls, four towers and a two-floor keep with spawners, prison cells, a dart trap and
+    offerings.
+  - **Labyrinth of Angles:** a 9×9 maze of 4-block corridors. Its dead ends hold spawners; its heart holds a relic
+    chest.
+  - **Ossuary Temple:** walls and pillars of bone, a frieze of skulls, an altar and its keeper.
+  - **Temple of the Deep:** a prismarine temple in its own drowned court, flooded to the knees inside.
+  - **Star-Watcher's Spire:** a banded tower crowned with an armillary ring, with an offering at the top.
+  - **Great Idol of Ythaqqua:** the Dreamer, three times the size of the wayside idols, on a stepped dais.
+- **Catacombs:** a node sits under nearly every chunk, at the district's depth (24 below the lowest ground around).
+  - Nodes are crossings or vaulted rooms: crypts, treasure rooms, flooded rooms, lava rooms, shrines, bone pits and
+    prisons.
+  - Corridors join neighbours in the same 128-block district.
+  - Catacomb gates in the field (a stone porch, a ladder shaft, a passage) lead down. A shaft that lands inside a room
+    comes down its ladder pillar.
+  - Chests, spawners, signs and trap dispensers are never overwritten by later building: the first tile placed on a
+    spot keeps it.
 - **Earlier content, kept:**
   - the ten original wilderness ruins;
   - old cities, now with dead gardens of petrified trees and cult shrines instead of meadows;
@@ -99,7 +139,27 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
   - no trees, leaves, flowers or mushrooms;
   - grass on 2.4% of columns;
   - at least 64% of columns clearly built on (plain gravel and cobble paving not counted);
-  - 0.5 ms per chunk.
+  - all 21 site kinds appear;
+  - 505 catacomb rooms in 25×25 chunks, 93% of them hollow at depth; 11 gates in the field; 300 dart traps, each with
+    its plate;
+  - every chest, spawner, sign and dispenser the populator recomputes matches the generated block;
+  - 0.46 ms per chunk.
+
+## The sky
+- **Server side** (`Sky.java`):
+  - Players in Ul'Nhaar receive a hidden scoreboard objective `jrs` ("JRS v1 eerie"); it is removed when they leave.
+  - Every 2 s, each player there gets pale spores (`TOWN_AURA`, `SUSPENDED_DEPTH`) and, now and then, a distant
+    wail.
+  - Now and then, silent lightning flashes somewhere out in the ruins.
+- **Client side** (`scripts/build-sky-client.cjs`, five fenced `/*JASPR_SKY_V1*/` hooks in `site/classes.js`,
+  client `20260927-sky1`): while the objective is present:
+  - the sky dome is sick green;
+  - the moon, sun and stars are blood red;
+  - fog and the backdrop blend into a mist that turns from corpse-green to blood-red and back (about 40 s);
+  - below render distance 4 no sky dome is drawn, so the whole backdrop is that mist.
+
+  Everywhere else the sky is untouched. Nothing new is downloaded; the hooks ship inside the normal client.
+- **Diagnostics:** `JasprSkyDiagnostics.status()` in the browser returns `{on, failure, mist}`.
 
 ## Server resources
 - **Unused, it stays on disk.** The world loads when someone enters (portal, `/ruins tp`, or logging in where they
@@ -107,9 +167,12 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
 - **Empty, it unloads.** 60 s after its last player leaves it is saved and fully unloaded (0 chunks, 0 entities, about
   20 ms). Its horror, dread and boss tasks then return immediately. The Lost Cities detach and re-attach cleanly.
 - **Browser:** all visuals are vanilla blocks and mobs, so there is nothing extra to download. Relics are vanilla items
-  with names, so they display fine to players who have never visited.
-- **Regeneration:** this update (epoch 2) renames the old world folder to `jaspr_ruins-retired-epoch1-<time>` (nothing
+  with names, so they display fine to players who have never visited. The sky is a few kilobytes inside the client.
+- **Regeneration:** this update (epoch 3) renames the old world folder to `jaspr_ruins-retired-epoch2-<time>` (nothing
   is deleted) and forgets its portals. Players who logged out inside it wake at the overworld spawn.
+- **Epoch 3 fixture** (lean headless browser, seed 305441741): about 3 minutes in survival rose 10 horrors, including
+  4 Elders. It also produced 2 chest ambushes, 2 shadows, 1 masonry fall and 6 traps populated, with no generation
+  failures.
 
 ## Owner tools
 `/ruins [status|tp|back|where|find <city|lostcity|kind>|door [open|close]|guide|lore|seal [type]|trinket [type]|boss <type>|horror <kind>|dread|unload]`
@@ -117,5 +180,6 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
 ## Logs
 `RUINS_READY`, `RUINS_WORLD_LOADED`, `RUINS_WORLD_UNLOADED`, `RUINS_REGENERATED`, `RUINS_WELCOME`, `RUINS_BOSS_WOKE`,
 `RUINS_BOSS_SLEPT`, `RUINS_WARDEN_SLAIN`, `RUINS_HERALD_SLAIN`, `RUINS_DOOR_SEAL`, `RUINS_DOOR_OPENED`,
-`RUINS_DOOR_SEALED`, `RUINS_PORTAL_*`, `RUINS_TRAVEL`, `RUINS_METRICS` (on shutdown). The Lost Cities log
-`LOST_CITIES_DETACHED`.
+`RUINS_DOOR_SEALED`, `RUINS_PORTAL_*`, `RUINS_TRAVEL`, and `RUINS_METRICS` on shutdown. In epoch 3,
+`RUINS_METRICS` also counts `elders`, `ambushes`, `shadows`, `crumbles`, `traps` and `skyFlashes`. The Lost
+Cities log `LOST_CITIES_DETACHED`.

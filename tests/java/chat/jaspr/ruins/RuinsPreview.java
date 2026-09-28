@@ -80,7 +80,7 @@ public final class RuinsPreview {
     }
 
     static final Map<Long, Chunk> cache = new HashMap<>();
-    static final int[] SIGNS = {0};
+    static final int[] SIGNS = {0}, TRAPS = {0};
     static long genNanos, genChunks;
 
     static Chunk chunk(RuinsGenerator gen, int cx, int cz) {
@@ -198,6 +198,28 @@ public final class RuinsPreview {
         check(grass < 0.06, "only a little grass: " + grass);
         check(coverage > 0.6, "the land is built over: " + coverage);
 
+        // 3d. The catacombs: vaulted rooms hollowed out under the ruins at the district depth, reached by gates.
+        int rooms = 0, hollow = 0, gates = 0;
+        for (int i = -12; i <= 12; i++)
+            for (int j = -12; j <= 12; j++) {
+                int type = Catacombs.node(gen.plans, i, j);
+                if (type == Catacombs.NONE) continue;
+                rooms++;
+                int x = i * 16 + 8, z = j * 16 + 8, depth = gen.plans.depth(x, z);
+                Chunk c = chunk(gen, i, j);
+                if (c.id(8, depth + 3, 8) == 0 || c.id(8, depth + 3, 8) == 8 || c.id(8, depth + 3, 8) == 30) hollow++;
+                verifyTiles(gen, i, j);
+            }
+        for (int i = Math.floorDiv(-192, Plans.CELL); i < Math.floorDiv(192, Plans.CELL); i++)
+            for (int j = Math.floorDiv(-192, Plans.CELL); j < Math.floorDiv(192, Plans.CELL); j++) {
+                Plans.Cell cell = gen.plans.cell(i, j);
+                if (cell != null && cell.type == Plans.Filler.CATACOMB_GATE) gates++;
+            }
+        System.out.println("catacombs rooms=" + rooms + " hollow=" + hollow + " gates=" + gates + " traps=" + TRAPS[0]);
+        check(rooms > 200 && hollow > rooms * 0.9, "catacomb rooms are hollow underground: " + hollow + "/" + rooms);
+        check(gates > 3, "catacomb gates in the field: " + gates);
+        check(TRAPS[0] > 0, "dart traps with plates: " + TRAPS[0]);
+
         // 4. Determinism: a fresh generator draws the same chunk.
         RuinsGenerator again = new RuinsGenerator(SEED, reserved, null);
         Chunk a = chunk(gen, Math.floorDiv(city.x, 16), Math.floorDiv(city.z, 16)), b = new Chunk();
@@ -268,6 +290,7 @@ public final class RuinsPreview {
             int id = c.id(t.x & 15, t.y, t.z & 15);
             if (t.kind == Canvas.CHEST_TILE) { check(id == 54, "chest block at " + t.x + "," + t.y + "," + t.z + " is " + id); chests++; }
             else if (t.kind == Canvas.SPAWNER_TILE) { check(id == 52, "spawner block at " + t.x + "," + t.y + "," + t.z + " is " + id); spawners++; }
+            else if (t.kind == Canvas.DISPENSER_TILE) { check(id == 23, "dispenser block at " + t.x + "," + t.y + "," + t.z + " is " + id); check(c.id(t.x & 15, t.y + 1, t.z & 15) == 70, "a plate over the dart trap"); TRAPS[0]++; }
             else { check(id == 68, "sign block at " + t.x + "," + t.y + "," + t.z + " is " + id); check(t.what.split("\n").length <= 4, "four sign lines"); SIGNS[0]++; }
             planned.add(Portals.key(t.x & 15, t.y, t.z & 15));
         }
@@ -275,7 +298,7 @@ public final class RuinsPreview {
             for (int z = 0; z < 16; z++)
                 for (int y = 0; y < 256; y++) {
                     int id = c.id(x, y, z);
-                    if ((id == 54 || id == 52) && !planned.contains(Portals.key(x, y, z))) throw new AssertionError("unplanned tile " + id + " at chunk " + cx + "," + cz + " " + x + "," + y + "," + z);
+                    if ((id == 54 || id == 52 || id == 23) && !planned.contains(Portals.key(x, y, z))) throw new AssertionError("unplanned tile " + id + " at chunk " + cx + "," + cz + " " + x + "," + y + "," + z);
                 }
         return new int[] {chests, spawners};
     }
