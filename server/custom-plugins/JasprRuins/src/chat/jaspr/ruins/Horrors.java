@@ -34,6 +34,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.SlimeSplitEvent;
@@ -47,7 +48,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
 /**
- * The horrors of Ul'Nhaar. In the ruins every monster that spawns naturally or from a spawner becomes one of ten
+ * The horrors of Drownhollow. In the ruins every monster that spawns naturally or from a spawner becomes one of ten
  * Lovecraftian horrors (there are no animals), each with its own strength and trick; and the Dread rises in anyone who
  * stands in darkness without a light, bringing whispers, nausea, weakness, blindness and finally harm.
  */
@@ -99,7 +100,7 @@ final class Horrors implements Listener {
     private final java.util.Set<Long> ambushed = new java.util.HashSet<>();
     private final Map<UUID, Long> lastShadow = new HashMap<>();
     private int dreadTicks;
-    long transformed, slain, elites, ambushes, shadows, crumbles;
+    long transformed, slain, elites, ambushes, shadows, crumbles, eased;
 
     Horrors(RuinsPlugin plugin) { this.plugin = plugin; }
 
@@ -116,13 +117,15 @@ final class Horrors implements Listener {
         if (entity instanceof Animals || entity instanceof Ambient) { e.setCancelled(true); return; }   // nothing lives here
         if (!(entity instanceof Monster) && !(entity instanceof Slime)) return;
         e.setCancelled(true);
+        // Half the spawns: the monster cap is halved in RuinsPlugin; spawner cages (which ignore it) fire at half rate.
+        if (reason == CreatureSpawnEvent.SpawnReason.SPAWNER && random.nextDouble() >= RuinsPlugin.EASE) return;
         Location at = e.getLocation();
         Kind kind = at.getBlock().isLiquid() ? Kind.DEEP_ONE
             : reason == CreatureSpawnEvent.SpawnReason.SPAWNER && entity.getType() == EntityType.CAVE_SPIDER ? Kind.TOMB_CRAWLER : pick(random);
-        int group = kind == Kind.TOMB_CRAWLER ? 2 + random.nextInt(2) : kind == Kind.NIGHTGAUNT ? 1 + random.nextInt(2) : 1;
+        int group = kind == Kind.TOMB_CRAWLER ? 1 + random.nextInt(2) : 1;
         for (int i = 0; i < group; i++) {
             LivingEntity h = spawn(kind, i == 0 ? at : at.clone().add(random.nextDouble() * 2 - 1, 0, random.nextDouble() * 2 - 1));
-            if (h != null && random.nextDouble() < 0.12) elder(h, kind);
+            if (h != null && random.nextDouble() < 0.12 * RuinsPlugin.EASE) elder(h, kind);
         }
         transformed++;
     }
@@ -142,8 +145,8 @@ final class Horrors implements Listener {
     void elder(LivingEntity e, Kind kind) {
         e.addScoreboardTag(ELITE);
         e.setCustomName(ChatColor.DARK_PURPLE + "Elder " + kind.title);
-        set(e, Attribute.GENERIC_MAX_HEALTH, kind.health * 1.8);
-        e.setHealth(kind.health * 1.8);
+        set(e, Attribute.GENERIC_MAX_HEALTH, kind.health * 1.8 * RuinsPlugin.EASE);
+        e.setHealth(kind.health * 1.8 * RuinsPlugin.EASE);
         if (kind.damage > 0) set(e, Attribute.GENERIC_ATTACK_DAMAGE, kind.damage * 1.4);
         if (kind.speed > 0) set(e, Attribute.GENERIC_MOVEMENT_SPEED, kind.speed * 1.08);
         set(e, Attribute.GENERIC_ARMOR, 6);
@@ -159,8 +162,8 @@ final class Horrors implements Listener {
         e.setCustomNameVisible(false);
         if (e instanceof Slime) ((Slime) e).setSize(kind == Kind.SHOGGOTH ? 4 : 2);
         if (e instanceof Zombie) ((Zombie) e).setBaby(false);
-        set(e, Attribute.GENERIC_MAX_HEALTH, kind.health);
-        e.setHealth(kind.health);
+        set(e, Attribute.GENERIC_MAX_HEALTH, kind.health * RuinsPlugin.EASE);
+        e.setHealth(kind.health * RuinsPlugin.EASE);
         if (kind.damage > 0) set(e, Attribute.GENERIC_ATTACK_DAMAGE, kind.damage);
         if (kind.speed > 0) set(e, Attribute.GENERIC_MOVEMENT_SPEED, kind.speed);
         set(e, Attribute.GENERIC_FOLLOW_RANGE, 40);
@@ -260,11 +263,11 @@ final class Horrors implements Listener {
         Kind k = kindOf(e.getDamager());
         if (k == null) return;
         switch (k) {
-            case GHOUL: p.addPotionEffect(new PotionEffect(PotionEffectType.HUNGER, 200, 1), true); p.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, 0), true); break;
-            case MI_GO: p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 40, 0), true); break;
-            case DEEP_ONE: p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 40, 1), true); break;
-            case NIGHTGAUNT: p.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 20, 1), true); break;
-            case HOUND: p.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 60, 0), true); break;
+            case GHOUL: p.addPotionEffect(new PotionEffect(PotionEffectType.HUNGER, 100, 1), true); p.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 50, 0), true); break;
+            case MI_GO: p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 20, 0), true); break;
+            case DEEP_ONE: p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 20, 1), true); break;
+            case NIGHTGAUNT: p.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 10, 1), true); break;
+            case HOUND: p.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 30, 0), true); break;
             default: break;
         }
     }
@@ -309,7 +312,7 @@ final class Horrors implements Listener {
             UUID id = p.getUniqueId();
             int d = dread.getOrDefault(id, 0);
             boolean immune = Trinkets.dreadImmune(p), warded = Trinkets.dreadWarded(p);
-            d = immune ? 0 : lit(p) ? Math.max(0, d - 4) : Math.min(100, d + (warded ? 1 : 2));
+            d = immune ? 0 : lit(p) ? Math.max(0, d - 4) : Math.min(100, d + (warded ? (dreadTicks % 2 == 0 ? 1 : 0) : 1));   // half the old rise
             dread.put(id, d);
             if (d >= 30) {
                 int bars = d / 10;
@@ -331,11 +334,11 @@ final class Horrors implements Listener {
             }
             if (d >= 100) {
                 p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 70, 0, true, false), true);
-                p.damage(2.0);
+                p.damage(2.0 * RuinsPlugin.EASE);
             }
             // Something answers great fear.
             Long last = lastShadow.get(id);
-            if (d >= 90 && (last == null || now - last > 20_000L) && random.nextInt(3) == 0) {
+            if (d >= 90 && (last == null || now - last > 20_000L) && random.nextInt(6) == 0) {
                 lastShadow.put(id, now);
                 Location behind = p.getLocation().clone().subtract(p.getLocation().getDirection().setY(0).normalize().multiply(3)).add(0, 1, 0);
                 if (!behind.getBlock().getType().isSolid()) {
@@ -352,7 +355,7 @@ final class Horrors implements Listener {
     @SuppressWarnings("deprecation")
     private void crumble(World w) {
         for (Player p : w.getPlayers()) {
-            if (p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR || random.nextInt(4) != 0) continue;
+            if (p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR || random.nextInt(8) != 0) continue;
             Location at = p.getLocation();
             p.playSound(at, Sound.BLOCK_STONE_BREAK, 1.2f, 0.5f);
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
@@ -378,9 +381,9 @@ final class Horrors implements Listener {
         Block b = ((org.bukkit.block.Chest) e.getInventory().getHolder()).getBlock();
         if (!plugin.isRuins(b.getWorld()) || p.getGameMode() == GameMode.CREATIVE) return;
         long key = (long) b.getX() << 38 ^ (long) (b.getZ() & 0x3FFFFFF) << 12 ^ b.getY();
-        if (!ambushed.add(key) || random.nextDouble() >= 0.3) return;
+        if (!ambushed.add(key) || random.nextDouble() >= 0.3 * RuinsPlugin.EASE) return;
         if (ambushed.size() > 50_000) ambushed.clear();
-        int n = 2 + random.nextInt(3);
+        int n = 1 + random.nextInt(2);
         for (int i = 0; i < n; i++) {
             double t = random.nextDouble() * Math.PI * 2;
             Location at = b.getLocation().add(0.5 + Math.cos(t) * 4, 1, 0.5 + Math.sin(t) * 4);
@@ -393,6 +396,20 @@ final class Horrors implements Listener {
     }
 
     int dreadOf(Player p) { return dread.getOrDefault(p.getUniqueId(), 0); }
+
+    /** Everything hostile in the city hurts half as much (horrors, Wardens, the Herald, falling masonry, dread, wither). */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void eased(EntityDamageEvent e) {
+        if (!(e.getEntity() instanceof Player) || !plugin.isRuins(e.getEntity().getWorld())) return;
+        switch (e.getCause()) {
+            case ENTITY_ATTACK: case ENTITY_SWEEP_ATTACK: case PROJECTILE: case MAGIC: case WITHER: case POISON: case FALLING_BLOCK:
+            case ENTITY_EXPLOSION: case BLOCK_EXPLOSION: case CUSTOM: case THORNS: case LIGHTNING: case DRAGON_BREATH:
+                e.setDamage(e.getDamage() * RuinsPlugin.EASE);
+                eased++;
+                break;
+            default:
+        }
+    }
 
     @EventHandler
     public void left(PlayerChangedWorldEvent e) { dread.remove(e.getPlayer().getUniqueId()); }

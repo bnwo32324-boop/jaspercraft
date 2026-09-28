@@ -48,7 +48,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
- * JasprRuins: Ul'Nhaar, the drowned city of the Choir of the Drowned Star. A dimension packed with cyclopean ruins,
+ * JasprRuins: Drownhollow, the drowned city of the Choir of the Drowned Star. A dimension packed with cyclopean ruins,
  * weathered Lost Cities and cult monuments under an endless night, full of Lovecraftian horrors; five Wardens hold the
  * Seals of the Great Door, behind which the Dreamer's Herald waits. Beat it and the Herald's hoard is yours.
  *
@@ -62,7 +62,14 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     static final long SALT = 0x5275696E73L;   // "Ruins"
     /** Bumped when the dimension is redesigned: an older saved world is retired (renamed, not deleted) and regenerated. */
     static final int EPOCH = 3;
-    static final String EPOCH_FILE = "jaspr-ruins-epoch.txt", COMPASS = "Drowned Star Compass", COMPASS_MARK = "Relic of Ul'Nhaar - compass";
+    /**
+     * The owner asked for Drownhollow at half the difficulty and half the spawns (2026-09-28): everything hostile deals
+     * this share of its damage to players, horrors and Wardens have this share of their health, and the hazards and
+     * spawns below are scaled the same way.
+     */
+    static final double EASE = 0.5;
+    static final String EPOCH_FILE = "jaspr-ruins-epoch.txt", COMPASS = "Drowned Star Compass", COMPASS_MARK = "Relic of Drownhollow - compass",
+        OLD_COMPASS_MARK = "Relic of Ul'Nhaar - compass";   // compasses made before the rename
 
     private volatile World ruins;
     private World main;
@@ -122,7 +129,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         getLogger().info("RUINS_METRICS chunks=" + generator.chunks + " failures=" + generator.failures + " chests=" + p.chests + " spawners=" + p.spawners
             + " signs=" + p.signs + " weatheredChunks=" + Weathering.chunks + " loads=" + loads + " unloads=" + unloads
             + (horrors == null ? "" : " horrorsRisen=" + horrors.transformed + " horrorsSlain=" + horrors.slain + " elders=" + horrors.elites
-                + " ambushes=" + horrors.ambushes + " shadows=" + horrors.shadows + " crumbles=" + horrors.crumbles) + " traps=" + p.traps
+                + " ambushes=" + horrors.ambushes + " shadows=" + horrors.shadows + " crumbles=" + horrors.crumbles + " easedHits=" + horrors.eased) + " traps=" + p.traps
             + (sky == null ? "" : " skyFlashes=" + sky.flashes)
             + (bosses == null ? "" : " wardensSlain=" + bosses.wardensSlain + " heraldsSlain=" + bosses.heraldsSlain)
             + (portals == null ? "" : " portalsLit=" + portals.lit + " portalsBuilt=" + portals.built + " travels=" + portals.travels + " portalsClosed=" + portals.closed
@@ -150,10 +157,10 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         ruins = w;
         w.setKeepSpawnInMemory(false);
         w.setDifficulty(main.getDifficulty());
-        // Endless night over Ul'Nhaar: the horrors spawn on every stone, and beds do not work.
+        // Endless night over Drownhollow: the horrors spawn on every stone, and beds do not work.
         w.setGameRuleValue("doDaylightCycle", "false");
         w.setTime(18000L);
-        w.setMonsterSpawnLimit(75);   // half of epoch 3's first 150: dangerous, not relentless
+        w.setMonsterSpawnLimit((int) Math.round(75 * EASE));   // 150 at first, then 75, now halved again (owner, 2026-09-28)
         w.setTicksPerMonsterSpawns(1);
         w.setAnimalSpawnLimit(0);
         w.setAmbientSpawnLimit(0);
@@ -161,7 +168,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         loads++;
         emptySince = 0;
         Plans.Door d = plans().door();
-        getLogger().info("RUINS_WORLD_LOADED ms=" + (System.nanoTime() - t0) / 1_000_000L + " loads=" + loads + " door=" + d.x + "," + d.base + "," + d.z);
+        getLogger().info("RUINS_WORLD_LOADED ms=" + (System.nanoTime() - t0) / 1_000_000L + " loads=" + loads + " monsterCap=" + w.getMonsterSpawnLimit() + " ease=" + EASE + " door=" + d.x + "," + d.base + "," + d.z);
         return w;
     }
 
@@ -271,7 +278,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         saveTold();
         Bukkit.getScheduler().runTaskLater(this, () -> {
             if (!p.isOnline()) return;
-            p.sendMessage(ChatColor.DARK_GREEN + "New: the drowned city of Ul'Nhaar. " + ChatColor.GRAY + "Build a nether-portal frame out of "
+            p.sendMessage(ChatColor.DARK_GREEN + "New: the drowned city of Drownhollow. " + ChatColor.GRAY + "Build a nether-portal frame out of "
                 + ChatColor.GREEN + "mossy cobblestone" + ChatColor.GRAY + " (at least 4 wide, 5 tall) and light it with flint and steel. Conquer it to win its treasures.");
         }, 200L);
     }
@@ -296,7 +303,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         for (ItemStack item : give) for (ItemStack left : p.getInventory().addItem(item).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
         if (!give.isEmpty()) {
             getLogger().info("RUINS_WELCOME player=" + p.getName() + " guide=" + !guide + " compass=" + !compass);
-            p.sendTitle(ChatColor.DARK_GREEN + "Ul'Nhaar", ChatColor.GRAY + "The drowned city of the Choir", 10, 70, 20);
+            p.sendTitle(ChatColor.DARK_GREEN + "Drownhollow", ChatColor.GRAY + "The drowned city of the Choir", 10, 70, 20);
             p.sendMessage(ChatColor.DARK_GREEN + "The city presses a book into your hands. " + ChatColor.GRAY + "Read the "
                 + ChatColor.WHITE + Lore.GUIDE_TITLE + ChatColor.GRAY + ": it tells you how to conquer this place. Hold the "
                 + ChatColor.DARK_AQUA + COMPASS + ChatColor.GRAY + " to find your way.");
@@ -315,7 +322,10 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
 
     static boolean isCompass(ItemStack item) {
         if (item == null || item.getType() != Material.COMPASS || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return false;
-        for (String line : item.getItemMeta().getLore()) if (COMPASS_MARK.equals(ChatColor.stripColor(line))) return true;
+        for (String line : item.getItemMeta().getLore()) {
+            String plain = ChatColor.stripColor(line);
+            if (COMPASS_MARK.equals(plain) || OLD_COMPASS_MARK.equals(plain)) return true;
+        }
         return false;
     }
 
@@ -356,7 +366,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     public void noSleep(PlayerBedEnterEvent e) {
         if (!isRuins(e.getPlayer().getWorld())) return;
         e.setCancelled(true);
-        e.getPlayer().sendMessage(ChatColor.DARK_PURPLE + "The Dreamer allows no other dreams in Ul'Nhaar.");
+        e.getPlayer().sendMessage(ChatColor.DARK_PURPLE + "The Dreamer allows no other dreams in Drownhollow.");
     }
 
     // ------------------------------------------------------------------ names on entering
@@ -403,7 +413,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         if (sub.equals("status")) {
             RuinsPopulator p = generator == null ? null : generator.populator();
             World r = ruins;
-            sender.sendMessage(ChatColor.DARK_GREEN + "Ul'Nhaar: " + ChatColor.GRAY + (r == null ? "unloaded (on disk)" : "loaded, " + r.getPlayers().size() + " players, "
+            sender.sendMessage(ChatColor.DARK_GREEN + "Drownhollow: " + ChatColor.GRAY + (r == null ? "unloaded (on disk)" : "loaded, " + r.getPlayers().size() + " players, "
                 + r.getLoadedChunks().length + " chunks, " + r.getEntities().size() + " entities") + "; " + (generator == null ? 0 : generator.chunks) + " chunks generated, "
                 + (portals == null ? 0 : portals.count()) + " portals" + (p == null ? "" : ", " + p.chests + " chests") + "; loads " + loads + ", unloads " + unloads);
             if (bosses != null) sender.sendMessage(ChatColor.GRAY + bosses.status());
@@ -430,20 +440,20 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
             case "trinket": { for (Trinkets.Trinket t : Trinkets.Trinket.values()) if (arg.isEmpty() || t.key().equals(arg)) give(player, Trinkets.item(t)); return true; }
             case "boss": {
                 Bosses.Boss b = Bosses.parse(arg);
-                if (b == null || !isRuins(player.getWorld())) { player.sendMessage(ChatColor.GRAY + "/ruins boss <" + Arrays.stream(Bosses.Boss.values()).map(x -> x.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "> (in Ul'Nhaar)"); return true; }
+                if (b == null || !isRuins(player.getWorld())) { player.sendMessage(ChatColor.GRAY + "/ruins boss <" + Arrays.stream(Bosses.Boss.values()).map(x -> x.name().toLowerCase(Locale.ROOT)).collect(Collectors.joining("|")) + "> (in Drownhollow)"); return true; }
                 bosses.spawn(b, "test_" + System.currentTimeMillis(), player.getLocation().add(player.getLocation().getDirection().setY(0).normalize().multiply(6)));
                 return true;
             }
             case "horror": {
                 Horrors.Kind k = null;
                 for (Horrors.Kind x : Horrors.Kind.values()) if (x.name().equalsIgnoreCase(arg)) k = x;
-                if (k == null || !isRuins(player.getWorld())) { player.sendMessage(ChatColor.GRAY + "/ruins horror <kind> (in Ul'Nhaar)"); return true; }
+                if (k == null || !isRuins(player.getWorld())) { player.sendMessage(ChatColor.GRAY + "/ruins horror <kind> (in Drownhollow)"); return true; }
                 horrors.spawn(k, player.getLocation().add(player.getLocation().getDirection().setY(0).normalize().multiply(5)));
                 return true;
             }
             case "door": {
                 World r = ruins;
-                if (r == null) { player.sendMessage(ChatColor.GRAY + "Ul'Nhaar is not loaded."); return true; }
+                if (r == null) { player.sendMessage(ChatColor.GRAY + "Drownhollow is not loaded."); return true; }
                 if (arg.equals("open")) bosses.openDoor(r); else if (arg.equals("close")) bosses.closeDoor(r);
                 else { Plans.Door d = plans().door(); go(player, surface(r, d.x, d.z - 30)); }
                 return true;
@@ -494,7 +504,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     }
 
     private String where(Location l) {
-        if (!isRuins(l.getWorld())) return "Not in Ul'Nhaar.";
+        if (!isRuins(l.getWorld())) return "Not in Drownhollow.";
         int x = l.getBlockX(), z = l.getBlockZ();
         Plans.Door d = plans().door();
         if (Math.abs(x - d.x) <= 44 && Math.abs(z - d.z) <= 48) return "The Great Door (" + d.x + ", " + d.z + ")";

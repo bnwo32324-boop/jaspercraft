@@ -35,12 +35,14 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
 /**
- * Relics found only in Ul'Nhaar (on horrors, Wardens, the Herald and in cult chests), the five Seals of the Great Door,
+ * Relics found only in Drownhollow (on horrors, Wardens, the Herald and in cult chests), the five Seals of the Great Door,
  * and the Herald's rewards. Relics work wherever they are carried; they are recognised by a lore line vanilla survival
- * cannot forge ("Relic of Ul'Nhaar - <key>", "Seal of Ul'Nhaar - <key>").
+ * cannot forge ("Relic of Drownhollow - <key>", "Seal of Drownhollow - <key>").
  */
 final class Trinkets implements Listener {
-    static final String RELIC = "Relic of Ul'Nhaar - ", SEAL = "Seal of Ul'Nhaar - ";
+    static final String RELIC = "Relic of Drownhollow - ", SEAL = "Seal of Drownhollow - ";
+    /** The marks items carried before the city was renamed (2026-09-28): still recognised. */
+    static final String OLD_RELIC = "Relic of Ul'Nhaar - ", OLD_SEAL = "Seal of Ul'Nhaar - ";
 
     enum Trinket {
         WARDSTONE("Choir Wardstone", Material.QUARTZ, 0, "Carried: your Dread rises at half speed", "and never sickens you."),
@@ -125,12 +127,14 @@ final class Trinkets implements Listener {
 
     static Trinket trinketOf(ItemStack item) {
         String k = marker(item, RELIC);
+        if (k == null) k = marker(item, OLD_RELIC);
         if (k == null) return null;
         try { return Trinket.valueOf(k.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { return null; }
     }
 
     static Seal sealOf(ItemStack item) {
         String k = marker(item, SEAL);
+        if (k == null) k = marker(item, OLD_SEAL);
         if (k == null) return null;
         try { return Seal.valueOf(k.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { return null; }
     }
@@ -159,7 +163,7 @@ final class Trinkets implements Listener {
         ItemStack cleaver = new ItemStack(Material.DIAMOND_SWORD);
         ItemMeta m = cleaver.getItemMeta();
         m.setDisplayName(ChatColor.DARK_PURPLE + "Herald's Cleaver");
-        m.setLore(Arrays.asList(ChatColor.GRAY + "Cut from the Herald's own claw.", ChatColor.DARK_GRAY + "Relic of Ul'Nhaar"));
+        m.setLore(Arrays.asList(ChatColor.GRAY + "Cut from the Herald's own claw.", ChatColor.DARK_GRAY + "Relic of Drownhollow"));
         m.addEnchant(Enchantment.DAMAGE_ALL, 5, true);
         m.addEnchant(Enchantment.LOOT_BONUS_MOBS, 3, true);
         m.addEnchant(Enchantment.FIRE_ASPECT, 2, true);
@@ -169,7 +173,7 @@ final class Trinkets implements Listener {
         ItemStack wings = new ItemStack(Material.ELYTRA);
         m = wings.getItemMeta();
         m.setDisplayName(ChatColor.DARK_PURPLE + "Wings of the Nightgaunt");
-        m.setLore(Arrays.asList(ChatColor.GRAY + "Leathery, silent, and faintly warm.", ChatColor.DARK_GRAY + "Relic of Ul'Nhaar"));
+        m.setLore(Arrays.asList(ChatColor.GRAY + "Leathery, silent, and faintly warm.", ChatColor.DARK_GRAY + "Relic of Drownhollow"));
         m.addEnchant(Enchantment.DURABILITY, 3, true);
         m.addEnchant(Enchantment.MENDING, 1, true);
         wings.setItemMeta(m);
@@ -177,7 +181,7 @@ final class Trinkets implements Listener {
         ItemStack heart = new ItemStack(Material.NETHER_STAR);
         m = heart.getItemMeta();
         m.setDisplayName(ChatColor.GOLD + "Dreamer's Heart");
-        m.setLore(Arrays.asList(ChatColor.GRAY + "It still beats, very slowly.", ChatColor.DARK_GRAY + "Relic of Ul'Nhaar"));
+        m.setLore(Arrays.asList(ChatColor.GRAY + "It still beats, very slowly.", ChatColor.DARK_GRAY + "Relic of Drownhollow"));
         heart.setItemMeta(m);
         out.add(heart);
         out.add(item(Trinket.IDOL_OF_THE_DREAMER));

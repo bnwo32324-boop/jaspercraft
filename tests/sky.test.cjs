@@ -1,5 +1,5 @@
 'use strict';
-// JasprSky: the eerie sky of Ul'Nhaar. The fenced client stage (scripts/build-sky-client.cjs) is installed in
+// JasprSky: the eerie sky of Drownhollow (once Ul'Nhaar). The fenced client stage (scripts/build-sky-client.cjs) is installed in
 // site/classes.js, refreshes idempotently and parses; the server's hidden objective matches what the client looks for.
 const test = require('node:test');
 const assert = require('node:assert/strict');

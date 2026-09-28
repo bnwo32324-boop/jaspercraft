@@ -1,9 +1,19 @@
-# Ul'Nhaar, the drowned city (JasprRuins, epoch 3)
+# Drownhollow, the drowned city (JasprRuins, epoch 3)
 
 **TL;DR:** the ruins dimension is a dense cyclopean city of the Choir of the Drowned Star. There are no trees or
 plains, just a little grass and ivy. Endless night, Lovecraftian horrors everywhere, five Warden bosses, and a final
 boss, the Dreamer's Herald, behind the Great Door. Everyone who enters gets a guide book and a compass. Beating the
 Herald pays out a hoard of unique items. The world loads only while someone is in it.
+
+**2026-09-28 (owner): renamed and eased.** The city was called Ul'Nhaar; it is now **Drownhollow** (easier to say).
+Relics, Seals and compasses marked with the old name (Ul'Nhaar) still work. It is also half as hard, with half the spawns:
+- everything hostile deals **half damage** to players (horrors, Wardens, the Herald, falling masonry, Dread, wither);
+- horrors, Elders and the six bosses have **half their health**;
+- **spawns halved:** monster cap 75 -> 38, spawner cages fire at half rate, Tomb Crawlers come 1-2 (not 2-3) and
+  Nightgaunts singly, bosses summon half as many helpers;
+- **hazards halved:** Elders 6% (not 12%), Dread rises half as fast and its damage is halved, shadows half as often,
+  falling masonry half as often, chest ambushes 15% with 1-2 horrors (not 30% with 2-4), bite effects half as long.
+The numbers below are the design before this change; `RuinsPlugin.EASE` (0.5) scales them.
 
 **Epoch 3 (regenerated again) adds:**
 - **Catacombs under everything:** vaulted rooms joined by corridors with dart traps, reached through gates in the field.
@@ -18,7 +28,7 @@ Herald pays out a hoard of unique items. The world loads only while someone is i
 
 ## Getting there
 - Build a nether-portal-shaped frame of **mossy cobblestone** (at least 4×5) and light it with flint and steel.
-- Stand in the portal for 3 s. Gates to Ul'Nhaar glow **green**; obsidian Nether portals stay purple (client
+- Stand in the portal for 3 s. Gates to Drownhollow glow **green**; obsidian Nether portals stay purple (client
   `20260927-portal1`).
 
 **Gates are linked in pairs:**
@@ -73,7 +83,7 @@ Everyone who enters is handed the **Pilgrim's Primer** and a **Drowned Star Comp
 - The Hierophant also drops a totem.
 - Each respawns 30 minutes after it is killed.
 
-**Relics.** These are found only in Ul'Nhaar: on horrors (1.5%, Elders 8%), in cult and catacomb chests, from Wardens
+**Relics.** These are found only in Drownhollow: on horrors (1.5%, Elders 8%), in cult and catacomb chests, from Wardens
 and from the Herald.
 They work in any world:
 
@@ -112,7 +122,7 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
 **Other dangers (epoch 3):**
 - **Elders:** 12% of horrors rise as an Elder, wreathed in faint purple motes. They have 1.8× health, 1.4× damage,
   armour and a little more speed, and give double XP. The motes are particles, not a glowing effect.
-- **Ambushes:** the first time a chest in Ul'Nhaar is opened, there is a 30% chance that 2–4 horrors rise around it.
+- **Ambushes:** the first time a chest in Drownhollow is opened, there is a 30% chance that 2–4 horrors rise around it.
 - **Shadows:** at Dread 90 or higher, a Nightgaunt may appear behind you (at most every 20 s).
 - **Falling masonry:** about once a minute, anyone out in the ruins may hear stone crack, then be hit by blocks
   falling from above a second later. The blocks never land, so they leave no mess.
@@ -160,7 +170,7 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
 
 ## The sky
 - **Server side** (`Sky.java`):
-  - Players in Ul'Nhaar receive a hidden scoreboard objective `jrs` ("JRS v1 eerie"); it is removed when they leave.
+  - Players in Drownhollow receive a hidden scoreboard objective `jrs` ("JRS v1 eerie"); it is removed when they leave.
   - Every 2 s, each player there gets pale spores (`TOWN_AURA`, `SUSPENDED_DEPTH`) and, now and then, a distant
     wail.
   - Now and then, silent lightning flashes somewhere out in the ruins.

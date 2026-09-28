@@ -16,7 +16,7 @@ final class Weathering implements CityApi.PrimerHook {
 
     Weathering(long seed) { this.terrain = new Terrain(seed); }
 
-    /** Nothing grows in Ul'Nhaar: the mod's own vine pass stays off (the hook leaves a little ivy itself). */
+    /** Nothing grows in Drownhollow: the mod's own vine pass stays off (the hook leaves a little ivy itself). */
     @Override
     public boolean vines() { return false; }
 
@@ -142,7 +142,7 @@ final class Weathering implements CityApi.PrimerHook {
                         case 110: case 88: p[i] = c(13, 0); break;
                         case 18: case 161: case 31: case 32: case 37: case 38: case 175: case 6: case 39: case 40: case 83: case 81:
                         case 86: case 103: case 104: case 105: case 111: case 99: case 100: case 127:
-                            p[i] = 0;   // Ul'Nhaar grows nothing: leaves, flowers, shrubs and crops are gone
+                            p[i] = 0;   // Drownhollow grows nothing: leaves, flowers, shrubs and crops are gone
                             break;
                         case 106: if (r < 0.85) p[i] = 0; break;
                         case 2: if (r > 0.05) p[i] = r < 0.5 ? c(13, 0) : r < 0.8 ? c(1, 5) : c(98, 2); break;

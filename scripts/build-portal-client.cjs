@@ -2,7 +2,7 @@
 
 // Exact, candidate-only JasprPortal stage for the composed browser client (site/classes.js) and its resource archive
 // (site/assets.epk): every portal is coloured by its frame. A portal whose column stands on mossy cobblestone (a gate to
-// Ul'Nhaar) glows green; a quartz gate (to Atlas, the Divided Realm) burns half blue and half black at once, split down
+// Drownhollow, once Ul'Nhaar) glows green; a quartz gate (to Atlas, the Divided Realm) burns half blue and half black at once, split down
 // its middle; any other (obsidian: the Nether) keeps its purple. New gate kinds add a frame -> colour entry.
 //  - assets: portal.png becomes a neutral (grey) animation, and portal_ns/portal_ew faces get tintindex 0;
 //  - BlockColors.colorMultiplier (FEI): portal blocks (id 90) are tinted by their frame (walks down to the frame block);

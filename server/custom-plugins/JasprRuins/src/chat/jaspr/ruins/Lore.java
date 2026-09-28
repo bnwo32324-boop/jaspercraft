@@ -9,14 +9,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 
 /**
- * The lore of the drowned city Ul'Nhaar: the Choir of the Drowned Star, who raised it to wake Ythaqqua, the Dreamer in
+ * The lore of the drowned city Drownhollow: the Choir of the Drowned Star, who raised it to wake Ythaqqua, the Dreamer in
  * the Deep; their five Wardens and the Seals; the Great Door and the Herald behind it. Lore books are found in cult
  * chests and on slain horrors; the Pilgrim's Primer (the step-by-step guide) is handed to everyone who arrives.
  */
 final class Lore {
     private Lore() {}
 
-    static final String CITY = "Ul'Nhaar", CULT = "the Choir of the Drowned Star", GOD = "Ythaqqua";
+    static final String CITY = "Drownhollow", CULT = "the Choir of the Drowned Star", GOD = "Ythaqqua";
 
     /** Carved chants for signs (four lines of at most 15 characters). */
     static final String[] CHANTS = {
@@ -28,7 +28,7 @@ final class Lore {
         "THE CHOIR\nSINGS UNDER\nTHE WATER\nFOREVER",
         "WHEN THE\nDOOR OPENS\nTHE HERALD\nWALKS",
         "LEAVE NO\nLIGHT BURN\nLET HIM\nSEE",
-        "UL'NHAAR\nRISES WHEN\nTHE STARS\nARE RIGHT",
+        "DROWNHOLLOW\nRISES WHEN\nTHE STARS\nARE RIGHT",
         "WE GAVE OUR\nFACES TO\nTHE DARK.\nIT KEPT THEM.",
     };
 
@@ -48,7 +48,7 @@ final class Lore {
             "The high priests did not die. They were given to the Door as its wardens, each holding a Seal:\n\nThe Hierophant keeps the Seal of Tides in the Sanctum of the Drowned Star.\n\nThe Pillar Warden keeps the Seal of Stone in the Circle of the Watchers.",
             "The Brood Mother keeps the Seal of Hunger in the Pit of Offerings.\n\nThe Spawn of the Deep keeps the Seal of the Deep in the Spawning Pool.\n\nThe Faceless Priest keeps the Seal of Silence in the Chapel of the Faceless.",
             "Any three Seals, set into the Great Door, will open it. Behind it the Herald of Ythaqqua stands guard over the Dreamer. May no one ever gather three."},
-        {"On the Geometry of Ul'Nhaar", "Unsigned",
+        {"On the Geometry of Drownhollow", "Unsigned",
             "The builders were not men, or were no longer men when they built. Their stones are cut to a geometry of other spheres. A corner that looks convex is concave. A stair that rises may descend.",
             "Do not rest your eyes on the leaning pillars for long. The mind tries to make them straight, and in the trying something else comes in. That is the Dread. Light keeps it out. Light, and the Choir's wardstones."},
         {"Last Testament of Brother Aldous", "Brother Aldous",
@@ -65,7 +65,7 @@ final class Lore {
             "The Herald is the size of a tower. It is the first thing the Dreamer made when he dreamt. It walks the hall behind the Door and it will walk out of it when the stars are right.\n\nIts gaze blinds. Its stamp breaks bones. The floor sprouts mouths where it points.",
             "When it is wounded it calls the Deep. When it is near death the sky falls on its killers. The Choir wrote no instruction for killing it, because none of us believed it could be killed."},
         {"After the Waking", "The last of the Choir",
-            "It is done. The Herald is fallen and the Dreamer sleeps deeper than before. Ul'Nhaar will wait another thousand years for its stars.\n\nWear the Crown. It was made for the one who would end the Dream. The city will remember your face - it remembers every face - but it will fear yours."},
+            "It is done. The Herald is fallen and the Dreamer sleeps deeper than before. Drownhollow will wait another thousand years for its stars.\n\nWear the Crown. It was made for the one who would end the Dream. The city will remember your face - it remembers every face - but it will fear yours."},
     };
 
     static int bookCount() { return BOOKS.length; }

@@ -35,7 +35,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.util.Vector;
 
 /**
- * Mossy cobblestone portals between the overworld and the Ancient Ruins. A frame shaped like a nether portal (inside
+ * Mossy cobblestone portals between the overworld and Drownhollow (the ruins dimension). A frame shaped like a nether portal (inside
  * 2-21 wide and 3-21 tall, corners optional) built of mossy cobblestone and lit with flint and steel or a fire charge
  * fills with portal blocks. Vanilla would tear them down (they have no obsidian frame) and would send whoever stands in
  * them to the Nether, so their blocks are shielded from physics and vanilla portal travel; instead, standing in one for
@@ -284,7 +284,7 @@ final class Portals implements Listener {
         lit++;
         w.playSound(new Location(w, p.cx(), p.y + 1, p.cz()), Sound.BLOCK_PORTAL_TRIGGER, 0.7f, 1.4f);
         e.getPlayer().sendMessage(ChatColor.DARK_GREEN + "The moss-grown gate hums. " + ChatColor.GRAY + "Stand in it to cross to "
-            + (plugin.isRuins(w) ? "the overworld." : "the Ancient Ruins."));
+            + (plugin.isRuins(w) ? "the overworld." : "Drownhollow."));
         plugin.getLogger().info("RUINS_PORTAL_LIT world=" + w.getName() + " size=" + p.w + "x" + p.h + " by=" + e.getPlayer().getName());
     }
 
@@ -457,7 +457,7 @@ final class Portals implements Listener {
         travels++;
         plugin.getLogger().info("RUINS_TRAVEL player=" + player.getName() + " from=" + src.getName() + " to=" + dst.getName()
             + " builtPortal=" + made + " route=" + route + " ok=" + ok + " ms=" + (System.nanoTime() - t0) / 1_000_000L);
-        if (ok && plugin.isRuins(dst)) player.sendTitle(ChatColor.DARK_GREEN + "The Ancient Ruins", ChatColor.GRAY + "Moss-grown cities of a forgotten age", 10, 60, 20);
+        if (ok && plugin.isRuins(dst)) player.sendTitle(ChatColor.DARK_GREEN + "Drownhollow", ChatColor.GRAY + "The drowned city of the Choir", 10, 60, 20);
     }
 
     private Portal nearest(String world, double x, double z) {

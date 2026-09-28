@@ -1,5 +1,5 @@
 'use strict';
-// JasprPortal: portals take their frame's colour (mossy cobblestone gates to Ul'Nhaar are green, obsidian Nether portals
+// JasprPortal: portals take their frame's colour (mossy cobblestone gates to Drownhollow, once Ul'Nhaar, are green, obsidian Nether portals
 // stay purple). The fenced client stage (scripts/build-portal-client.cjs) and the neutral portal texture with tinted
 // models are installed in site/, rebuild byte-for-byte, and the browsers are told to fetch them.
 const test = require('node:test');
@@ -47,5 +47,13 @@ test('gates: linked pairs, return to the gate you came from, no ping-pong, step-
   for (const k of ['cameThrough', 'mustLeave', 'route=', 'RUINS_PORTAL_STRAY_ARRIVAL', 'for (int drop = 0; drop <= 3; drop++)', 'String id()', 'private Portal touching(Location l, double halfWidth, double height)', 'RUINS_PORTAL_VANILLA_BLOCKED', 'RUINS_PORTAL_ADOPTED'])
     assert.ok(portals.includes(k), k);
   const plugin = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/RuinsPlugin.java');
-  assert.ok(plugin.includes('setMonsterSpawnLimit(75)'), 'half the monster cap');
+  assert.ok(plugin.includes('setMonsterSpawnLimit((int) Math.round(75 * EASE))') && plugin.includes('static final double EASE = 0.5;'), 'the monster cap halved again (38)');
+  // Owner, 2026-09-28: half the difficulty and half the spawns, and the city renamed Drownhollow.
+  const horrors = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Horrors.java');
+  assert.ok(horrors.includes('e.setDamage(e.getDamage() * RuinsPlugin.EASE);'), 'hostile damage to players halved');
+  assert.ok(horrors.includes('kind.health * RuinsPlugin.EASE') && horrors.includes('SpawnReason.SPAWNER && random.nextDouble() >= RuinsPlugin.EASE'), 'half health, spawners at half rate');
+  assert.ok(read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Bosses.java').includes('boss.health * RuinsPlugin.EASE'), 'bosses at half health');
+  const trinkets = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Trinkets.java');
+  assert.ok(trinkets.includes('"Relic of Drownhollow - "') && trinkets.includes('marker(item, OLD_RELIC)') && trinkets.includes('marker(item, OLD_SEAL)'), 'renamed; old relics and seals still count');
+  assert.ok(plugin.includes('OLD_COMPASS_MARK.equals(plain)'), 'old compasses still count');
 });

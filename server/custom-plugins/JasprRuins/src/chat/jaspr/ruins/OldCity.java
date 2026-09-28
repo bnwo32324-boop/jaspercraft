@@ -229,7 +229,7 @@ final class OldCity {
         if (Hash.unit(h, 5, 0, 29) < 0.6) tree(f, 3, 2, 4 + Hash.range(Hash.mix(h), 0, 2));
     }
 
-    /** A petrified tree: a trunk of andesite with bare stone branches reaching out; nothing grows in Ul'Nhaar. */
+    /** A petrified tree: a trunk of andesite with bare stone branches reaching out; nothing grows in Drownhollow. */
     static void tree(Frame f, int lx, int lz, int height) {
         for (int y = 1; y <= height; y++) f.set(lx, y, lz, STONE, 5);
         int[][] arms = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};

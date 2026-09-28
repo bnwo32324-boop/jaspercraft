@@ -3,10 +3,10 @@ version: 1.0.0
 main: chat.jaspr.ruins.RuinsPlugin
 depend: [JasprLostCities, JasprHorrorBiomes]
 author: Jaspr
-description: The Ancient Ruins, a moss-grown dimension of weathered Lost Cities, original old cities and wilderness ruins, reached through mossy cobblestone portals.
+description: Drownhollow, a drowned and moss-grown dimension of weathered Lost Cities, original old cities and wilderness ruins, reached through mossy cobblestone portals.
 commands:
   ruins:
-    description: Ancient Ruins status and owner travel/search tools.
+    description: Drownhollow status and owner travel/search tools.
     usage: /ruins [status|tp|back|where|find <city|lostcity|temple|...>]
     permission: jaspr.ruins.admin
 permissions:

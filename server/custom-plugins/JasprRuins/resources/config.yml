@@ -1,4 +1,4 @@
-# JasprRuins: the Ancient Ruins dimension (world "jaspr_ruins").
+# JasprRuins: Drownhollow, the ruins dimension (world "jaspr_ruins").
 enabled: true
 # Tell every player once, a few seconds after they join, how to build a mossy cobblestone portal.
 hint-on-join: true

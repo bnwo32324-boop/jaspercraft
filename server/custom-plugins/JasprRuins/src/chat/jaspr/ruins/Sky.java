@@ -21,7 +21,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 /**
- * The sky over Ul'Nhaar. The browser client paints a sickly green sky and fog, a blood-red moon and reddened stars while
+ * The sky over Drownhollow. The browser client paints a sickly green sky and fog, a blood-red moon and reddened stars while
  * the hidden scoreboard objective "jrs" (display "JRS v1") is present; this sends it to players in the ruins and removes
  * it when they leave (the client keeps its scoreboard across world changes). Ambience rides along: drifting pale motes,
  * far-off wails and silent lightning on the horizon.

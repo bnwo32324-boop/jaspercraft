@@ -198,8 +198,8 @@ final class Bosses implements Listener {
         e.setCustomNameVisible(true);
         e.setRemoveWhenFarAway(false);
         if (e instanceof Slime) ((Slime) e).setSize(8);
-        Horrors.set(e, Attribute.GENERIC_MAX_HEALTH, boss.health);
-        e.setHealth(boss.health);
+        Horrors.set(e, Attribute.GENERIC_MAX_HEALTH, boss.health * RuinsPlugin.EASE);
+        e.setHealth(boss.health * RuinsPlugin.EASE);
         if (boss.damage > 0) Horrors.set(e, Attribute.GENERIC_ATTACK_DAMAGE, boss.damage);
         Horrors.set(e, Attribute.GENERIC_ARMOR, boss == Boss.HERALD ? 12 : 8);
         Horrors.set(e, Attribute.GENERIC_KNOCKBACK_RESISTANCE, boss == Boss.HERALD ? 1.0 : 0.6);
@@ -337,6 +337,8 @@ final class Bosses implements Listener {
     }
 
     private void call(LivingEntity boss, Horrors.Kind kind, int count, int cap) {
+        count = (int) Math.ceil(count * RuinsPlugin.EASE);   // half the summons (owner, 2026-09-28)
+        cap = (int) Math.ceil(cap * RuinsPlugin.EASE);
         int around = 0;
         for (Entity n : boss.getNearbyEntities(24, 12, 24)) if (Horrors.isHorror(n) && !isBoss(n)) around++;
         for (int i = 0; i < count && around < cap; i++, around++) {
@@ -439,10 +441,10 @@ final class Bosses implements Listener {
             for (Player p : Horrors.playersNear(at, 64)) {
                 for (ItemStack item : Trinkets.heraldRewards())
                     for (ItemStack left : p.getInventory().addItem(item).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
-                p.sendTitle(ChatColor.GOLD + "THE DREAM IS ENDED", ChatColor.GRAY + "You have conquered Ul'Nhaar.", 10, 100, 30);
+                p.sendTitle(ChatColor.GOLD + "THE DREAM IS ENDED", ChatColor.GRAY + "You have conquered Drownhollow.", 10, 100, 30);
                 slayers.add(p.getUniqueId().toString());
             }
-            Bukkit.broadcastMessage(ChatColor.GOLD + (killer != null ? killer.getName() : "Pilgrims") + " ended the Dream of Ul'Nhaar: the Dreamer's Herald is slain!");
+            Bukkit.broadcastMessage(ChatColor.GOLD + (killer != null ? killer.getName() : "Pilgrims") + " ended the Dream of Drownhollow: the Dreamer's Herald is slain!");
             cooldown.put("door", now + HERALD_COOLDOWN);
             doorClosesAt = now + 3L * 60_000L;
             plugin.getLogger().info("RUINS_HERALD_SLAIN by=" + (killer == null ? "unknown" : killer.getName()) + " rewarded=" + Horrors.playersNear(at, 64).size());

@@ -3,7 +3,7 @@ package chat.jaspr.ruins;
 import static chat.jaspr.ruins.Canvas.*;
 
 /**
- * The catacombs under Ul'Nhaar: in every 128-block district a network sits two dozen blocks below the lowest ground,
+ * The catacombs under Drownhollow: in every 128-block district a network sits two dozen blocks below the lowest ground,
  * one node under the centre of each chunk (a vaulted room or a crossing, or solid rock) joined by corridors, some of them
  * trapped with pressure plates that fire arrow dispensers. Rooms are crypts, treasure vaults, flooded halls, lava pits,
  * shrines, bone pits and prisons, most of them guarded. Catacomb gates on the surface (a field monument) lead down.

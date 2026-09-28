@@ -12,7 +12,7 @@ import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 
 /**
- * The Ancient Ruins: HorrorBiomes' terrain heights (so the Lost Cities fit the land exactly as they do in the
+ * Drownhollow (the ruins dimension): HorrorBiomes' terrain heights (so the Lost Cities fit the land exactly as they do in the
  * overworld) dressed as an overgrown, mossy world of forests, jungle edges and swamps, with the original old cities
  * levelled into it and wilderness ruins stamped on top. The Lost Cities plugin builds its own cities afterwards through
  * its populator, restyled by {@link Weathering}.

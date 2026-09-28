@@ -3,7 +3,7 @@ package chat.jaspr.ruins;
 import static chat.jaspr.ruins.Canvas.*;
 
 /**
- * The ruin field of Ul'Nhaar: every 24-block cell that no city, site, Lost City or the Great Door claims holds one
+ * The ruin field of Drownhollow: every 24-block cell that no city, site, Lost City or the Great Door claims holds one
  * monument (giant leaning pillars, obelisks, pillar gates, cyclopean walls, stairs to nowhere, sunken plazas, arches,
  * idols of the Dreamer, cult altars, spire clusters, colonnades, fallen cyclopean blocks), and the ground between is
  * cracked paving strewn with rubble, bones and skulls, with only the odd tuft of grass. Pillars rise out of the water too.
