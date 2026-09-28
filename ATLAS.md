@@ -173,4 +173,4 @@ Paper test server), **browser-tested** (checked there with real headless browser
 | Captives (rescue blocked by guards, House of Return berths, freed with their province) and a labour camp | server-tested |
 | Trading (merchant screen), libraries (read and copy), heliodromes (find, list, travel), the Codex | browser-tested |
 | Protection of cities, walls and heliodromes | implemented; not exercised in a test run |
-| Deploy | approved by the owner (2026-09-27); goes live at the next restart with nobody online |
+| Deploy | live since the 23:32 restart on 2026-09-27 (ATLAS_READY, health checks passed); the Atlas world is created on first entry |
