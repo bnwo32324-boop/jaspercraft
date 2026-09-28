@@ -126,7 +126,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
             + (sky == null ? "" : " skyFlashes=" + sky.flashes)
             + (bosses == null ? "" : " wardensSlain=" + bosses.wardensSlain + " heraldsSlain=" + bosses.heraldsSlain)
             + (portals == null ? "" : " portalsLit=" + portals.lit + " portalsBuilt=" + portals.built + " travels=" + portals.travels + " portalsClosed=" + portals.closed
-                + " portalsLinked=" + portals.linked + " strayArrivals=" + portals.strayArrivals));
+                + " portalsLinked=" + portals.linked + " strayArrivals=" + portals.strayArrivals
+                + " portalsAdopted=" + portals.adopted + " vanillaBlocked=" + portals.vanillaBlocked));
     }
 
     // ------------------------------------------------------------------ the world on disk and in memory

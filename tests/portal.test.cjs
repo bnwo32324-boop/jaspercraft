@@ -44,7 +44,7 @@ test('portal assets: neutral animation, tinted faces, everything else untouched,
 
 test('gates: linked pairs, return to the gate you came from, no ping-pong, step-down arrival, stray vanilla arrivals', () => {
   const portals = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Portals.java');
-  for (const k of ['cameThrough', 'mustLeave', 'route=', 'RUINS_PORTAL_STRAY_ARRIVAL', 'for (int drop = 0; drop <= 3; drop++)', 'String id()'])
+  for (const k of ['cameThrough', 'mustLeave', 'route=', 'RUINS_PORTAL_STRAY_ARRIVAL', 'for (int drop = 0; drop <= 3; drop++)', 'String id()', 'private Portal touching(Location l, double halfWidth, double height)', 'RUINS_PORTAL_VANILLA_BLOCKED', 'RUINS_PORTAL_ADOPTED'])
     assert.ok(portals.includes(k), k);
   const plugin = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/RuinsPlugin.java');
   assert.ok(plugin.includes('setMonsterSpawnLimit(75)'), 'half the monster cap');

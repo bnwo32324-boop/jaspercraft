@@ -29,9 +29,9 @@ Herald pays out a hoard of unique items. The world loads only while someone is i
 - You arrive beside the gate, stepping down up to 3 blocks to find floor, facing away from it. You arrive inside only
   if both sides are walled in, and then the gate will not fire again until you step out (no ping-pong).
 - A vanilla Nether trip that lands inside a mossy gate is moved out in front of it (`RUINS_PORTAL_STRAY_ARRIVAL`).
+- **Fixed on 2026-09-27:** gates now detect your body touching the portal, as vanilla does, not only your feet block. Before this, stopping at the edge of a green gate (swirl already on screen) left your feet outside it: the gate never fired and vanilla took you to the Nether after 4 s. Vanilla travel is cancelled for anyone touching a mossy gate (`RUINS_PORTAL_VANILLA_BLOCKED`), and a lit mossy portal missing from the registry is adopted (`RUINS_PORTAL_ADOPTED`).
 
-**The mix-up on 2026-09-27:** jasper_e_'s base has an obsidian Nether portal three blocks from the mossy gate, and both
-glowed the same purple, so the trip back went to the Nether. That is why the gates are now green.
+**2026-09-27:** trips from jasper_e_'s green gate went to the Nether when stopping at the gate's edge (fixed, see below). The obsidian Nether portal three blocks away is unrelated.
 
 ## How to beat it (the Pilgrim's Primer)
 

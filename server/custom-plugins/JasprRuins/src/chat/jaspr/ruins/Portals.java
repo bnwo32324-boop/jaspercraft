@@ -93,7 +93,7 @@ final class Portals implements Listener {
     /** Players who arrived by a gate: it cannot send them on again until they have stepped out of every portal. */
     private final java.util.Set<UUID> mustLeave = new java.util.HashSet<>();
     private long tick;
-    long lit, travels, built, closed, linked, strayArrivals;
+    long lit, travels, built, closed, linked, strayArrivals, adopted, vanillaBlocked;
 
     Portals(RuinsPlugin plugin) {
         this.plugin = plugin;
@@ -158,6 +158,56 @@ final class Portals implements Listener {
     private Portal innerAt(Block b) {
         Map<Long, Portal> m = inner.get(b.getWorld().getName());
         return m == null ? null : m.get(key(b.getX(), b.getY(), b.getZ()));
+    }
+
+    /**
+     * The mossy gate whose portal blocks this body touches. Vanilla starts a portal trip as soon as an entity's box
+     * overlaps a portal block's cell (not only when its feet are in it), so gates must be detected the same way:
+     * a player who stops at the edge, swirl already on screen, has their feet one block outside the gate.
+     * A touched mossy-framed portal missing from the registry is adopted.
+     */
+    @SuppressWarnings("deprecation")
+    private Portal touching(Location l, double halfWidth, double height) {
+        World w = l.getWorld();
+        if (w == null) return null;
+        Map<Long, Portal> m = inner.get(w.getName());
+        int x0 = floor(l.getX() - halfWidth + 0.001), x1 = floor(l.getX() + halfWidth - 0.001);
+        int y0 = floor(l.getY() + 0.001), y1 = floor(l.getY() + height - 0.001);
+        int z0 = floor(l.getZ() - halfWidth + 0.001), z1 = floor(l.getZ() + halfWidth - 0.001);
+        for (int x = x0; x <= x1; x++)
+            for (int y = Math.max(0, y0); y <= Math.min(255, y1); y++)
+                for (int z = z0; z <= z1; z++) {
+                    Block b = w.getBlockAt(x, y, z);
+                    if (b.getTypeId() != PORTAL) continue;
+                    Portal p = m == null ? null : m.get(key(x, y, z));
+                    if (p == null) p = adopt(w, x, y, z);
+                    if (p != null) return p;
+                }
+        return null;
+    }
+
+    private static int floor(double v) { return (int) Math.floor(v); }
+
+    /** A lit portal inside a complete mossy frame that the registry does not know: register it (else null). */
+    @SuppressWarnings("deprecation")
+    private Portal adopt(World w, int x, int y, int z) {
+        if (!plugin.portalWorld(w)) return null;
+        int by = y;
+        while (by > 1 && w.getBlockAt(x, by - 1, z).getTypeId() == PORTAL) by--;
+        if (w.getBlockAt(x, by - 1, z).getTypeId() != FRAME) return null;   // an obsidian (Nether) portal stays vanilla
+        Blocks blocks = (bx, byy, bz) -> {
+            if (byy < 0 || byy > 255) return -1;
+            int id = w.getBlockAt(bx, byy, bz).getTypeId();
+            return id == PORTAL ? AIR : id;   // detect() expects an unlit frame
+        };
+        Portal p = detect(blocks, w.getName(), x, by, z, true);
+        if (p == null) p = detect(blocks, w.getName(), x, by, z, false);
+        if (p == null) return null;
+        index(p);
+        save();
+        adopted++;
+        plugin.getLogger().info("RUINS_PORTAL_ADOPTED world=" + w.getName() + " size=" + p.w + "x" + p.h);
+        return p;
     }
 
     private Portal frameAt(Block b) {
@@ -298,15 +348,16 @@ final class Portals implements Listener {
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void vanillaTravel(PlayerPortalEvent e) {
         if (e.getCause() != PlayerTeleportEvent.TeleportCause.NETHER_PORTAL || e.getFrom() == null) return;
-        Block b = e.getFrom().getBlock();
-        if (innerAt(b) != null || innerAt(b.getRelative(0, 1, 0)) != null) e.setCancelled(true);
+        if (touching(e.getFrom(), 0.3, 1.8) == null) return;
+        e.setCancelled(true);
+        vanillaBlocked++;
+        plugin.getLogger().info("RUINS_PORTAL_VANILLA_BLOCKED player=" + e.getPlayer().getName() + " world=" + e.getFrom().getWorld().getName());
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void vanillaTravel(EntityPortalEvent e) {
         if (e.getFrom() == null) return;
-        Block b = e.getFrom().getBlock();
-        if (innerAt(b) != null || innerAt(b.getRelative(0, 1, 0)) != null) e.setCancelled(true);
+        if (touching(e.getFrom(), 0.8, 2.0) != null) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -325,9 +376,7 @@ final class Portals implements Listener {
         Player player = e.getPlayer();
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (!player.isOnline()) return;
-            Block feet = player.getLocation().getBlock();
-            Portal p = innerAt(feet);
-            if (p == null) p = innerAt(feet.getRelative(0, 1, 0));
+            Portal p = touching(player.getLocation(), 0.3, 1.8);
             if (p == null) return;
             UUID id = player.getUniqueId();
             Long until = cooldown.get(id);
@@ -353,11 +402,8 @@ final class Portals implements Listener {
         if (portals.isEmpty()) { standing.clear(); return; }
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID id = player.getUniqueId();
-            Location l = player.getLocation();
-            Block feet = l.getBlock();
-            Portal p = innerAt(feet);
-            if (p == null) { feet = feet.getRelative(0, 1, 0); p = innerAt(feet); }
-            if (p == null || feet.getTypeId() != PORTAL) { standing.remove(id); mustLeave.remove(id); continue; }
+            Portal p = touching(player.getLocation(), 0.3, 1.8);
+            if (p == null) { standing.remove(id); mustLeave.remove(id); continue; }
             if (mustLeave.contains(id)) continue;   // arrived inside a gate: step out first (no ping-pong)
             Long until = cooldown.get(id);
             if (until != null && tick < until) continue;
