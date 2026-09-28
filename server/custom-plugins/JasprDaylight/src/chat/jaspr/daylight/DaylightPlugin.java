@@ -105,7 +105,8 @@ public final class DaylightPlugin extends JavaPlugin implements Listener {
     }
 
     private boolean skip(Entity entity) {
-        return entity instanceof Player || entity instanceof ArmorStand;
+        // Mobs tagged by other plugins (the horrors and bosses of the ruins dimension) keep their full speed.
+        return entity instanceof Player || entity instanceof ArmorStand || entity.getScoreboardTags().contains("jaspr_daylight_exempt");
     }
 
     private boolean exempt(LivingEntity entity) {

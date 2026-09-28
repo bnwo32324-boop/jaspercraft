@@ -214,33 +214,32 @@ final class OldCity {
         if (Hash.unit(h, 4, 0, 26) < 0.5) f.set(-1, 2, -1, WALL, 1);
     }
 
-    /** An overgrown garden: two old trees, grass and flowers inside a low broken wall. */
+    /** A dead garden: two petrified trees in gravel and bones inside a low broken wall. */
     private static void garden(Frame f, long h) {
         for (int lx = -5; lx <= 5; lx++)
             for (int lz = -5; lz <= 5; lz++) {
                 if (!f.inside(lx, lz)) continue;
                 if (Math.max(Math.abs(lx), Math.abs(lz)) == 5) { if (f.keep(lx, 1, lz, 0.55)) f.rubble(lx, 1, lz); continue; }
                 double r = f.roll(lx, 1, lz, 27);
-                if (r < 0.25) f.set(lx, 1, lz, TALLGRASS, 1);
-                else if (r < 0.32) f.set(lx, 1, lz, 38, (int) (f.roll(lx, 2, lz, 28) * 9));
-                else if (r < 0.36) f.set(lx, 1, lz, TALLGRASS, 2);
+                f.set(lx, 0, lz, r < 0.5 ? GRAVEL : r < 0.8 ? STONE : BRICK, r < 0.5 ? 0 : r < 0.8 ? 5 : 2);
+                if (r < 0.04) f.set(lx, 1, lz, BONE, 0);
+                else if (r < 0.06) f.set(lx, 1, lz, TALLGRASS, 1);
             }
         tree(f, -2, -2, 5 + Hash.range(h, 0, 2));
         if (Hash.unit(h, 5, 0, 29) < 0.6) tree(f, 3, 2, 4 + Hash.range(Hash.mix(h), 0, 2));
     }
 
-    /** A small tree drawn directly (no world access during generation): an oak trunk and a no-decay crown. */
+    /** A petrified tree: a trunk of andesite with bare stone branches reaching out; nothing grows in Ul'Nhaar. */
     static void tree(Frame f, int lx, int lz, int height) {
-        for (int dx = -2; dx <= 2; dx++)
-            for (int dz = -2; dz <= 2; dz++)
-                for (int y = height - 2; y <= height + 1; y++) {
-                    int reach = y > height - 1 ? 1 : 2;
-                    if (Math.abs(dx) > reach || Math.abs(dz) > reach) continue;
-                    if (Math.abs(dx) == reach && Math.abs(dz) == reach && f.roll(lx + dx, y, lz + dz, 30) < 0.6) continue;
-                    f.set(lx + dx, y, lz + dz, LEAVES, 4);
-                }
-        for (int y = 1; y <= height; y++) f.set(lx, y, lz, LOG, 0);
-        f.set(lx, 0, lz, DIRT, 0);
+        for (int y = 1; y <= height; y++) f.set(lx, y, lz, STONE, 5);
+        int[][] arms = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int k = 0; k < 4; k++) {
+            if (f.roll(lx, k, lz, 30) < 0.3) continue;
+            int y = height - 2 + k % 3;
+            f.set(lx + arms[k][0], y, lz + arms[k][1], WALL, 0);
+            f.set(lx + 2 * arms[k][0], y + 1, lz + 2 * arms[k][1], WALL, 0);
+        }
+        f.set(lx, height + 1, lz, WALL, 0);
     }
 
     /** A collapsed building: a mound of rubble with one corner still standing. */
@@ -307,14 +306,17 @@ final class OldCity {
         for (int k = 0; k <= 3; k++) f.set(0, -k, -4 + k, BRICK_STAIRS, f.stairs(0, -1, false));
     }
 
-    /** An empty lot: meadow grass and the base of something long gone. */
+    /** A cult shrine where a house once stood: a skull on an obsidian slab, a carved chant, scattered bones. */
     private static void meadow(Frame f, long h) {
         for (int lx = -5; lx <= 5; lx++)
             for (int lz = -5; lz <= 5; lz++) {
                 double r = f.roll(lx, 1, lz, 34);
-                if (r < 0.3) f.set(lx, 1, lz, TALLGRASS, 1);
-                else if (r < 0.34) f.set(lx, 1, lz, 37, 0);
+                f.set(lx, 0, lz, r < 0.4 ? GRAVEL : PRISMARINE, r < 0.4 ? 0 : 2);
+                if (r > 0.95) f.set(lx, 1, lz, BONE, 0);
             }
-        if (Hash.unit(h, 6, 0, 35) < 0.5) { f.set(0, 1, 0, BRICK, 3); f.set(0, 2, 0, STONE, 0); }
+        for (int lx = -1; lx <= 1; lx++) f.set(lx, 1, 0, OBSIDIAN);
+        f.set(0, 2, 0, SKULL, 1);
+        f.sign(0, 1, -1, 0, -1, Lore.chant(h));
+        if (Hash.unit(h, 6, 0, 35) < 0.4) f.chest(0, 1, 1, 0, 1, Sites.DUNGEON, "lore:" + Hash.range(h, 0, 99) + ";trinket:0.1");
     }
 }

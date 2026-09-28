@@ -29,6 +29,7 @@ final class Sites {
             case CRYPT: crypt(f, s.hash); break;
             case GATEHOUSE: gatehouse(f, s.hash); break;
             case COLOSSUS: colossus(f, s.hash); break;
+            case SANCTUM: case MONOLITHS: case PIT: case POOL: case CHAPEL: Cult.draw(s, c); break;
             default: break;
         }
     }
@@ -249,7 +250,7 @@ final class Sites {
                     if (f.keep(lx, 1, lz, 0.85)) f.masonry(lx, 1, lz);
                     if (f.roll(lx, 0, lz, 57) < 0.2) f.vines(lx, 0, lz, 0, lz, 2 + (int) (f.roll(lx, 1, lz, 58) * 4));
                 } else if (f.roll(lx, 1, lz, 55) < 0.25) {
-                    f.set(lx, 1, lz, LEAVES, 4);
+                    f.rubble(lx, 1, lz);
                 }
                 f.clear(lx, lz, 2, 4);
             }

@@ -16,6 +16,10 @@ final class Weathering implements CityApi.PrimerHook {
 
     Weathering(long seed) { this.terrain = new Terrain(seed); }
 
+    /** Nothing grows in Ul'Nhaar: the mod's own vine pass stays off (the hook leaves a little ivy itself). */
+    @Override
+    public boolean vines() { return false; }
+
     private static int idx(int x, int y, int z) { return x << 12 | z << 8 | y; }
     private static char c(int id, int data) { return (char) (id << 4 | data); }
 
@@ -83,11 +87,12 @@ final class Weathering implements CityApi.PrimerHook {
                 if (ch != top && ch != fill) continue;
                 int above = p[idx(x, y + 1, z)] >> 4;
                 if (above == 8 || above == 9) continue;   // sea and lake beds keep their floor
-                p[idx(x, y, z)] = c(2, 0);
+                double r = Hash.unit(SALT ^ 0x21L, cx * 16 + x, y, cz * 16 + z);
+                p[idx(x, y, z)] = r < 0.04 ? c(2, 0) : r < 0.45 ? c(13, 0) : r < 0.75 ? c(1, 5) : c(4, 0);
                 for (int k = 1; k <= 3 && y - k > 1; k++) {
                     char b = p[idx(x, y - k, z)];
                     if (b != top && b != fill) break;
-                    p[idx(x, y - k, z)] = c(3, 0);
+                    p[idx(x, y - k, z)] = c(1, 0);
                 }
             }
     }
@@ -134,7 +139,13 @@ final class Weathering implements CityApi.PrimerHook {
                         case 58: case 61: case 62: case 116: case 117: case 145: case 118: case 130: case 23: case 158: case 154:
                             p[i] = r < 0.7 ? 0 : c(48, 0);
                             break;
-                        case 110: case 88: p[i] = c(2, 0); break;
+                        case 110: case 88: p[i] = c(13, 0); break;
+                        case 18: case 161: case 31: case 32: case 37: case 38: case 175: case 6: case 39: case 40: case 83: case 81:
+                        case 86: case 103: case 104: case 105: case 111: case 99: case 100: case 127:
+                            p[i] = 0;   // Ul'Nhaar grows nothing: leaves, flowers, shrubs and crops are gone
+                            break;
+                        case 106: if (r < 0.85) p[i] = 0; break;
+                        case 2: if (r > 0.05) p[i] = r < 0.5 ? c(13, 0) : r < 0.8 ? c(1, 5) : c(98, 2); break;
                         case 87: p[i] = c(48, 0); break;
                         case 174: case 79: case 80: case 78: p[i] = y > 0 && id == 78 ? 0 : c(3, 1); break;
                         default: break;
@@ -155,21 +166,17 @@ final class Weathering implements CityApi.PrimerHook {
                 double r = Hash.unit(SALT ^ 0x29L, wx, top, wz);
                 boolean street = ground < 0 ? top < 90 : Math.abs(top - ground) <= 1;
                 if (street && (id == 43 || id == 44 || id == 1 || id == 13 || id == 4 || id == 48 || id == 98 || id == 159 || id == 172 || id == 24 || id == 12)) {
-                    if (r < 0.34) p[idx(x, top, z)] = c(2, 0);
-                    else if (r < 0.42) p[idx(x, top, z)] = c(3, 1);
-                    else if (r < 0.50) p[idx(x, top, z)] = c(48, 0);
+                    if (r < 0.03) p[idx(x, top, z)] = c(2, 0);
+                    else if (r < 0.22) p[idx(x, top, z)] = c(13, 0);
+                    else if (r < 0.32) p[idx(x, top, z)] = c(98, 2);
+                    else if (r < 0.40) p[idx(x, top, z)] = c(48, 0);
                     id = p[idx(x, top, z)] >> 4;
                 }
                 if (top >= 254 || p[idx(x, top + 1, z)] != 0) continue;
                 double g = Hash.unit(SALT ^ 0x3BL, wx, top, wz);
-                if (id == 2) {
-                    if (g < 0.22) p[idx(x, top + 1, z)] = c(31, 1);
-                    else if (g < 0.30) p[idx(x, top + 1, z)] = c(31, 2);
-                    else if (g < 0.32 && top < 253 && p[idx(x, top + 2, z)] == 0) { p[idx(x, top + 1, z)] = c(175, 2); p[idx(x, top + 2, z)] = c(175, 8); }
-                    else if (g < 0.335) p[idx(x, top + 1, z)] = c(18, 4);
-                } else if (top > (ground < 0 ? 64 : ground + 3) && g < 0.03) {
-                    p[idx(x, top + 1, z)] = c(18, 4);   // moss-and-leaf growth on a ruined wall top
-                }
+                if (id == 2 && g < 0.2) p[idx(x, top + 1, z)] = c(31, 1);                       // a tuft, rarely
+                else if (id != 2 && top > (ground < 0 ? 64 : ground + 3) && g < 0.02) p[idx(x, top + 1, z)] = c(144, 1);   // a skull on a wall top
+                else if (g > 0.985 && top < 254) p[idx(x, top + 1, z)] = c(216, 0);                   // old bones
             }
     }
 
@@ -185,7 +192,7 @@ final class Weathering implements CityApi.PrimerHook {
                     for (int[] s : sides) {
                         int ax = x + s[0], az = z + s[1];
                         if (p[idx(ax, y, az)] != 0) continue;
-                        if (Hash.unit(SALT ^ 0x61L, wx * 4 + s[0], y, wz * 4 + s[1]) >= 0.035) continue;
+                        if (Hash.unit(SALT ^ 0x61L, wx * 4 + s[0], y, wz * 4 + s[1]) >= 0.006) continue;   // a little ivy, no more
                         int length = 2 + (int) (Hash.unit(SALT ^ 0x62L, wx, y, wz) * 6);
                         for (int k = 0; k < length && y - k > 1; k++) {
                             int i = idx(ax, y - k, az);

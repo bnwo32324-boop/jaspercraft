@@ -71,6 +71,9 @@ public final class RuinsGenerator extends ChunkGenerator {
 
     /** Draws every original ruin touching the canvas' chunk (a chunk lies in exactly one city cell and one site cell). */
     void stamp(Canvas c) {
+        Plans.Door door = plans.door();
+        if (door.near(c.x0 + 8, c.z0 + 8, 16)) Cult.door(door, c);
+        Field.draw(plans, c);
         Plans.City city = plans.city(Math.floorDiv(c.x0, Plans.CITY_GRID), Math.floorDiv(c.z0, Plans.CITY_GRID));
         if (city != null) OldCity.draw(city, c);
         Plans.Site site = plans.site(Math.floorDiv(c.x0, Plans.SITE_GRID), Math.floorDiv(c.z0, Plans.SITE_GRID));
@@ -81,71 +84,40 @@ public final class RuinsGenerator extends ChunkGenerator {
     // overworld: FOREST, PLAINS and JUNGLE_EDGE come out dry and olive there, SWAMPLAND snowy). These keep temperature
     // 0.6 / rainfall 0.7 with rain, so grass and leaves stay lush; ROOFED_FOREST and the swamp keep their own tints.
     static final Biome MARSH = Biome.MUTATED_SWAMPLAND, WOODS = Biome.FOREST_HILLS, JUNGLE = Biome.JUNGLE, MEADOW = Biome.MUTATED_BIRCH_FOREST,
-        DARKWOOD = Biome.ROOFED_FOREST, HIGHLANDS = Biome.EXTREME_HILLS_WITH_TREES, SEA_BIOME = Biome.OCEAN;
+        DARKWOOD = Biome.ROOFED_FOREST, HIGHLANDS = Biome.EXTREME_HILLS_WITH_TREES, SEA_BIOME = Biome.DEEP_OCEAN;
 
-    Biome biome(int wx, int wz, int h) {
-        if (h <= SEA - 6) return SEA_BIOME;
-        if (h <= SEA) return MARSH;
-        if (h >= 108) return HIGHLANDS;
-        double n = Hash.noise(seed ^ 0xB10L, wx, wz, 160);
-        if (n < 0.38) return DARKWOOD;
-        if (n < 0.50) return WOODS;
-        if (n < 0.62) return JUNGLE;
-        if (n < 0.72) return MEADOW;
-        return MARSH;
-    }
+    /** One sombre biome over the land and a green-watered one over the drowned parts (see the client-style note above). */
+    Biome biome(int wx, int wz, int h) { return h <= SEA - 4 ? SEA_BIOME : DARKWOOD; }
 
+    /**
+     * Bare, drowned ground: stone under a crust of gravel, andesite, cobble and cracked rock, with only the odd tuft of
+     * grass (about 3% of columns). The field paves most of it; the sea floor is gravel, clay and fallen prismarine.
+     */
     @SuppressWarnings("deprecation")
     private void column(ChunkData d, BiomeGrid biomes, int x, int z, int wx, int wz, int h) {
-        Biome biome = biome(wx, wz, h);
-        biomes.setBiome(x, z, biome);
-        if (h - 3 > 1) d.setRegion(x, 1, z, x + 1, h - 3, z + 1, Material.STONE);
+        biomes.setBiome(x, z, biome(wx, wz, h));
+        if (h > 2) d.setRegion(x, 1, z, x + 1, h, z + 1, Material.STONE);
         d.setBlock(x, 0, z, Material.BEDROCK);
         for (int y = 1; y <= 3; y++) if (Hash.unit(seed ^ 0xBEDL, wx, y, wz) < 0.6 - y * 0.18) d.setBlock(x, y, z, Material.BEDROCK);
+        double n = Hash.unit(seed ^ 0x5EAL, wx, h, wz);
         if (h <= SEA) {
-            double n = Hash.unit(seed ^ 0x5EAL, wx, h, wz);
-            d.setRegion(x, h - 3, z, x + 1, h, z + 1, Material.DIRT);
-            d.setBlock(x, h, z, n < 0.4 ? Material.SAND : n < 0.7 ? Material.GRAVEL : n < 0.85 ? Material.CLAY : Material.DIRT);
+            if (n < 0.45) d.setBlock(x, h, z, Canvas.GRAVEL, (byte) 0);
+            else if (n < 0.7) d.setBlock(x, h, z, 82, (byte) 0);
+            else if (n < 0.85) d.setBlock(x, h, z, Canvas.PRISMARINE, (byte) 2);
+            else d.setBlock(x, h, z, Canvas.STONE, (byte) 5);
             d.setRegion(x, h + 1, z, x + 1, SEA + 1, z + 1, Material.STATIONARY_WATER);
             return;
         }
-        boolean grass;
-        if (h >= 108) {
-            d.setRegion(x, h - 3, z, x + 1, h, z + 1, Material.STONE);
-            double n = Hash.noise(seed ^ 0x40CL, wx, wz, 6);
-            grass = n >= 0.6;
-            if (n < 0.45) d.setBlock(x, h, z, Canvas.STONE, (byte) (Hash.unit(seed, wx, h, wz) < 0.3 ? 5 : 0));
-            else if (!grass) d.setBlock(x, h, z, Canvas.MOSSY, (byte) 0);
-            else d.setBlock(x, h, z, Canvas.GRASS, (byte) 0);
-        } else {
-            d.setRegion(x, h - 3, z, x + 1, h, z + 1, Material.DIRT);
-            double v = Hash.unit(seed ^ 0x70BL, wx, 0, wz);
-            grass = false;
-            if (biome == DARKWOOD && v < 0.09) d.setBlock(x, h, z, Canvas.DIRT, (byte) 2);
-            else if (v < 0.03) d.setBlock(x, h, z, Canvas.DIRT, (byte) 1);
-            else if (v < 0.045) d.setBlock(x, h, z, Canvas.MOSSY, (byte) 0);
-            else { d.setBlock(x, h, z, Canvas.GRASS, (byte) 0); grass = true; }
-        }
-        if (!grass || h > 250) return;
-        double boulder = Hash.noise(seed ^ 0xB01DL, wx, wz, 4.0);
-        if (boulder > 0.9) {
-            d.setBlock(x, h + 1, z, Canvas.MOSSY, (byte) 0);
-            if (boulder > 0.94) d.setBlock(x, h + 2, z, Canvas.MOSSY, (byte) 0);
-            return;
-        }
-        double p = Hash.unit(seed ^ 0x9A55L, wx, h, wz);
-        boolean lush = biome == JUNGLE || biome == DARKWOOD;
-        if (p < 0.16) d.setBlock(x, h + 1, z, Canvas.TALLGRASS, (byte) 1);
-        else if (p < (lush ? 0.30 : 0.22)) d.setBlock(x, h + 1, z, Canvas.TALLGRASS, (byte) 2);
-        else if (p < (lush ? 0.31 : 0.23)) { d.setBlock(x, h + 1, z, Canvas.DOUBLE_PLANT, (byte) 2); d.setBlock(x, h + 2, z, Canvas.DOUBLE_PLANT, (byte) 10); }
-        else if (p < (lush ? 0.318 : 0.245)) {
-            double f = Hash.unit(seed ^ 0xF10L, wx, h, wz);
-            if (biome == MARSH) d.setBlock(x, h + 1, z, 38, (byte) 1);
-            else if (f < 0.4) d.setBlock(x, h + 1, z, 37, (byte) 0);
-            else d.setBlock(x, h + 1, z, 38, (byte) (f < 0.7 ? 0 : 8));
-        } else if (biome == DARKWOOD && p < 0.33) {
-            d.setBlock(x, h + 1, z, 39, (byte) 0);
-        }
+        if (n < 0.03) {
+            d.setBlock(x, h - 1, z, Canvas.DIRT, (byte) 0);
+            d.setBlock(x, h, z, Canvas.GRASS, (byte) 0);
+            if (Hash.unit(seed ^ 0x9A55L, wx, h, wz) < 0.3 && h < 254) d.setBlock(x, h + 1, z, Canvas.TALLGRASS, (byte) 1);
+        } else if (n < 0.33) d.setBlock(x, h, z, Canvas.GRAVEL, (byte) 0);
+        else if (n < 0.55) d.setBlock(x, h, z, Canvas.STONE, (byte) 5);
+        else if (n < 0.70) d.setBlock(x, h, z, Canvas.COBBLE, (byte) 0);
+        else if (n < 0.80) d.setBlock(x, h, z, Canvas.DIRT, (byte) 1);
+        else if (n < 0.86) d.setBlock(x, h, z, Canvas.MOSSY, (byte) 0);
+        // else: bare stone
     }
 
     @Override

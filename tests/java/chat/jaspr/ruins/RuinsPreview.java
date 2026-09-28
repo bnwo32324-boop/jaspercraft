@@ -80,6 +80,7 @@ public final class RuinsPreview {
     }
 
     static final Map<Long, Chunk> cache = new HashMap<>();
+    static final int[] SIGNS = {0};
     static long genNanos, genChunks;
 
     static Chunk chunk(RuinsGenerator gen, int cx, int cz) {
@@ -117,7 +118,7 @@ public final class RuinsPreview {
                 for (int j = -r; j <= r && city == null; j++) if (Math.max(Math.abs(i), Math.abs(j)) == r) city = gen.plans.city(i, j);
         check(city != null, "an old city within 8 cells");
         Map<Plans.Kind, Plans.Site> sites = new HashMap<>();
-        for (int r = 0; r <= 30 && sites.size() < Plans.Kind.values().length; r++)
+        for (int r = 0; r <= 40 && sites.size() < Plans.Kind.values().length; r++)
             for (int i = -r; i <= r; i++)
                 for (int j = -r; j <= r; j++) {
                     if (Math.max(Math.abs(i), Math.abs(j)) != r) continue;
@@ -158,6 +159,45 @@ public final class RuinsPreview {
         }
         ImageIO.write(sheet, "png", new File(out, "sites.png"));
 
+        // 3b. The Great Door citadel.
+        Plans.Door door = gen.plans.door();
+        render(gen, door.x - 56, door.z - 56, 112, 112, new File(out, "door.png"));
+        for (int cx = Math.floorDiv(door.x - 48, 16); cx <= Math.floorDiv(door.x + 48, 16); cx++)
+            for (int cz = Math.floorDiv(door.z - 48, 16); cz <= Math.floorDiv(door.z + 52, 16); cz++) { int[] t = verifyTiles(gen, cx, cz); chests += t[0]; }
+        Chunk doorChunk = chunk(gen, Math.floorDiv(door.x, 16), Math.floorDiv(door.z, 16));
+        check(doorChunk.id(Math.floorMod(door.x, 16), door.base + 5, Math.floorMod(door.z, 16)) == 49, "the Door's obsidian leaves");
+        check(Cult.doorBlock(door, door.x, door.base + 5, door.z) && !Cult.doorBlock(door, door.x, door.base + 25, door.z), "door leaf test");
+        System.out.println("door at " + door.x + "," + door.z + " base=" + door.base);
+
+        // 3c. The ruin field: no trees or flowers, a little grass, and nearly every column built on.
+        int span = 384, ox = -192, oz = -192, columns = 0, built = 0, grassTops = 0, forbidden = 0, monuments = 0, cellsSeen = 0;
+        java.util.Set<Integer> banned = new java.util.HashSet<>(Arrays.asList(17, 18, 161, 162, 6, 37, 38, 175, 111, 39, 40, 83, 81, 99, 100));
+        java.util.Set<Integer> made = new java.util.HashSet<>(Arrays.asList(98, 168, 49, 43, 44, 109, 139, 159, 216, 144, 169, 101, 85, 54, 52, 68, 118, 165, 30, 67));
+        for (int x = ox; x < ox + span; x++)
+            for (int z = oz; z < oz + span; z++) {
+                Chunk c = chunk(gen, Math.floorDiv(x, 16), Math.floorDiv(z, 16));
+                int lx = Math.floorMod(x, 16), lz = Math.floorMod(z, 16), h = gen.plans.surface(x, z), y = 255;
+                while (y > 0 && c.id(lx, y, lz) == 0) y--;
+                for (int yy = 1; yy <= y; yy++) if (banned.contains(c.id(lx, yy, lz))) forbidden++;
+                int top = c.id(lx, y, lz);
+                columns++;
+                if (top == 2 || top == 31 && c.id(lx, y - 1, lz) == 2) grassTops++;
+                if (h <= Plans.SEA || y > h || made.contains(top)) built++;
+            }
+        for (int i = Math.floorDiv(ox, Plans.CELL); i < Math.floorDiv(ox + span, Plans.CELL); i++)
+            for (int j = Math.floorDiv(oz, Plans.CELL); j < Math.floorDiv(oz + span, Plans.CELL); j++) {
+                Plans.Cell cell = gen.plans.cell(i, j);
+                if (cell == null) continue;
+                cellsSeen++;
+                if (cell.type != null) monuments++;
+            }
+        render(gen, -96, -96, 192, 192, new File(out, "field.png"));
+        double coverage = built / (double) columns, grass = grassTops / (double) columns;
+        System.out.println(String.format("field coverage=%.3f grass=%.3f forbidden=%d monumentCells=%d/%d", coverage, grass, forbidden, monuments, cellsSeen));
+        check(forbidden == 0, "no trees, leaves, flowers or mushrooms anywhere: " + forbidden);
+        check(grass < 0.06, "only a little grass: " + grass);
+        check(coverage > 0.6, "the land is built over: " + coverage);
+
         // 4. Determinism: a fresh generator draws the same chunk.
         RuinsGenerator again = new RuinsGenerator(SEED, reserved, null);
         Chunk a = chunk(gen, Math.floorDiv(city.x, 16), Math.floorDiv(city.z, 16)), b = new Chunk();
@@ -171,6 +211,8 @@ public final class RuinsPreview {
             for (int z = 0; z < 16; z++) {
                 for (int y = 1; y <= ground; y++) primer[x << 12 | z << 8 | y] = (char) (1 << 4);
                 primer[x << 12 | z << 8 | ground] = (char) (43 << 4);                          // street
+                if (x == 10) { primer[x << 12 | z << 8 | ground] = (char) (2 << 4); primer[x << 12 | z << 8 | ground + 1] = (char) (38 << 4); }   // a park bed
+                if (x == 12) for (int y = ground + 1; y <= ground + 4; y++) primer[x << 12 | z << 8 | y] = (char) (18 << 4);                    // a hedge
                 if (x == 4) for (int y = ground + 1; y < ground + 60; y++) primer[x << 12 | z << 8 | y] = (char) ((y % 4 == 0 ? 20 : 4) << 4);   // a tall wall with glass
             }
         new Weathering(SEED).apply(0, 0, primer, true, ground);
@@ -183,6 +225,9 @@ public final class RuinsPreview {
                 if (id == 48) mossy++;
             }
         check(glass < 30, "most glass shattered: " + glass);
+        int plants = 0;
+        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) for (int y = ground; y < 256; y++) { int id = primer[x << 12 | z << 8 | y] >> 4; if (id == 18 || id == 38) plants++; }
+        check(plants == 0, "weathering leaves no leaves or flowers in the Lost Cities: " + plants);
         check(mossy > 100, "cobblestone turned mossy: " + mossy);
         long t0 = System.nanoTime();
         for (int k = 0; k < 20; k++) new Weathering(SEED).apply(k, 3, primer.clone(), true, ground);
@@ -205,7 +250,9 @@ public final class RuinsPreview {
 
         double ms = genNanos / 1e6 / Math.max(1, genChunks);
         System.out.println("city " + city.name + " at " + city.x + "," + city.z + " half=" + city.half + " ground=" + city.ground);
-        System.out.println(String.format("chunks=%d avgMs=%.2f chests=%d spawners=%d weatherMs=%d failures=%d", genChunks, ms, chests, spawners, weatherMs, failures[0]));
+        System.out.println(String.format("chunks=%d avgMs=%.2f chests=%d spawners=%d signs=%d weatherMs=%d failures=%d", genChunks, ms, chests, spawners, SIGNS[0], weatherMs, failures[0]));
+        check(SIGNS[0] > 5, "carved chants: " + SIGNS[0]);
+        check(Lore.bookCount() >= 10 && Lore.CHANTS.length >= 8, "the lore library");
         check(failures[0] == 0, "no generation failures");
         check(ms < 40, "chunks generate quickly: " + ms + " ms");
         System.out.println("RUINS_OK");
@@ -219,8 +266,9 @@ public final class RuinsPreview {
         int chests = 0, spawners = 0;
         for (Canvas.Tile t : tiles) {
             int id = c.id(t.x & 15, t.y, t.z & 15);
-            if (t.chest) { check(id == 54, "chest block at " + t.x + "," + t.y + "," + t.z + " is " + id); chests++; }
-            else { check(id == 52, "spawner block at " + t.x + "," + t.y + "," + t.z + " is " + id); spawners++; }
+            if (t.kind == Canvas.CHEST_TILE) { check(id == 54, "chest block at " + t.x + "," + t.y + "," + t.z + " is " + id); chests++; }
+            else if (t.kind == Canvas.SPAWNER_TILE) { check(id == 52, "spawner block at " + t.x + "," + t.y + "," + t.z + " is " + id); spawners++; }
+            else { check(id == 68, "sign block at " + t.x + "," + t.y + "," + t.z + " is " + id); check(t.what.split("\n").length <= 4, "four sign lines"); SIGNS[0]++; }
             planned.add(Portals.key(t.x & 15, t.y, t.z & 15));
         }
         for (int x = 0; x < 16; x++)
@@ -272,6 +320,8 @@ public final class RuinsPreview {
             case 109: return 0x949494; case 44: case 43: return 0xa8a8a8; case 139: return 0x6f8a68;
             case 9: case 8: return 0x3050d0; case 12: return 0xdbd3a0; case 13: return 0x857f7c; case 82: return 0x9fa4b1;
             case 18: return 0x2f6b1f; case 17: return 0x6b5230; case 5: return 0xa0824e; case 54: return 0xff9a00; case 52: return 0x200020;
+            case 168: return data == 2 ? 0x24463a : data == 1 ? 0x4f8f7e : 0x5f9c90; case 144: return 0xd8d8d8; case 216: return 0xe0dcc8;
+            case 169: return 0xcfe8e0; case 68: return 0x8a6a3a; case 85: return 0x8a6a3a; case 165: return 0x7cc56a; case 49: return 0x160c24; case 30: return 0xe8e8e8;
             case 7: return 0x333333; case 101: return 0x505050; case 65: return 0xa0824e; case 118: return 0x303030; case 159: return 0x252525;
             default: return 0xff00ff;
         }

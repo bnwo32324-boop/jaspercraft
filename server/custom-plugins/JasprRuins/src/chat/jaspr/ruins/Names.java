@@ -9,8 +9,8 @@ final class Names {
     private static final String[] MIDDLE = {"", "a", "e", "i", "o", "u", "ar", "en", "is", "or", "an", "yr"};
     private static final String[] END = {"ethra", "anthe", "oris", "umbra", "adel", "ion", "ara", "essa", "ios", "athos",
         "urae", "ennon", "ith", "ovar", "amar", "esh"};
-    private static final String[] SITE_ADJECTIVE = {"Sunken", "Mossbound", "Forgotten", "Shattered", "Silent", "Verdant",
-        "Hollow", "Weathered", "Crumbling", "Overgrown", "Nameless", "Ancient"};
+    private static final String[] SITE_ADJECTIVE = {"Sunken", "Drowned", "Forgotten", "Shattered", "Silent", "Accursed",
+        "Hollow", "Weathered", "Crumbling", "Whispering", "Nameless", "Ancient"};
 
     static String city(long h) {
         return START[(int) ((h >>> 3) % START.length)] + MIDDLE[(int) ((h >>> 13) % MIDDLE.length)] + END[(int) ((h >>> 23) % END.length)];

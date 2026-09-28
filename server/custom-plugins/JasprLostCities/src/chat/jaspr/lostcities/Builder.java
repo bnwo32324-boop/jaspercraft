@@ -306,7 +306,7 @@ final class Builder {
         }
 
         long q2 = System.nanoTime();
-        out.vines = vines(cx, cz, built);
+        out.vines = hook != null && !hook.vines() ? 0 : vines(cx, cz, built);
         long q3 = System.nanoTime();
         PHASES[4] += q1 - q0;
         PHASES[5] += q2 - q1;

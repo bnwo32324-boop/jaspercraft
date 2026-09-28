@@ -48,6 +48,22 @@ test('ruins plugin wiring: Lost Cities registration, mossy portals, client-green
   const api = read('server/custom-plugins/JasprLostCities/src/chat/jaspr/lostcities/CityApi.java');
   assert.match(api, /public static void registerWorld\(String worldName, String titleFormat, PrimerHook hook\)/);
   assert.match(read('scripts/deploy/DeployLogic.ps1'), /'JasprRuins'\s+= @\('RUINS_READY'\)/);
+  // The dimension lives on disk while empty and is regenerated for this design (the old world is renamed, not deleted).
+  assert.match(plugin, /static final int EPOCH = 2;/);
+  assert.ok(plugin.includes('Bukkit.unloadWorld(w, true)'), 'saved and unloaded after its last player leaves');
+  assert.ok(plugin.includes('public void login(PlayerLoginEvent e)'), 'loaded for a player who logged out inside it');
+  assert.ok(plugin.includes('folder.renameTo(retired)'), 'an older world is renamed aside, never deleted');
+  assert.ok(read('server/custom-plugins/JasprLostCities/src/chat/jaspr/lostcities/LostCitiesPlugin.java').includes('worldUnload(WorldUnloadEvent e)'), 'Lost Cities re-attach after a reload');
+  // Beating it: the guide and compass on arrival, five Wardens with Seals, three Seals open the Door, the Herald's hoard.
+  assert.ok(plugin.includes('Lore.guide(d.x, d.z)'), 'the guide is handed out on arrival');
+  const bosses = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Bosses.java');
+  for (const b of ['HIEROPHANT', 'PILLAR_WARDEN', 'BROOD_MOTHER', 'SPAWN_OF_THE_DEEP', 'FACELESS_PRIEST', 'HERALD']) assert.ok(bosses.includes(b + '(EntityType'), b);
+  assert.match(bosses, /SEALS_NEEDED = 3/);
+  assert.match(read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Lore.java'), /STEP 5: SLAY THE HERALD/);
+  const horrors = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Horrors.java');
+  for (const k of ['DEEP_ONE', 'GHOUL', 'SHOGGOTH', 'NIGHTGAUNT', 'MI_GO', 'HOUND', 'STAR_SPAWN', 'CULT_ZEALOT', 'CULT_ADEPT', 'TOMB_CRAWLER']) assert.ok(horrors.includes(k + '(EntityType'), k);
+  assert.match(read('server/custom-plugins/JasprDaylight/src/chat/jaspr/daylight/DaylightPlugin.java'), /jaspr_daylight_exempt/, 'horrors keep full speed in overworld daytime');
+  assert.doesNotMatch(read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/RuinsPopulator.java'), /generateTree/, 'nothing grows');
   const yml = read('server/custom-plugins/JasprRuins/resources/plugin.yml');
   assert.match(yml, /depend: \[JasprLostCities, JasprHorrorBiomes\]/);
   assert.match(yml, /jaspr\.ruins\.admin:[\s\S]*default: op/);

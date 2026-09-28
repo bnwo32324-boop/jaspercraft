@@ -8,26 +8,27 @@ import net.minecraft.server.v1_12_R1.MinecraftKey;
 import net.minecraft.server.v1_12_R1.TileEntity;
 import net.minecraft.server.v1_12_R1.TileEntityLootable;
 import org.bukkit.Chunk;
-import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.TreeType;
 import org.bukkit.World;
-import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.Chest;
 import org.bukkit.block.CreatureSpawner;
+import org.bukkit.block.Sign;
 import org.bukkit.craftbukkit.v1_12_R1.CraftWorld;
 import org.bukkit.entity.EntityType;
 import org.bukkit.generator.BlockPopulator;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 /**
- * Finishes a ruins chunk once its neighbours exist: loot tables for the ruins' chests and mobs for their spawners
- * (recomputed from the same plan, so nothing has to be remembered between generation and population), trees at the
- * vanilla +8 offset away from every ruin and the Lost Cities' land, ore veins and lily pads.
+ * Finishes a ruins chunk once its neighbours exist, recomputing its tiles from the same plan (nothing is remembered
+ * between generation and population): loot tables, lore books and relics for the chests, mobs for the spawners and the
+ * Choir's chants on the carved signs. Ore veins run through the rock. Nothing grows here.
  */
 final class RuinsPopulator extends BlockPopulator {
     private final RuinsGenerator gen;
-    volatile long chests, spawners, trees, failures;
+    volatile long chests, spawners, signs, failures;
 
     RuinsPopulator(RuinsGenerator gen) { this.gen = gen; }
 
@@ -35,8 +36,7 @@ final class RuinsPopulator extends BlockPopulator {
     public void populate(World world, Random random, Chunk chunk) {
         int cx = chunk.getX(), cz = chunk.getZ();
         try { tiles(world, chunk); } catch (RuntimeException | LinkageError e) { fail("tiles", cx, cz, e); }
-        try { trees(world, random, cx, cz); } catch (RuntimeException e) { fail("trees", cx, cz, e); }
-        try { ores(chunk, random); lilies(world, chunk, random); } catch (RuntimeException e) { fail("details", cx, cz, e); }
+        try { ores(chunk, random); } catch (RuntimeException e) { fail("ores", cx, cz, e); }
     }
 
     private void fail(String what, int cx, int cz, Throwable e) {
@@ -44,7 +44,7 @@ final class RuinsPopulator extends BlockPopulator {
         gen.reportFailure("populate-" + what + " chunk=" + cx + "," + cz, e);
     }
 
-    /** The chests and spawners the plan put in this chunk, found by drawing it again without a block target. */
+    /** The chests, spawners and signs the plan put in this chunk, found by drawing it again without a block target. */
     static List<Canvas.Tile> tilesOf(RuinsGenerator gen, int cx, int cz) {
         int[][] none = new int[16][16];
         for (int[] row : none) java.util.Arrays.fill(row, -1);
@@ -57,54 +57,55 @@ final class RuinsPopulator extends BlockPopulator {
     private void tiles(World world, Chunk chunk) {
         for (Canvas.Tile t : tilesOf(gen, chunk.getX(), chunk.getZ())) {
             Block b = chunk.getBlock(t.x & 15, t.y, t.z & 15);
-            if (t.chest) {
+            if (t.kind == Canvas.CHEST_TILE) {
                 if (b.getType() != Material.CHEST) continue;
+                // Extras go in first (into the live inventory, never followed by a state update); the loot table fills the
+                // remaining slots when the chest is first opened.
+                if (t.extras != null) {
+                    BlockState state = b.getState();
+                    if (state instanceof Chest) extras(((Chest) state).getBlockInventory(), t);
+                }
                 TileEntity te = ((CraftWorld) world).getHandle().getTileEntity(new BlockPosition(t.x, t.y, t.z));
                 if (te instanceof TileEntityLootable) {
                     ((TileEntityLootable) te).setLootTable(new MinecraftKey(t.what), Hash.of(gen.seed, t.x, t.y, t.z));
                     te.update();
                     chests++;
                 }
-            } else {
+            } else if (t.kind == Canvas.SPAWNER_TILE) {
                 if (b.getType() != Material.MOB_SPAWNER) continue;
                 BlockState state = b.getState();
                 if (!(state instanceof CreatureSpawner)) continue;
                 ((CreatureSpawner) state).setSpawnedType(EntityType.valueOf(t.what));
                 state.update(true, false);
                 spawners++;
+            } else {
+                if (b.getType() != Material.WALL_SIGN) continue;
+                BlockState state = b.getState();
+                if (!(state instanceof Sign)) continue;
+                String[] lines = t.what.split("\n", -1);
+                for (int i = 0; i < 4 && i < lines.length; i++) ((Sign) state).setLine(i, lines[i]);
+                state.update(true, false);
+                signs++;
             }
         }
     }
 
-    private void trees(World world, Random random, int cx, int cz) {
-        int x0 = cx * 16 + 8, z0 = cz * 16 + 8;
-        Biome biome = world.getBiome(x0 + 8, z0 + 8);
-        int count;
-        if (biome == RuinsGenerator.WOODS) count = 6;
-        else if (biome == RuinsGenerator.DARKWOOD) count = 9;
-        else if (biome == RuinsGenerator.JUNGLE) count = 5;
-        else if (biome == RuinsGenerator.MARSH || biome == RuinsGenerator.HIGHLANDS) count = 2;
-        else if (biome == RuinsGenerator.MEADOW) count = random.nextInt(3) == 0 ? 1 : 0;
-        else count = 0;
-        for (int i = 0; i < count; i++) {
-            int x = x0 + random.nextInt(16), z = z0 + random.nextInt(16);
-            if (!gen.plans.open(x, z, 4) || gen.reserved.test(x - 4, z - 4, 9, 9)) continue;
-            int y = world.getHighestBlockYAt(x, z);
-            Material ground = world.getBlockAt(x, y - 1, z).getType();
-            if (ground != Material.GRASS && ground != Material.DIRT) continue;
-            if (world.generateTree(new Location(world, x, y, z), pick(biome, random))) trees++;
+    /** "lore:<n>" puts lore book n (mod the library) in the chest; "trinket:<p>" adds a relic with probability p. */
+    private void extras(Inventory inv, Canvas.Tile t) {
+        Random r = new Random(Hash.of(gen.seed ^ 0x4C6F7265L, t.x, t.y, t.z));
+        for (String part : t.extras.split(";")) {
+            String[] kv = part.split(":", 2);
+            if (kv.length != 2) continue;
+            ItemStack item = null;
+            try {
+                if (kv[0].equals("lore")) item = Lore.book(Integer.parseInt(kv[1]) % (Lore.bookCount() - 1));
+                else if (kv[0].equals("trinket") && r.nextDouble() < Double.parseDouble(kv[1])) item = Trinkets.random(r);
+            } catch (NumberFormatException ignored) { }
+            if (item == null) continue;
+            int slot = r.nextInt(inv.getSize());
+            for (int k = 0; k < inv.getSize() && inv.getItem(slot) != null; k++) slot = (slot + 1) % inv.getSize();
+            if (inv.getItem(slot) == null) inv.setItem(slot, item);
         }
-    }
-
-    private static TreeType pick(Biome biome, Random random) {
-        int r = random.nextInt(100);
-        if (biome == RuinsGenerator.DARKWOOD)
-            return r < 55 ? TreeType.DARK_OAK : r < 80 ? TreeType.TREE : r < 88 ? TreeType.BROWN_MUSHROOM : r < 95 ? TreeType.RED_MUSHROOM : TreeType.BIG_TREE;
-        if (biome == RuinsGenerator.JUNGLE) return r < 45 ? TreeType.SMALL_JUNGLE : r < 80 ? TreeType.JUNGLE_BUSH : TreeType.COCOA_TREE;
-        if (biome == RuinsGenerator.MARSH) return TreeType.SWAMP;
-        if (biome == RuinsGenerator.HIGHLANDS) return r < 60 ? TreeType.REDWOOD : TreeType.TREE;
-        if (biome == RuinsGenerator.MEADOW) return r < 70 ? TreeType.TREE : TreeType.BIG_TREE;
-        return r < 65 ? TreeType.TREE : r < 90 ? TreeType.BIRCH : TreeType.BIG_TREE;
     }
 
     // id, veins per chunk, min y, max y, blocks per vein (vanilla-like amounts)
@@ -123,17 +124,5 @@ final class RuinsPopulator extends BlockPopulator {
                     z = Math.max(0, Math.min(15, z + random.nextInt(3) - 1));
                 }
             }
-    }
-
-    @SuppressWarnings("deprecation")
-    private void lilies(World world, Chunk chunk, Random random) {
-        for (int i = 0; i < 4; i++) {
-            int x = random.nextInt(16), z = random.nextInt(16);
-            int wx = chunk.getX() * 16 + x, wz = chunk.getZ() * 16 + z;
-            if (world.getBiome(wx, wz) != RuinsGenerator.MARSH) continue;
-            int y = world.getHighestBlockYAt(wx, wz);
-            if (y > 64 || chunk.getBlock(x, y - 1, z).getType() != Material.STATIONARY_WATER) continue;
-            chunk.getBlock(x, y, z).setTypeIdAndData(111, (byte) 0, false);
-        }
     }
 }

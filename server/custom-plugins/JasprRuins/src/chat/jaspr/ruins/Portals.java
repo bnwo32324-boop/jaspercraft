@@ -123,6 +123,12 @@ final class Portals implements Listener {
         }
     }
 
+    /** Forgets every portal of a world (a regenerated world has none of the old ones). */
+    void forgetWorld(String world) {
+        for (Portal p : new ArrayList<>(portals)) if (p.world.equals(world)) unindex(p);
+        save();
+    }
+
     private void unindex(Portal p) {
         portals.remove(p);
         Map<Long, Portal> in = inner.get(p.world), fr = frames.get(p.world);

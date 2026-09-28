@@ -13,14 +13,21 @@ final class Canvas {
         LOG = 17, LEAVES = 18, SPONGE = 19, GLASS = 20, SANDSTONE = 24, WEB = 30, TALLGRASS = 31, DOUBLE_SLAB = 43, SLAB = 44,
         BRICKS = 45, BOOKSHELF = 47, MOSSY = 48, OBSIDIAN = 49, TORCH = 50, SPAWNER = 52, CHEST = 54, LADDER = 65,
         STONE_STAIRS = 67, SNOW = 78, FENCE = 85, GLOWSTONE = 89, PORTAL = 90, TRAPDOOR = 96, BRICK = 98, BARS = 101,
-        VINE = 106, BRICK_STAIRS = 109, WALL = 139, CAULDRON = 118, QUARTZ = 155, DOUBLE_PLANT = 175, SEA_LANTERN = 169;
+        VINE = 106, BRICK_STAIRS = 109, WALL = 139, CAULDRON = 118, QUARTZ = 155, DOUBLE_PLANT = 175, SEA_LANTERN = 169,
+        PRISMARINE = 168, SKULL = 144, BONE = 216, CLAY = 159, WALL_SIGN = 68, SLIME = 165, IRON_BARS = 101, MAGMA = 213;
 
-    /** Marker for a chest or spawner to fill after generation. */
+    static final int CHEST_TILE = 0, SPAWNER_TILE = 1, SIGN_TILE = 2;
+
+    /** Marker for a chest, spawner or carved sign to fill after generation. */
     static final class Tile {
-        final int x, y, z;
+        final int x, y, z, kind;
         final boolean chest;
-        final String what;   // loot table key or entity type name
-        Tile(int x, int y, int z, boolean chest, String what) { this.x = x; this.y = y; this.z = z; this.chest = chest; this.what = what; }
+        final String what;    // loot table key, entity type name, or sign text (lines separated by newlines)
+        final String extras;  // chests: extra contents ("lore:<n>;trinket:<chance>"), or null
+        Tile(int x, int y, int z, int kind, String what, String extras) {
+            this.x = x; this.y = y; this.z = z; this.kind = kind; this.chest = kind == CHEST_TILE; this.what = what; this.extras = extras;
+        }
+        Tile(int x, int y, int z, boolean chest, String what) { this(x, y, z, chest ? CHEST_TILE : SPAWNER_TILE, what, null); }
     }
 
     final int cx, cz, x0, z0;
@@ -78,15 +85,41 @@ final class Canvas {
     /** Rough rubble fill: mossy cobblestone and cobblestone. */
     void rubble(int x, int y, int z) { set(x, y, z, roll(x, y, z, 2) < 0.65 ? MOSSY : COBBLE); }
 
-    /** Paving: worn stone with grass pushing through. */
+    /** Paving: worn, cracked stone; only the odd tuft of grass survives. */
     void paving(int x, int y, int z) {
         double r = roll(x, y, z, 3);
-        if (r < 0.30) set(x, y, z, BRICK, 1);
-        else if (r < 0.48) set(x, y, z, BRICK, 2);
-        else if (r < 0.62) set(x, y, z, MOSSY);
-        else if (r < 0.74) set(x, y, z, GRAVEL);
-        else if (r < 0.86) set(x, y, z, GRASS);
-        else set(x, y, z, BRICK, 0);
+        if (r < 0.26) set(x, y, z, BRICK, 2);
+        else if (r < 0.46) set(x, y, z, BRICK, 1);
+        else if (r < 0.58) set(x, y, z, GRAVEL);
+        else if (r < 0.70) set(x, y, z, STONE, 5);
+        else if (r < 0.80) set(x, y, z, PRISMARINE, 2);
+        else if (r < 0.88) set(x, y, z, COBBLE);
+        else if (r < 0.97) set(x, y, z, BRICK, 0);
+        else set(x, y, z, GRASS);
+    }
+
+    /**
+     * The Choir's cyclopean stone: green-black dark prismarine, prismarine brick, cracked stone brick and andesite, the
+     * masonry of the cult monuments and the giant pillars.
+     */
+    void eldritch(int x, int y, int z) {
+        double r = roll(x, y, z, 9);
+        if (r < 0.34) set(x, y, z, PRISMARINE, 2);
+        else if (r < 0.52) set(x, y, z, PRISMARINE, 1);
+        else if (r < 0.68) set(x, y, z, BRICK, 2);
+        else if (r < 0.80) set(x, y, z, STONE, 6);
+        else if (r < 0.90) set(x, y, z, CLAY, 9);
+        else if (r < 0.96) set(x, y, z, BRICK, 0);
+        else set(x, y, z, PRISMARINE, 0);
+    }
+
+    /** A carved glyph band: chiseled stone, obsidian and, rarely, a pale sea-lantern eye. */
+    void glyph(int x, int y, int z) {
+        double r = roll(x, y, z, 10);
+        if (r < 0.45) set(x, y, z, BRICK, 3);
+        else if (r < 0.85) set(x, y, z, OBSIDIAN);
+        else if (r < 0.95) set(x, y, z, CLAY, 15);
+        else set(x, y, z, SEA_LANTERN);
     }
 
     /** Fill from the column's ground up to {@code top} (foundations under ruins on uneven land). */
@@ -124,7 +157,9 @@ final class Canvas {
         else if (roll(x, top, z, 5) < 0.5) set(x, top, z, SLAB, 5);
     }
 
+    /** Vines are rare here: most would-be vines never grew. */
     void vine(int x, int y, int z, int facingMeta, int length) {
+        if (roll(x, y, z, 77) >= 0.25) return;
         for (int i = 0; i < length; i++) {
             if (get(x, y - i, z) != AIR) return;
             set(x, y - i, z, VINE, facingMeta);
@@ -135,6 +170,20 @@ final class Canvas {
         if (!inside(x, z) || y < 1 || y > 254) return;
         set(x, y, z, CHEST, facing);
         if (tiles != null) tiles.add(new Tile(x, y, z, true, lootTable));
+    }
+
+    /** A chest with extra contents for the populator: "lore:<book>" and/or "trinket:<chance>" (semicolon-separated). */
+    void chest(int x, int y, int z, int facing, String lootTable, String extras) {
+        if (!inside(x, z) || y < 1 || y > 254) return;
+        set(x, y, z, CHEST, facing);
+        if (tiles != null) tiles.add(new Tile(x, y, z, CHEST_TILE, lootTable, extras));
+    }
+
+    /** A wall sign (meta 2 north .. 5 east) whose text the populator carves; lines separated by newlines. */
+    void sign(int x, int y, int z, int facing, String text) {
+        if (!inside(x, z) || y < 1 || y > 254) return;
+        set(x, y, z, WALL_SIGN, facing);
+        if (tiles != null) tiles.add(new Tile(x, y, z, SIGN_TILE, text, null));
     }
 
     void spawner(int x, int y, int z, String entity) {

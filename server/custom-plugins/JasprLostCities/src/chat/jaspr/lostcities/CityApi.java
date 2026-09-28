@@ -32,6 +32,9 @@ public final class CityApi {
     public interface PrimerHook {
         /** @param groundLevel the city's ground level, or -1 for a non-city chunk the Lost Cities changed */
         void apply(int chunkX, int chunkZ, char[] primer, boolean city, int groundLevel);
+
+        /** Whether the mod's vine pass may run after the chunk is written (false for a world where nothing grows). */
+        default boolean vines() { return true; }
     }
 
     /**

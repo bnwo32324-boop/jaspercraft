@@ -1,87 +1,121 @@
-# The Ancient Ruins (JasprRuins 1.0.0)
+# Ul'Nhaar, the drowned city (JasprRuins, epoch 2)
 
-A new dimension (world `jaspr_ruins`) of moss-grown land and ruined cities, reached through portals built from
-**mossy cobblestone**.
+**TL;DR:** the ruins dimension is regenerated as a dense cyclopean city of the Choir of the Drowned Star. There are no
+trees or plains, just a little grass and ivy. Endless night, Lovecraftian horrors everywhere, five Warden bosses, and a
+final boss, the Dreamer's Herald, behind the Great Door. Everyone who enters gets a guide book and a compass. Beating
+the Herald pays out a hoard of unique items. The world loads only while someone is in it.
 
 ## Getting there
+- Build a nether-portal-shaped frame of **mossy cobblestone** (at least 4×5) and light it with flint and steel.
+- Stand in the portal for 3 s.
 
-- **Build the frame:** use mossy cobblestone, in the same shape as a nether portal.
-  - The inside must be 2–21 wide and 3–21 tall, so the smallest frame is 4 wide by 5 tall. Corners are optional.
-- **Light it:** use flint and steel or a fire charge.
-- **Cross over:** stand in the portal for 3 seconds (instantly in creative).
-  - You arrive at the same x/z in the other world, in front of the nearest mossy portal there.
-  - If no portal is nearby, one is built on open, level ground.
-- **Closing a portal:** break or blow up a frame block.
-- **Vanilla effects are off:** mossy portals never lead to the Nether, never spawn pigmen, and are not torn down for
-  lacking obsidian.
-- **First-join hint:** every player is told once, 10 seconds after they join, how to build the frame.
+## How to beat it (the Pilgrim's Primer)
 
-## What is there
+Everyone who enters is handed the **Pilgrim's Primer** and a **Drowned Star Compass**. They are given again if lost.
 
-- **Lost Cities, as ruins.** The Lost Cities plugin builds its cities in this world too. A weathering hook ages them
-  before they are written:
-  - Upper floors collapse into a jagged skyline, with rubble below.
-  - Cobblestone turns mossy; stone bricks become mossy or cracked.
-  - Modern materials (quartz, concrete, metal blocks) turn to old masonry.
-  - Glass shatters, and furnishings and wool rot away.
-  - Streets and courtyards grow over with grass, vines and cobwebs.
-  - Entering one shows "The Ruins of <name>".
-- **Original old cities.** In a 320-block grid, 45% of cells hold a walled square city 97–161 blocks across, on ground
-  levelled into the land:
-  - A gate in each side, towers at the corners and along the walls.
-  - A street grid with a fountain and obelisk plaza, and a grand temple north of the plaza.
-  - Lots filled with: ruined houses (some with a guarded vault beneath), courtyard wells, overgrown gardens, rubble
-    heaps, tower houses, shrines, sunken cisterns and meadows.
-  - Entering one shows "The Old City of <name>".
-- **Wilderness ruins.** In a 96-block grid, 55% of cells hold one of ten original designs:
-  - temple, colonnade, ziggurat (with a guarded chamber and a summit shrine), watchtower, aqueduct, amphitheater;
-  - stone circle (something is buried under the altar), crypt (a stair down to a vault), gatehouse;
-  - a fallen colossus (legs on the plinth, head in the grass).
-- **Land.** The terrain uses the same heights as the overworld, so the Lost Cities fit it exactly. It is dressed as
-  lush forest, dark forest (dark oak, huge mushrooms), jungle, meadow, marsh with lily pads, and rocky highlands with
-  mossy boulders.
-  - The biome slots were chosen from the ones the browser client styles green and snow-free.
-  - Ores are at vanilla amounts. Chests use vanilla loot tables; the ruins contain no valuable blocks.
-- **Placement rules:** original ruins stay off the Lost Cities' land and out of water, so the two kinds never overlap.
+1. **Survive.** Standing in darkness without a light raises your **Dread**: whispers, then nausea, then
+   weakness and slowness, then blindness and damage. Holding a torch (or standing in light) clears it. Beds do not work.
+2. **Follow the compass.** It points to the nearest Warden whose Seal you lack. With three Seals it points to the
+   Great Door.
+3. **Slay three of the five Wardens.** Each drops its **Seal**:
+
+   | Warden | Mob | Arena | Seal |
+   |---|---|---|---|
+   | Hierophant | evoker | Sanctum of the Drowned Star | Tides |
+   | Pillar Warden | wither skeleton | Circle of the Watchers | Stone |
+   | Brood Mother | spider | Pit of Offerings | Hunger |
+   | Spawn of the Deep | giant slime | Spawning Pool | the Deep |
+   | Faceless Priest | illusioner | Chapel of the Faceless | Silence |
+
+4. **Open the Great Door.** Its coordinates are written in the guide. Right-click the Door with three **different** Seals.
+5. **Slay the Dreamer's Herald**, a giant with 1600 HP in three phases.
+   - Its attacks: tentacle rifts (evoker fangs), a stomp, a blinding and withering gaze, and calling the Deep.
+   - Near death: sky-fall lightning and levitation.
+   - Everyone within 64 blocks receives the hoard.
+   - The Door reseals 3 minutes later and can be reopened after 45 minutes.
+
+## Rewards and trinkets
+
+**The Herald's hoard:**
+- Crown of the Drowned Star: diamond helmet, Protection IV. Grants water breathing and Dread immunity.
+- Herald's Cleaver: Sharpness V, Looting III, Fire Aspect II.
+- Wings of the Nightgaunt: elytra with Mending.
+- Dreamer's Heart: a nether star.
+- Idol of the Dreamer and the Faceless Mask.
+- 2 totems, 3 enchanted golden apples, 12 diamonds, the book *After the Waking*, and 3000 XP.
+
+**Wardens:**
+- Each drops its Seal, a random relic, a lore book, diamonds and golden apples, plus 600 XP.
+- The Hierophant also drops a totem.
+- Each respawns 30 minutes after it is killed.
+
+**Relics.** These are found only in Ul'Nhaar: on horrors (1.5%), in cult chests, from Wardens and from the Herald.
+They work in any world:
+
+| Relic | Effect |
+|---|---|
+| Choir Wardstone | Dread rises at half speed and never sickens you |
+| Pearl of the Drowned | water breathing |
+| Tentacle Charm | off hand: regeneration below half health |
+| Star-Metal Shard | off hand: Strength |
+| Nightgaunt Pinion | no fall damage |
+| Ghoul's Tooth | off hand: heals you by 20% of the damage you deal |
+| Mi-Go Brain Cylinder | right-click to blink 8 blocks (12 s recharge) |
+| Faceless Mask | worn: horrors ignore you until you strike one |
+| Idol of the Dreamer | Resistance and Dread immunity |
+
+## Horrors
+
+It is always night here, and every natural or spawner monster becomes a horror. No animals spawn.
+
+| Horror | Mob | Traits |
+|---|---|---|
+| Deep One | green-scaled zombie | fast in water, slows you |
+| Ghoul | husk | hunger and weakness |
+| Shoggoth | slime | regenerates, splits |
+| Nightgaunt | vex | flies through walls, lifts you |
+| Mi-Go | enderman | always hunting, blinds you |
+| Hound of Tindalos | angry wolf | teleports out of corners behind you, wither bite |
+| Star-Spawn Thrall | wither skeleton | wither |
+| Cult Zealot | vindicator | heavy hits |
+| Cult Adept | evoker | fangs and vexes |
+| Tomb Crawler | cave spider | comes in swarms |
+
+All horrors hit harder and have more health than vanilla mobs. They keep full speed during overworld daytime:
+JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
+
+## The world
+- **Ruin field:** every 24-block cell that no city, site, Lost City or the Door claims holds one monument:
+  - leaning giant pillars (up to about 80 blocks tall), obelisks, pillar gates, cyclopean walls, stairs to nowhere;
+  - sunken plazas, arches, idols of the Dreamer, cult altars, spire clusters, colonnades, fallen cyclopean blocks;
+  - two or three lesser remnants in its corners;
+  - cracked paving strewn with rubble, bones and skulls. Pillars rise from the water too.
+- **Earlier content, kept:**
+  - the ten original wilderness ruins;
+  - old cities, now with dead gardens of petrified trees and cult shrines instead of meadows;
+  - the weathered Lost Cities, with leaves, flowers and their vine pass removed.
+- **Lore:** ten lore books in cult chests and on slain horrors, and carved chant signs on the monuments.
+- **Offline check** (`tests/ruins.test.cjs`, 384×384 sample):
+  - no trees, leaves, flowers or mushrooms;
+  - grass on 2.4% of columns;
+  - at least 64% of columns clearly built on (plain gravel and cobble paving not counted);
+  - 0.5 ms per chunk.
+
+## Server resources
+- **Unused, it stays on disk.** The world loads when someone enters (portal, `/ruins tp`, or logging in where they
+  left off): 50–220 ms.
+- **Empty, it unloads.** 60 s after its last player leaves it is saved and fully unloaded (0 chunks, 0 entities, about
+  20 ms). Its horror, dread and boss tasks then return immediately. The Lost Cities detach and re-attach cleanly.
+- **Browser:** all visuals are vanilla blocks and mobs, so there is nothing extra to download. Relics are vanilla items
+  with names, so they display fine to players who have never visited.
+- **Regeneration:** this update (epoch 2) renames the old world folder to `jaspr_ruins-retired-epoch1-<time>` (nothing
+  is deleted) and forgets its portals. Players who logged out inside it wake at the overworld spawn.
 
 ## Owner tools
-
-`/ruins [status|tp|back|where|find <city|lostcity|temple|colonnade|ziggurat|watchtower|aqueduct|amphitheater|stones|crypt|gatehouse|colossus>]`
-(op). `find` waits for the Lost Cities to finish generating the spot before landing you on it.
-
-## How it works
-
-- `RuinsGenerator` builds the terrain, then stamps the ruins into each chunk.
-  - Every ruin is a pure function of the seed, so structures that cross chunk borders come out whole.
-  - `RuinsPopulator` finds the chests and spawners by redrawing the plan, then adds trees, ores and lily pads.
-- `JasprLostCities` gained `CityApi.registerWorld(name, titleFormat, PrimerHook)`.
-  - This is how it builds in `jaspr_ruins` with `Weathering` as the hook.
-  - The overworld behaves exactly as before.
-- The world takes the overworld seed salted with "Ruins". An existing ruins world keeps its own saved seed, even after
-  an overworld reset.
-- Spawn chunks are not kept in memory.
+`/ruins [status|tp|back|where|find <city|lostcity|kind>|door [open|close]|guide|lore|seal [type]|trinket [type]|boss <type>|horror <kind>|dread|unload]`
 
 ## Logs
-
-`RUINS_READY`, `RUINS_PORTAL_LIT|BUILT|CLOSED`, `RUINS_TRAVEL player= from= to= builtPortal= ms=`,
-`RUINS_PORTAL_NO_ROOM`, `RUINS_CHUNK_FAILED`, `RUINS_METRICS` (on shutdown).
-
-## Build and test
-
-```
-bash server/custom-plugins/JasprLostCities/build.sh
-bash server/custom-plugins/JasprRuins/build.sh
-node --test tests/ruins.test.cjs
-```
-
-The offline check (`tests/java/chat/jaspr/ruins/RuinsPreview.java`) renders top-down previews of an old city and every
-site type. In-game checks use the lean fixture:
-
-- Environment: `TANK_PREVIEW_PLUGINS` with the three jars, `TANK_PREVIEW_LEVEL=fixture` (keeps the world-bound plugins
-  off the flat test world), `TANK_PREVIEW_SEED=305441741`.
-- Steps: build a mossy frame, light it with flint and steel, then use `/ruins find ...`.
-
-Fixture results:
-
-- Generation: 429 ruins chunks with 0 failures, about 0.5 ms each offline.
-- Lost Cities in the ruins: 190 ms per chunk on one low-priority core.
+`RUINS_READY`, `RUINS_WORLD_LOADED`, `RUINS_WORLD_UNLOADED`, `RUINS_REGENERATED`, `RUINS_WELCOME`, `RUINS_BOSS_WOKE`,
+`RUINS_BOSS_SLEPT`, `RUINS_WARDEN_SLAIN`, `RUINS_HERALD_SLAIN`, `RUINS_DOOR_SEAL`, `RUINS_DOOR_OPENED`,
+`RUINS_DOOR_SEALED`, `RUINS_PORTAL_*`, `RUINS_TRAVEL`, `RUINS_METRICS` (on shutdown). The Lost Cities log
+`LOST_CITIES_DETACHED`.

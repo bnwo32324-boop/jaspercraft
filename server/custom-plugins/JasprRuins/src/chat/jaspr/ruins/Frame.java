@@ -31,6 +31,11 @@ final class Frame {
     void set(int lx, int y, int lz, int id, int meta) { c.set(wx(lx, lz), base + y, wz(lx, lz), id, meta); }
     void set(int lx, int y, int lz, int id) { set(lx, y, lz, id, 0); }
     void masonry(int lx, int y, int lz) { c.masonry(wx(lx, lz), base + y, wz(lx, lz)); }
+    void eldritch(int lx, int y, int lz) { c.eldritch(wx(lx, lz), base + y, wz(lx, lz)); }
+    void glyph(int lx, int y, int lz) { c.glyph(wx(lx, lz), base + y, wz(lx, lz)); }
+    void chest(int lx, int y, int lz, int dx, int dz, String table, String extras) { c.chest(wx(lx, lz), base + y, wz(lx, lz), facing(dx, dz), table, extras); }
+    /** A sign on the face of the block behind it, facing (dx, dz). */
+    void sign(int lx, int y, int lz, int dx, int dz, String text) { c.sign(wx(lx, lz), base + y, wz(lx, lz), facing(dx, dz), text); }
     void rubble(int lx, int y, int lz) { c.rubble(wx(lx, lz), base + y, wz(lx, lz)); }
     void paving(int lx, int y, int lz) { c.paving(wx(lx, lz), base + y, wz(lx, lz)); }
     boolean keep(int lx, int y, int lz, double p) { return c.keep(wx(lx, lz), base + y, wz(lx, lz), p); }

@@ -30,6 +30,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.WorldInitEvent;
+import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.Plugin;
@@ -135,6 +136,19 @@ public final class LostCitiesPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void worldInit(WorldInitEvent e) { attach(e.getWorld()); }
+
+    /**
+     * A world that unloads (JasprRuins unloads its dimension when nobody is in it) is forgotten, so that when it loads
+     * again it is attached afresh: a context kept across an unload would hold the old World and never add its populator
+     * to the new one.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void worldUnload(WorldUnloadEvent e) {
+        Context c = worlds.remove(e.getWorld().getUID());
+        if (c == null) return;
+        if (c.populator != null) e.getWorld().getPopulators().remove(c.populator);
+        getLogger().info("LOST_CITIES_DETACHED world=" + e.getWorld().getName());
+    }
 
     private synchronized Context attach(World world) {
         if (assets == null) return null;
