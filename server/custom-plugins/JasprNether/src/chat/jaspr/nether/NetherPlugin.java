@@ -48,6 +48,8 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
     Boss boss;
     Fireflies fireflies;
     Garrisons garrisons;
+    NetherQuest quest;
+    GuideKit guide;
 
     // generation health
     long populated, totalNanos, maxNanos, blocksWritten;
@@ -110,6 +112,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         boss = new Boss(this);
         fireflies = new Fireflies(this);
         garrisons = new Garrisons(this);
+        quest = new NetherQuest(this);
+        guide = new GuideKit(this, quest);
+        Bukkit.getPluginManager().registerEvents(quest, this);
         Bukkit.getPluginManager().registerEvents(this, this);
         Bukkit.getPluginManager().registerEvents(garrisons, this);
         Bukkit.getPluginManager().registerEvents(mobs, this);
@@ -358,6 +363,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
     }
 
     @Override public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        if (cmd.getName().equalsIgnoreCase("goals")) return true;   // GuideKit prints each realm's part (it listens for the command)
         if (!cmd.getName().equalsIgnoreCase("jnether")) return false;
         String sub = args.length == 0 ? "status" : args[0].toLowerCase(java.util.Locale.ROOT);
         switch (sub) {
@@ -386,6 +392,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                     + " peaceKept=" + mobs.peaceKept + " journals=" + structures.journals + " rescued=" + rescued
                     + " megaComplete=" + (gen != null && gen.megaComplete));
                 if (gen != null) sender.sendMessage(ChatColor.GRAY + "placed " + gen.placed);
+                sender.sendMessage(ChatColor.GRAY + guide.status() + " fonts=" + quest.fonts);
                 return true;
             }
             default:
@@ -398,7 +405,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         Player p = sender instanceof Player ? (Player) sender : null;
         switch (sub) {
             case "spawn": {
-                if (p == null || args.length < 2) { sender.sendMessage("/jnether spawn <kind> [elite]"); return true; }
+                // /jnether spawn <kind> [elite|normal] [player] (a player name lets the console spawn beside someone)
+                if (args.length > 3) p = Bukkit.getPlayerExact(args[3]);
+                if (p == null || args.length < 2) { sender.sendMessage("/jnether spawn <kind> [elite|normal] [player]"); return true; }
                 boolean elite = args.length > 2 && args[2].equalsIgnoreCase("elite");
                 Object m = mobs.spawn(args[1], p.getLocation().add(p.getLocation().getDirection().multiply(3)), elite);
                 sender.sendMessage(m == null ? ChatColor.RED + "Unknown kind. Kinds: " + Mobs.KINDS.keySet() : ChatColor.GREEN + "Spawned " + args[1]);
@@ -413,6 +422,21 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             case "effect": {
                 if (p == null || args.length < 2) { sender.sendMessage("/jnether effect <frozen|frostbitten|infested|fire_burning|soul_sucked|crying> [ticks]"); return true; }
                 effects.apply(p, Effects.Kind.valueOf(args[1].toUpperCase(java.util.Locale.ROOT)), args.length > 2 ? Integer.parseInt(args[2]) : 200);
+                return true;
+            }
+            case "guide": {
+                // /jnether guide [player]: hand them the three items and stand a Nether Guide beside them
+                Player to = args.length > 1 ? Bukkit.getPlayerExact(args[1]) : p;
+                if (to == null) { sender.sendMessage("/jnether guide [player]"); return true; }
+                guide.offer(to, true);
+                if (isNether(to.getWorld())) guide.ensureGuide(to.getLocation());
+                sender.sendMessage(ChatColor.GREEN + "Gave the Nether compass, checklist and map to " + to.getName());
+                return true;
+            }
+            case "quest": {
+                Player of = args.length > 1 ? Bukkit.getPlayerExact(args[1]) : p;
+                if (of == null) { sender.sendMessage("/jnether quest [player]"); return true; }
+                for (String line : guide.goalLines(of)) sender.sendMessage(line);
                 return true;
             }
             case "queen": {
@@ -431,7 +455,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                 sender.sendMessage(ChatColor.GRAY + "mechanics thorn=" + mechanics.thornHits + " egg=" + mechanics.eggPoisons + " cactus=" + mechanics.cactusHits
                     + " blueFire=" + mechanics.blueBurns + " rime=" + mechanics.rimeFreezes + " arctic=" + mechanics.arcticFreezes + " ores=" + mechanics.oreDrops
                     + " nethermites=" + mechanics.nethermites + " effectsApplied=" + effects.applied + " replacedSpawns=" + mobs.replaced + " elites=" + mobs.elites
-                    + " fireflySwarms=" + fireflies.swarmsSpawned + " brewed=" + crafting.brewed);
+                    + " fireflySwarms=" + fireflies.swarmsSpawned + " brewed=" + crafting.brewed + " sporeClouds=" + mobs.sporeClouds);
                 return true;
             case "goto": {
                 if (args.length >= 3) p = Bukkit.getPlayerExact(args[2]);   // /jnether goto <target> <player> (console, tests)

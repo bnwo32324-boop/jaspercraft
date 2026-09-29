@@ -56,6 +56,7 @@ import org.bukkit.util.Vector;
  */
 final class Bosses implements Listener {
     static final String TAG = "atlas_boss:";
+    static final String ECHO = "Echo of the Pyrarch";
 
     /** The captains, for the Codex: id, name, where. */
     static final String[][] LESSER = {
@@ -97,7 +98,7 @@ final class Bosses implements Listener {
         final Set<UUID> fought = new HashSet<>();
         long ticks, alone, lastWarn;
         int phase = 1;
-        boolean heartBroken, oathSeen;
+        boolean heartBroken, oathSeen, echo;   // echo: the Pyrarch again, after victory, for those who did not see him fall
         double channel;
         Fight(Boss boss, LivingEntity e, Location home) {
             this.boss = boss; this.entity = e.getUniqueId(); this.home = home;
@@ -118,9 +119,12 @@ final class Bosses implements Listener {
 
     Fight fight(Boss b) { return fights.get(b); }
 
-    /** Whether a boss may rise at all: not fallen, and (for the Pyrarch) the four Wards dark; Grunnak turns to stone with his master. */
+    /**
+     * Whether a boss may rise at all: not fallen, and (for the Pyrarch) the four Wards dark; Grunnak turns to stone with
+     * his master. After victory the Pyrarch's Echo rises for anyone who has not conquered Atlas (see {@link #echoWanted}).
+     */
     boolean mayRise(Boss b) {
-        if (fallen(b)) return false;
+        if (fallen(b)) return b == Boss.PYRARCH && plugin.state().victory;
         if (b == Boss.PYRARCH) return plugin.state().wardsDark() == 4;
         if (b == Boss.GRUNNAK) return !fallen(Boss.DAIDAROS);
         return true;
@@ -143,6 +147,7 @@ final class Bosses implements Listener {
             Location at = spot.at(w);
             Player near = nearest(w, at, 30);
             if (near == null) continue;
+            if (b == Boss.PYRARCH && fallen(b) && !echoWanted(w, at)) continue;
             rise(b, standable(at));
         }
         if (tick % 10 == 0) orphans(w);
@@ -178,16 +183,27 @@ final class Bosses implements Listener {
     }
 
     LivingEntity rise(Boss b, Location at) {
+        boolean echo = b == Boss.PYRARCH && fallen(b);
         LivingEntity e = spawn(b, at);
         Fight f = new Fight(b, e, at.clone());
+        f.echo = echo;
+        if (echo) { e.setCustomName(ChatColor.DARK_RED + ECHO); f.bar.setTitle(ChatColor.DARK_RED + ECHO); }
         fights.put(b, f);
         risen++;
         for (Player p : at.getWorld().getPlayers()) if (p.getLocation().distanceSquared(at) < 48 * 48) {
-            p.sendTitle(ChatColor.DARK_RED + b.title, ChatColor.GRAY + intro(b), 10, 70, 20);
+            p.sendTitle(ChatColor.DARK_RED + (echo ? ECHO : b.title), ChatColor.GRAY + (echo ? "For those who did not see him fall." : intro(b)), 10, 70, 20);
             p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.6f, 0.6f);
         }
-        plugin.getLogger().info("ATLAS_BOSS_RISEN id=" + b.id + " at=" + at.getBlockX() + "," + at.getBlockY() + "," + at.getBlockZ());
+        plugin.getLogger().info("ATLAS_BOSS_RISEN id=" + b.id + (echo ? " echo=true" : "") + " at=" + at.getBlockX() + "," + at.getBlockY() + "," + at.getBlockZ());
         return e;
+    }
+
+    /** After victory: whether someone near the Cinder Throne has not conquered Atlas yet (the Echo rises only for them). */
+    private boolean echoWanted(World w, Location at) {
+        for (Player p : w.getPlayers())
+            if (p.getGameMode() != GameMode.SPECTATOR && !p.isDead() && p.getLocation().distanceSquared(at) < 30 * 30
+                && plugin.guide() != null && !plugin.guide().beaten(p)) return true;
+        return false;
     }
 
     private static String intro(Boss b) {
@@ -378,7 +394,7 @@ final class Bosses implements Listener {
         }
         Location at = e.getLocation();
         String status = f.heartBroken ? ChatColor.GOLD + "  (the Heart is broken: he is mortal)" : f.phase == 3 ? ChatColor.GRAY + "  (shielded by the Cinder Heart)" : ChatColor.GRAY + "  (phase " + f.phase + ")";
-        f.bar.setTitle(ChatColor.DARK_RED + f.boss.title + status);
+        f.bar.setTitle(ChatColor.DARK_RED + (f.echo ? ECHO : f.boss.title) + status);
         if (f.ticks % 24 == 0) {   // ember rain: small fireballs at the nearest players
             for (Player p : near) {
                 if (p.getGameMode() != GameMode.SURVIVAL || p.getLocation().distanceSquared(at) > 24 * 24) continue;
@@ -467,6 +483,7 @@ final class Bosses implements Listener {
         if (b == null) return;
         Fight f = fights.remove(b);
         if (f != null) f.bar.removeAll();
+        if (f != null && f.echo) { echoFallen(e, f); return; }
         if (fallen(b)) return;
         World w = e.getEntity().getWorld();
         Location at = e.getEntity().getLocation();
@@ -488,13 +505,34 @@ final class Bosses implements Listener {
         String names = by.isEmpty() ? "nobody" : String.join(",", names(by));
         plugin.getLogger().info("ATLAS_BOSS_FALLEN id=" + b.id + " by=" + names + " participants=" + by.size());
         if (b.crowned()) plugin.liberation().liberate(b.province, by, b);
-        else if (b == Boss.PYRARCH) plugin.liberation().victory(by);
+        else if (b == Boss.PYRARCH) {
+            plugin.liberation().victory(by);
+            if (plugin.guide() != null) for (Player p : by) plugin.guide().victory(p);   // each of them has conquered Atlas
+        }
         else Bukkit.broadcastMessage(ChatColor.DARK_RED + b.title + ChatColor.GRAY + " has fallen in Atlas (" + (by.isEmpty() ? "unseen" : "by " + String.join(", ", names(by))) + ").");
         if (b == Boss.DAIDAROS) stoneTheTrolls(w);
         plugin.saveStateSoon();
     }
 
     private static List<String> names(List<Player> ps) { List<String> n = new ArrayList<>(); for (Player p : ps) n.add(p.getName()); return n; }
+
+    /** The Echo falls: everyone who fought it or stood near has conquered Atlas (the realm itself was freed already). */
+    private void echoFallen(EntityDeathEvent e, Fight f) {
+        World w = e.getEntity().getWorld();
+        Location at = e.getEntity().getLocation();
+        List<Player> by = new ArrayList<>();
+        for (Player p : w.getPlayers())
+            if (f.fought.contains(p.getUniqueId()) || p.getGameMode() != GameMode.SPECTATOR && p.getLocation().distanceSquared(at) < 40 * 40) by.add(p);
+        say(by, ChatColor.DARK_RED + ECHO + ": " + ChatColor.GRAY + lastWords(Boss.PYRARCH));
+        w.playSound(at, Sound.ENTITY_WITHER_DEATH, 1f, 0.5f);
+        w.spawnParticle(Particle.END_ROD, at.clone().add(0, 1, 0), 120, 1, 1.5, 1, 0.05);
+        for (Player p : by) {
+            reward(p, Boss.PYRARCH);   // once per player, like the Pyrarch's own
+            if (plugin.guide() != null) plugin.guide().victory(p);
+        }
+        fallen++;
+        plugin.getLogger().info("ATLAS_ECHO_FALLEN by=" + (by.isEmpty() ? "nobody" : String.join(",", names(by))) + " participants=" + by.size());
+    }
 
     /** With the Forgemaster gone, his trolls stop and crust over into slag-stone; Grunnak with them. */
     private void stoneTheTrolls(World w) {

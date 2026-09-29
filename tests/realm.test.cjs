@@ -27,7 +27,7 @@ test('realm stage: four fenced hooks after the portal stage, idempotent, install
   assert.equal(fields.portal, 'Kum');
   for (const n of ['fallingdust', 'flame', 'lava', 'endRod', 'townaura']) assert.match(fields[n], /^\w+$/, n);
   new vm.Script(staged);
-  assert.ok(read('site/client.html').includes('classes.js?v=20260927-atlas1'), 'browsers fetch the new client');
+  assert.ok(read('site/client.html').includes('classes.js?v=20260929-cloud1'), 'browsers fetch the new client');
 });
 
 /** Runs the realm block against a stub engine; returns the context and a handle to drive it. */

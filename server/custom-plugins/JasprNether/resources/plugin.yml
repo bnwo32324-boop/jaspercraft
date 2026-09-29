@@ -8,7 +8,11 @@ description: BetterNether 0.1.8.6 and NetherEx 2.2.5 ported to vanilla-rendered 
 commands:
   jnether:
     description: JasprNether biome, status and admin tools
-    usage: /jnether [where|status|spawn|give|effect|queen|selftest]
+    usage: /jnether [where|status|spawn|give|effect|queen|guide|quest|selftest]
+  goals:
+    description: Your goals in Atlas, Drownhollow and the Nether, ticked off as you go
+    usage: /goals
+    aliases: [goal, quests, quest, checklist]
 permissions:
   jaspr.nether.admin:
     description: Spawn JasprNether mobs, give items and run the self-test.

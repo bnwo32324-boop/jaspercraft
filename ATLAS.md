@@ -1,5 +1,8 @@
 # Atlas, the Divided Realm (JasprAtlas)
 
+> 2026-09-29: the Atlas Guide at every quartz gate hands out a compass, a checklist and a map that follow the Codex's
+> road; players who arrive after victory face the Echo of the Pyrarch. See GUIDE_KIT_UPDATE.md.
+
 **TL;DR:** a new dimension reached through a quartz gate whose surface is half blue and half black.
 - **The Asterian Concord:** a luminous, Greek-inspired, hyper-advanced civilization in the west.
 - **The Cinder Dominion:** an ash-black tyranny in the east, ruled by four Ash-Crowned witch-kings under the Pyrarch.

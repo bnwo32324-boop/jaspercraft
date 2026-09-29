@@ -407,6 +407,9 @@ final class SelfTest implements Listener {
                     && plugin.effects.has(dummy, Effects.Kind.INFESTED), "infestedDummy=" + plugin.effects.has(dummy, Effects.Kind.INFESTED)
                     + " solidBefore=" + before[0] + " solidAfter=" + solidAround(l));
                 check("rule_no_mob_block_damage", solidAround(l) >= before[0], null);
+                // the spore cloud is particles only: an AreaEffectCloud entity froze browser clients built before 2026-09-29
+                long clouds = l.getWorld().getNearbyEntities(l, 8, 8, 8).stream().filter(n -> n.getType() == org.bukkit.entity.EntityType.AREA_EFFECT_CLOUD).count();
+                check("spore_cloud_particles_only", plugin.mobs.sporeClouds > 0 && clouds == 0, "sporeClouds=" + plugin.mobs.sporeClouds + " cloudEntities=" + clouds);
             }
             check("ability_spore_growth", spore == null || plugin.mobs.abilityCounts.getOrDefault("spore_grow", 0) > 0, "stage=" + (spore == null ? -1 : plugin.mobs.track(spore) == null ? -1 : plugin.mobs.track(spore).stage));
             if (Bukkit.getOnlinePlayers().isEmpty()) plugin.getLogger().info("NETHER_SELFTEST SKIP ability_frost_volley (needs an online player: blaze AI is inactive without one; covered by the bot run)");

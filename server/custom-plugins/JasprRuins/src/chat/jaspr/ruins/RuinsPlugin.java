@@ -68,8 +68,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
      * spawns below are scaled the same way.
      */
     static final double EASE = 0.5;
-    static final String EPOCH_FILE = "jaspr-ruins-epoch.txt", COMPASS = "Drowned Star Compass", COMPASS_MARK = "Relic of Drownhollow - compass",
-        OLD_COMPASS_MARK = "Relic of Ul'Nhaar - compass";   // compasses made before the rename
+    static final String EPOCH_FILE = "jaspr-ruins-epoch.txt";
 
     private volatile World ruins;
     private World main;
@@ -80,9 +79,10 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     private Bosses bosses;
     private Trinkets trinkets;
     private Sky sky;
+    private RuinsQuest quest;
+    private GuideKit guide;
     private final Map<UUID, String> place = new HashMap<>();
     private final Set<String> told = new HashSet<>();
-    private final Set<UUID> compassAimed = new HashSet<>();
     private File toldFile;
     private long failuresLogged, emptySince, loads, unloads;
 
@@ -106,6 +106,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         horrors = new Horrors(this);
         trinkets = new Trinkets(this);
         sky = new Sky(this);
+        quest = new RuinsQuest(this);
+        guide = new GuideKit(this, quest);   // registers itself: the gate guides, compass, checklist and map
         for (Listener l : new Listener[] {this, portals, horrors, bosses, trinkets, sky}) Bukkit.getPluginManager().registerEvents(l, this);
         toldFile = new File(getDataFolder(), "told.txt");
         loadTold();
@@ -142,6 +144,9 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     World ruins() { return ruins; }
     Plans plans() { return generator.plans; }
     Horrors horrors() { return horrors; }
+    Bosses bosses() { return bosses; }
+    RuinsQuest quest() { return quest; }
+    GuideKit guide() { return guide; }
 
     /** The ruins world, loading it from disk (or creating it) if nobody has it open. */
     synchronized World ensureRuins() {
@@ -172,9 +177,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         return w;
     }
 
-    /** Every two seconds: aim compasses; a minute after the last player leaves, save and unload the world. */
+    /** Every two seconds: a minute after the last player leaves, save and unload the world. */
     private void lifecycle() {
-        compasses();
         World w = ruins;
         if (w == null) return;
         if (!w.getPlayers().isEmpty()) { emptySince = 0; return; }
@@ -267,7 +271,10 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     // ------------------------------------------------------------------ arriving: the guide, the compass, the night
 
     @EventHandler(priority = EventPriority.MONITOR)
-    public void arrived(PlayerChangedWorldEvent e) { if (isRuins(e.getPlayer().getWorld())) welcome(e.getPlayer()); }
+    public void arrived(PlayerChangedWorldEvent e) {
+        Player p = e.getPlayer();
+        if (isRuins(p.getWorld())) Bukkit.getScheduler().runTaskLater(this, () -> { if (p.isOnline() && isRuins(p.getWorld())) welcome(p); }, 20L);
+    }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void joined(PlayerJoinEvent e) {
@@ -288,78 +295,15 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         if (isRuins(e.getRespawnLocation().getWorld())) Bukkit.getScheduler().runTaskLater(this, () -> welcome(e.getPlayer()), 5L);
     }
 
-    /** Anyone in the ruins without the Pilgrim's Primer or the compass is handed them. */
+    /**
+     * A player in Drownhollow meets the guide kit: at the gate they came through a Drownhollow Guide stands (placed if
+     * none is near); the first time they are handed the compass, the checklist and the map; every time they hear their goal
+     * and next task. Someone who ended the Dream before the guides existed is recorded as its conqueror.
+     */
     void welcome(Player p) {
-        boolean guide = false, compass = false;
-        for (ItemStack item : p.getInventory().getContents()) {
-            if (item == null) continue;
-            if (item.getType() == Material.WRITTEN_BOOK && item.hasItemMeta() && Lore.GUIDE_TITLE.equals(((BookMeta) item.getItemMeta()).getTitle())) guide = true;
-            if (isCompass(item)) compass = true;
-        }
-        Plans.Door d = plans().door();
-        List<ItemStack> give = new ArrayList<>();
-        if (!guide) give.add(Lore.guide(d.x, d.z));
-        if (!compass) give.add(compass());
-        for (ItemStack item : give) for (ItemStack left : p.getInventory().addItem(item).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
-        if (!give.isEmpty()) {
-            getLogger().info("RUINS_WELCOME player=" + p.getName() + " guide=" + !guide + " compass=" + !compass);
-            p.sendTitle(ChatColor.DARK_GREEN + "Drownhollow", ChatColor.GRAY + "The drowned city of the Choir", 10, 70, 20);
-            p.sendMessage(ChatColor.DARK_GREEN + "The city presses a book into your hands. " + ChatColor.GRAY + "Read the "
-                + ChatColor.WHITE + Lore.GUIDE_TITLE + ChatColor.GRAY + ": it tells you how to conquer this place. Hold the "
-                + ChatColor.DARK_AQUA + COMPASS + ChatColor.GRAY + " to find your way.");
-        }
-    }
-
-    static ItemStack compass() {
-        ItemStack item = new ItemStack(Material.COMPASS);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.DARK_AQUA + COMPASS);
-        meta.setLore(Arrays.asList(ChatColor.GRAY + "Points to the nearest Warden whose Seal", ChatColor.GRAY + "you lack; with three Seals, to the Great Door.",
-            ChatColor.DARK_GRAY + COMPASS_MARK));
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    static boolean isCompass(ItemStack item) {
-        if (item == null || item.getType() != Material.COMPASS || !item.hasItemMeta() || !item.getItemMeta().hasLore()) return false;
-        for (String line : item.getItemMeta().getLore()) {
-            String plain = ChatColor.stripColor(line);
-            if (COMPASS_MARK.equals(plain) || OLD_COMPASS_MARK.equals(plain)) return true;
-        }
-        return false;
-    }
-
-    /** Compasses in the ruins point at the next Warden (or the Door); elsewhere they point home again. */
-    private void compasses() {
-        World w = ruins;
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            if (w == null || p.getWorld() != w) {
-                if (compassAimed.remove(p.getUniqueId())) p.setCompassTarget(p.getWorld().getSpawnLocation());
-                continue;
-            }
-            p.setCompassTarget(target(p));
-            compassAimed.add(p.getUniqueId());
-        }
-    }
-
-    Location target(Player p) {
-        Plans.Door d = plans().door();
-        Location door = new Location(p.getWorld(), d.x, d.base, d.z);
-        EnumSet<Trinkets.Seal> have = Trinkets.seals(p);
-        if (have.size() >= Bosses.SEALS_NEEDED) return door;
-        Location at = p.getLocation(), best = null;
-        double bestD = Double.MAX_VALUE;
-        int i0 = Math.floorDiv(at.getBlockX(), Plans.SITE_GRID), j0 = Math.floorDiv(at.getBlockZ(), Plans.SITE_GRID);
-        for (int a = i0 - 14; a <= i0 + 14; a++)
-            for (int b = j0 - 14; b <= j0 + 14; b++) {
-                Plans.Site s = plans().site(a, b);
-                if (s == null || !s.kind.cult) continue;
-                Bosses.Boss boss = Bosses.Boss.of(s.kind);
-                if (boss == null || have.contains(boss.seal)) continue;
-                double dx = s.x - at.getX(), dz = s.z - at.getZ(), dd = dx * dx + dz * dz;
-                if (dd < bestD) { bestD = dd; best = new Location(p.getWorld(), s.x, s.base, s.z); }
-            }
-        return best != null ? best : door;
+        if (guide == null) return;
+        if (bosses.slayer(p)) guide.recordPast(p, "you slew the Dreamer's Herald");
+        guide.arrive(p, quest.takeGate(p));
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -393,7 +337,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     }
 
     @EventHandler
-    public void quit(PlayerQuitEvent e) { place.remove(e.getPlayer().getUniqueId()); compassAimed.remove(e.getPlayer().getUniqueId()); }
+    public void quit(PlayerQuitEvent e) { place.remove(e.getPlayer().getUniqueId()); quest.takeGate(e.getPlayer()); }
 
     private void loadTold() {
         try { if (toldFile.isFile()) told.addAll(Files.readAllLines(toldFile.toPath(), StandardCharsets.UTF_8)); }
@@ -409,6 +353,13 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("goals")) return true;   // the guide kit prints each realm's part
+        // /ruins as <player> <sub...>: an owner (or the console, in tests) runs a sub-command as that player
+        if (args.length >= 3 && args[0].equalsIgnoreCase("as")) {
+            Player as = Bukkit.getPlayerExact(args[1]);
+            if (as == null) { sender.sendMessage(ChatColor.RED + "No player " + args[1]); return true; }
+            return onCommand(as, command, label, Arrays.copyOfRange(args, 2, args.length));
+        }
         String sub = args.length == 0 ? "status" : args[0].toLowerCase(Locale.ROOT);
         if (sub.equals("status")) {
             RuinsPopulator p = generator == null ? null : generator.populator();
@@ -417,6 +368,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
                 + r.getLoadedChunks().length + " chunks, " + r.getEntities().size() + " entities") + "; " + (generator == null ? 0 : generator.chunks) + " chunks generated, "
                 + (portals == null ? 0 : portals.count()) + " portals" + (p == null ? "" : ", " + p.chests + " chests") + "; loads " + loads + ", unloads " + unloads);
             if (bosses != null) sender.sendMessage(ChatColor.GRAY + bosses.status());
+            if (guide != null) sender.sendMessage(ChatColor.GRAY + guide.status());
             return true;
         }
         if (!(sender instanceof Player)) { sender.sendMessage("Players only."); return true; }
@@ -434,7 +386,14 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
                 else go(player, to);
                 return true;
             }
-            case "guide": give(player, Lore.guide(plans().door().x, plans().door().z)); give(player, compass()); return true;
+            case "guide": {
+                // the guide kit's three items, and a Drownhollow Guide beside the player (in Drownhollow)
+                guide.offer(player, true);
+                if (isRuins(player.getWorld())) guide.ensureGuide(player.getLocation());
+                return true;
+            }
+            case "primer": give(player, Lore.guide(plans().door().x, plans().door().z)); return true;
+            case "quest": for (String line : guide.goalLines(player)) sender.sendMessage(line); return true;
             case "lore": for (int i = 0; i < Lore.bookCount(); i++) give(player, Lore.book(i)); return true;
             case "seal": { for (Trinkets.Seal s : Trinkets.Seal.values()) if (arg.isEmpty() || s.key().equals(arg)) give(player, Trinkets.seal(s)); return true; }
             case "trinket": { for (Trinkets.Trinket t : Trinkets.Trinket.values()) if (arg.isEmpty() || t.key().equals(arg)) give(player, Trinkets.item(t)); return true; }
@@ -461,7 +420,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
             case "dread": player.sendMessage(ChatColor.DARK_PURPLE + "Dread " + horrors.dreadOf(player)); return true;
             case "unload": emptySince = 1; lifecycle(); return true;
             default:
-                player.sendMessage(ChatColor.GRAY + "/ruins [status|tp|back|where|find <city|lostcity|" + kinds() + ">|door [open|close]|guide|lore|seal [type]|trinket [type]|boss <type>|horror <kind>|dread|unload]");
+                player.sendMessage(ChatColor.GRAY + "/ruins [status|tp|back|where|find <city|lostcity|" + kinds() + ">|door [open|close]|guide|primer|quest|lore|seal [type]|trinket [type]|boss <type>|horror <kind>|dread|unload|as <player> <sub>]");
                 return true;
         }
     }
@@ -470,7 +429,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return Arrays.asList("status", "tp", "back", "where", "find", "door", "guide", "lore", "seal", "trinket", "boss", "horror", "dread", "unload");
+        if (args.length == 1) return Arrays.asList("status", "tp", "back", "where", "find", "door", "guide", "primer", "quest", "lore", "seal", "trinket", "boss", "horror", "dread", "unload", "as");
         if (args.length == 2 && "find".equalsIgnoreCase(args[0])) {
             List<String> all = new ArrayList<>(Arrays.asList("city", "lostcity"));
             for (Plans.Kind k : Plans.Kind.values()) all.add(k.name().toLowerCase(Locale.ROOT));

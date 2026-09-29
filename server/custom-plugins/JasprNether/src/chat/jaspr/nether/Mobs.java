@@ -13,7 +13,6 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
-import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -23,7 +22,6 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
 import org.bukkit.craftbukkit.v1_12_R1.entity.CraftEntity;
-import org.bukkit.entity.AreaEffectCloud;
 import org.bukkit.entity.Creature;
 import org.bukkit.entity.Creeper;
 import org.bukkit.entity.Entity;
@@ -122,7 +120,7 @@ final class Mobs implements Listener {
     private final Random random = new Random();
     private long now;
     private boolean spawning, dealing;
-    long spawnedTotal, replaced, elites, abilityUses, peaceKept;
+    long spawnedTotal, replaced, elites, abilityUses, peaceKept, sporeClouds;
     final Map<String, Integer> abilityCounts = new java.util.TreeMap<>();
     private final Map<Long, int[]> packs = new HashMap<>();
     private final List<LivingEntity> scaleQueue = new ArrayList<>();
@@ -726,14 +724,36 @@ final class Mobs implements Listener {
             Block b = l.getBlock().getRelative(random.nextInt(5) - 2, random.nextInt(3) - 1, random.nextInt(5) - 2);
             if (b.getType() == Material.AIR && b.getRelative(0, -1, 0).getType().isSolid()) spawnSpore(b.getLocation().add(0.5, 0, 0.5), 0);
         }
-        AreaEffectCloud cloud = (AreaEffectCloud) l.getWorld().spawnEntity(l, EntityType.AREA_EFFECT_CLOUD);
-        cloud.setColor(Color.fromRGB(142, 96, 40));
-        cloud.setRadius((float) radius * 0.7f);
-        cloud.setDuration(60);
-        cloud.setRadiusPerTick(-cloud.getRadius() / 60f);
+        sporeCloud(l, (float) radius * 0.7f);
         l.getWorld().playSound(l, Sound.ENTITY_SLIME_SQUISH, 2f, 0.5f);
         ability(t.elite ? "spore_colossus_burst" : "spore_creeper_burst");
         if (infested > 0) ability("spore_infest");
+    }
+
+    /**
+     * The brown spore cloud: coloured particles over a disc that shrinks away in three seconds. Drawn here rather than
+     * as an AreaEffectCloud entity: browser clients built before 2026-09-29 read a cloud's radius from the wrong data
+     * slot and froze in their particle loop (fixed in the client by scripts/build-cloud-client.cjs; tabs opened before
+     * that update keep the old client until they reload).
+     */
+    private void sporeCloud(Location at, float radius) {
+        final Location c = at.clone();
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int age;
+            @Override public void run() {
+                World w = c.getWorld();
+                if (age >= 60 || w == null) { cancel(); return; }
+                double r = radius * (1 - age / 60.0);
+                int n = Math.max(2, (int) Math.round(r * 2.5));
+                for (int i = 0; i < n; i++) {
+                    double a = random.nextDouble() * Math.PI * 2, d = Math.sqrt(random.nextDouble()) * r;
+                    // count 0: the offsets are the colour (142, 96, 40), the speed 1 keeps it exact
+                    w.spawnParticle(Particle.SPELL_MOB, c.getX() + Math.cos(a) * d, c.getY() + 0.2, c.getZ() + Math.sin(a) * d, 0, 0.557, 0.376, 0.157, 1);
+                }
+                age += 4;
+            }
+        }.runTaskTimer(plugin, 0L, 4L);
+        sporeClouds++;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

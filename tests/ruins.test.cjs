@@ -54,8 +54,8 @@ test('ruins plugin wiring: Lost Cities registration, mossy portals, client-green
   assert.ok(plugin.includes('public void login(PlayerLoginEvent e)'), 'loaded for a player who logged out inside it');
   assert.ok(plugin.includes('folder.renameTo(retired)'), 'an older world is renamed aside, never deleted');
   assert.ok(read('server/custom-plugins/JasprLostCities/src/chat/jaspr/lostcities/LostCitiesPlugin.java').includes('worldUnload(WorldUnloadEvent e)'), 'Lost Cities re-attach after a reload');
-  // Beating it: the guide and compass on arrival, five Wardens with Seals, three Seals open the Door, the Herald's hoard.
-  assert.ok(plugin.includes('Lore.guide(d.x, d.z)'), 'the guide is handed out on arrival');
+  // Beating it: the guide kit on arrival (compass, checklist, map), five Wardens with Seals, three Seals open the Door, the Herald's hoard.
+  assert.ok(plugin.includes('guide = new GuideKit(this, quest);') && plugin.includes('case "primer": give(player, Lore.guide(plans().door().x, plans().door().z))'), 'the kit on arrival; the Primer on request');
   const bosses = read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/Bosses.java');
   for (const b of ['HIEROPHANT', 'PILLAR_WARDEN', 'BROOD_MOTHER', 'SPAWN_OF_THE_DEEP', 'FACELESS_PRIEST', 'HERALD']) assert.ok(bosses.includes(b + '(EntityType'), b);
   assert.match(bosses, /SEALS_NEEDED = 3/);

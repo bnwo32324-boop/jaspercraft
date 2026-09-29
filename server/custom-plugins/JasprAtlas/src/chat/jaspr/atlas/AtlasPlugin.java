@@ -89,6 +89,8 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
     private Library library;
     private Captives captives;
     private Bosses bosses;
+    private AtlasQuest quest;
+    private GuideKit guide;
     private Mechanisms mechanisms;
     private Liberation liberation;
     private Heliodromes heliodromes;
@@ -130,6 +132,8 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
         liberation = new Liberation(this);
         heliodromes = new Heliodromes(this);
         guard = new Guard(this);
+        quest = new AtlasQuest(this);
+        guide = new GuideKit(this, quest);   // registers itself: the gate guides, compass, checklist and map
         for (Listener l : new Listener[] {this, gates, marker, dominion, reputation, talk, library, captives, bosses, mechanisms, liberation, heliodromes, guard})
             Bukkit.getPluginManager().registerEvents(l, this);
         toldFile = new File(getDataFolder(), "told.txt");
@@ -190,6 +194,8 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
     Mechanisms mechanisms() { return mechanisms; }
     Liberation liberation() { return liberation; }
     Bosses bosses() { return bosses; }
+    AtlasQuest quest() { return quest; }
+    GuideKit guide() { return guide; }
 
     String clientModuleVersion() { return getConfig().getString("client-module-version", "1").replaceAll("[^A-Za-z0-9._-]", ""); }
 
@@ -357,7 +363,7 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void arrived(PlayerChangedWorldEvent e) {
         Player p = e.getPlayer();
-        if (isAtlas(p.getWorld())) welcome(p);
+        if (isAtlas(p.getWorld())) Bukkit.getScheduler().runTaskLater(this, () -> { if (p.isOnline() && isAtlas(p.getWorld())) welcome(p); }, 20L);
         else if (isAtlas(e.getFrom())) place.remove(p.getUniqueId());
     }
 
@@ -392,18 +398,22 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
         getLogger().info("ATLAS_UNBURIED player=" + p.getName() + " from=" + l.getBlockX() + "," + l.getBlockY() + "," + l.getBlockZ() + " toY=" + to.getBlockY());
     }
 
-    /** First time in Atlas: the Codex and Philon's welcome; every time: the realm's name. */
+    /**
+     * Every arrival: the realm's name, and the guide kit (an Atlas Guide at the gate they came through, the compass,
+     * checklist and map the first time, their goal and next task every time). Rekindlers from before the guides are
+     * recorded as Atlas's conquerors. Philon at the Gate still hands out the Wayfarer's Codex to those who talk to him.
+     */
     void welcome(Player p) {
         State.Player rec = state.player(p.getUniqueId(), p.getName());
         p.sendTitle(ChatColor.AQUA + "Atlas", ChatColor.GRAY + (state.victory ? "the Rekindled Realm" : "the Divided Realm"), 10, 70, 20);
-        if (rec.welcomed) return;
-        rec.welcomed = true;
-        saveStateSoon();
-        if (!Items.has(p, "codex")) Talk.give(p, Items.codex());
-        Talk.give(p, Items.book("Welcome, Stranger", "Philon of the Threshold", "welcome", Lore.WELCOME));
-        p.sendMessage(ChatColor.AQUA + "Philon of the Threshold " + ChatColor.GRAY + "presses a book and a Codex into your hands. Read the book. Right-click the " + ChatColor.GOLD
-            + "Wayfarer's Codex" + ChatColor.GRAY + " to see what you know and what remains. Right-click anyone to talk.");
-        getLogger().info("ATLAS_WELCOME player=" + p.getName());
+        if (!rec.welcomed) {
+            rec.welcomed = true;
+            saveStateSoon();
+            getLogger().info("ATLAS_WELCOME player=" + p.getName());
+        }
+        if (guide == null) return;
+        if (state.rekindlers.contains(p.getName())) guide.recordPast(p, "you rekindled the Star");
+        guide.arrive(p, quest.takeGate(p));
     }
 
     @EventHandler
@@ -474,6 +484,7 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("goals")) return true;   // the guide kit prints each realm's part
         String sub = args.length == 0 ? "codex" : args[0].toLowerCase(Locale.ROOT);
         Player player = sender instanceof Player ? (Player) sender : null;
         // "/atlas as <player> <subcommand...>": the owner (or the console, for tests) acts as a player.
@@ -515,6 +526,13 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
                 return true;
             }
             case "back": go(player, main.getSpawnLocation().add(0.5, 0, 0.5)); return true;
+            case "guide": {
+                // the guide kit's three items, and an Atlas Guide beside the player (in Atlas)
+                guide.offer(player, true);
+                if (isAtlas(player.getWorld())) guide.ensureGuide(player.getLocation());
+                return true;
+            }
+            case "quest": for (String line : guide.goalLines(player)) sender.sendMessage(line); return true;
             case "where": {
                 Location l = player.getLocation();
                 Realm.Zone z = Realm.zone(l.getBlockX(), l.getBlockZ());

@@ -1,5 +1,9 @@
 # Drownhollow, the drowned city (JasprRuins, epoch 3)
 
+> 2026-09-29: the Drownhollow Guide at every mossy gate hands out a compass, a checklist and a map that lead through
+> the three Seals, the Great Door and the Herald (they replace the Pilgrim's Primer and the Drowned Star Compass). See
+> GUIDE_KIT_UPDATE.md.
+
 **TL;DR:** the ruins dimension is a dense cyclopean city of the Choir of the Drowned Star. There are no trees or
 plains, just a little grass and ivy. Endless night, Lovecraftian horrors everywhere, five Warden bosses, and a final
 boss, the Dreamer's Herald, behind the Great Door. Everyone who enters gets a guide book and a compass. Beating the

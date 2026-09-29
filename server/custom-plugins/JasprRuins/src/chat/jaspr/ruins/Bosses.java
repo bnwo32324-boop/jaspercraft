@@ -130,6 +130,9 @@ final class Bosses implements Listener {
             for (String k : y.getConfigurationSection("cooldowns").getKeys(false)) cooldown.put(k, y.getLong("cooldowns." + k));
         for (String s : y.getStringList("door.seals")) try { doorSeals.add(Trinkets.Seal.valueOf(s)); } catch (IllegalArgumentException ignored) { }
         slayers.addAll(y.getStringList("slayers"));
+        // A Door holding three Seals was open when the server stopped (its obsidian is still gone): it stays open, and its
+        // Herald wakes when someone walks into the hall.
+        doorOpen = doorSeals.size() >= SEALS_NEEDED;
     }
 
     void save() {
@@ -443,6 +446,7 @@ final class Bosses implements Listener {
                     for (ItemStack left : p.getInventory().addItem(item).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
                 p.sendTitle(ChatColor.GOLD + "THE DREAM IS ENDED", ChatColor.GRAY + "You have conquered Drownhollow.", 10, 100, 30);
                 slayers.add(p.getUniqueId().toString());
+                if (plugin.guide() != null) plugin.guide().victory(p);
             }
             Bukkit.broadcastMessage(ChatColor.GOLD + (killer != null ? killer.getName() : "Pilgrims") + " ended the Dream of Drownhollow: the Dreamer's Herald is slain!");
             cooldown.put("door", now + HERALD_COOLDOWN);
@@ -466,11 +470,31 @@ final class Bosses implements Listener {
 
     boolean slayer(Player p) { return slayers.contains(p.getUniqueId().toString()); }
 
+    // ------------------------------------------------------------------ what the guide kit reads
+
+    /** The arena key of a cult site (its site cell). */
+    static String arena(Plans.Site s) { return "site_" + Math.floorDiv(s.x, Plans.SITE_GRID) + "_" + Math.floorDiv(s.z, Plans.SITE_GRID); }
+
+    /** Milliseconds until an arena's Warden (or, for "door", the Door) can wake again; 0 when it can. */
+    long waitLeft(String arena) { return Math.max(0, cooldown.getOrDefault(arena, 0L) - System.currentTimeMillis()); }
+
+    EnumSet<Trinkets.Seal> doorSeals() { return EnumSet.copyOf(doorSeals.isEmpty() ? EnumSet.noneOf(Trinkets.Seal.class) : doorSeals); }
+
+    boolean doorOpen() { return doorOpen; }
+
+    /** The Herald while it is awake, else null. */
+    LivingEntity herald() { Active a = active.get("door"); return a == null ? null : a.entity; }
+
     // ------------------------------------------------------------------ the Great Door
 
     @EventHandler(priority = EventPriority.HIGH)
     public void door(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null || !plugin.isRuins(e.getClickedBlock().getWorld())) return;
+        // One answer per click: the client repeats a refused click with the off hand (empty), which read as "no Seal".
+        if (e.getHand() == org.bukkit.inventory.EquipmentSlot.OFF_HAND) {
+            if (Cult.doorBlock(plugin.plans().door(), e.getClickedBlock().getX(), e.getClickedBlock().getY(), e.getClickedBlock().getZ())) e.setCancelled(true);
+            return;
+        }
         Block b = e.getClickedBlock();
         Plans.Door d = plugin.plans().door();
         if (!Cult.doorBlock(d, b.getX(), b.getY(), b.getZ())) return;

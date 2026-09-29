@@ -19,18 +19,22 @@ final class Navigator {
         World w = from.getWorld();
         if (!plugin.isNether(w)) return null;
         String t = target.replace('-', '_');
-        if (t.equals("urn") || t.equals("statue")) {
+        if (t.equals("urn") || t.equals("statue") || t.equals("font")) {
             Registry.Entry best = null;
             double bd = Double.MAX_VALUE;
             for (Registry.Entry e : plugin.registry.near(from.getBlockX(), from.getBlockZ(), 6000, t)) {
                 double d = Math.pow(e.cx() - from.getX(), 2) + Math.pow(e.cz() - from.getZ(), 2);
-                if (d < bd && w.getBlockAt(e.x1, e.y1, e.z1).getTypeId() == (t.equals("urn") ? Blocks.URN : Blocks.STATUE) >> 4) { bd = d; best = e; }
+                if (d < bd && w.getBlockAt(e.x1, e.y1, e.z1).getTypeId() == (t.equals("statue") ? Blocks.STATUE : Blocks.URN) >> 4) { bd = d; best = e; }
             }
             if (best == null) return null;
             plugin.getLogger().info("NETHER_GOTO_POINT type=" + t + " at=" + best.x1 + "," + best.y1 + "," + best.z1);
             for (int[] o : new int[][]{{2, 0}, {-2, 0}, {0, 2}, {0, -2}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
                 Location l = safe(w, best.x1 + o[0], best.z1 + o[1], best.y1 + 2, best.y1 - 3);
-                if (l != null) return l;
+                if (l != null) {   // facing the point, so a right-click reaches it
+                    org.bukkit.util.Vector look = new org.bukkit.util.Vector(best.x1 + 0.5, best.y1 + 0.5, best.z1 + 0.5).subtract(l.toVector().add(new org.bukkit.util.Vector(0, 1.62, 0)));
+                    l.setDirection(look);
+                    return l;
+                }
             }
             return new Location(w, best.x1 + 0.5, best.y1 + 1, best.z1 + 0.5);
         }

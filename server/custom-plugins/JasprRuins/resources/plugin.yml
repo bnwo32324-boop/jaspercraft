@@ -7,8 +7,12 @@ description: Drownhollow, a drowned and moss-grown dimension of weathered Lost C
 commands:
   ruins:
     description: Drownhollow status and owner travel/search tools.
-    usage: /ruins [status|tp|back|where|find <city|lostcity|temple|...>]
+    usage: /ruins [status|tp|back|where|find <city|lostcity|temple|...>|guide|quest|as <player> <sub>]
     permission: jaspr.ruins.admin
+  goals:
+    description: Your goals in Atlas, Drownhollow and the Nether, ticked off as you go
+    usage: /goals
+    aliases: [goal, quests, quest, checklist]
 permissions:
   jaspr.ruins.admin:
     description: Use the /ruins owner tools.

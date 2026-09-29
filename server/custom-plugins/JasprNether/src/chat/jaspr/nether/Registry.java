@@ -151,7 +151,9 @@ final class Registry {
     }
 
     /** Point records (urns, blue fire, statues, garrisons) are not structures. */
-    static boolean point(String type) { return type.equals("urn") || type.equals("bluefire") || type.equals("statue") || type.equals("garrison"); }
+    static boolean point(String type) {
+        return type.equals("urn") || type.equals("bluefire") || type.equals("statue") || type.equals("garrison") || type.equals("font");
+    }
 
     /** The smallest structure box (not a point record) containing the position, for /where. */
     synchronized Entry structureAt(int x, int y, int z) {

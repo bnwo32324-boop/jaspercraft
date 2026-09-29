@@ -43,7 +43,7 @@ final class MegaCathedral extends MegaDesign {
     private static final int STEM_B = b(99, 10), STEM_ALL = b(99, 15), PORES = b(99, 0), RED_CAP = b(100, 14), BROWN_CAP = b(99, 14), SPOT = b(100, 15);
     private static final int BRICK = b(201), BRICK_PILLAR = b(202), GLASS_M = b(95, 2), GLASS_P = b(95, 10), GLOW = b(89), MYCEL = b(110);
     private static final int RACK_LIVELY = b(159, 2), FENCE = b(189), QUARTZ = b(155), WHITE = b(159, 0), BLACK = b(159, 15), TEAR = b(95, 3);
-    private static final int CAULDRON = b(118), SHROOM_R = b(40), SHROOM_B = b(39);
+    private static final int CAULDRON = b(118), FONT = b(118, 3), SHROOM_R = b(40), SHROOM_B = b(39);
 
     @Override void draw(Mega.Site s, Draw d) {
         Plan p = (Plan) s.plan;
@@ -270,7 +270,37 @@ final class MegaCathedral extends MegaDesign {
         f.box(-2, fl, -9, 2, fl, -8, Draw.of(MYCEL));
         f.set(0, fl + 1, -8, SHROOM_R);
         f.point(0, fl, 3, "garrison:!spore_creeper+spore");
+        // the Font of Sorrow: a cauldron brimming with tears on a pillar; it fills a Potion of Sorrow for every visitor
+        f.set(FONT_U, fl, FONT_V, BRICK_PILLAR);
+        f.set(FONT_U, fl + 1, FONT_V, FONT);
+        f.point(FONT_U, fl + 1, FONT_V, "font");
+        f.set(FONT_U - 1, fl - 1, FONT_V, GLOW);
+        f.set(FONT_U + 1, fl - 1, FONT_V, GLOW);
     }
+
+    // ---- where the quest's places are (from the plan alone, so the compass knows them before the land exists) ----
+    static final int FONT_U = 0, FONT_V = -6;
+
+    /** The Font of Sorrow's cauldron. */
+    static int[] font(Mega.Site s) {
+        Draw.Frame f = new Draw.Frame(null, s.x, s.z, ((Plan) s.plan).rot);
+        return new int[]{f.x(FONT_U, FONT_V), s.y - 8, f.z(FONT_U, FONT_V)};
+    }
+
+    /** The mouth of the crypt stair, on the cavern floor. */
+    static int[] cryptDoor(Mega.Site s) {
+        Draw.Frame f = new Draw.Frame(null, s.x, s.z, ((Plan) s.plan).rot);
+        return new int[]{f.x(0, 23), s.y + 1, f.z(0, 23)};
+    }
+
+    /** A door into the stem (the spiral stair inside climbs to the crown). */
+    static int[] stemDoor(Mega.Site s) {
+        Draw.Frame f = new Draw.Frame(null, s.x, s.z, ((Plan) s.plan).rot);
+        return new int[]{f.x(STEM + 2, 0), s.y + 1, f.z(STEM + 2, 0)};
+    }
+
+    /** The Urn of Sorrow on the Weeping Balcony. */
+    static int[] urn(Mega.Site s) { return new int[]{s.x, s.y + RISE + CAP_H, s.z}; }
 
     /** A free-standing elder mushroom (red bulb or brown flat cap) in the fields round the cathedral. */
     private void shroom(Draw.Frame f, Mega.Site s, int[] sh) {

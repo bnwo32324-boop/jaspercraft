@@ -449,6 +449,7 @@ final class Portals implements Listener {
         if (changed) { linked++; save(); } else if (made) save();
         cameThrough.put(player.getUniqueId(), new String[] {target.id(), from.id()});
         Location arrive = arrival(dst, target, at);
+        if (plugin.isRuins(dst) && plugin.quest() != null) plugin.quest().gate(player, arrive);   // the guide stands by this gate
         if (player.isInsideVehicle()) player.leaveVehicle();
         player.setFallDistance(0f);
         player.setVelocity(new Vector());

@@ -174,6 +174,13 @@ final class Figures {
                 c.opt("I will.", "close");
                 return;
             case "light":
+                if (c.s.victory && c.plugin.guide() != null && !c.plugin.guide().beaten(c.p)) {
+                    c.say("Atlas is free, but you did not see him fall. His echo still burns in the Cinder Throne for such as you, and it will not go out until you face it.")
+                     .say("Take the Light of Theano. Climb Anthrakion; when the echo hides behind the Cinder Heart, stand at the Heart's root and hold the Light up, as the Rekindlers did.");
+                    c.give("light");
+                    c.opt("I will.", "close");
+                    return;
+                }
                 if (c.s.victory) { c.say("The Light is whole again, and so is the Star. What you carry is yours now; keep it."); c.opt("Farewell.", "close"); return; }
                 if (dark < 4) {
                     c.say("The Light of Theano is the Hearthstar's own light, and the only thing the Pyrarch fears. I will lend it when all four Wards around Anthrakion are dark, and not before: lost in the ash, it would leave us nothing.\n\n" + dark + " of the four Wards are dark.");
@@ -203,7 +210,9 @@ final class Figures {
             }
             default:
         }
-        if (c.s.victory) c.say("Rekindler. The Synedrion stood when your name was read. So did I, and I have not stood for anyone in eleven years.\n\nI read the vote of 1127 aloud, as I promised. With the names. It was the hardest speech of my life, and the best.");
+        if (c.s.victory && c.plugin.guide() != null && !c.plugin.guide().beaten(c.p))
+            c.say("Stranger. Atlas is free: the Rekindlers ended the Pyrarch. But his echo waits in the Cinder Throne for any who did not see him fall.\n\nAsk me for the Light of Theano, and face it.");
+        else if (c.s.victory) c.say("Rekindler. The Synedrion stood when your name was read. So did I, and I have not stood for anyone in eleven years.\n\nI read the vote of 1127 aloud, as I promised. With the names. It was the hardest speech of my life, and the best.");
         else if (c.first) c.say("So you are the stranger Philon sent word of. Sit. I am Kleio Theanid, Archon of the Synedrion this year, which means I am the one who must ask you for things we have no right to ask.")
             .say("Four Ash-Crowned rule the Dominion under the Pyrarch, who broke our Star. Each was once the best of us. Each can be broken, but only with what they forgot. We have kept what they forgot.");
         else c.say("Stranger. " + Voices.progress(c.s) + (dark == 4 && !Items.has(c.p, "light") ? "\n\nThe Wards are dark. Ask me for the Light." : ""));

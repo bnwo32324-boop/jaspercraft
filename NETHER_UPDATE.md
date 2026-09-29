@@ -1,5 +1,9 @@
 # BetterNether + NetherEx (JasprNether 1.1.0) -- 2026-09-26, mega structures 2026-09-28
 
+> 2026-09-29: the Nether can be beaten step by step with the Nether Guide's compass, checklist and map (reach the
+> Spore Cathedral, take a Potion of Sorrow from the Font of Sorrow in its crypt, pour it into the Urn, slay the Ghast
+> Queen), and the spore cloud no longer freezes the browser client. See GUIDE_KIT_UPDATE.md.
+
 BetterNether 0.1.8.6 and NetherEx 2.2.5 ported to Paper 1.12.2 as one harmonised, harder Nether. The owner asked for
 the two mods to "harmonize with one another and make the Nether more interesting but also more difficult", and for
 the current Nether to be regenerated.

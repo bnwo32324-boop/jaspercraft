@@ -36,6 +36,7 @@ import org.bukkit.util.Vector;
 final class Boss implements Listener {
     static final class Queen {
         final LivingEntity e; final BossBar bar; int stage; long cooldownUntil; int shots; int[] urn;
+        final java.util.Set<UUID> fought = new java.util.HashSet<>();   // players who hurt her (they beat the Nether with her)
         Queen(LivingEntity e, BossBar bar) { this.e = e; this.bar = bar; }
     }
 
@@ -123,6 +124,32 @@ final class Boss implements Listener {
     }
 
     void adopt(LivingEntity q) { if (!queens.containsKey(q.getUniqueId())) register(q); }
+
+    /** A living Ghast Queen within r blocks, or null. */
+    LivingEntity queenNear(Location l, double r) {
+        for (Queen q : queens.values())
+            if (q.e.isValid() && q.e.getWorld() == l.getWorld() && q.e.getLocation().distanceSquared(l) < r * r) return q.e;
+        return null;
+    }
+
+    /** Whether an urn within r blocks is weeping (a Queen is on her way). */
+    boolean summoningNear(Location l, double r) {
+        for (String k : summoning.keySet()) {
+            String[] p = k.split(",");
+            double dx = Integer.parseInt(p[0]) - l.getX(), dz = Integer.parseInt(p[2]) - l.getZ();
+            if (dx * dx + dz * dz < r * r) return true;
+        }
+        return false;
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void hurt(org.bukkit.event.entity.EntityDamageByEntityEvent e) {
+        Queen q = queens.get(e.getEntity().getUniqueId());
+        if (q == null) return;
+        Entity d = e.getDamager();
+        if (d instanceof org.bukkit.entity.Projectile && ((org.bukkit.entity.Projectile) d).getShooter() instanceof Entity) d = (Entity) ((org.bukkit.entity.Projectile) d).getShooter();
+        if (d instanceof Player) q.fought.add(d.getUniqueId());
+    }
 
     void tick(long ticks) {
         now = ticks;
@@ -222,6 +249,16 @@ final class Boss implements Listener {
         }
         Player killer = q.e.getKiller();
         plugin.getLogger().info("NETHER_QUEEN_DEFEATED waves=" + q.stage + " killer=" + (killer == null ? "-" : killer.getUniqueId().toString()));
+        // Beating the Nether: everyone who hurt her, and everyone standing within 64 blocks when she fell.
+        if (plugin.guide != null && plugin.nether != null) {
+            Location at = q.e.getLocation();
+            int credited = 0;
+            for (Player p : plugin.nether.getPlayers()) {
+                boolean near = p.getGameMode() != org.bukkit.GameMode.SPECTATOR && p.getWorld() == at.getWorld() && p.getLocation().distanceSquared(at) < 64 * 64;
+                if (near || q.fought.contains(p.getUniqueId())) { plugin.guide.victory(p); credited++; }
+            }
+            plugin.getLogger().info("NETHER_QUEEN_CREDIT players=" + credited);
+        }
     }
 
     void shutdown() { for (Queen q : queens.values()) q.bar.removeAll(); }

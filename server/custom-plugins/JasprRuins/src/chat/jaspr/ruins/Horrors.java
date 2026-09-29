@@ -319,7 +319,7 @@ final class Horrors implements Listener {
                 StringBuilder s = new StringBuilder(ChatColor.DARK_PURPLE + "Dread ");
                 for (int i = 0; i < 10; i++) s.append(i < bars ? ChatColor.LIGHT_PURPLE + "|" : ChatColor.DARK_GRAY + "|");
                 s.append(ChatColor.GRAY).append(d >= 100 ? "  The dark is inside you. Find light!" : "  find light");
-                p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(s.toString()));
+                if (plugin.guide() == null || !plugin.guide().holdingCompass(p)) p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(s.toString()));
                 Long last = lastWhisper.get(id);
                 if ((last == null || now - last > 20_000L) && random.nextInt(4) == 0) {
                     lastWhisper.put(id, now);

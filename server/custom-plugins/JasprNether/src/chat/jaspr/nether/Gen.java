@@ -607,6 +607,7 @@ final class Gen {
                     else if (k.equals("bluefire")) g.registry.add("bluefire", kind, v[0], v[1], v[2], v[0], v[1], v[2]);
                     else if (k.equals("statue")) g.registry.add("statue", kind, v[0], v[1], v[2], v[0], v[1], v[2]);
                     else if (k.startsWith("garrison:")) g.registry.add("garrison", k.substring(9), v[0], v[1], v[2], v[0], v[1], v[2]);
+                    else if (k.equals("font")) g.registry.add("font", kind, v[0], v[1], v[2], v[0], v[1], v[2]);
                 }
             }
             for (int[] v : golems) g.plugin.structures.spawnResident(g.world, v[0], v[1], v[2], "netherex:gold_golem");

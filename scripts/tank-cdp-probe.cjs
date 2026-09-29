@@ -29,10 +29,13 @@ const fixture = new URL(url);
   let seq = 0; const pending = new Map(), console_ = [];
   ws.addEventListener('message', ev => { const m = JSON.parse(ev.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
     if (m.method === 'Runtime.consoleAPICalled') console_.push(m.params.type + ': ' + m.params.args.map(a => a.value || a.description || '').join(' ').slice(0, 300));
-    if (m.method === 'Runtime.exceptionThrown') console_.push('EXCEPTION: ' + JSON.stringify(m.params.exceptionDetails).slice(0, 600)); });
+    if (m.method === 'Runtime.exceptionThrown') console_.push('EXCEPTION: ' + JSON.stringify(m.params.exceptionDetails).slice(0, 600));
+    if (m.method === 'Inspector.targetCrashed' || m.method === 'Inspector.detached') console_.push('PAGE ' + m.method + ' ' + JSON.stringify(m.params || {})); });
   await new Promise(r => ws.addEventListener('open', r, {once: true}));
   const send = (method, params = {}) => new Promise(r => { const id = ++seq; pending.set(id, r); ws.send(JSON.stringify({id, method, params})); });
   await send('Runtime.enable'); await send('Page.enable');
+  // TANK_PROBE_DEBUG=1: debugger on from the start, so a later ["stack"] can interrupt a page stuck in a loop
+  if (process.env.TANK_PROBE_DEBUG === '1') { await send('Debugger.enable'); ws.debugging = true; }
   const desktop = process.env.TANK_PROBE_DESKTOP === '1';
   if (!desktop) {
   await send('Emulation.setUserAgentOverride', {userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36', platform: 'Android'});
@@ -84,9 +87,11 @@ const fixture = new URL(url);
       await sleep(80);
       await send('Input.dispatchKeyEvent', {type: 'keyUp', code: a, key: c, windowsVirtualKeyCode: b, nativeVirtualKeyCode: b});
     } else if (op === 'shot') {
-      const r = await send('Page.captureScreenshot', {format: 'jpeg', quality: 60});
-      fs.writeFileSync(path.join(outDir, a + '.jpg'), Buffer.from(r.result.data, 'base64'));
-      log.push('shot ' + a);
+      // a frozen page never answers: give up on the picture after 20 s and say so
+      const r = await Promise.race([send('Page.captureScreenshot', {format: 'jpeg', quality: 60}), sleep(20000).then(() => null)]);
+      if (r && r.result) fs.writeFileSync(path.join(outDir, a + '.jpg'), Buffer.from(r.result.data, 'base64'));
+      log.push('shot ' + a + (r && r.result ? '' : ' TIMEOUT (page not answering)'));
+      if (!(r && r.result)) log.push(procs());
     } else if (op === 'cmd') {
       const logText = await getText(fixture.hostname, fixture.port, '/log');
       const names = [...logText.matchAll(/UUID of player (\S+) is/g)].map(m => m[1]);
@@ -96,13 +101,53 @@ const fixture = new URL(url);
     } else if (op === 'eval') {
       const r = await send('Runtime.evaluate', {expression: a, returnByValue: true, awaitPromise: true});
       log.push('eval ' + JSON.stringify(r.result.result ? r.result.result.value : r.result).slice(0, 1500));
+    } else if (op === 'stack') {
+      // where the page's main thread is right now (works even when a busy loop keeps the page from answering)
+      if (!ws.debugging) ws.debugging = await Promise.race([send('Debugger.enable').then(() => true), sleep(10000).then(() => false)]);
+      const paused = new Promise(r => { const h = ev => { const m = JSON.parse(ev.data); if (m.method === 'Debugger.paused') { ws.removeEventListener('message', h); r(m.params); } }; ws.addEventListener('message', h); });
+      if (ws.debugging) send('Debugger.pause');
+      const p = ws.debugging ? await Promise.race([paused, sleep(15000).then(() => null)]) : null;
+      if (!p) { log.push('stack ' + (a || '') + ' TIMEOUT (JavaScript not interruptible: blocked in native or GPU code)'); log.push(procs()); }
+      else {
+        const lines = [];
+        for (const f of p.callFrames.slice(0, 14)) {
+          let snippet = '';
+          try {
+            ws.sources = ws.sources || {};
+            if (!ws.sources[f.location.scriptId]) {
+              const src = await send('Debugger.getScriptSource', {scriptId: f.location.scriptId});
+              ws.sources[f.location.scriptId] = ((src.result && src.result.scriptSource) || '').split('\n');
+            }
+            const row = ws.sources[f.location.scriptId][f.location.lineNumber] || '';
+            snippet = row.slice(Math.max(0, f.location.columnNumber - 90), f.location.columnNumber + 60).replace(/\s+/g, ' ');
+          } catch (e) { }
+          lines.push('  ' + (f.functionName || '?') + ' @' + f.location.lineNumber + ':' + f.location.columnNumber + '  ' + snippet);
+        }
+        log.push('stack ' + (a || '') + '\n' + lines.join('\n'));
+        // ["stack", label, functionName, "expr1,expr2"]: read variables of that frame while paused
+        const fr = b ? p.callFrames.find(f => f.functionName === b) : null;
+        if (fr && c) for (const expr of String(c).split(',')) {
+          const r = await send('Debugger.evaluateOnCallFrame', {callFrameId: fr.callFrameId, expression: expr, returnByValue: false});
+          const v = r.result && r.result.result;
+          log.push('  ' + b + '.' + expr + ' = ' + (v ? (v.description !== undefined ? v.description : JSON.stringify(v.value)) + ' (' + v.type + (v.className ? ' ' + v.className : '') + ')' : JSON.stringify(r.error || r.result).slice(0, 200)));
+        }
+        await send('Debugger.resume');
+      }
     }
+    // the log is kept current, so a run cut short still says how far it got and what the page printed
+    fs.writeFileSync(path.join(outDir, 'log.txt'), log.concat(['--- console ---'], console_.slice(-60)).join('\n') + '\n');
   }
   fs.writeFileSync(path.join(outDir, 'log.txt'), log.concat(['--- console ---'], console_.slice(-60)).join('\n') + '\n');
   console.log(log.concat(['--- console (last 15) ---'], console_.slice(-15)).join('\n'));
   ws.close(); kill();
   setTimeout(() => { try { fs.rmSync(profile, {recursive: true, force: true}); } catch (e) { } process.exit(0); }, 500);
 })().catch(e => { console.error(e); kill(); process.exit(1); });
+function procs() {
+  // this run's Chrome processes (type, CPU seconds, memory): tells a busy renderer from a stuck GPU process or a crash
+  const tag = path.basename(profile).replace(/[^A-Za-z0-9_-]/g, '');
+  const ps = "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -like '*" + tag + "*' } | ForEach-Object { $t = if ($_.CommandLine -match '--type=([a-z-]+)') { $Matches[1] } else { 'browser' }; $p = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; if ($p) { '  ' + $t + ' pid=' + $_.ProcessId + ' cpu=' + [math]::Round($p.CPU,1) + 's ws=' + [math]::Round($p.WorkingSet64/1MB) + 'MB' } }";
+  try { return 'procs\n' + spawnSync('powershell', ['-NoProfile', '-Command', ps], {windowsHide: true, timeout: 30000, encoding: 'utf8'}).stdout.trimEnd(); } catch (e) { return 'procs ?'; }
+}
 function kill() {
   // headless=new detaches its browser processes from the launcher: stop exactly this run's profile.
   const tag = path.basename(profile).replace(/[^A-Za-z0-9_-]/g, '');

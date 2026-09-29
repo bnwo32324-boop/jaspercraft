@@ -479,6 +479,7 @@ final class Gates implements Listener {
             if (!ids.containsKey(back.id())) back = great();
             arrive = arrival(atlas, back, null);
             route = back.fixed ? "threshold" : "atlasGate";
+            if (plugin.quest() != null) plugin.quest().gate(player, arrive);   // the Atlas Guide stands by this gate
         }
         if (player.isInsideVehicle()) player.leaveVehicle();
         player.setFallDistance(0f);

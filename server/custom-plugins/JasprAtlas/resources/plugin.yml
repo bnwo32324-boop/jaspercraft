@@ -6,7 +6,11 @@ description: Atlas, the Divided Realm. The luminous Asterian Concord and the ash
 commands:
   atlas:
     description: Atlas conversations, heliodromes, the Codex, and owner tools.
-    usage: /atlas [codex|status|tp|where|...]
+    usage: /atlas [codex|status|tp|where|guide|quest|...]
+  goals:
+    description: Your goals in Atlas, Drownhollow and the Nether, ticked off as you go
+    usage: /goals
+    aliases: [goal, quests, quest, checklist]
 permissions:
   jaspr.atlas.admin:
     description: Use the /atlas owner tools, and build in protected places while in creative mode.
