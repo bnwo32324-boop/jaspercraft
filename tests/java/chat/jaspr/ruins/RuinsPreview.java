@@ -280,6 +280,21 @@ public final class RuinsPreview {
         check(Lore.bookCount() >= 10 && Lore.CHANTS.length >= 8, "the lore library");
         check(failures[0] == 0, "no generation failures");
         check(ms < 40, "chunks generate quickly: " + ms + " ms");
+        // The danger ramp (owner, 2026-09-29): safe at the gates, danger growing outward, the most of it inside structures.
+        check(Danger.ramp(0) == 0 && Danger.ramp(Danger.SAFE) == 0 && Danger.ramp(Danger.FULL) == 1 && Danger.ramp(Double.MAX_VALUE) == 1, "the ramp's ends");
+        check(Math.abs(Danger.ramp((Danger.SAFE + Danger.FULL) / 2.0) - 0.5) < 1e-9, "the ramp is linear");
+        check(Danger.wanderers(Danger.ramp(140)) == 0 && Danger.wanderers(Danger.ramp(200)) == 1 && Danger.wanderers(Danger.ramp(400)) == 2,
+            "no wanderers near the gates, one farther out, two far out");
+        check(Danger.crowdCap(0) == 1 && Danger.crowdCap(Danger.ramp(150)) == 2 && Danger.crowdCap(1) == 6, "structure crowds: 1 by the gates, 6 far out");
+        check(Danger.cageCap(0) == 2 && Danger.cageCap(1) == 5, "cage crowds: 2 by the gates, 5 far out");
+        check(Math.abs(Danger.strength(0) - 0.25) < 1e-9 && Danger.strength(1) == 1.0, "structures at a quarter by the gates, full far out");
+        check(Danger.WILD_DREAD < 55 && Danger.dreadCap(null, 1) == Danger.WILD_DREAD, "the Dread only whispers on open ground (nausea starts at 55)");
+        check(Danger.dreadCap(Danger.COVERED, 0) == 100, "under a roof or underground the Dread is full, even near a gate");
+        check(Danger.dreadCap("city", 0) == Danger.WILD_DREAD && Danger.dreadCap("site", 1) == 100 && Danger.dreadCap("city", 0.5) < 90,
+            "in a ruin's open air the Dread grows with the ramp");
+        check(RuinsPlugin.MONSTER_CAP <= 20 && RuinsPlugin.SPAWN_TICKS >= 20, "fewer spawns: cap " + RuinsPlugin.MONSTER_CAP);
+        System.out.println(String.format(java.util.Locale.ROOT, "danger ramp 48=%.2f 148=%.2f 248=%.2f 348=%.2f 448=%.2f", Danger.ramp(48), Danger.ramp(148),
+            Danger.ramp(248), Danger.ramp(348), Danger.ramp(448)));
         System.out.println("RUINS_OK");
     }
 

@@ -74,3 +74,43 @@ test('ruins plugin wiring: Lost Cities registration, mossy portals, client-green
   assert.match(yml, /depend: \[JasprLostCities, JasprHorrorBiomes\]/);
   assert.match(yml, /jaspr\.ruins\.admin:[\s\S]*default: op/);
 });
+
+// Owner, 2026-09-29: "make the spawn point, when you go through the portal, virtually safe, and as you venture out, it
+// gets more and more dangerous. Most of the dangers should come from dungeons and not from random spawns ... Cap the
+// spawn rate even more ... Spawn should be relatively peaceful." (the ramp's numbers are checked in RuinsPreview)
+test('Drownhollow danger: safe gates, danger growing outward, most of it inside structures', () => {
+  const read = f => fs.readFileSync(path.join(root, 'server/custom-plugins/JasprRuins/src/chat/jaspr/ruins', f), 'utf8');
+  const danger = read('Danger.java'), horrors = read('Horrors.java'), plugin = read('RuinsPlugin.java'), portals = read('Portals.java');
+  assert.match(danger, /static final int SAFE = 48, FULL = 448, WILD_DREAD = 54, WILD_RANGE = 96;/);
+  assert.match(portals, /double gateDistance\(String world, double x, double z\)/, 'the sanctuary is measured from every lit gate');
+  // spawns are weighed before a creature exists (Paper's pre-spawn event); none at all around a player at a gate
+  assert.match(horrors, /public void preSpawn\(PreCreatureSpawnEvent e\)/);
+  assert.match(horrors, /public void calmAround\(PlayerNaturallySpawnCreaturesEvent e\)/);
+  assert.match(horrors, /if \(hostile && UNBIDDEN\.contains\(reason\) && plugin\.danger\(\)\.sanctuary\(at\)\)/, 'nothing hostile appears on its own at a gate');
+  // strays are driven off, nothing hunts or hurts a player at a gate
+  assert.match(horrors, /if \(danger\.sanctuary\(e\.getLocation\(\)\)\) \{ banish\(e\); continue; \}/);
+  assert.match(horrors, /public void calm\(EntityTargetEvent e\)/);
+  assert.match(horrors, /public void sheltered\(EntityDamageByEntityEvent e\)/);
+  // open ground: a few wanderers far out; structures: the danger, by the ramp
+  assert.match(danger, /if \(allowed == 0 \|\| horrorsNear\(at, WILD_RANGE, 48\) >= allowed\) \{ refusedWild\+\+; return STOP; \}/);
+  assert.match(danger, /if \(random\.nextDouble\(\) >= strength\(d\) \|\| horrorsNear\(at, 24, 12\) >= crowdCap\(d\)\)/);
+  assert.match(danger, /if \(random\.nextDouble\(\) >= RuinsPlugin\.EASE \* strength\(d\)\) \{ refusedCage\+\+; return SKIP; \}/);
+  assert.match(horrors, /double elders = 0\.12 \* RuinsPlugin\.EASE \* plugin\.danger\(\)\.level\(at\);/, 'no Elders near the gates');
+  // the Dread: calm at a gate, only a whisper on open ground, the full terror (and the shadows) under roofs and underground
+  assert.match(horrors, /int cap = safe \? 0 : Danger\.dreadCap\(danger\.place\(w, l\.getBlockX\(\), l\.getBlockY\(\), l\.getBlockZ\(\)\), Danger\.ramp\(gate\)\);/);
+  assert.match(horrors, /else if \(safe \|\| lit\(p\)\) d = Math\.max\(0, d - 4\);/);
+  assert.match(horrors, /if \(deep && d >= 90 /);
+  // falling masonry and chest ambushes only inside, never at a gate
+  assert.match(horrors, /if \(danger\.sanctuary\(at\) \|\| !danger\.inside\(w, at\.getBlockX\(\), at\.getBlockY\(\), at\.getBlockZ\(\)\)\) continue;/);
+  assert.match(horrors, /if \(plugin\.danger\(\)\.sanctuary\(where\) \|\| random\.nextDouble\(\) >= 0\.3 \* RuinsPlugin\.EASE \* Danger\.strength/);
+  // fewer spawns, and the logs say so
+  assert.match(plugin, /static final int MONSTER_CAP = 20, SPAWN_TICKS = 20;/);
+  assert.match(plugin, /w\.setMonsterSpawnLimit\(MONSTER_CAP\);/);
+  assert.match(plugin, /w\.setTicksPerMonsterSpawns\(SPAWN_TICKS\);/);
+  assert.match(plugin, /" sanctuary=" \+ Danger\.SAFE \+ " fullDanger=" \+ Danger\.FULL/);
+  assert.match(plugin, /\(danger == null \? "" : " " \+ danger\.describe\(\)\)/, 'RUINS_METRICS counts refusals and banishments');
+  assert.match(plugin, /RUINS_DANGER player=/);
+  // the guides tell it the same way
+  assert.match(read('Lore.java'), /The gates are safe\. Danger grows the farther you go/);
+  assert.match(read('RuinsQuest.java'), /The gates are safe\. Danger grows the farther you go/);
+});

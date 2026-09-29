@@ -95,9 +95,9 @@ final class Lore {
         p.add(ChatColor.DARK_GREEN + "" + ChatColor.BOLD + "PILGRIM'S PRIMER\n" + ChatColor.RESET
             + "How to end the Dream of " + CITY + "\n\nYou stand in the drowned city of " + CULT + ". Night never ends here.\n\n"
             + "Five steps beat this dimension. Read on.");
-        p.add(ChatColor.BOLD + "STEP 1: SURVIVE\n" + ChatColor.RESET + "Horrors spawn everywhere in the dark.\n\n"
-            + "Carry torches: standing in darkness fills your " + ChatColor.DARK_PURPLE + "Dread" + ChatColor.RESET
-            + ", which brings nausea, weakness and blindness. Light clears it.\n\nBeds do not work here.");
+        p.add(ChatColor.BOLD + "STEP 1: SURVIVE\n" + ChatColor.RESET + "The gates are safe. Danger grows the farther you go; horrors "
+            + "lurk in ruined buildings, crypts and catacombs.\n\nCarry torches: darkness there fills your "
+            + ChatColor.DARK_PURPLE + "Dread" + ChatColor.RESET + ". Light clears it.\n\nBeds do not work here.");
         p.add(ChatColor.BOLD + "STEP 2: FOLLOW THE COMPASS\n" + ChatColor.RESET + "You were given a "
             + ChatColor.DARK_AQUA + "Drowned Star Compass" + ChatColor.RESET + ". Hold it: it points to the nearest Warden whose Seal you do not "
             + "carry. With three Seals it points to the Great Door.");

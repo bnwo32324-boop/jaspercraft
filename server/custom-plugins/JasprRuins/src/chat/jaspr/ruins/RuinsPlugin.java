@@ -55,7 +55,7 @@ import org.bukkit.plugin.java.JavaPlugin;
  * <p>The world lives on disk while nobody is in it: it loads when someone enters (portal, owner command, or logging in
  * where they left off) and is saved and fully unloaded a minute after its last player leaves; its tasks then do nothing.
  * Logs RUINS_READY, RUINS_WORLD_LOADED/UNLOADED, RUINS_REGENERATED, RUINS_PORTAL_*, RUINS_TRAVEL, RUINS_BOSS_*,
- * RUINS_WARDEN_SLAIN, RUINS_HERALD_SLAIN, RUINS_DOOR_* and RUINS_METRICS.
+ * RUINS_WARDEN_SLAIN, RUINS_HERALD_SLAIN, RUINS_DOOR_*, RUINS_DANGER (owner tool) and RUINS_METRICS.
  */
 public final class RuinsPlugin extends JavaPlugin implements Listener {
     static final String WORLD = "jaspr_ruins";
@@ -68,6 +68,11 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
      * spawns below are scaled the same way.
      */
     static final double EASE = 0.5;
+    /**
+     * Still too hard (owner, 2026-09-29: "Cap the spawn rate even more"): the monster cap was 150, then 75, then 38; now
+     * 20, and the world tries natural spawns once a second instead of every tick. Where they may rise is {@link Danger}'s.
+     */
+    static final int MONSTER_CAP = 20, SPAWN_TICKS = 20;
     static final String EPOCH_FILE = "jaspr-ruins-epoch.txt";
 
     private volatile World ruins;
@@ -76,6 +81,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     private RuinsGenerator generator;
     private Portals portals;
     private Horrors horrors;
+    private Danger danger;
     private Bosses bosses;
     private Trinkets trinkets;
     private Sky sky;
@@ -104,6 +110,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         CityApi.registerWorld(WORLD, "The Ruins of %s", new Weathering(seed));
         generator = new RuinsGenerator(seed, (x, z, w, d) -> { World r = ruins; return r != null && CityApi.reserved(r, x, z, w, d); }, this::generationFailed);
         horrors = new Horrors(this);
+        danger = new Danger(this);
         trinkets = new Trinkets(this);
         sky = new Sky(this);
         quest = new RuinsQuest(this);
@@ -131,7 +138,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         getLogger().info("RUINS_METRICS chunks=" + generator.chunks + " failures=" + generator.failures + " chests=" + p.chests + " spawners=" + p.spawners
             + " signs=" + p.signs + " weatheredChunks=" + Weathering.chunks + " loads=" + loads + " unloads=" + unloads
             + (horrors == null ? "" : " horrorsRisen=" + horrors.transformed + " horrorsSlain=" + horrors.slain + " elders=" + horrors.elites
-                + " ambushes=" + horrors.ambushes + " shadows=" + horrors.shadows + " crumbles=" + horrors.crumbles + " easedHits=" + horrors.eased) + " traps=" + p.traps
+                + " ambushes=" + horrors.ambushes + " shadows=" + horrors.shadows + " crumbles=" + horrors.crumbles + " easedHits=" + horrors.eased)
+            + (danger == null ? "" : " " + danger.describe()) + " traps=" + p.traps
             + (sky == null ? "" : " skyFlashes=" + sky.flashes)
             + (bosses == null ? "" : " wardensSlain=" + bosses.wardensSlain + " heraldsSlain=" + bosses.heraldsSlain)
             + (portals == null ? "" : " portalsLit=" + portals.lit + " portalsBuilt=" + portals.built + " travels=" + portals.travels + " portalsClosed=" + portals.closed
@@ -144,6 +152,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     World ruins() { return ruins; }
     Plans plans() { return generator.plans; }
     Horrors horrors() { return horrors; }
+    Danger danger() { return danger; }
+    Portals portals() { return portals; }
     Bosses bosses() { return bosses; }
     RuinsQuest quest() { return quest; }
     GuideKit guide() { return guide; }
@@ -165,15 +175,17 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         // Endless night over Drownhollow: the horrors spawn on every stone, and beds do not work.
         w.setGameRuleValue("doDaylightCycle", "false");
         w.setTime(18000L);
-        w.setMonsterSpawnLimit((int) Math.round(75 * EASE));   // 150 at first, then 75, now halved again (owner, 2026-09-28)
-        w.setTicksPerMonsterSpawns(1);
+        w.setMonsterSpawnLimit(MONSTER_CAP);   // 150 at first, then 75, then 38 (2026-09-28), now 20 (owner, 2026-09-29)
+        w.setTicksPerMonsterSpawns(SPAWN_TICKS);
         w.setAnimalSpawnLimit(0);
         w.setAmbientSpawnLimit(0);
         writeEpoch(new File(Bukkit.getWorldContainer(), WORLD));
         loads++;
         emptySince = 0;
         Plans.Door d = plans().door();
-        getLogger().info("RUINS_WORLD_LOADED ms=" + (System.nanoTime() - t0) / 1_000_000L + " loads=" + loads + " monsterCap=" + w.getMonsterSpawnLimit() + " ease=" + EASE + " door=" + d.x + "," + d.base + "," + d.z);
+        getLogger().info("RUINS_WORLD_LOADED ms=" + (System.nanoTime() - t0) / 1_000_000L + " loads=" + loads + " monsterCap=" + w.getMonsterSpawnLimit()
+            + " spawnTicks=" + w.getTicksPerMonsterSpawns() + " ease=" + EASE + " sanctuary=" + Danger.SAFE + " fullDanger=" + Danger.FULL
+            + " gates=" + portals.gates(WORLD) + " door=" + d.x + "," + d.base + "," + d.z);
         return w;
     }
 
@@ -368,6 +380,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
                 + r.getLoadedChunks().length + " chunks, " + r.getEntities().size() + " entities") + "; " + (generator == null ? 0 : generator.chunks) + " chunks generated, "
                 + (portals == null ? 0 : portals.count()) + " portals" + (p == null ? "" : ", " + p.chests + " chests") + "; loads " + loads + ", unloads " + unloads);
             if (bosses != null) sender.sendMessage(ChatColor.GRAY + bosses.status());
+            if (danger != null) sender.sendMessage(ChatColor.GRAY + "Danger: " + danger.describe().replace('=', ' '));
             if (guide != null) sender.sendMessage(ChatColor.GRAY + guide.status());
             return true;
         }
@@ -418,9 +431,16 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
                 return true;
             }
             case "dread": player.sendMessage(ChatColor.DARK_PURPLE + "Dread " + horrors.dreadOf(player)); return true;
+            case "danger": {
+                if (!isRuins(player.getWorld())) { player.sendMessage(ChatColor.GRAY + "Not in Drownhollow."); return true; }
+                String r = danger.report(player.getLocation());
+                player.sendMessage(ChatColor.DARK_GREEN + "Danger here: " + ChatColor.GRAY + r);
+                getLogger().info("RUINS_DANGER player=" + player.getName() + " " + r);
+                return true;
+            }
             case "unload": emptySince = 1; lifecycle(); return true;
             default:
-                player.sendMessage(ChatColor.GRAY + "/ruins [status|tp|back|where|find <city|lostcity|" + kinds() + ">|door [open|close]|guide|primer|quest|lore|seal [type]|trinket [type]|boss <type>|horror <kind>|dread|unload|as <player> <sub>]");
+                player.sendMessage(ChatColor.GRAY + "/ruins [status|tp|back|where|find <city|lostcity|" + kinds() + ">|door [open|close]|guide|primer|quest|lore|seal [type]|trinket [type]|boss <type>|horror <kind>|dread|danger|unload|as <player> <sub>]");
                 return true;
         }
     }
@@ -429,7 +449,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return Arrays.asList("status", "tp", "back", "where", "find", "door", "guide", "primer", "quest", "lore", "seal", "trinket", "boss", "horror", "dread", "unload", "as");
+        if (args.length == 1) return Arrays.asList("status", "tp", "back", "where", "find", "door", "guide", "primer", "quest", "lore", "seal", "trinket", "boss", "horror", "dread", "danger", "unload", "as");
         if (args.length == 2 && "find".equalsIgnoreCase(args[0])) {
             List<String> all = new ArrayList<>(Arrays.asList("city", "lostcity"));
             for (Plans.Kind k : Plans.Kind.values()) all.add(k.name().toLowerCase(Locale.ROOT));

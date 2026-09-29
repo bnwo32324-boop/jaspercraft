@@ -1,5 +1,5 @@
 name: JasprRuins
-version: 1.0.0
+version: 1.1.0
 main: chat.jaspr.ruins.RuinsPlugin
 depend: [JasprLostCities, JasprHorrorBiomes]
 author: Jaspr
@@ -7,7 +7,7 @@ description: Drownhollow, a drowned and moss-grown dimension of weathered Lost C
 commands:
   ruins:
     description: Drownhollow status and owner travel/search tools.
-    usage: /ruins [status|tp|back|where|find <city|lostcity|temple|...>|guide|quest|as <player> <sub>]
+    usage: /ruins [status|tp|back|where|find <city|lostcity|temple|...>|guide|quest|danger|as <player> <sub>]
     permission: jaspr.ruins.admin
   goals:
     description: Your goals in Atlas, Drownhollow and the Nether, ticked off as you go

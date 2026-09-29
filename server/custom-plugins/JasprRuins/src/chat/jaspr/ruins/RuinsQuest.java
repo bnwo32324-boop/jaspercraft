@@ -124,8 +124,9 @@ final class RuinsQuest implements GuideKit.Realm {
 
     @Override public List<String> tips() {
         return Arrays.asList(
-            ChatColor.BOLD + "SURVIVE" + ChatColor.RESET + "\n\nHorrors spawn everywhere in the dark. Carry torches: darkness fills your "
-                + ChatColor.DARK_PURPLE + "Dread" + ChatColor.BLACK + " (nausea, weakness, blindness); light clears it.\n\nBeds do not work here.",
+            ChatColor.BOLD + "SURVIVE" + ChatColor.RESET + "\n\nThe gates are safe. Danger grows the farther you go; horrors lurk in ruined "
+                + "buildings, crypts and catacombs. Carry torches: darkness there fills your " + ChatColor.DARK_PURPLE + "Dread" + ChatColor.BLACK
+                + ".\n\nBeds do not work here.",
             ChatColor.BOLD + "THE WARDENS" + ChatColor.RESET + "\n\nHierophant - Sanctum\nPillar Warden - Circle of the Watchers\nBrood Mother - Pit of Offerings\n"
                 + "Spawn of the Deep - Spawning Pool\nFaceless Priest - Chapel\n\nEach drops its own Seal.",
             ChatColor.BOLD + "THE REWARD" + ChatColor.RESET + "\n\nThe Herald's hoard: the Crown of the Drowned Star, the Herald's Cleaver, the Wings of the "

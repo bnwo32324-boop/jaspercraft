@@ -9,6 +9,26 @@ plains, just a little grass and ivy. Endless night, Lovecraftian horrors everywh
 boss, the Dreamer's Herald, behind the Great Door. Everyone who enters gets a guide book and a compass. Beating the
 Herald pays out a hoard of unique items. The world loads only while someone is in it.
 
+**2026-09-29 (owner): safe gates, the danger in the dungeons** ("make the spawn point ... virtually safe, and as you
+venture out, it gets more and more dangerous. Most of the dangers should come from dungeons and not from random spawns
+... Cap the spawn rate even more"). `Danger.java` decides where anything hostile may appear (JasprRuins 1.1.0):
+- **Sanctuary:** within 48 blocks of any lit gate nothing hostile spawns (naturally, from a cage, a summoner,
+  reinforcements or a jockey), strays that wander in fade away in smoke, no horror targets or hurts a player there,
+  the Dread ebbs as in light, no masonry falls and no chest ambush springs.
+- **The ramp:** danger grows from 0 at the sanctuary's edge to full at 448 blocks from the nearest gate.
+- **Open ground** (outside the old cities' walls, the ruin sites and the Great Door, with nothing overhead): no horror
+  rises within about 150 blocks of a gate; beyond that at most one per 96 blocks, two past about 310 blocks. The Dread
+  only whispers there (it stops at 54: no nausea, blindness or shadows).
+- **Structures** (old cities, ruin sites, the Great Door, and anything roofed or underground: houses, crypts, vaults,
+  the catacombs) hold the danger, at a quarter of its strength by the gates rising to full far out: spawner cages (at
+  most 2-5 horrors near a cage), natural spawns (at most 1-6 within 24 blocks), chest ambushes and falling masonry.
+  Under a roof or underground the Dread is full (sickness, blindness, shadows); in a ruin's open air it stops at a
+  whisper by the gates and grows to full far out. Elders appear only away from the gates (up to 6 % far out).
+- **Fewer spawns:** monster cap 38 -> 20, natural spawning tried once a second instead of every tick; all spawn
+  decisions run in Paper's pre-spawn event, before a creature exists.
+- Half damage and half health stay as below. `/ruins danger` shows the zone and numbers where you stand
+  (`RUINS_DANGER`); `RUINS_METRICS` and `/ruins status` count refusals, banishments and calmed targets.
+
 **2026-09-28 (owner): renamed and eased.** The city was called Ul'Nhaar; it is now **Drownhollow** (easier to say).
 Relics, Seals and compasses marked with the old name (Ul'Nhaar) still work. It is also half as hard, with half the spawns:
 - everything hostile deals **half damage** to players (horrors, Wardens, the Herald, falling masonry, Dread, wither);
@@ -213,12 +233,14 @@ changes `site/assets.epk`:
 - **Diagnostics:** `JasprPortalDiagnostics.status()` returns `{coloured, purple, failure}`.
 
 ## Owner tools
-`/ruins [status|tp|back|where|find <city|lostcity|kind>|door [open|close]|guide|lore|seal [type]|trinket [type]|boss <type>|horror <kind>|dread|unload]`
+`/ruins [status|tp|back|where|find <city|lostcity|kind>|door [open|close]|guide|lore|seal [type]|trinket [type]|boss <type>|horror <kind>|dread|danger|unload]`
 
 ## Logs
 `RUINS_READY`, `RUINS_WORLD_LOADED`, `RUINS_WORLD_UNLOADED`, `RUINS_REGENERATED`, `RUINS_WELCOME`, `RUINS_BOSS_WOKE`,
 `RUINS_BOSS_SLEPT`, `RUINS_WARDEN_SLAIN`, `RUINS_HERALD_SLAIN`, `RUINS_DOOR_SEAL`, `RUINS_DOOR_OPENED`,
 `RUINS_DOOR_SEALED`, `RUINS_PORTAL_*`, `RUINS_TRAVEL`, and `RUINS_METRICS` on shutdown. In epoch 3,
 `RUINS_METRICS` also counts `elders`, `ambushes`, `shadows`, `crumbles`, `traps`, `skyFlashes`, `portalsLinked` and
-`strayArrivals`. `RUINS_TRAVEL` gives the route: `return`, `link`, `nearest` or `built`. The Lost
+`strayArrivals`; since 2026-09-29 also `sanctuaryRefused`, `wildAllowed/Refused`, `structureAllowed/Refused`,
+`cageAllowed/Refused`, `banished` and `calmed`. `RUINS_WORLD_LOADED` gives `monsterCap`, `spawnTicks`, `sanctuary`,
+`fullDanger` and `gates`; `/ruins danger` logs `RUINS_DANGER`. `RUINS_TRAVEL` gives the route: `return`, `link`, `nearest` or `built`. The Lost
 Cities log `LOST_CITIES_DETACHED`.

@@ -102,6 +102,8 @@ final class Portals implements Listener {
 
     int count() { return portals.size(); }
 
+    int gates(String world) { int n = 0; for (Portal p : portals) if (p.world.equals(world)) n++; return n; }
+
     // ------------------------------------------------------------------ registry
 
     void load() {
@@ -470,6 +472,17 @@ final class Portals implements Listener {
             if (d <= bestD) { bestD = d; best = p; }
         }
         return best;
+    }
+
+    /** Horizontal distance from (x, z) to the centre of the nearest lit gate in a world (Double.MAX_VALUE if it has none). */
+    double gateDistance(String world, double x, double z) {
+        double best = Double.MAX_VALUE;
+        for (Portal p : portals) {
+            if (!p.world.equals(world)) continue;
+            double dx = p.cx() - x, dz = p.cz() - z, d = dx * dx + dz * dz;
+            if (d < best) best = d;
+        }
+        return best == Double.MAX_VALUE ? best : Math.sqrt(best);
     }
 
     /**

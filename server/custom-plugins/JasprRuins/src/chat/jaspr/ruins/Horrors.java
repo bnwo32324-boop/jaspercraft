@@ -1,5 +1,7 @@
 package chat.jaspr.ruins;
 
+import com.destroystokyo.paper.event.entity.PlayerNaturallySpawnCreaturesEvent;
+import com.destroystokyo.paper.event.entity.PreCreatureSpawnEvent;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +38,7 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.SlimeSplitEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
@@ -51,6 +54,8 @@ import org.bukkit.util.Vector;
  * The horrors of Drownhollow. In the ruins every monster that spawns naturally or from a spawner becomes one of ten
  * Lovecraftian horrors (there are no animals), each with its own strength and trick; and the Dread rises in anyone who
  * stands in darkness without a light, bringing whispers, nausea, weakness, blindness and finally harm.
+ * Where they may rise and how hard the Dread bites is {@link Danger}'s: nothing near the gates, a few wanderers on open
+ * ground far from them, the rest inside the ruins' structures and dungeons (owner, 2026-09-29).
  */
 final class Horrors implements Listener {
     static final String TAG = "jaspr_horror", KIND_TAG = "jaspr_horror:", DAYLIGHT_EXEMPT = "jaspr_daylight_exempt", ELITE = "jaspr_horror_elite";
@@ -106,26 +111,64 @@ final class Horrors implements Listener {
 
     // ------------------------------------------------------------------ spawning
 
+    /** Spawn reasons for hostile creatures that appear on their own (not from a player, a plugin or a boss). */
+    private static final java.util.Set<CreatureSpawnEvent.SpawnReason> UNBIDDEN = java.util.EnumSet.of(CreatureSpawnEvent.SpawnReason.NATURAL,
+        CreatureSpawnEvent.SpawnReason.CHUNK_GEN, CreatureSpawnEvent.SpawnReason.SPAWNER, CreatureSpawnEvent.SpawnReason.DEFAULT,
+        CreatureSpawnEvent.SpawnReason.REINFORCEMENTS, CreatureSpawnEvent.SpawnReason.JOCKEY, CreatureSpawnEvent.SpawnReason.MOUNT,
+        CreatureSpawnEvent.SpawnReason.SLIME_SPLIT, CreatureSpawnEvent.SpawnReason.LIGHTNING, CreatureSpawnEvent.SpawnReason.VILLAGE_INVASION,
+        CreatureSpawnEvent.SpawnReason.SILVERFISH_BLOCK, CreatureSpawnEvent.SpawnReason.ENDER_PEARL);
+
+    /**
+     * Before a natural or cage creature is even made (Paper's pre-spawn event, so refusing is nearly free): nothing within
+     * a gate's calm, a few wanderers on open ground far from the gates, the structures' share by the danger ramp.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void preSpawn(PreCreatureSpawnEvent e) {
+        Location at = e.getSpawnLocation();
+        if (at == null || !plugin.isRuins(at.getWorld())) return;
+        CreatureSpawnEvent.SpawnReason reason = e.getReason();
+        if (reason != CreatureSpawnEvent.SpawnReason.NATURAL && reason != CreatureSpawnEvent.SpawnReason.SPAWNER) return;
+        Class<?> type = e.getType() == null ? null : e.getType().getEntityClass();
+        if (type == null || !(Monster.class.isAssignableFrom(type) || Slime.class.isAssignableFrom(type))) return;
+        int verdict = reason == CreatureSpawnEvent.SpawnReason.SPAWNER ? plugin.danger().cage(at) : plugin.danger().natural(at);
+        if (verdict == Danger.ALLOW) return;
+        e.setCancelled(true);
+        if (verdict == Danger.STOP) e.setShouldAbortSpawn(true);
+    }
+
+    /** No natural spawning at all around a player who stands within a gate's calm. */
+    @EventHandler(ignoreCancelled = true)
+    public void calmAround(PlayerNaturallySpawnCreaturesEvent e) {
+        Player p = e.getPlayer();
+        if (plugin.isRuins(p.getWorld()) && plugin.danger().sanctuary(p.getLocation())) e.setCancelled(true);
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void spawn(CreatureSpawnEvent e) {
         if (spawning || !plugin.isRuins(e.getLocation().getWorld())) return;
         LivingEntity entity = e.getEntity();
         CreatureSpawnEvent.SpawnReason reason = e.getSpawnReason();
+        Location at = e.getLocation();
+        boolean hostile = entity instanceof Monster || entity instanceof Slime;
+        // Nothing hostile appears on its own within a gate's calm: not naturally, from a cage, a summoner, reinforcements or a jockey.
+        if (hostile && UNBIDDEN.contains(reason) && plugin.danger().sanctuary(at)) { e.setCancelled(true); plugin.danger().refusedSanctuary++; return; }
         boolean wild = reason == CreatureSpawnEvent.SpawnReason.NATURAL || reason == CreatureSpawnEvent.SpawnReason.CHUNK_GEN
             || reason == CreatureSpawnEvent.SpawnReason.SPAWNER || reason == CreatureSpawnEvent.SpawnReason.DEFAULT;
         if (!wild) return;
         if (entity instanceof Animals || entity instanceof Ambient) { e.setCancelled(true); return; }   // nothing lives here
-        if (!(entity instanceof Monster) && !(entity instanceof Slime)) return;
+        if (!hostile) return;
         e.setCancelled(true);
-        // Half the spawns: the monster cap is halved in RuinsPlugin; spawner cages (which ignore it) fire at half rate.
-        if (reason == CreatureSpawnEvent.SpawnReason.SPAWNER && random.nextDouble() >= RuinsPlugin.EASE) return;
-        Location at = e.getLocation();
+        // Natural and cage spawns were weighed before the creature was made (preSpawn); the others are weighed here.
+        if (reason == CreatureSpawnEvent.SpawnReason.CHUNK_GEN && plugin.danger().natural(at) != Danger.ALLOW) return;
+        if (reason == CreatureSpawnEvent.SpawnReason.DEFAULT && !plugin.danger().summoned(at)) return;
         Kind kind = at.getBlock().isLiquid() ? Kind.DEEP_ONE
-            : reason == CreatureSpawnEvent.SpawnReason.SPAWNER && entity.getType() == EntityType.CAVE_SPIDER ? Kind.TOMB_CRAWLER : pick(random);
+            : reason == CreatureSpawnEvent.SpawnReason.SPAWNER && entity.getType() == EntityType.CAVE_SPIDER ? Kind.TOMB_CRAWLER
+            : reason == CreatureSpawnEvent.SpawnReason.DEFAULT && entity.getType() == EntityType.VEX ? Kind.NIGHTGAUNT : pick(random);
         int group = kind == Kind.TOMB_CRAWLER ? 1 + random.nextInt(2) : 1;
+        double elders = 0.12 * RuinsPlugin.EASE * plugin.danger().level(at);   // none near the gates, 6 % far out
         for (int i = 0; i < group; i++) {
             LivingEntity h = spawn(kind, i == 0 ? at : at.clone().add(random.nextDouble() * 2 - 1, 0, random.nextDouble() * 2 - 1));
-            if (h != null && random.nextDouble() < 0.12 * RuinsPlugin.EASE) elder(h, kind);
+            if (h != null && random.nextDouble() < elders) elder(h, kind);
         }
         transformed++;
     }
@@ -209,15 +252,17 @@ final class Horrors implements Listener {
     void tick() {
         World w = plugin.ruins();
         if (w == null || w.getPlayers().isEmpty()) return;
+        Danger danger = plugin.danger();
         for (LivingEntity e : w.getLivingEntities()) {
             if (!isHorror(e) || Bosses.isBoss(e)) continue;
+            if (danger.sanctuary(e.getLocation())) { banish(e); continue; }   // a stray at a gate fades away
             Kind k = kindOf(e);
             if (k == null) continue;
             if (e.getScoreboardTags().contains(ELITE)) w.spawnParticle(org.bukkit.Particle.SPELL_WITCH, e.getLocation().add(0, 1, 0), 3, 0.3, 0.6, 0.3, 0.0);
             switch (k) {
                 case HOUND: {
                     Player t = nearest(e, 28);
-                    if (t == null) break;
+                    if (t == null || danger.sanctuary(t.getLocation())) break;
                     ((Wolf) e).setTarget(t);
                     if (e.getLocation().distance(t.getLocation()) > 7 && random.nextInt(8) == 0) {
                         Location behind = t.getLocation().clone().subtract(t.getLocation().getDirection().setY(0).normalize().multiply(2));
@@ -231,7 +276,7 @@ final class Horrors implements Listener {
                 }
                 case MI_GO: {
                     Player t = nearest(e, 20);
-                    if (t != null) ((Enderman) e).setTarget(t);
+                    if (t != null && !danger.sanctuary(t.getLocation())) ((Enderman) e).setTarget(t);
                     break;
                 }
                 case DEEP_ONE:
@@ -243,6 +288,34 @@ final class Horrors implements Listener {
                 default: break;
             }
         }
+    }
+
+    /** A horror that strays within a gate's calm is driven off: it fades in a puff of smoke (no drops). */
+    private void banish(LivingEntity e) {
+        Location l = e.getLocation();
+        l.getWorld().spawnParticle(org.bukkit.Particle.SMOKE_LARGE, l.clone().add(0, 1, 0), 12, 0.3, 0.6, 0.3, 0.02);
+        l.getWorld().playSound(l, Sound.ENTITY_ENDERMEN_TELEPORT, 0.6f, 0.5f);
+        e.remove();
+        plugin.danger().banished++;
+    }
+
+    /** Nothing hunts a player who stands within a gate's calm. */
+    @EventHandler(ignoreCancelled = true)
+    public void calm(EntityTargetEvent e) {
+        if (!(e.getTarget() instanceof Player) || !isHorror(e.getEntity()) || Bosses.isBoss(e.getEntity()) || !plugin.isRuins(e.getEntity().getWorld())) return;
+        if (!plugin.danger().sanctuary(e.getTarget().getLocation())) return;
+        e.setCancelled(true);
+        plugin.danger().calmed++;
+    }
+
+    /** ... and no horror's blow or shot lands on a player there. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void sheltered(EntityDamageByEntityEvent e) {
+        if (!(e.getEntity() instanceof Player) || !plugin.isRuins(e.getEntity().getWorld())) return;
+        Entity by = e.getDamager();
+        if (by instanceof org.bukkit.entity.Projectile && ((org.bukkit.entity.Projectile) by).getShooter() instanceof Entity)
+            by = (Entity) ((org.bukkit.entity.Projectile) by).getShooter();
+        if (isHorror(by) && !Bosses.isBoss(by) && plugin.danger().sanctuary(e.getEntity().getLocation())) e.setCancelled(true);
     }
 
     static Player nearest(Entity from, double range) {
@@ -302,17 +375,30 @@ final class Horrors implements Listener {
         return false;
     }
 
-    /** Every two seconds: Dread rises in the dark and falls in the light; its stages bite harder as it grows. */
+    /**
+     * Every two seconds: Dread rises in the dark and falls in the light; its stages bite harder as it grows. It ebbs at a
+     * gate as in light; on open ground it rises no higher than a whisper ({@link Danger#WILD_DREAD}); under a roof or
+     * underground it reaches sickness, blindness, harm and the shadows; in a ruin's open air, by the danger ramp.
+     */
     void dreadTick() {
         World w = plugin.ruins();
         if (w == null) return;
         long now = System.currentTimeMillis();
+        Danger danger = plugin.danger();
         for (Player p : w.getPlayers()) {
             if (p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR || p.isDead()) continue;
             UUID id = p.getUniqueId();
             int d = dread.getOrDefault(id, 0);
+            Location l = p.getLocation();
+            double gate = danger.gateDistance(l);
+            boolean safe = gate < Danger.SAFE;
+            int cap = safe ? 0 : Danger.dreadCap(danger.place(w, l.getBlockX(), l.getBlockY(), l.getBlockZ()), Danger.ramp(gate));
+            boolean deep = cap >= 90;   // only where the Dread may grow this far do its worst stages come
             boolean immune = Trinkets.dreadImmune(p), warded = Trinkets.dreadWarded(p);
-            d = immune ? 0 : lit(p) ? Math.max(0, d - 4) : Math.min(100, d + (warded ? (dreadTicks % 2 == 0 ? 1 : 0) : 1));   // half the old rise
+            if (immune) d = 0;
+            else if (safe || lit(p)) d = Math.max(0, d - 4);
+            else if (d > cap) d = Math.max(cap, d - 2);                                              // out in the open it ebbs to a whisper
+            else d = Math.min(cap, d + (warded ? (dreadTicks % 2 == 0 ? 1 : 0) : 1));               // half the old rise
             dread.put(id, d);
             if (d >= 30) {
                 int bars = d / 10;
@@ -332,13 +418,13 @@ final class Horrors implements Listener {
                 p.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 60, 0, true, false), true);
                 p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 60, 0, true, false), true);
             }
-            if (d >= 100) {
+            if (d >= 100 && deep) {
                 p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 70, 0, true, false), true);
                 p.damage(2.0 * RuinsPlugin.EASE);
             }
-            // Something answers great fear.
+            // Something answers great fear (deep in the ruins only).
             Long last = lastShadow.get(id);
-            if (d >= 90 && (last == null || now - last > 20_000L) && random.nextInt(6) == 0) {
+            if (deep && d >= 90 && (last == null || now - last > 20_000L) && random.nextInt(6) == 0) {
                 lastShadow.put(id, now);
                 Location behind = p.getLocation().clone().subtract(p.getLocation().getDirection().setY(0).normalize().multiply(3)).add(0, 1, 0);
                 if (!behind.getBlock().getType().isSolid()) {
@@ -351,12 +437,18 @@ final class Horrors implements Listener {
         if (++dreadTicks % 30 == 0) crumble(w);
     }
 
-    /** About once a minute, loose masonry may come down on someone in the ruins; the crack comes a moment first. */
+    /**
+     * About once a minute, loose masonry may come down on someone inside the ruins' structures (never by a gate or on open
+     * ground; less often near the gates); the crack comes a moment first.
+     */
     @SuppressWarnings("deprecation")
     private void crumble(World w) {
+        Danger danger = plugin.danger();
         for (Player p : w.getPlayers()) {
-            if (p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR || random.nextInt(8) != 0) continue;
+            if (p.getGameMode() == GameMode.CREATIVE || p.getGameMode() == GameMode.SPECTATOR) continue;
             Location at = p.getLocation();
+            if (danger.sanctuary(at) || !danger.inside(w, at.getBlockX(), at.getBlockY(), at.getBlockZ())) continue;
+            if (random.nextDouble() >= Danger.strength(danger.level(at)) / 8) continue;
             p.playSound(at, Sound.BLOCK_STONE_BREAK, 1.2f, 0.5f);
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (!p.isOnline() || p.getWorld() != w) return;
@@ -381,7 +473,9 @@ final class Horrors implements Listener {
         Block b = ((org.bukkit.block.Chest) e.getInventory().getHolder()).getBlock();
         if (!plugin.isRuins(b.getWorld()) || p.getGameMode() == GameMode.CREATIVE) return;
         long key = (long) b.getX() << 38 ^ (long) (b.getZ() & 0x3FFFFFF) << 12 ^ b.getY();
-        if (!ambushed.add(key) || random.nextDouble() >= 0.3 * RuinsPlugin.EASE) return;
+        if (!ambushed.add(key)) return;
+        Location where = b.getLocation();
+        if (plugin.danger().sanctuary(where) || random.nextDouble() >= 0.3 * RuinsPlugin.EASE * Danger.strength(plugin.danger().level(where))) return;
         if (ambushed.size() > 50_000) ambushed.clear();
         int n = 1 + random.nextInt(2);
         for (int i = 0; i < n; i++) {
