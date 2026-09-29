@@ -77,6 +77,14 @@ final class Boss implements Listener {
         e.setCancelled(true);
         Block b = e.getClickedBlock();
         if (urnBusy(b)) { Effects.bar(e.getPlayer(), ChatColor.DARK_PURPLE + "The urn is already weeping"); return; }
+        int lords = Lords.conquered(e.getPlayer()).size();
+        if (lords < Lords.NEEDED && (plugin.guide == null || !plugin.guide.beaten(e.getPlayer()))) {
+            // the Queen answers only one who has conquered three Nether Lords (the checklist and compass show the way)
+            Effects.bar(e.getPlayer(), ChatColor.DARK_PURPLE + "The Urn of Sorrow stays silent: conquer " + (Lords.NEEDED - lords) + " more Nether Lord"
+                + (Lords.NEEDED - lords == 1 ? "" : "s") + " (" + lords + "/" + Lords.NEEDED + ")");
+            plugin.getLogger().info("NETHER_URN_REFUSED player=" + e.getPlayer().getUniqueId() + " lords=" + lords);
+            return;
+        }
         if (e.getPlayer().getGameMode() != org.bukkit.GameMode.CREATIVE) {
             hand.setAmount(hand.getAmount() - 1);
             e.getPlayer().getInventory().setItemInMainHand(hand.getAmount() <= 0 ? null : hand);

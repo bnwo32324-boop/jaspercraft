@@ -77,8 +77,9 @@ test('nether mega wiring: loot, tables, quiet mods, peace, skulls, history, lava
   assert.match(gen, /registry\.setMegaDecision\(s\.cellX, s\.cellZ, on\);/);
   assert.match(gen, /on = megaComplete \|\| centreHere \|\| !world\.isChunkGenerated\(ccx, ccz\);/);
   assert.match(gen, /if \(!quiet\) wonders\.populate\(/);
-  // mega sites keep out of the Nether Cities
-  assert.match(gen, /this\.mega = new Mega\(seed, biomes::nex, this::cityReach\);/);
+  // mega sites keep out of the cities, and (since the GLM update) of the Lords' strongholds and the great GLM builds
+  assert.match(gen, /this\.mega = new Mega\(seed, biomes::nex, this::cityOrLordReach\);/);
+  assert.match(gen, /boolean cityOrLordReach\(int x0, int z0, int x1, int z1\) \{\s*return cityReach\(x0, z0, x1, z1\)/);
   // the Golden Bazaar keeps the peace; garrisons never hand out wither skulls and log no player
   assert.match(java('Mobs'), /if \(plugin\.gen\.peaceful\(l\.getBlockX\(\), l\.getBlockZ\(\), type == EntityType\.GHAST\)\) \{ e\.setCancelled\(true\);/);
   const garrisons = java('Garrisons');

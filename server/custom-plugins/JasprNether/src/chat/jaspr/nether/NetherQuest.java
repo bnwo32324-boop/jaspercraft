@@ -29,6 +29,9 @@ import org.bukkit.map.MapPalette;
 /**
  * How to beat the Nether (owner, 2026-09-29: every realm beatable, obviously so): slay the Ghast Queen.
  * <ol>
+ *   <li>Conquer three different Nether Lords (owner, 2026-09-29: "you have to conquer some of these builds to beat the
+ *       Nether especially in regard to the new bosses"): each rules one of the GLM strongholds, the compass points to
+ *       the nearest one not yet conquered; the Urn of Sorrow answers only after the third.</li>
  *   <li>Reach the Spore Cathedral (the Fungi Forest's mega structure; the nearest one is chosen).</li>
  *   <li>Take a Potion of Sorrow from the Font of Sorrow in its crypt (or carry one already: brewed or looted).</li>
  *   <li>Pour it into the Urn of Sorrow on the Cathedral's crown.</li>
@@ -80,6 +83,43 @@ final class NetherQuest implements GuideKit.Realm, Listener {
 
     private Location at(int[] c) { return plugin.nether == null ? null : new Location(plugin.nether, c[0] + 0.5, c[1], c[2] + 0.5); }
 
+    /** Lord strongholds that stand (or will, in land not yet generated) within {@code cells} lord cells. */
+    List<GlmSites.Site> lordSites(int x, int z, int cells) {
+        List<GlmSites.Site> out = new ArrayList<>();
+        if (plugin.gen == null) return out;
+        int cx = Math.floorDiv(x, GlmSites.Tier.LORD.cell), cz = Math.floorDiv(z, GlmSites.Tier.LORD.cell);
+        for (int dx = -cells; dx <= cells; dx++) for (int dz = -cells; dz <= cells; dz++) {
+            GlmSites.Site s = plugin.gen.glm.site(GlmSites.Tier.LORD, cx + dx, cz + dz);
+            if (s != null && s.e.lord != null && !Boolean.FALSE.equals(plugin.registry.glmDecision('L', s.cellX, s.cellZ))) out.add(s);
+        }
+        return out;
+    }
+
+    /** The nearest stronghold whose Lord the player has not conquered. */
+    GlmSites.Site nextLord(Player p) {
+        boolean here = plugin.isNether(p.getWorld());
+        int x = here ? p.getLocation().getBlockX() : 0, z = here ? p.getLocation().getBlockZ() : 0;
+        java.util.Set<String> done = Lords.conquered(p);
+        GlmSites.Site best = null;
+        double bd = Double.MAX_VALUE;
+        for (GlmSites.Site s : lordSites(x, z, 4)) {
+            if (done.contains(s.e.lord)) continue;
+            double d = s.dist(x, z);
+            if (d < bd) { bd = d; best = s; }
+        }
+        return best;
+    }
+
+    /** Where a Lord rises: its arena (known from the build, generated or not), else the stronghold's middle. */
+    Location lordTarget(GlmSites.Site s) {
+        if (plugin.nether == null) return null;
+        int[] a = plugin.gen.glm.arena(s);
+        if (a != null) return new Location(plugin.nether, a[0] + 0.5, a[1], a[2] + 0.5);
+        return new Location(plugin.nether, s.x + 0.5, s.floor + 1, s.z + 0.5);
+    }
+
+    static String regionName(Biomes.Nex n) { return n == null ? "Nether" : n.display; }
+
     static boolean hasSorrow(Player p) {
         for (ItemStack s : p.getInventory().getContents()) if (Items.is(s, "potion_sorrow")) return true;
         return false;
@@ -108,6 +148,19 @@ final class NetherQuest implements GuideKit.Realm, Listener {
         if (here && urn != null && door != null && p.getLocation().getY() < c.y + 6
             && Math.hypot(p.getLocation().getX() - c.x, p.getLocation().getZ() - c.z) > MegaCathedral.STEM) urnTarget = door;
         List<GuideKit.Task> t = new ArrayList<>();
+        java.util.Set<String> lords = Lords.conquered(p);
+        GlmSites.Site next = won || lords.size() >= Lords.NEEDED ? null : nextLord(p);
+        String[] ordinal = {"a", "a second", "a third"};
+        for (int i = 0; i < Lords.NEEDED; i++) {
+            boolean done = won || lords.size() > i;
+            boolean current = !done && lords.size() == i;
+            Lords.Def d = current && next != null ? Lords.DEFS.get(next.e.lord) : null;
+            String hint = d == null ? "The ten Nether Lords rule great strongholds across the Nether. Everyone who hurts a Lord, or stands near when it falls, conquers it."
+                : d.name + " rules " + next.e.title + " in the " + regionName(next.region) + ". Follow the compass or the red mark on the map. Go in"
+                + " armed and armoured: the Lord rises when you come near its hall. Everyone who hurts it, or stands near when it falls, conquers it.";
+            t.add(new GuideKit.Task("Conquer " + ordinal[i] + " Nether Lord" + (current ? " (" + lords.size() + "/" + Lords.NEEDED + ")" : ""), hint,
+                done, current && next != null ? lordTarget(next) : null, d == null ? "a Nether Lord's stronghold" : d.name + " at " + next.e.title));
+        }
         t.add(new GuideKit.Task("Reach the Spore Cathedral",
             "It stands in a Fungi Forest: a red-capped mushroom as tall as a mountain. Follow the compass or the red mark on the map.",
             reached, centre, "the Spore Cathedral"));
@@ -115,7 +168,8 @@ final class NetherQuest implements GuideKit.Realm, Listener {
             "Go down the stair beside the stem" + side + " into the crypt and walk up to the Font of Sorrow (a cauldron on a pillar): it fills a bottle for you. (Or brew one: an awkward potion and raw ghast meat.)",
             potion, fontTarget, fontTarget == crypt ? "the crypt stair" : "the Font of Sorrow in the crypt"));
         t.add(new GuideKit.Task("Pour it into the Urn of Sorrow",
-            "Enter the stem, climb the spiral stair to the top of the cap and right-click the Urn of Sorrow on the Weeping Balcony with the potion.",
+            "Enter the stem, climb the spiral stair to the top of the cap and right-click the Urn of Sorrow on the Weeping Balcony with the potion."
+                + " The urn answers only one who has conquered three Nether Lords.",
             won || fighting, urnTarget, urnTarget == door ? "the door into the stem" : "the Urn of Sorrow on the crown"));
         t.add(new GuideKit.Task("Slay the Ghast Queen",
             "She rises above the urn. Punch her fireballs back at her or shoot her with a bow; bring armour and fire resistance.",
@@ -125,6 +179,10 @@ final class NetherQuest implements GuideKit.Realm, Listener {
 
     @Override public List<String> tips() {
         return Arrays.asList(
+            ChatColor.BOLD + "NETHER LORDS" + ChatColor.RESET + "\n\nDeathwing, Ignareth, the Pit Lord, the Ashen Wither, the Cursed King, the Dread Sorcerer,"
+                + " the Voidborn, the Bone Colossus, the Crimson Tyrant and the Blood Count. Each holds a hoard and a relic; conquer any three.",
+            ChatColor.BOLD + "STRONGHOLDS" + ChatColor.RESET + "\n\nCastles, temples and crypts stand in their own caverns, full of loot, spawners and"
+                + " guards. Break a spawner to stop it. Trapped chests spring ambushes. Forge Hellforged and Soulweave gear from what the guards drop.",
             ChatColor.BOLD + "TIPS" + ChatColor.RESET + "\n\nThe Ghast Queen hits hard. Get ready first in the Nether's other great places:\n\n"
                 + ChatColor.DARK_RED + "Soul Pyramid" + ChatColor.BLACK + ": Wither Bone armour.\n" + ChatColor.DARK_RED + "Cinder Forge" + ChatColor.BLACK
                 + ": Salamander Hide armour (fire and lava immunity).",
@@ -169,12 +227,20 @@ final class NetherQuest implements GuideKit.Realm, Listener {
         List<GuideKit.Marker> out = new ArrayList<>();
         for (Mega.Site s : sitesNear(p))
             out.add(new GuideKit.Marker(s.x, s.z, s.kind == Mega.Kind.CATHEDRAL ? MapCursor.Type.TEMPLE : MapCursor.Type.MANSION));
+        java.util.Set<String> done = Lords.conquered(p);
+        Location l = p.getLocation();
+        for (GlmSites.Site s : lordSites(l.getBlockX(), l.getBlockZ(), 1))
+            out.add(new GuideKit.Marker(s.x, s.z, done.contains(s.e.lord) ? MapCursor.Type.WHITE_CROSS : MapCursor.Type.RED_MARKER));
         return out;
     }
 
     @Override public List<GuideKit.Label> labels(Player p) {
         List<GuideKit.Label> out = new ArrayList<>();
         for (Mega.Site s : sitesNear(p)) out.add(new GuideKit.Label(s.x, s.z, s.kind.display.replace("The ", "")));
+        java.util.Set<String> done = Lords.conquered(p);
+        Location l = p.getLocation();
+        for (GlmSites.Site s : lordSites(l.getBlockX(), l.getBlockZ(), 1))
+            if (!done.contains(s.e.lord)) out.add(new GuideKit.Label(s.x, s.z, Lords.DEFS.get(s.e.lord).name.replace("The ", "")));
         return out;
     }
 

@@ -126,6 +126,7 @@ final class Template {
         final List<String> entityKinds = new ArrayList<>();
         final List<int[]> points = new ArrayList<>();       // urn, blue fire, ends
         final List<String> pointKinds = new ArrayList<>();
+        final List<GlmSites.Pending> late = new ArrayList<>(); // GLM tile blocks (chests, signs, banners, skulls, pots)
     }
 
     /**

@@ -2,6 +2,8 @@ package chat.jaspr.nether;
 
 import java.io.File;
 import java.util.Iterator;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Random;
 import org.bukkit.Bukkit;
@@ -24,16 +26,18 @@ import org.bukkit.plugin.java.JavaPlugin;
 /**
  * JasprNether: BetterNether 0.1.8.6 and NetherEx 2.2.5 ported to Paper 1.12.2 as one harmonised Nether.
  * NetherEx supplies the large regions, BetterNether fills its Hell regions; both mods' features, structures, items,
- * mobs and the Ghast Queen coexist. JasperCraft adds five mega structures (Mega), their garrisons and the wonders.
+ * mobs and the Ghast Queen coexist. JasperCraft adds five mega structures (Mega), their garrisons and the wonders, and
+ * the owner's 98 GLM structures (GlmSites) with their creatures (Fiends), the ten Nether Lords (Lords) and their loot.
  * Everything the browser client sees is vanilla.
  */
 public final class NetherPlugin extends JavaPlugin implements Listener {
-    static final String VERSION = "1.1.0";
+    static final String VERSION = "1.2.0";
     /**
      * Regeneration epoch. Raising it regenerates the Nether once more on the next start (v1 2026-09-26: the port;
-     * v2 2026-09-28: the owner asked for a fresh Nether with the mega structures and wonders).
+     * v2 2026-09-28: the owner asked for a fresh Nether with the mega structures and wonders; v3 2026-09-29: the owner
+     * asked for the GLM structures, their creatures and the Nether Lords, "and then, once you're done, regenerate the Nether").
      */
-    static final int REGEN_EPOCH = 2;
+    static final int REGEN_EPOCH = 3;
     static final String OUTER_REALMS = "chat.jaspr.biomes.OuterRealms";
 
     String worldName = "world_nether";
@@ -50,6 +54,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
     Garrisons garrisons;
     NetherQuest quest;
     GuideKit guide;
+    Lords lords;
+    GlmLife glmLife;
+    Relics relics;
 
     // generation health
     long populated, totalNanos, maxNanos, blocksWritten;
@@ -112,6 +119,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         boss = new Boss(this);
         fireflies = new Fireflies(this);
         garrisons = new Garrisons(this);
+        lords = new Lords(this);
+        glmLife = new GlmLife(this);
+        relics = new Relics(this);
         quest = new NetherQuest(this);
         guide = new GuideKit(this, quest);
         Bukkit.getPluginManager().registerEvents(quest, this);
@@ -121,6 +131,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(mechanics, this);
         Bukkit.getPluginManager().registerEvents(crafting, this);
         Bukkit.getPluginManager().registerEvents(boss, this);
+        Bukkit.getPluginManager().registerEvents(lords, this);
+        Bukkit.getPluginManager().registerEvents(glmLife, this);
+        Bukkit.getPluginManager().registerEvents(relics, this);
         Bukkit.getPluginManager().registerEvents(effects, this);
         crafting.register();
         for (World w : Bukkit.getWorlds()) attach(w);
@@ -135,7 +148,8 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         if (readyLogged) return;
         readyLogged = true;
         int mobKinds = Mobs.netherExKinds() + 1; // NetherEx mobs + Ghast Queen + BetterNether firefly swarms
-        getLogger().info("NETHER_READY version=" + VERSION + " biomes=" + Biomes.BIOME_COUNT + " mobs=" + mobKinds
+        getLogger().info("NETHER_READY version=" + VERSION + " biomes=" + Biomes.BIOME_COUNT + " mobs=" + mobKinds + " fiends=" + Mobs.fiendKinds()
+            + " lords=" + Lords.DEFS.size() + " glm=" + (gen == null ? 0 : gen.glm.size())
             + " structures=" + (Gen.TEMPLATE_NAMES.length + 1) + " mega=" + Mega.Kind.values().length + " wonders=8 items=" + Items.DEFS.size()
             + " blocks=" + BlockMap.rows + " world=" + worldName + " attached=" + (gen != null) + " disabled=" + genDisabled
             + " megaComplete=" + (gen != null && gen.megaComplete));
@@ -144,6 +158,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
     @Override public void onDisable() {
         if (mobs != null) mobs.shutdown();
         if (boss != null) boss.shutdown();
+        if (lords != null) lords.shutdown();
         if (registry != null) registry.close();
         getLogger().info("NETHER_STOPPED populated=" + populated + " failures=" + failures);
     }
@@ -282,7 +297,10 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             effects.tick(ticks);
             mobs.tick(ticks);
             boss.tick(ticks);
+            lords.tick(ticks);
             garrisons.tick(ticks);
+            glmLife.tick(ticks);
+            if ((ticks % 20) == 3) relics.tick(ticks);
             if ((ticks & 3) == 0) mechanics.tick(ticks);
             if ((ticks % 5) == 0) fireflies.tick(ticks);
         } catch (Throwable t) {
@@ -315,6 +333,11 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             String name, origin;
             if (s.type.equals("mega")) { Mega.Kind k = Mega.Kind.byId(s.name); name = k == null ? pretty(s.name) : k.display; origin = "JasperCraft"; }
             else if (s.type.equals("wonder")) { name = Wonders.display(s.name); origin = "JasperCraft"; }
+            else if (s.type.equals("glm")) {
+                GlmSites.Entry en = gen.glm.entry(s.name);
+                name = en == null ? s.name : en.title;
+                origin = en != null && en.lord != null ? "stronghold of " + Lords.DEFS.get(en.lord).name : "GLM";
+            }
             else { name = pretty(s.name); origin = s.type.equals("bn") || s.type.equals("city") ? "BetterNether" : "NetherEx"; }
             out.add(ChatColor.GOLD + "Nether structure " + ChatColor.WHITE + name + ChatColor.GRAY + " (" + origin + ")");
         }
@@ -393,6 +416,10 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                     + " megaComplete=" + (gen != null && gen.megaComplete));
                 if (gen != null) sender.sendMessage(ChatColor.GRAY + "placed " + gen.placed);
                 sender.sendMessage(ChatColor.GRAY + guide.status() + " fonts=" + quest.fonts);
+                if (gen != null) sender.sendMessage(ChatColor.GRAY + "glm builds=" + gen.glm.size() + " drawn=" + gen.glm.drawn + " loads=" + gen.glm.loads
+                    + " cached=" + gen.glm.cached() + " cacheKb=" + (gen.glm.cachedBytes() >> 10) + " loadMs=" + fmt(gen.glm.loadNanos / 1e6)
+                    + " loadFailures=" + gen.glm.loadFailures + " tiles=" + structures.glmTiles + " loot=" + structures.glmLoot);
+                sender.sendMessage(ChatColor.GRAY + "lords " + lords.describe() + " slain=" + lords.slainBy + " life " + glmLife.describe() + " relics " + relics.describe());
                 return true;
             }
             default:
@@ -444,6 +471,85 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                 boss.summon(p.getLocation().add(0, 8, 0), null);
                 return true;
             }
+            case "lord": {
+                // /jnether lord <id> [player]: raise a Nether Lord beside a player (tests); its arena is where it rose
+                if (args.length > 2) p = Bukkit.getPlayerExact(args[2]);
+                if (p == null || args.length < 2 || !Lords.DEFS.containsKey(args[1])) { sender.sendMessage("/jnether lord <" + String.join("|", Lords.DEFS.keySet()) + "> [player]"); return true; }
+                Location at = p.getLocation().add(p.getLocation().getDirection().setY(0).normalize().multiply(8));
+                if (Lords.DEFS.get(args[1]).flies) at.add(0, 6, 0);
+                Object l = lords.rise(p.getWorld(), Lords.DEFS.get(args[1]), at.getBlockX(), at.getBlockY(), at.getBlockZ());
+                sender.sendMessage(l == null ? ChatColor.RED + "Could not raise " + args[1] : ChatColor.GREEN + "Raised " + args[1]);
+                return true;
+            }
+            case "lords": {
+                for (Lords.Fight f : lords.all()) {
+                    Location at = f.e.getLocation();
+                    sender.sendMessage(ChatColor.GRAY + f.d.id + " at " + at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ() + " home " + f.hx + " " + f.hy + " " + f.hz
+                        + " hp " + (int) f.e.getHealth() + "/" + (int) f.e.getMaxHealth() + " phase " + f.phase + " fought " + f.fought.size());
+                    getLogger().info("NETHER_LORD_STATE lord=" + f.d.id + " at=" + at.getBlockX() + "," + at.getBlockY() + "," + at.getBlockZ() + " home=" + f.point
+                        + " hp=" + (int) f.e.getHealth() + " phase=" + f.phase + " ai=" + f.e.hasAI() + " " + lords.debug(f));
+                }
+                sender.sendMessage(ChatColor.GRAY + lords.describe() + " abilities " + mobs.abilityCounts);
+                return true;
+            }
+            case "conquer": {
+                // /jnether conquer <id|all|none> [player]: set a player's Lord credit (tests and support)
+                if (args.length > 2) p = Bukkit.getPlayerExact(args[2]);
+                if (p == null || args.length < 2) { sender.sendMessage("/jnether conquer <lord|all|none> [player]"); return true; }
+                if (args[1].equals("none")) { for (String id : Lords.DEFS.keySet()) p.removeScoreboardTag("jn_lord_" + id); }
+                else if (args[1].equals("all")) { for (String id : Lords.DEFS.keySet()) p.addScoreboardTag("jn_lord_" + id); }
+                else if (Lords.DEFS.containsKey(args[1])) p.addScoreboardTag("jn_lord_" + args[1]);
+                sender.sendMessage(ChatColor.GREEN + p.getName() + " has conquered " + Lords.conquered(p));
+                getLogger().info("NETHER_LORD_CONQUER_SET player=" + p.getUniqueId() + " lords=" + Lords.conquered(p));
+                return true;
+            }
+            case "glm": {
+                // /jnether glm [trap] [player]: the GLM build here, or the nearest of each tier; "trap" moves to its nearest trapped chest
+                if (args.length > 2) p = Bukkit.getPlayerExact(args[2]);
+                if (p == null || gen == null) return true;
+                Location l = p.getLocation();
+                if (args.length > 1 && args[1].equals("trap")) {
+                    GlmSites.Site here = gen.builtGlmAt(l.getBlockX(), l.getBlockZ());
+                    GlmBuild b = here == null ? null : gen.glm.build(here.e.key);
+                    if (b == null) { sender.sendMessage(ChatColor.RED + "Not in a GLM build"); return true; }
+                    List<Location> traps = new ArrayList<>();
+                    for (GlmBuild.Tile t : b.tiles) if (t.type == GlmBuild.T_CHEST && t.trapped) {
+                        int X = t.x + b.margin, Z = t.z + b.margin;
+                        traps.add(new Location(l.getWorld(), here.minX + b.rotU(X, Z, here.rot) + 0.5, here.base() + t.y, here.minZ + b.rotV(X, Z, here.rot) + 0.5));
+                    }
+                    if (traps.isEmpty()) { sender.sendMessage(ChatColor.RED + "No trapped chest in " + here.e.title); return true; }
+                    final Location from = l;
+                    traps.sort((u, v) -> Double.compare(u.distanceSquared(from), v.distanceSquared(from)));
+                    for (Location best : traps) for (int[] o : new int[][]{{1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {1, 0, 1}, {-1, 0, -1}, {1, 0, -1}, {-1, 0, 1},
+                        {2, 0, 0}, {-2, 0, 0}, {0, 0, 2}, {0, 0, -2}, {0, 1, 0}, {1, 1, 0}, {-1, 1, 0}, {0, 1, 1}, {0, 1, -1}}) {
+                        org.bukkit.block.Block f = best.clone().add(o[0], o[1], o[2]).getBlock();
+                        if (f.getType() == org.bukkit.Material.AIR && f.getRelative(0, 1, 0).getType() == org.bukkit.Material.AIR
+                            && f.getRelative(0, -1, 0).getType().isSolid()) {
+                            Location to = f.getLocation().add(0.5, 0, 0.5);
+                            to.setDirection(best.toVector().subtract(to.toVector()).setY(-0.6));
+                            p.teleport(to);
+                            sender.sendMessage(ChatColor.GREEN + "Trapped chest at " + best.getBlockX() + " " + best.getBlockY() + " " + best.getBlockZ());
+                            return true;
+                        }
+                    }
+                    sender.sendMessage(ChatColor.RED + "No trapped chest of " + here.e.title + " has a free side (" + traps.size() + ")");
+                    return true;
+                }
+                GlmSites.Site s = gen.builtGlmAt(l.getBlockX(), l.getBlockZ());
+                if (s != null) sender.sendMessage(ChatColor.GOLD + s.e.title + ChatColor.GRAY + " (" + s.e.key + ", " + s.tier + ", " + s.e.theme + ", " + s.region
+                    + ") floor=" + s.floor + " rot=" + s.rot + " box=" + s.minX + "," + s.minZ + ".." + s.maxX + "," + s.maxZ);
+                for (GlmSites.Tier t : GlmSites.Tier.values()) {
+                    GlmSites.Site n = null; double bd = Double.MAX_VALUE;
+                    int cx = Math.floorDiv(l.getBlockX(), t.cell), cz = Math.floorDiv(l.getBlockZ(), t.cell);
+                    for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+                        GlmSites.Site c = gen.glm.site(t, cx + dx, cz + dz);
+                        if (c != null && c.dist(l.getX(), l.getZ()) < bd) { bd = c.dist(l.getX(), l.getZ()); n = c; }
+                    }
+                    if (n != null) sender.sendMessage(ChatColor.GRAY + t.name().toLowerCase(java.util.Locale.ROOT) + ": " + n.e.title + " (" + n.e.key + ") at "
+                        + n.x + " " + n.floor + " " + n.z + " -- " + (int) bd + " blocks");
+                }
+                return true;
+            }
             case "selftest":
                 // The self-test builds test blocks and summons a Ghast Queen: never on a live server by accident.
                 if (!Boolean.getBoolean("jaspr.nether.selftest")) { sender.sendMessage(ChatColor.RED + "Only on a test server started with -Djaspr.nether.selftest=true"); return true; }
@@ -477,7 +583,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                 Navigator.scenario(this, p, args[1].toLowerCase(java.util.Locale.ROOT));
                 return true;
             }
-            default: sender.sendMessage("/jnether [where|status|mobs|goto|test|spawn|give|effect|queen|selftest]"); return true;
+            default: sender.sendMessage("/jnether [where|status|mobs|goto|test|spawn|give|effect|queen|lord|conquer|glm|selftest]"); return true;
         }
     }
 

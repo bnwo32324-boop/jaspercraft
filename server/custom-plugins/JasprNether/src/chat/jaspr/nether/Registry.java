@@ -38,6 +38,7 @@ final class Registry {
     private final Map<Long, List<Entry>> byRegion = new HashMap<>();
     private final Map<Long, Boolean> cities = new HashMap<>();
     private final Map<Long, Boolean> megas = new HashMap<>();
+    private final Map<String, Boolean> glms = new HashMap<>();
     private int count;
     private BufferedWriter out;
     int writeFailures;
@@ -62,6 +63,8 @@ final class Registry {
                         cities.put(((long) Integer.parseInt(p[1]) << 32) ^ (Integer.parseInt(p[2]) & 0xffffffffL), p[3].equals("1"));
                     } else if (p[0].equals("megacell") && p.length == 4) {
                         megas.put(((long) Integer.parseInt(p[1]) << 32) ^ (Integer.parseInt(p[2]) & 0xffffffffL), p[3].equals("1"));
+                    } else if (p[0].equals("glmcell") && p.length == 5) {
+                        glms.put(p[1] + " " + p[2] + " " + p[3], p[4].equals("1"));
                     } else if (p.length == 8) {
                         index(new Entry(p[0], p[1], Integer.parseInt(p[2]), Integer.parseInt(p[3]), Integer.parseInt(p[4]),
                             Integer.parseInt(p[5]), Integer.parseInt(p[6]), Integer.parseInt(p[7])));
@@ -101,6 +104,14 @@ final class Registry {
         write("megacell " + cellX + " " + cellZ + (built ? " 1" : " 0"));
     }
 
+    /** Whether a GLM build's cell (tier L/G/C) is built (decided once, by the first chunk that reaches it). */
+    synchronized Boolean glmDecision(char tier, int cellX, int cellZ) { return glms.get(tier + " " + cellX + " " + cellZ); }
+
+    synchronized void setGlmDecision(char tier, int cellX, int cellZ, boolean built) {
+        glms.put(tier + " " + cellX + " " + cellZ, built);
+        write("glmcell " + tier + " " + cellX + " " + cellZ + (built ? " 1" : " 0"));
+    }
+
     private void write(String line) {
         try {
             if (out == null) out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8));
@@ -133,6 +144,7 @@ final class Registry {
                 w.write("citycell " + (int) (c.getKey() >> 32) + " " + (int) (long) c.getKey() + (c.getValue() ? " 1" : " 0") + "\n");
             for (Map.Entry<Long, Boolean> c : megas.entrySet())
                 w.write("megacell " + (int) (c.getKey() >> 32) + " " + (int) (long) c.getKey() + (c.getValue() ? " 1" : " 0") + "\n");
+            for (Map.Entry<String, Boolean> c : glms.entrySet()) w.write("glmcell " + c.getKey() + (c.getValue() ? " 1" : " 0") + "\n");
             for (Entry e : keep) { w.write(e.line()); w.newLine(); index(e); }
         } catch (IOException e) {
             log.warning("NETHER_REGISTRY_COMPACT_FAILED reason=" + e.getClass().getSimpleName());
@@ -152,7 +164,8 @@ final class Registry {
 
     /** Point records (urns, blue fire, statues, garrisons) are not structures. */
     static boolean point(String type) {
-        return type.equals("urn") || type.equals("bluefire") || type.equals("statue") || type.equals("garrison") || type.equals("font");
+        return type.equals("urn") || type.equals("bluefire") || type.equals("statue") || type.equals("garrison") || type.equals("font")
+            || type.equals("glmspawner") || type.equals("lord") || type.equals("sprung");
     }
 
     /** The smallest structure box (not a point record) containing the position, for /where. */

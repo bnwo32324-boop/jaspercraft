@@ -38,6 +38,7 @@ final class Gen {
     final BnGen bn;
     final Cities cities;
     final Mega mega;
+    final GlmSites glm;
     final Wonders wonders;
     /** True when every chunk of this world was populated by a JasprNether that plans mega structures (set on attach). */
     boolean megaComplete;
@@ -60,8 +61,17 @@ final class Gen {
         }
         this.bn = new BnGen(this);
         this.cities = new Cities(this);
-        this.mega = new Mega(seed, biomes::nex, this::cityReach);
+        // planning order: cities, the Lords' strongholds, the great GLM builds, the mega structures, the common GLM builds
+        this.glm = new GlmSites(seed, biomes::nex, this::cityReach, this::cityOrMegaReach, plugin::getResource);
+        this.mega = new Mega(seed, biomes::nex, this::cityOrLordReach);
         this.wonders = new Wonders(this);
+    }
+
+    /** The keep-outs of the planning order: cities, Lords' strongholds, mega structures, then the other GLM builds. */
+    boolean cityOrMegaReach(int x0, int z0, int x1, int z1) { return cityReach(x0, z0, x1, z1) || !mega.touching(x0, z0, x1, z1).isEmpty(); }
+    boolean cityOrLordReach(int x0, int z0, int x1, int z1) {
+        return cityReach(x0, z0, x1, z1) || !glm.touching(GlmSites.Tier.LORD, x0, z0, x1, z1).isEmpty()
+            || !glm.touching(GlmSites.Tier.GREAT, x0, z0, x1, z1).isEmpty();
     }
 
     /** Whether a block box overlaps any planned Nether City's reach (mega sites keep out of cities). */
@@ -88,8 +98,8 @@ final class Gen {
     // ------------------------------------------------------------------------------------------------------------
     /** Populates chunk (cx, cz). Returns the number of blocks written. */
     /** Accumulated nanoseconds per phase: read, terrain, city, betternether, netherex, mega, wonders, flush+light, tiles. */
-    final long[] phase = new long[9];
-    static final String[] PHASES = {"read", "terrain", "city", "bn", "nex", "mega", "wonder", "flush", "tiles"};
+    final long[] phase = new long[10];
+    static final String[] PHASES = {"read", "terrain", "city", "bn", "nex", "mega", "glm", "wonder", "flush", "tiles"};
 
     int populate(int cx, int cz) {
         long t = System.nanoTime(), t2;
@@ -102,8 +112,10 @@ final class Gen {
         int bx0 = a.ox + 8, bz0 = a.oz + 8, bx1 = bx0 + 15, bz1 = bz0 + 15;
         // mega sites are drawn over the whole 2x2-chunk area (see Draw), so the sites reaching the area count
         List<Mega.Site> sites = activeSites(a, a.ox, a.oz, a.ox + 31, a.oz + 31);
-        boolean quiet = false;              // inside a mega structure's reach the mods' small structures stay away
+        List<GlmSites.Site> glmSites = activeGlm(a, a.ox, a.oz, a.ox + 31, a.oz + 31);
+        boolean quiet = false;              // inside a mega structure's or a GLM build's reach the mods' small structures stay away
         for (Mega.Site s : sites) if (s.maxX >= bx0 && s.minX <= bx1 && s.maxZ >= bz0 && s.minZ <= bz1) quiet = true;
+        for (GlmSites.Site s : glmSites) if (s.maxX >= bx0 && s.minX <= bx1 && s.maxZ >= bz0 && s.minZ <= bz1) quiet = true;
         cities.populate(a, post);
         t2 = System.nanoTime(); phase[2] += t2 - t; t = t2;
         bn.populate(a, rand, post, quiet);
@@ -117,12 +129,18 @@ final class Gen {
             post.add(tiles, s.kind.id);
         }
         t2 = System.nanoTime(); phase[5] += t2 - t; t = t2;
-        if (!quiet) wonders.populate(a, chunkRandom(cx, cz, 0x574F4EL), centre, post);
+        for (GlmSites.Site s : glmSites) {
+            Template.Placed tiles = new Template.Placed();
+            glm.draw(s, new Draw(a, a.ox, a.oz, a.ox + 31, a.oz + 31, bx0, bz0, bx1, bz1, tiles));
+            post.add(tiles, "glm_" + s.e.key);
+        }
         t2 = System.nanoTime(); phase[6] += t2 - t; t = t2;
-        a.flush();
+        if (!quiet) wonders.populate(a, chunkRandom(cx, cz, 0x574F4EL), centre, post);
         t2 = System.nanoTime(); phase[7] += t2 - t; t = t2;
+        a.flush();
+        t2 = System.nanoTime(); phase[8] += t2 - t; t = t2;
         post.apply(this, a);
-        phase[8] += System.nanoTime() - t;
+        phase[9] += System.nanoTime() - t;
         return a.writes;
     }
 
@@ -151,6 +169,41 @@ final class Gen {
             if (on) out.add(s);
         }
         return out;
+    }
+
+    /**
+     * The GLM builds reaching this chunk's area that are built, decided once per cell like the mega sites: built when the
+     * whole world ran with them (the regenerated Nether) or when the build's centre chunk is new land.
+     */
+    private List<GlmSites.Site> activeGlm(Area a, int bx0, int bz0, int bx1, int bz1) {
+        List<GlmSites.Site> out = new ArrayList<>(1);
+        for (GlmSites.Site s : glm.touching(bx0, bz0, bx1, bz1)) {
+            char tier = s.tier.name().charAt(0);
+            Boolean on = registry.glmDecision(tier, s.cellX, s.cellZ);
+            if (on == null) {
+                int ccx = s.x >> 4, ccz = s.z >> 4;
+                boolean centreHere = ccx >= a.cx && ccx <= a.cx + 1 && ccz >= a.cz && ccz <= a.cz + 1;
+                on = megaComplete || centreHere || !world.isChunkGenerated(ccx, ccz);
+                registry.setGlmDecision(tier, s.cellX, s.cellZ, on);
+                if (on) {
+                    int[] b = s.box();
+                    registry.add("glm", s.e.key, b[0], b[1], b[2], b[3], b[4], b[5]);
+                    count("glm_" + s.tier.name().toLowerCase(java.util.Locale.ROOT));
+                }
+                plugin.getLogger().info("NETHER_GLM_PLANNED build=" + s.e.key + " tier=" + s.tier + " lord=" + (s.e.lord == null ? "-" : s.e.lord)
+                    + " at=" + s.x + "," + s.floor + "," + s.z + " rot=" + s.rot + " region=" + s.region + " built=" + on);
+            }
+            if (on) out.add(s);
+        }
+        return out;
+    }
+
+    /** A built GLM site whose box contains the column, or null. */
+    GlmSites.Site builtGlmAt(int x, int z) {
+        GlmSites.Site s = glm.at(x, z);
+        if (s == null) return null;
+        Boolean on = registry.glmDecision(s.tier.name().charAt(0), s.cellX, s.cellZ);
+        return on != null && on ? s : null;
     }
 
     /** A built mega site whose reach contains the column, or null. */
@@ -593,7 +646,10 @@ final class Gen {
                 }
                 for (int c = 0; c < p.spawners.size(); c++) {
                     int[] v = p.spawners.get(c);
-                    g.plugin.structures.placeSpawner(g.world, v[0], v[1], v[2], p.spawnerMobs.get(c));
+                    String mob = p.spawnerMobs.get(c);
+                    boolean glmSpawner = kind.startsWith("glm_");
+                    g.plugin.structures.placeSpawner(g.world, v[0], v[1], v[2], mob, glmSpawner);
+                    if (glmSpawner) g.registry.add("glmspawner", mob, v[0], v[1], v[2], v[0], v[1], v[2]);
                 }
                 for (int[] v : p.skulls) g.plugin.structures.placeSkull(g.world, v[0], v[1], v[2], v[3], v[4]);
                 for (int c = 0; c < p.entities.size(); c++) {
@@ -608,7 +664,9 @@ final class Gen {
                     else if (k.equals("statue")) g.registry.add("statue", kind, v[0], v[1], v[2], v[0], v[1], v[2]);
                     else if (k.startsWith("garrison:")) g.registry.add("garrison", k.substring(9), v[0], v[1], v[2], v[0], v[1], v[2]);
                     else if (k.equals("font")) g.registry.add("font", kind, v[0], v[1], v[2], v[0], v[1], v[2]);
+                    else if (k.startsWith("lord:")) g.registry.add("lord", k.substring(5), v[0], v[1], v[2], v[0], v[1], v[2]);
                 }
+                for (GlmSites.Pending t : p.late) g.plugin.structures.placeGlmTile(g.world, t, g.chunkRandom(t.x, t.z, t.y * 131L + 7));
             }
             for (int[] v : golems) g.plugin.structures.spawnResident(g.world, v[0], v[1], v[2], "netherex:gold_golem");
             for (int[] v : a.written(Blocks.LAVA_FLOW)) g.plugin.structures.tickLava(g.world, v[0], v[1], v[2]);

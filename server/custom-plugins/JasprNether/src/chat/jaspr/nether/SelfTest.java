@@ -214,13 +214,32 @@ final class SelfTest implements Listener {
             for (int cx = (s.x - Mega.REACH) >> 4; cx <= (s.x + Mega.REACH) >> 4; cx++)
                 for (int cz = (s.z - Mega.REACH) >> 4; cz <= (s.z + Mega.REACH) >> 4; cz++) w.getChunkAt(cx, cz);
             Boolean built = plugin.registry.megaDecision(s.cellX, s.cellZ);
+            StringBuilder empty = new StringBuilder();
             int chests = 0, filled = 0, bad = 0, garrisons = plugin.registry.near(s.x, s.z, Mega.REACH, "garrison").size();
             for (int cx = (s.x - Mega.REACH) >> 4; cx <= (s.x + Mega.REACH) >> 4; cx++)
                 for (int cz = (s.z - Mega.REACH) >> 4; cz <= (s.z + Mega.REACH) >> 4; cz++) {
                     org.bukkit.Chunk c = w.getChunkAt(cx, cz);
                     for (org.bukkit.block.BlockState t : c.getTileEntities()) if (t instanceof Chest) {
+                        // only this site's chests (a neighbouring GLM build's empty chests may share its chunks)
+                        if (t.getX() < s.minX || t.getX() > s.maxX || t.getZ() < s.minZ || t.getZ() > s.maxZ) continue;
                         chests++;
-                        for (ItemStack it : ((Chest) t).getBlockInventory().getContents()) if (it != null) { filled++; break; }
+                        boolean any = false;
+                        for (ItemStack it : ((Chest) t).getBlockInventory().getContents()) if (it != null) { any = true; break; }
+                        // a chest whose loot is rolled when first opened (vanilla loot tables) counts as stocked
+                        net.minecraft.server.v1_12_R1.TileEntity te = ((org.bukkit.craftbukkit.v1_12_R1.CraftWorld) w).getHandle()
+                            .getTileEntity(new net.minecraft.server.v1_12_R1.BlockPosition(t.getX(), t.getY(), t.getZ()));
+                        String lazy = te instanceof net.minecraft.server.v1_12_R1.TileEntityLootable && ((net.minecraft.server.v1_12_R1.TileEntityLootable) te).getLootTableKey() != null
+                            ? ((net.minecraft.server.v1_12_R1.TileEntityLootable) te).getLootTableKey().toString() : null;
+                        if (lazy != null) { any = true; plugin.getLogger().info("NETHER_SELFTEST lazy loot chest " + t.getX() + "," + t.getY() + "," + t.getZ() + " table=" + lazy); }
+                        if (any) filled++;
+                        else if (empty.length() < 200) {
+                            Registry.Entry owner = plugin.registry.structureAt(t.getX(), t.getY(), t.getZ());
+                            GlmSites.Site g = plugin.gen.glm.at(t.getX(), t.getZ());
+                            empty.append(' ').append(t.getX()).append(',').append(t.getY()).append(',').append(t.getZ()).append(':')
+                                .append(owner == null ? "-" : owner.type + "/" + owner.name).append(':').append(t.getType())
+                                .append(":glm=").append(g == null ? "-" : g.e.key + "/" + g.tier + "@" + g.minX + "," + g.minZ + ".." + g.maxX + "," + g.maxZ
+                                + "/built=" + plugin.registry.glmDecision(g.tier.name().charAt(0), g.cellX, g.cellZ));
+                        }
                     }
                     ChunkSnapshot snap = c.getChunkSnapshot(false, false, false);
                     for (int y = 1; y < 127; y++) for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) {
@@ -229,6 +248,7 @@ final class SelfTest implements Listener {
                     }
                 }
             boolean named = String.join(" ", plugin.whereLines(new Location(w, s.x + 20, s.y + 20, s.z + 20))).contains(s.kind.display);
+            if (empty.length() > 0) plugin.getLogger().info("NETHER_SELFTEST empty chests of " + s.kind.id + ":" + empty);
             String detail = "at=" + s.x + "," + s.y + "," + s.z + " built=" + built + " chests=" + chests + " filled=" + filled + " garrisons=" + garrisons
                 + " forbidden=" + bad + " where=" + named;
             boolean ok = Boolean.TRUE.equals(built) && chests >= 6 && filled == chests && bad == 0 && garrisons >= (s.kind == Mega.Kind.BAZAAR ? 1 : 3) && named;
@@ -253,6 +273,78 @@ final class SelfTest implements Listener {
         java.util.Random jr = new java.util.Random(3);
         List<String> pages = Wonders.journalPages(plugin.gen, 0, 0, jr);
         check("wonder_journal_rumours", pages.size() >= 4, "pages=" + pages.size() + " first=" + NetherPlugin.safe(pages.size() > 1 ? pages.get(1).replace('\n', ' ') : "-"));
+        later(5, this::glm);
+    }
+
+    // ---- stage 3c: the GLM builds (the nearest of each tier) -------------------------------------------------------------
+    private final List<GlmSites.Site> glmSites = new ArrayList<>();
+
+    private void glm() {
+        check("glm_builds_loaded", plugin.gen.glm.size() >= 90 && plugin.gen.glm.lords.size() == Lords.DEFS.size(),
+            "builds=" + plugin.gen.glm.size() + " lords=" + plugin.gen.glm.lords.size());
+        java.util.LinkedHashSet<Long> want = new java.util.LinkedHashSet<>();
+        for (GlmSites.Tier t : GlmSites.Tier.values()) {
+            GlmSites.Site best = null;
+            double bd = Double.MAX_VALUE;
+            for (int cx = -3; cx <= 3; cx++) for (int cz = -3; cz <= 3; cz++) {
+                GlmSites.Site s = plugin.gen.glm.site(t, cx, cz);
+                if (s == null) continue;
+                double d = s.dist(0, 0) + (s.maxX - s.minX) * 2;      // near and small: a quick test
+                if (d < bd) { bd = d; best = s; }
+            }
+            if (best == null) { check("glm_planned_" + t.name().toLowerCase(java.util.Locale.ROOT), false, "none within 3 cells"); continue; }
+            glmSites.add(best);
+            for (int cx = (best.minX - 16) >> 4; cx <= (best.maxX + 16) >> 4; cx++)
+                for (int cz = (best.minZ - 16) >> 4; cz <= (best.maxZ + 16) >> 4; cz++) want.add(((long) cx << 32) | (cz & 0xffffffffL));
+        }
+        List<long[]> list = new ArrayList<>();
+        for (long k : want) list.add(new long[]{k >> 32, (int) k});
+        plugin.getLogger().info("NETHER_SELFTEST glm sites=" + glmSites.size() + " chunks=" + list.size());
+        glmBatch(list, 0, System.currentTimeMillis());
+    }
+
+    private void glmBatch(List<long[]> list, int from, long t0) {
+        int to = Math.min(list.size(), from + 24);
+        for (int i = from; i < to; i++) w.loadChunk((int) list.get(i)[0], (int) list.get(i)[1], true);
+        if (to < list.size()) { later(1, () -> glmBatch(list, to, t0)); return; }
+        later(10, () -> glmInspect(System.currentTimeMillis() - t0));
+    }
+
+    private void glmInspect(long wallMs) {
+        int[] forbidden = {41, 42, 57, 133, 22, 152, 138, 46, 90, 119, 120, 137, 210, 211, 255, 166, 116, 130, 145, 84, 154, 27, 28, 147, 148, 71, 167};
+        for (GlmSites.Site s : glmSites) {
+            Boolean built = plugin.registry.glmDecision(s.tier.name().charAt(0), s.cellX, s.cellZ);
+            int chests = 0, filled = 0, bad = 0, spawnerBlocks = 0;
+            for (int cx = s.minX >> 4; cx <= s.maxX >> 4; cx++)
+                for (int cz = s.minZ >> 4; cz <= s.maxZ >> 4; cz++) {
+                    org.bukkit.Chunk c = w.getChunkAt(cx, cz);
+                    for (org.bukkit.block.BlockState t : c.getTileEntities()) {
+                        if (t instanceof Chest) {
+                            chests++;
+                            for (ItemStack it : ((Chest) t).getBlockInventory().getContents()) if (it != null) { filled++; break; }
+                        }
+                        if (t instanceof org.bukkit.block.CreatureSpawner) spawnerBlocks++;
+                    }
+                    ChunkSnapshot snap = c.getChunkSnapshot(false, false, false);
+                    for (int y = 1; y < 127; y++) for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) {
+                        int id = snap.getBlockTypeId(x, y, z);
+                        for (int f : forbidden) if (id == f) bad++;
+                    }
+                }
+            int span = Math.max(s.maxX - s.minX, s.maxZ - s.minZ);
+            int spawners = 0, garrisons = 0, lords = 0;
+            for (Registry.Entry e : plugin.registry.near(s.x, s.z, span, "glmspawner")) if (e.x1 >= s.minX && e.x1 <= s.maxX && e.z1 >= s.minZ && e.z1 <= s.maxZ) spawners++;
+            for (Registry.Entry e : plugin.registry.near(s.x, s.z, span, "garrison")) if (e.x1 >= s.minX && e.x1 <= s.maxX && e.z1 >= s.minZ && e.z1 <= s.maxZ) garrisons++;
+            for (Registry.Entry e : plugin.registry.near(s.x, s.z, span, "lord")) if (e.x1 >= s.minX && e.x1 <= s.maxX && e.z1 >= s.minZ && e.z1 <= s.maxZ) lords++;
+            boolean named = String.join(" ", plugin.whereLines(new Location(w, s.x, s.floor + 2, s.z))).contains(s.e.title);
+            String detail = "build=" + s.e.key + " at=" + s.x + "," + s.floor + "," + s.z + " built=" + built + " chests=" + chests + " filled=" + filled
+                + " spawners=" + spawners + " spawnerBlocks=" + spawnerBlocks + " garrisons=" + garrisons + " lordPoints=" + lords + " forbidden=" + bad + " where=" + named;
+            boolean ok = Boolean.TRUE.equals(built) && filled >= 3 && spawners >= 1 && spawnerBlocks >= spawners && garrisons >= 1 && bad == 0 && named
+                && (s.e.lord == null || lords == 1);
+            check("glm_" + s.tier.name().toLowerCase(java.util.Locale.ROOT), ok, detail);
+        }
+        check("glm_gen_cost", plugin.avgMs() < 25, "avgMs=" + NetherPlugin.fmt(plugin.avgMs()) + " maxMs=" + NetherPlugin.fmt(plugin.maxNanos / 1e6) + " wallMs=" + wallMs
+            + " loads=" + plugin.gen.glm.loads + " loadMs=" + NetherPlugin.fmt(plugin.gen.glm.loadNanos / 1e6) + " phaseMs[" + plugin.gen.phases(plugin.populated) + "]");
         later(5, this::mobs);
     }
 
@@ -288,7 +380,7 @@ final class SelfTest implements Listener {
         plugin.getLogger().info("NETHER_SELFTEST site=" + site.getBlockX() + "," + site.getBlockY() + "," + site.getBlockZ());
         int i = 0;
         for (Mobs.Spec s : Mobs.KINDS.values()) {
-            if (s.kind.equals("ghast_queen") || s.kind.equals("ghast")) continue;
+            if (s.kind.equals("ghast_queen") || s.kind.equals("ghast") || Lords.isLord(s.kind)) continue;   // the Lords have their own stage
             Location at = site.clone().add((i % 5) * 6 - 12, s.base == EntityType.GHAST ? 12 : 0, (i / 5) * 6 - 6);
             LivingEntity e = plugin.mobs.spawn(s.kind, at, false);
             if (e != null) e.setRemoveWhenFarAway(false);
@@ -520,7 +612,7 @@ final class SelfTest implements Listener {
                                 for (ItemStack s : queenDrops) if (Items.is(s, "ghast_queen_tear")) tear = true;
                                 check("queen_killed_drops_tear", queenDied && tear, "drops=" + queenDrops.size() + " defeated=" + plugin.boss.defeated);
                                 check("queen_urn_reset", urn.getType() == Material.CAULDRON && urn.getData() == 0, "data=" + urn.getData());
-                                finish();
+                                lords(new ArrayList<>(Lords.DEFS.keySet()), 0);
                             });
                         });
                     });
@@ -535,6 +627,41 @@ final class SelfTest implements Listener {
             queenDied = true;
             queenDrops.addAll(e.getDrops());
         }
+        if (e.getEntity().getScoreboardTags().contains("jn_lord")) lordDrops.put(plugin.mobs.kind(e.getEntity()), new ArrayList<>(e.getDrops()));
+    }
+
+    // ---- stage 7: the ten Nether Lords, one at a time -------------------------------------------------------------------
+    private final Map<String, List<ItemStack>> lordDrops = new TreeMap<>();
+
+    private void lords(List<String> ids, int i) {
+        if (i >= ids.size()) {
+            check("lords_all_slain", plugin.lords.slain >= ids.size(), "slain=" + plugin.lords.slain + " " + plugin.lords.slainBy);
+            finish();
+            return;
+        }
+        String id = ids.get(i);
+        Lords.Def d = Lords.DEFS.get(id);
+        Location at = site.clone().add(0, d.flies ? 10 : 0, 14);
+        int risen = plugin.lords.risen;
+        LivingEntity e = plugin.lords.rise(w, d, at.getBlockX(), at.getBlockY(), at.getBlockZ());
+        double expect = d.hp * plugin.mobs.hpMult;
+        boolean ok = e != null && e.isValid() && plugin.lords.risen == risen + 1 && e.getScoreboardTags().contains("jn_lord")
+            && e.getType() == d.base && Math.abs(e.getMaxHealth() - expect) < 0.5;
+        check("lord_rise_" + id, ok, e == null ? "null" : "base=" + e.getType() + " hp=" + NetherPlugin.fmt(e.getMaxHealth()) + " expect=" + NetherPlugin.fmt(expect)
+            + " active=" + plugin.lords.active() + " name=" + org.bukkit.ChatColor.stripColor(e.getCustomName()));
+        if (e == null) { lords(ids, i + 1); return; }
+        later(60, () -> {
+            boolean alive = e.isValid() && !e.isDead();
+            check("lord_fights_" + id, alive, "valid=" + e.isValid() + " at=" + e.getLocation().getBlockX() + "," + e.getLocation().getBlockY() + "," + e.getLocation().getBlockZ());
+            e.setHealth(0);
+            later(d.base == EntityType.ENDER_DRAGON ? 220 : 20, () -> {
+                List<ItemStack> drops = lordDrops.getOrDefault(id, new ArrayList<>());
+                boolean shards = false;
+                for (ItemStack s : drops) if (Items.is(s, "hellforged_shard")) shards = true;
+                check("lord_hoard_" + id, drops.size() >= 4 && shards, "drops=" + drops.size() + " slain=" + plugin.lords.slainBy.getOrDefault(id, 0));
+                lords(ids, i + 1);
+            });
+        });
     }
 
     private void finish() {

@@ -1,4 +1,8 @@
-# BetterNether + NetherEx (JasprNether 1.1.0) -- 2026-09-26, mega structures 2026-09-28
+# BetterNether + NetherEx (JasprNether 1.2.0) -- 2026-09-26, mega structures 2026-09-28, GLM builds 2026-09-29
+
+> 2026-09-29 (1.2.0): the owner's 98 GLM structures spawn in the Nether with 13 new creatures, spawners, mob packs,
+> trapped chests, Nether-themed loot, gear and trinkets, and the ten Nether Lords; three Lords must be conquered before
+> the Urn of Sorrow answers. The Nether regenerates (epoch 3). See GLM_NETHER_UPDATE.md.
 
 > 2026-09-29: the Nether can be beaten step by step with the Nether Guide's compass, checklist and map (reach the
 > Spore Cathedral, take a Potion of Sorrow from the Font of Sorrow in its crypt, pour it into the Urn, slay the Ghast

@@ -108,6 +108,26 @@ final class Crafting implements Listener {
         shapeless("stalagnate_bowl_mushroom", "stalagnate_bowl_mushroom", 1, false, v(Material.BROWN_MUSHROOM), v(Material.RED_MUSHROOM), x("stalagnate_bowl"));
         shaped("stalagnate_bowl_apple", "stalagnate_bowl_apple", 1, true, "A", "B").k('A', x("black_apple")).k('B', x("stalagnate_bowl"));
 
+        // ---- JasperCraft: the GLM strongholds' gear, forged from their creatures' drops ----
+        shaped("hellforged_ingot", "hellforged_ingot", 1, false, "SS", "SS").k('S', x("hellforged_shard"));     // the nether-brick block shape
+        for (String[] a : armour) {
+            String[] shape = java.util.Arrays.copyOfRange(a, 1, a.length);
+            shaped("hellforged_" + a[0], "hellforged_" + a[0], 1, true, shape).k('A', x("hellforged_ingot"));
+            shaped("soulweave_" + a[0], "soulweave_" + a[0], 1, true, shape).k('A', x("soul_essence"));
+        }
+        shaped("infernal_blade", "infernal_blade", 1, true, "I", "I", "B").k('I', x("hellforged_ingot")).k('B', v(Material.BLAZE_ROD));
+        shaped("soulreaper_scythe", "soulreaper_scythe", 1, true, "SS", " B", " B").k('S', x("soul_essence")).k('B', x("ashbone"));
+        shaped("magma_maul", "magma_maul", 1, true, "MIM", " B ", " B ").k('M', x("molten_core")).k('I', x("hellforged_ingot")).k('B', v(Material.BLAZE_ROD));
+        shaped("ember_bow", "ember_bow", 1, true, " PS", "P S", " PS").k('P', x("pyre_ember")).k('S', v(Material.STRING));
+        shaped("obsidian_aegis", "obsidian_aegis", 1, true, "OIO", "OOO", " O ").k('O', v(Material.OBSIDIAN)).k('I', x("hellforged_ingot"));
+        shapeless("brimstone_idol", "brimstone_idol", 1, true, x("brimstone"), x("brimstone"), x("brimstone"), x("brimstone"), x("hellforged_ingot"));
+        shapeless("heart_of_cinders", "heart_of_cinders", 1, true, x("hex_ember"), x("hex_ember"), x("hex_ember"), x("hex_ember"), x("molten_core"));
+        shapeless("hellhound_collar", "hellhound_collar", 1, true, x("hellhound_fang"), x("hellhound_fang"), x("hellhound_fang"), x("hellhound_fang"), v(Material.LEATHER));
+        shapeless("ember_heart", "ember_heart", 1, true, x("pyre_ember"), x("pyre_ember"), x("pyre_ember"), x("pyre_ember"), x("molten_core"));
+        shapeless("wither_ward", "wither_ward", 1, true, x("charred_bone"), x("charred_bone"), x("charred_bone"), x("charred_bone"), x("soul_essence"));
+        shapeless("magma_band", "magma_band", 1, true, x("molten_core"), x("molten_core"), x("imp_horn"), x("imp_horn"), v(Material.GOLD_INGOT));
+        shapeless("ghastly_pendant", "ghastly_pendant", 1, true, x("void_shard"), x("void_shard"), x("void_shard"), v(Material.GHAST_TEAR), v(Material.STRING));
+
         int n = 0;
         for (R r : recipes) {
             if (!r.register) continue;
@@ -194,7 +214,9 @@ final class Crafting implements Listener {
         R r = match(m);
         if (r != null) { e.getInventory().setResult(Items.create(r.result, r.amount)); return; }
         Recipe chosen = e.getRecipe();
-        if (chosen instanceof Keyed && ((Keyed) chosen).getKey().getNamespace().equalsIgnoreCase(plugin.getName())) e.getInventory().setResult(null);
+        if (chosen instanceof Keyed && ((Keyed) chosen).getKey().getNamespace().equalsIgnoreCase(plugin.getName())) { e.getInventory().setResult(null); return; }
+        // the GLM loot never feeds a vanilla recipe as its plain material (a Magma Band is not a gold nugget)
+        for (ItemStack s : m) if (s != null && s.getType() != Material.AIR && Items.guarded(Items.id(s))) { e.getInventory().setResult(null); return; }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

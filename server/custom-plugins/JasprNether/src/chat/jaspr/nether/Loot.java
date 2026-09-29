@@ -2,6 +2,7 @@ package chat.jaspr.nether;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
@@ -164,8 +165,77 @@ final class Loot {
         .add(6, nx("rime_crystal", 1, 3)).add(4, nx("frost_powder", 1, 3)).add(3, v(Material.PACKED_ICE, 2, 6)).add(3, v(Material.BONE, 1, 3))
         .add(2, nx("frost_fang", 1, 1)).add(2, v(Material.GOLD_NUGGET, 2, 6));
 
+    // ---- the GLM strongholds (glm:<tier>:<theme>) --------------------------------------------------------------------
+    static final String[] GEAR = {"hellforged_helmet", "hellforged_chestplate", "hellforged_leggings", "hellforged_boots", "soulweave_helmet",
+        "soulweave_chestplate", "soulweave_leggings", "soulweave_boots"};
+    static final String[] WEAPONS = {"infernal_blade", "soulreaper_scythe", "magma_maul", "ember_bow"};
+    static final String[] TRINKETS = {"brimstone_idol", "heart_of_cinders", "hellhound_collar", "obsidian_aegis", "ember_heart", "wither_ward",
+        "magma_band", "ghastly_pendant"};
+    /** Odds and ends: every chest of a stronghold is worth opening. */
+    static final Pool GLM_SCRAPS = new Pool(1, 3)
+        .add(8, v(Material.GOLD_NUGGET, 1, 5)).add(6, v(Material.BONE, 1, 3)).add(5, v(Material.ARROW, 2, 6)).add(4, v(Material.STRING, 1, 3))
+        .add(4, v(Material.SULPHUR, 1, 2)).add(4, v(Material.BREAD, 1, 2)).add(4, v(Material.NETHER_STALK, 1, 3)).add(4, v(Material.COAL, 1, 3))
+        .add(4, v(Material.QUARTZ, 1, 4)).add(4, v(Material.IRON_NUGGET, 1, 5)).add(3, v(Material.GLOWSTONE_DUST, 1, 3)).add(3, v(Material.TORCH, 2, 6))
+        .add(3, nx("hellforged_shard", 1, 1)).add(2, nx("charred_bone", 1, 2)).add(2, nx("brimstone", 1, 2)).add(1, nx("amethyst_crystal", 1, 1));
+    /** A stronghold's ordinary chests. */
+    static final Pool GLM_COMMON = new Pool(3, 6)
+        .add(8, v(Material.GOLD_INGOT, 1, 3)).add(7, v(Material.IRON_INGOT, 1, 4)).add(6, nx("amethyst_crystal", 1, 3)).add(6, nx("hellforged_shard", 1, 3))
+        .add(5, v(Material.QUARTZ, 2, 8)).add(4, v(Material.BLAZE_POWDER, 1, 3)).add(4, v(Material.MAGMA_CREAM, 1, 3)).add(3, potion(org.bukkit.potion.PotionType.FIRE_RESISTANCE))
+        .add(4, v(Material.ARROW, 4, 12)).add(3, v(Material.GOLDEN_CARROT, 1, 3)).add(3, v(Material.COOKED_BEEF, 2, 4)).add(2, book())
+        .add(2, v(Material.OBSIDIAN, 1, 3)).add(2, nx("soul_essence", 1, 1)).add(2, nx("molten_core", 1, 1))
+        .add(1, r -> Items.create(GEAR[r.nextInt(GEAR.length)], 1)).add(1, r -> Items.create(TRINKETS[r.nextInt(TRINKETS.length)], 1));
+    /** The chests of great buildings and Lords' strongholds. */
+    static final Pool GLM_RICH = new Pool(4, 7)
+        .add(8, nx("hellforged_shard", 2, 5)).add(4, nx("hellforged_ingot", 1, 2)).add(7, v(Material.GOLD_INGOT, 2, 5)).add(6, nx("amethyst_crystal", 2, 5))
+        .add(4, v(Material.IRON_INGOT, 2, 6)).add(3, v(Material.DIAMOND, 1, 2)).add(4, book()).add(3, v(Material.GOLDEN_APPLE, 1, 1))
+        .add(4, potion(org.bukkit.potion.PotionType.FIRE_RESISTANCE)).add(2, potion(org.bukkit.potion.PotionType.STRENGTH)).add(3, nx("soul_essence", 1, 2))
+        .add(3, nx("molten_core", 1, 2)).add(3, nx("void_shard", 1, 2)).add(4, r -> Items.create(GEAR[r.nextInt(GEAR.length)], 1))
+        .add(3, r -> Items.create(WEAPONS[r.nextInt(WEAPONS.length)], 1)).add(3, r -> Items.create(TRINKETS[r.nextInt(TRINKETS.length)], 1));
+    /** Vaults: the deepest chest of a building; always a prize. */
+    static final Pool GLM_VAULT = new Pool(5, 8)
+        .add(8, v(Material.GOLD_INGOT, 3, 7)).add(7, nx("amethyst_crystal", 3, 8)).add(5, v(Material.DIAMOND, 1, 3)).add(5, nx("hellforged_ingot", 1, 3))
+        .add(4, book()).add(4, v(Material.GOLDEN_APPLE, 1, 2)).add(4, nx("molten_core", 1, 2)).add(4, nx("soul_essence", 1, 3))
+        .add(5, r -> Items.create(GEAR[r.nextInt(GEAR.length)], 1)).add(4, r -> Items.create(WEAPONS[r.nextInt(WEAPONS.length)], 1))
+        .add(4, r -> Items.create(TRINKETS[r.nextInt(TRINKETS.length)], 1)).add(1, v(Material.GHAST_TEAR, 1, 2));
+    /** Each theme's own goods, one or two rolls on top of the tier. */
+    static final Map<String, Pool> THEME = new java.util.HashMap<>();
+    static {
+        THEME.put("bastion", new Pool(1, 2).add(6, v(Material.GOLD_INGOT, 2, 5)).add(5, v(Material.GOLD_NUGGET, 6, 18)).add(3, nx("imp_horn", 1, 2)).add(2, v(Material.GOLD_SWORD, 1, 1)));
+        THEME.put("fortress", new Pool(1, 2).add(5, nx("wither_bone", 1, 2)).add(5, nx("ashbone", 1, 3)).add(4, v(Material.BLAZE_ROD, 1, 2)).add(3, nx("hellforged_shard", 1, 3)));
+        THEME.put("castle", new Pool(1, 2).add(5, v(Material.IRON_INGOT, 2, 5)).add(4, v(Material.ARROW, 6, 16)).add(3, nx("hellforged_shard", 1, 3)).add(3, book()));
+        THEME.put("crypt", new Pool(1, 2).add(5, v(Material.BONE, 2, 6)).add(5, nx("charred_bone", 1, 3)).add(4, nx("soul_essence", 1, 2)).add(3, nx("wither_dust", 1, 3)));
+        THEME.put("arcane", new Pool(1, 2).add(5, nx("hex_ember", 1, 3)).add(5, nx("pyre_ember", 1, 3)).add(4, book()).add(3, v(Material.GHAST_TEAR, 1, 1))
+            .add(2, potion(org.bukkit.potion.PotionType.STRENGTH)));
+        THEME.put("volcanic", new Pool(1, 2).add(6, nx("molten_core", 1, 2)).add(5, v(Material.MAGMA_CREAM, 2, 5)).add(4, nx("pyre_ember", 1, 3)).add(3, v(Material.OBSIDIAN, 2, 5)));
+        THEME.put("void", new Pool(1, 2).add(6, nx("void_shard", 1, 3)).add(4, nx("soul_essence", 1, 2)).add(3, v(Material.ENDER_PEARL, 1, 2)).add(3, v(Material.CHORUS_FRUIT, 2, 5)));
+        THEME.put("temple", new Pool(1, 2).add(5, nx("brimstone", 2, 5)).add(5, nx("hex_ember", 1, 2)).add(4, v(Material.GOLD_NUGGET, 4, 12)).add(3, v(Material.GLOWSTONE_DUST, 3, 8)));
+        THEME.put("dungeon", new Pool(1, 2).add(5, nx("brimstone", 1, 4)).add(5, v(Material.STRING, 2, 6)).add(4, nx("charred_bone", 1, 3)).add(4, v(Material.IRON_NUGGET, 4, 12)));
+        THEME.put("hub", new Pool(1, 2).add(5, v(Material.IRON_INGOT, 2, 5)).add(5, v(Material.QUARTZ, 4, 12)).add(4, v(Material.GOLD_NUGGET, 4, 12)).add(3, v(Material.OBSIDIAN, 2, 6)));
+        THEME.put("farm", new Pool(1, 2).add(6, v(Material.NETHER_STALK, 4, 12)).add(5, v(Material.MAGMA_CREAM, 1, 3)).add(4, v(Material.GRILLED_PORK, 2, 5)).add(3, nx("imp_horn", 1, 2)));
+        THEME.put("vault", new Pool(1, 3).add(6, v(Material.GOLD_INGOT, 2, 6)).add(5, nx("amethyst_crystal", 2, 6)).add(2, v(Material.DIAMOND, 1, 2)).add(3, nx("hellforged_ingot", 1, 1)));
+        THEME.put("cathedral", new Pool(1, 2).add(5, nx("soul_essence", 1, 3)).add(5, nx("hex_ember", 1, 2)).add(4, book()).add(3, v(Material.GOLD_NUGGET, 4, 10)));
+        THEME.put("ruin", new Pool(1, 2).add(5, nx("charred_bone", 1, 3)).add(5, nx("hellhound_fang", 1, 2)).add(4, v(Material.COOKED_BEEF, 2, 4)).add(3, v(Material.ARROW, 4, 10)));
+    }
+
     static List<ItemStack> roll(String table, Random r) {
         List<ItemStack> out = new ArrayList<>();
+        if (table.startsWith("glm:")) {
+            String[] p = table.split(":");
+            String tier = p.length > 1 ? p[1] : "common", theme = p.length > 2 ? p[2] : "";
+            switch (tier) {
+                case "scraps": GLM_SCRAPS.roll(r, out); return out;
+                case "rich": GLM_RICH.roll(r, out); break;
+                case "vault":
+                    GLM_VAULT.roll(r, out);
+                    String[] prize = r.nextInt(3) == 0 ? WEAPONS : r.nextBoolean() ? GEAR : TRINKETS;
+                    out.add(Items.create(prize[r.nextInt(prize.length)], 1));
+                    break;
+                default: GLM_COMMON.roll(r, out);
+            }
+            Pool t = THEME.get(theme);
+            if (t != null) t.roll(r, out);
+            return out;
+        }
         switch (table) {
             case "netherex:chest/temple_rare": NETHER_BRIDGE.roll(r, out); BASE_TEMPLE.roll(r, out); break;
             case "netherex:chest/base_temple": BASE_TEMPLE.roll(r, out); break;
@@ -193,7 +263,8 @@ final class Loot {
     static final String[] TABLES = {"minecraft:chests/nether_bridge", "netherex:chest/temple_rare", "netherex:chest/base_temple", "netherex:chest/base_village",
         "jaspr:mega/bazaar", "jaspr:mega/bazaar_vault", "jaspr:mega/pyramid", "jaspr:mega/pyramid_vault", "jaspr:mega/forge", "jaspr:mega/forge_vault",
         "jaspr:mega/cathedral", "jaspr:mega/cathedral_vault", "jaspr:mega/citadel", "jaspr:mega/citadel_vault",
-        "jaspr:wonder/camp", "jaspr:wonder/cage", "jaspr:wonder/grave", "jaspr:wonder/obelisk"};
+        "jaspr:wonder/camp", "jaspr:wonder/cage", "jaspr:wonder/grave", "jaspr:wonder/obelisk",
+        "glm:scraps:castle", "glm:common:bastion", "glm:rich:crypt", "glm:vault:volcanic", "glm:vault:arcane", "glm:rich:void", "glm:common:farm"};
 
     /** Vanilla-style fill: each rolled stack goes to a random empty slot (large stacks may be split in two). */
     static int fill(Inventory inv, String table, Random r) {

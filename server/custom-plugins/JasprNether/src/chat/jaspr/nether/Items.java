@@ -26,6 +26,13 @@ final class Items {
     static final class Def {
         final String id, name, mod; final Material mat; final short data; final boolean glint; final String[] lore;
         final int armor; final double toughness; final Color colour; final double attack, speed; final int efficiency;
+        final List<Object[]> mods = new ArrayList<>();
+        final Map<org.bukkit.enchantments.Enchantment, Integer> enchants = new LinkedHashMap<>();
+        boolean unbreakable;
+        /** An extra attribute modifier (op 0 add, 1 multiply base) in a slot (mainhand, offhand, head, chest, legs, feet). */
+        Def mod(String attr, double amount, int op, String slot) { mods.add(new Object[]{attr, amount, op, slot}); return this; }
+        Def ench(org.bukkit.enchantments.Enchantment e, int level) { enchants.put(e, level); return this; }
+        Def unbreakable() { unbreakable = true; return this; }
         Def(String id, Material mat, int data, String name, String mod, boolean glint, String... lore) {
             this(id, mat, data, name, mod, glint, 0, 0, null, 0, 0, 0, lore);
         }
@@ -39,6 +46,15 @@ final class Items {
 
     static final Map<String, Def> DEFS = new LinkedHashMap<>();
     private static void def(Def d) { DEFS.put(d.id, d); }
+
+    static final Color HELLFORGED = Color.fromRGB(0x6A1208), SOULWEAVE = Color.fromRGB(0x3B2A5C), VOIDSTEP = Color.fromRGB(0x1E1030);
+    static final String JC = "JasperCraft";
+    static final String[] LORD_IDS = {"deathwing", "ignareth", "pit_lord", "ashen_wither", "cursed_king", "dread_sorcerer", "voidborn",
+        "bone_colossus", "crimson_tyrant", "blood_count"};
+    static final String[] LORD_NAMES = {"Deathwing", "Ignareth the Magma Wyrm", "the Pit Lord", "the Ashen Wither", "the Cursed King",
+        "the Dread Sorcerer", "the Voidborn", "the Bone Colossus", "the Crimson Tyrant", "the Blood Count"};
+    private static final Material[] DISCS = {Material.RECORD_3, Material.RECORD_4, Material.RECORD_5, Material.RECORD_6, Material.RECORD_7,
+        Material.RECORD_8, Material.RECORD_9, Material.RECORD_10, Material.RECORD_11, Material.RECORD_12};
 
     static final Color WITHER_BONE = Color.fromRGB(0x3B3B3B), ORANGE_HIDE = Color.fromRGB(0xE0701B), BLACK_HIDE = Color.fromRGB(0x1A1A1A);
 
@@ -106,7 +122,69 @@ final class Items {
         def(new Def("stalagnate_bowl_wart", Material.BEETROOT_SOUP, 0, "Wart Soup", bn, false));
         def(new Def("stalagnate_bowl_mushroom", Material.MUSHROOM_SOUP, 0, "Mushroom Stew", bn, false));
         def(new Def("stalagnate_bowl_apple", Material.RABBIT_STEW, 0, "Black Apple Stew", bn, false));
+        glm();
     }
+
+    // ---- the GLM strongholds' loot (owner, 2026-09-29: "a lot of custom loot that has a Nether theme ... new trinkets
+    // ... All of the new items, trinkets, weapons, armor, etc., should all have a nether theme") ------------------------
+    private static void glm() {
+        // materials, dropped by the strongholds' creatures
+        def(new Def("hellforged_shard", Material.NETHER_BRICK_ITEM, 0, "Hellforged Shard", JC, false, "Four make a Hellforged Ingot"));
+        def(new Def("hellforged_ingot", Material.CLAY_BRICK, 0, "Hellforged Ingot", JC, true, "Forge Hellforged armour and blades"));
+        def(new Def("ashbone", Material.BONE, 0, "Ashbone", JC, false, "From Ashbone Archers"));
+        def(new Def("hellhound_fang", Material.PRISMARINE_SHARD, 0, "Hellhound Fang", JC, false, "From Hellhounds"));
+        def(new Def("imp_horn", Material.FLINT, 0, "Imp Horn", JC, false, "From Cinder Imps"));
+        def(new Def("soul_essence", Material.FIREWORK_CHARGE, 0, "Soul Essence", JC, true, "From Soul Wraiths", "Weave it into Soulweave armour"));
+        def(new Def("molten_core", Material.MAGMA_CREAM, 0, "Molten Core", JC, true, "From Magma Hulks"));
+        def(new Def("pyre_ember", Material.BLAZE_POWDER, 0, "Pyre Ember", JC, false, "From Pyre Wardens"));
+        def(new Def("void_shard", Material.PRISMARINE_CRYSTALS, 0, "Void Shard", JC, true, "From Shades"));
+        def(new Def("brimstone", Material.GLOWSTONE_DUST, 0, "Brimstone", JC, false, "From Brimstone Spiders"));
+        def(new Def("charred_bone", Material.COAL, 1, "Charred Bone", JC, false, "From Charred Ghouls"));
+        def(new Def("hex_ember", Material.INK_SACK, 5, "Hex Ember", JC, true, "From Cinder Witches"));
+        // weapons
+        def(new Def("infernal_blade", Material.DIAMOND_SWORD, 0, "Infernal Blade", JC, true, 0, 0, null, 8, 1.6, 0, "Sets its foes ablaze"));
+        def(new Def("soulreaper_scythe", Material.DIAMOND_HOE, 0, "Soulreaper Scythe", JC, true, 0, 0, null, 9, 1.1, 0, "Heals you for a fifth of its damage"));
+        def(new Def("magma_maul", Material.DIAMOND_AXE, 0, "Magma Maul", JC, true, 0, 0, null, 12, 0.8, 0, "Its blows burst in flame around the foe"));
+        def(new Def("ember_bow", Material.BOW, 0, "Ember Bow", JC, false, "Burning arrows").ench(org.bukkit.enchantments.Enchantment.ARROW_FIRE, 1)
+            .ench(org.bukkit.enchantments.Enchantment.ARROW_DAMAGE, 2));
+        // armour sets
+        String[] slots = {"helmet", "chestplate", "leggings", "boots"}, slotNames = {"Helmet", "Chestplate", "Leggings", "Boots"};
+        Material[] leather = {Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE, Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS};
+        int[] hell = {3, 7, 5, 2}, soul = {2, 6, 5, 2};
+        for (int i = 0; i < 4; i++) {
+            def(new Def("hellforged_" + slots[i], leather[i], 0, "Hellforged " + slotNames[i], JC, false, hell[i], 2, HELLFORGED, 0, 0, 0, "Full set: four more hearts"));
+            def(new Def("soulweave_" + slots[i], leather[i], 0, "Soulweave " + slotNames[i], JC, false, soul[i], 1, SOULWEAVE, 0, 0, 0, "Full set: the wither cannot touch you"));
+        }
+        // trinkets: carried in the off hand (their power shows in the off hand) or anywhere in the inventory
+        def(new Def("brimstone_idol", Material.QUARTZ, 0, "Brimstone Idol", JC, true, "In the off hand: +2 attack damage").mod("generic.attackDamage", 2, 0, "offhand"));
+        def(new Def("heart_of_cinders", Material.FERMENTED_SPIDER_EYE, 0, "Heart of Cinders", JC, true, "In the off hand: two more hearts").mod("generic.maxHealth", 4, 0, "offhand"));
+        def(new Def("hellhound_collar", Material.RABBIT_HIDE, 0, "Hellhound Collar", JC, true, "In the off hand: run 15% faster").mod("generic.movementSpeed", 0.15, 1, "offhand"));
+        def(new Def("obsidian_aegis", Material.SHIELD, 0, "Obsidian Aegis", JC, true, "A shield of the Nether's black glass").mod("generic.armor", 3, 0, "offhand")
+            .mod("generic.armorToughness", 2, 0, "offhand"));
+        def(new Def("ember_heart", Material.SPECKLED_MELON, 0, "Ember Heart", JC, true, "In the off hand: fire cannot burn you"));
+        def(new Def("wither_ward", Material.INK_SACK, 0, "Wither Ward", JC, true, "Carried: the wither cannot touch you"));
+        def(new Def("magma_band", Material.GOLD_NUGGET, 0, "Magma Band", JC, true, "Carried: magma cannot burn your feet", "and whoever strikes you catches fire"));
+        def(new Def("ghastly_pendant", Material.GHAST_TEAR, 0, "Ghastly Pendant", JC, true, "Carried: when you are near death,", "it mends you (once a minute)"));
+        // the Nether Lords' relics (half the time in a Lord's hoard) and sigils (to everyone who conquers one)
+        def(new Def("deathwing_talon", Material.DIAMOND_SWORD, 0, "Deathwing's Talon", JC, true, 0, 0, null, 11, 1.6, 0, "Relic of Deathwing", "Burns and hurls its foes").unbreakable());
+        def(new Def("wyrmfire_bow", Material.BOW, 0, "Wyrmfire Bow", JC, true, "Relic of Ignareth", "Its arrows burst in flame").unbreakable()
+            .ench(org.bukkit.enchantments.Enchantment.ARROW_FIRE, 1).ench(org.bukkit.enchantments.Enchantment.ARROW_DAMAGE, 3));
+        def(new Def("pit_lord_cleaver", Material.DIAMOND_AXE, 0, "Pit Lord's Cleaver", JC, true, 0, 0, null, 14, 0.8, 0, "Relic of the Pit Lord", "Burns and slows its foes").unbreakable());
+        def(new Def("ashen_crown", Material.GOLD_HELMET, 0, "Ashen Crown", JC, true, 4, 2, null, 0, 0, 0, "Relic of the Ashen Wither", "Worn: the wither cannot touch you").unbreakable());
+        def(new Def("cursed_katana", Material.DIAMOND_SWORD, 0, "Cursed Katana", JC, true, 0, 0, null, 10, 1.9, 0, "Relic of the Cursed King", "Withers its foes").unbreakable());
+        def(new Def("dread_staff", Material.BLAZE_ROD, 0, "Dread Staff", JC, true, "Relic of the Dread Sorcerer", "Right-click: hurl a fireball"));
+        def(new Def("voidstep_boots", Material.LEATHER_BOOTS, 0, "Voidstep Boots", JC, true, 3, 2, VOIDSTEP, 0, 0, 0, "Relic of the Voidborn", "Worn: no fall damage, 10% faster")
+            .mod("generic.movementSpeed", 0.1, 1, "feet").unbreakable());
+        def(new Def("colossus_maul", Material.DIAMOND_SPADE, 0, "Colossus Maul", JC, true, 0, 0, null, 15, 0.7, 0, "Relic of the Bone Colossus", "Hurls its foes into the air").unbreakable());
+        def(new Def("tyrant_heart", Material.INK_SACK, 1, "Tyrant's Heart", JC, true, "Relic of the Crimson Tyrant", "In the off hand: fire cannot burn you,", "and you take less harm"));
+        def(new Def("bloodfang_dagger", Material.IRON_SWORD, 0, "Bloodfang Dagger", JC, true, 0, 0, null, 7, 2.2, 0, "Relic of the Blood Count", "Drinks a quarter of the harm it deals").unbreakable());
+        for (int i = 0; i < LORD_IDS.length; i++)
+            def(new Def("sigil_" + LORD_IDS[i], DISCS[i], 0, "Sigil of " + Character.toUpperCase(LORD_NAMES[i].charAt(0)) + LORD_NAMES[i].substring(1), JC, true,
+                "Proof that " + LORD_NAMES[i] + " fell to you", "Three Lords conquered open the Urn of Sorrow"));
+    }
+
+    /** Items made only from JasperCraft's GLM loot: a vanilla recipe must never take them as plain materials. */
+    static boolean guarded(String id) { Def d = id == null ? null : DEFS.get(id); return d != null && JC.equals(d.mod); }
 
     static ItemStack create(String id, int amount) {
         Def d = DEFS.get(id);
@@ -120,6 +198,10 @@ final class Items {
         m.setLore(lore);
         if (d.glint) { m.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true); m.addItemFlags(ItemFlag.HIDE_ENCHANTS); }
         if (d.efficiency > 0) { m.addEnchant(org.bukkit.enchantments.Enchantment.DIG_SPEED, d.efficiency, true); m.addItemFlags(ItemFlag.HIDE_ENCHANTS); }
+        for (Map.Entry<org.bukkit.enchantments.Enchantment, Integer> en : d.enchants.entrySet()) m.addEnchant(en.getKey(), en.getValue(), true);
+        if (!d.enchants.isEmpty() && d.glint) m.removeEnchant(org.bukkit.enchantments.Enchantment.DURABILITY);
+        if (!d.enchants.isEmpty()) m.removeItemFlags(ItemFlag.HIDE_ENCHANTS);
+        if (d.unbreakable) { m.setUnbreakable(true); m.addItemFlags(ItemFlag.HIDE_UNBREAKABLE); }
         if (m instanceof LeatherArmorMeta && d.colour != null) ((LeatherArmorMeta) m).setColor(d.colour);
         if (d.mat == Material.POTION) m.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS);
         s.setItemMeta(m);
@@ -128,15 +210,21 @@ final class Items {
         NBTTagCompound mine = new NBTTagCompound();
         mine.setString("id", id);
         tag.set("JasprNether", mine);
-        if (d.armor > 0 || d.attack > 0) {
+        if (d.armor > 0 || d.attack > 0 || !d.mods.isEmpty()) {
             NBTTagList mods = new NBTTagList();
             String slot = slotOf(d.mat);
             if (d.armor > 0) {
                 mods.add(modifier("generic.armor", d.armor, slot, 1));
                 if (d.toughness > 0) mods.add(modifier("generic.armorToughness", d.toughness, slot, 2));
-            } else {
+            } else if (d.attack > 0) {
                 mods.add(modifier("generic.attackDamage", d.attack - 1, "mainhand", 3));
                 mods.add(modifier("generic.attackSpeed", d.speed - 4, "mainhand", 4));
+            }
+            int k = 5;
+            for (Object[] o : d.mods) {
+                NBTTagCompound c = modifier((String) o[0], (Double) o[1], (String) o[3], k++);
+                c.setInt("Operation", (Integer) o[2]);
+                mods.add(c);
             }
             tag.set("AttributeModifiers", mods);
             tag.setInt("HideFlags", tag.getInt("HideFlags") | 2 | (d.glint || d.efficiency > 0 ? 1 : 0));

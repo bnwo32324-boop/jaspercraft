@@ -38,6 +38,31 @@ final class Navigator {
             }
             return new Location(w, best.x1 + 0.5, best.y1 + 1, best.z1 + 0.5);
         }
+        GlmSites.Site g = glmSite(plugin, from, t);
+        if (g != null) {
+            // the plan knows every build, generated or not: arrive on its cavern floor, at the edge of its box
+            plugin.getLogger().info("NETHER_GOTO_GLM build=" + g.e.key + " tier=" + g.tier + " at=" + g.x + "," + g.floor + "," + g.z);
+            // a Lord's stronghold: beside its arena (flying Lords circle above their lair: the ground under it)
+            int[] a = plugin.gen.glm.arena(g);
+            if (a != null) {
+                populate(w, a[0], a[2]);
+                boolean flies = Lords.DEFS.get(g.e.lord).flies;
+                for (int[] o : new int[][]{{0, 6}, {6, 0}, {0, -6}, {-6, 0}, {4, 4}, {-4, -4}, {0, 10}, {10, 0}, {0, -10}, {-10, 0}}) {
+                    populate(w, a[0] + o[0], a[2] + o[1]);
+                    Location l = dry(safe(w, a[0] + o[0], a[2] + o[1], flies ? a[1] - 6 : a[1] + 4, flies ? g.floor - 2 : a[1] - 4));
+                    if (l != null) { l.setDirection(new Vector(-o[0], flies ? 1.2 : 0, -o[1])); return l; }
+                }
+            }
+            // just outside the build's own box, inside its cavern (the margin around a build is at least ten blocks)
+            int depth = (g.rot & 1) == 0 ? g.e.sz : g.e.sx;
+            for (int back = depth / 2 + 4; back >= 0; back -= 2) {
+                populate(w, g.x, g.z + back);
+                Location l = dry(safe(w, g.x, g.z + back, g.floor + 4, g.floor - 2));
+                if (l != null) { l.setDirection(new Vector(0, 0, -1)); return l; }
+            }
+            return new Location(w, g.x + 0.5, Math.min(120, g.floor + g.e.maxCeil - 2), g.z + 0.5);
+        }
+        if (t.equals("glm") || t.equals("lord") || Lords.isLord(t)) return null;
         Mega.Kind mk = Mega.Kind.byId(t);
         if (mk != null || t.equals("mega")) {
             // the plan knows every site, generated or not: arrive on the cavern floor in front of it
@@ -88,6 +113,45 @@ final class Navigator {
             }
         }
         return null;
+    }
+
+    /** The nearest GLM build for a goto target: "glm" (any), "lord" (any Lord), a Lord's id, or a build's key (n153). */
+    static GlmSites.Site glmSite(NetherPlugin plugin, Location from, String t) {
+        if (plugin.gen == null) return null;
+        GlmSites glm = plugin.gen.glm;
+        int x = from.getBlockX(), z = from.getBlockZ();
+        GlmSites.Site best = null;
+        double bd = Double.MAX_VALUE;
+        String key = t.toUpperCase(Locale.ROOT);
+        boolean any = t.equals("glm"), lord = t.equals("lord") || Lords.isLord(t), byKey = glm.entry(key) != null;
+        if (!any && !lord && !byKey) return null;
+        for (GlmSites.Tier tier : GlmSites.Tier.values()) {
+            if (lord && tier != GlmSites.Tier.LORD) continue;
+            int cells = any ? 2 : tier == GlmSites.Tier.COMMON ? 10 : tier == GlmSites.Tier.GREAT ? 7 : 5;
+            int cx = Math.floorDiv(x, tier.cell), cz = Math.floorDiv(z, tier.cell);
+            for (int dx = -cells; dx <= cells; dx++) for (int dz = -cells; dz <= cells; dz++) {
+                GlmSites.Site s = glm.site(tier, cx + dx, cz + dz);
+                if (s == null || Boolean.FALSE.equals(plugin.registry.glmDecision(tier.name().charAt(0), s.cellX, s.cellZ))) continue;
+                if (byKey && !s.e.key.equals(key)) continue;
+                if (Lords.isLord(t) && !t.equals(s.e.lord)) continue;
+                double d = s.dist(x, z);
+                if (d < bd) { bd = d; best = s; }
+            }
+        }
+        return best;
+    }
+
+    /** Loads the chunks around a column so it is populated (a chunk is decorated once its neighbours are loaded). */
+    static void populate(World w, int x, int z) {
+        for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) w.getChunkAt((x >> 4) + dx, (z >> 4) + dz);
+    }
+
+    /** The spot, unless it stands in or on a liquid. */
+    static Location dry(Location l) {
+        if (l == null) return null;
+        Block feet = l.getBlock(), under = feet.getRelative(0, -1, 0);
+        if (feet.isLiquid() || feet.getRelative(0, 1, 0).isLiquid() || under.isLiquid()) return null;
+        return l;
     }
 
     /** Highest standing spot between top and bottom: solid, non-lava floor with two blocks of air. */

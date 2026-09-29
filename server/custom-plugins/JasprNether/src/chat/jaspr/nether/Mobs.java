@@ -102,8 +102,12 @@ final class Mobs implements Listener {
         spec(new Spec("ghast_queen", "Ghast Queen", EntityType.GHAST, 140, 24, 0, 256, 0, 0, true, true, false, true, false, null));
         // vanilla ghasts of Hell regions can roll the Hell elite
         spec(new Spec("ghast", "Ghast", EntityType.GHAST, 10, 6, 0, 100, 0, 0, true, true, false, true, false, "Wailing Ghast"));
+        // the GLM strongholds' creatures and the Nether Lords (Fiends, Lords)
+        Fiends.specs(Mobs::spec);
+        Lords.specs(Mobs::spec);
     }
-    static int netherExKinds() { return KINDS.size() - 1; }
+    static int netherExKinds() { return 15; }
+    static int fiendKinds() { return Fiends.KINDS.size(); }
 
     static final class T {
         final LivingEntity e; final Spec spec; final boolean elite; final long born;
@@ -113,13 +117,15 @@ final class Mobs implements Listener {
         T(LivingEntity e, Spec spec, boolean elite, long born) { this.e = e; this.spec = spec; this.elite = elite; this.born = born; }
     }
 
-    private final NetherPlugin plugin;
+    final NetherPlugin plugin;
     private final Map<UUID, T> tracked = new LinkedHashMap<>();
     private final List<UUID> order = new ArrayList<>();
     private int cursor;
-    private final Random random = new Random();
-    private long now;
+    final Random random = new Random();
+    long now;
     private boolean spawning, dealing;
+    boolean spawning() { return spawning; }
+    void spawning(boolean on) { spawning = on; }
     long spawnedTotal, replaced, elites, abilityUses, peaceKept, sporeClouds;
     final Map<String, Integer> abilityCounts = new java.util.TreeMap<>();
     private final Map<Long, int[]> packs = new HashMap<>();
@@ -151,7 +157,7 @@ final class Mobs implements Listener {
     LivingEntity spawn(String kind, Location at, boolean elite) {
         Spec s = KINDS.get(kind);
         if (s == null || at.getWorld() == null) return null;
-        if (tracked.size() >= maxTracked && s.hostile && !kind.equals("ghast_queen")) return null;
+        if (tracked.size() >= maxTracked && s.hostile && !kind.equals("ghast_queen") && !Lords.isLord(kind)) return null;
         Entity raw;
         spawning = true;
         try { raw = at.getWorld().spawnEntity(at, s.base); } finally { spawning = false; }
@@ -189,6 +195,8 @@ final class Mobs implements Listener {
             case "pigtificate": Trades.setup(this, (Villager) e, random); name = e.getCustomName() != null ? e.getCustomName() : name; break;
             case "ghast": case "ghastling": case "ghast_queen": break;
             default:
+                if (Fiends.KINDS.contains(s.kind)) Fiends.configure(this, e, s, elite);
+                else if (Lords.isLord(s.kind)) Lords.configure(this, e, s);
         }
         if (elite && s.elite != null) name = s.elite;
         if (variant != null) e.addScoreboardTag("jn_v_" + variant);
@@ -259,6 +267,7 @@ final class Mobs implements Listener {
         t.stageSince = now;
         put(t);
         if (s.kind.equals("ghast_queen")) plugin.boss.adopt(e);
+        if (Lords.isLord(s.kind) && plugin.lords != null) plugin.lords.adopt(e);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -414,7 +423,7 @@ final class Mobs implements Listener {
             }
             case "brute": brute(t); break;
             case "gold_golem": case "pigtificate": leash(t); break;
-            default:
+            default: Fiends.think(this, t);
         }
     }
 
@@ -633,6 +642,8 @@ final class Mobs implements Listener {
                 if (random.nextInt(2) == 0) { v.setFireTicks(Math.max(v.getFireTicks(), 80)); ability("ember_ignite"); }
                 break;
             default:
+                Fiends.onHit(this, s, v);
+                if (Lords.isLord(s.spec.kind) && plugin.lords != null) plugin.lords.onHit(s, v);
         }
     }
 
@@ -657,6 +668,8 @@ final class Mobs implements Listener {
         if (!(p.getShooter() instanceof LivingEntity)) return;
         T t = track((LivingEntity) p.getShooter());
         if (t == null) return;
+        if (Fiends.launch(this, t, p)) return;
+        if (Lords.isLord(t.spec.kind) && plugin.lords != null && plugin.lords.launch(t, p)) return;
         LivingEntity shooter = t.e;
         if (t.spec.kind.equals("frost") && p instanceof SmallFireball) {
             // The Frost keeps the blaze's volley cadence (charge, three shots, pause) but throws frost shards.
@@ -709,6 +722,7 @@ final class Mobs implements Listener {
         if (e.getEntity() instanceof LargeFireball) return; // ghast fireballs keep vanilla block damage (owner rule)
         if (t == null && !(e.getEntity() instanceof Creeper)) return;
         e.blockList().clear();                           // no block damage from mob explosions
+        if (t != null && Lords.isLord(t.spec.kind)) return;
         if (t == null || !t.spec.kind.equals("spore_creeper")) return;
         Location l = e.getLocation();
         double radius = t.elite ? 6 : 4;
@@ -816,6 +830,8 @@ final class Mobs implements Listener {
             case "gold_golem": drops.add(new ItemStack(Material.GOLD_INGOT, 3 + random.nextInt(3))); break;
             case "ghast_queen": plugin.boss.loot(t, drops, looting); break;
             default:
+                if (!Fiends.loot(this, t, drops, looting, byPlayer) && Lords.isLord(t.spec.kind) && plugin.lords != null) plugin.lords.loot(t, drops, e);
+                Fiends.died(this, t);
         }
         if (t.elite) { addN(drops, "amethyst_crystal", 1 + random.nextInt(3)); e.setDroppedExp(e.getDroppedExp() * 3 + 10); }
     }
