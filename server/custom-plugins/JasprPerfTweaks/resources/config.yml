@@ -1,0 +1,19 @@
+mob-ai:
+  # Remove the cosmetic idle-look goals (random look-around, look at nearby player). Visual only. (AI Improvements)
+  trim-idle-look: true
+  # Mobs far from every player pick new goals less often; running goals (chasing, attacking) still update every tick.
+  # (Pufferfish/Airplane DAB, Lithium)
+  distance-throttle:
+    enabled: true
+    start-blocks: 16
+    max-interval: 10
+    # Also throttle target selection (noticing players). Off: mobs notice players exactly as before.
+    target-selector: false
+network:
+  # Merge the socket flushes queued in one event-loop turn into one write. Packet contents and order unchanged. (Krypton)
+  flush-consolidation: true
+pregen:
+  # /jprgen only: main-thread time the pregenerator may use per tick.
+  tick-budget-ms: 30
+  # Pause while more players than this are online (0 = only run on an empty server).
+  max-players: 0

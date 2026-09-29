@@ -1,0 +1,12 @@
+name: JasprPerfTweaks
+version: 1.0.0
+main: chat.jaspr.perf.PerfTweaks
+description: JasperCraft performance tweaks (mob idle-look trimming, distance-based goal throttling, network flush consolidation, time-budgeted pregenerator)
+commands:
+  jprgen:
+    description: Pregenerate terrain inside a per-tick time budget
+    usage: /jprgen start <world> <radiusChunks> [centerChunkX centerChunkZ] | stop | status
+    permission: jaspr.perftweaks.pregen
+permissions:
+  jaspr.perftweaks.pregen:
+    default: op

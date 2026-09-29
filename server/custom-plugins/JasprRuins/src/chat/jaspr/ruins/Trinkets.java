@@ -115,14 +115,61 @@ final class Trinkets implements Listener {
     static ItemStack random(Random r) { return item(COMMON[r.nextInt(COMMON.length)]); }
 
     private static String marker(ItemStack item, String prefix) {
-        if (item == null || !item.hasItemMeta()) return null;
-        ItemMeta meta = item.getItemMeta();
-        if (!meta.hasLore()) return null;
-        for (String line : meta.getLore()) {
+        List<String> lore = lore(item);
+        if (lore == null) return null;
+        for (String line : lore) {
             String plain = ChatColor.stripColor(line);
             if (plain.startsWith(prefix)) return plain.substring(prefix.length());
         }
         return null;
+    }
+
+    // PERF: getItemMeta() builds a full meta object on every call -- for a written book that means parsing the JSON of every
+    // page -- and marker() ran it for every inventory slot several times a second per player. The lore is read straight from
+    // the item's NBT instead, exactly as CraftMetaItem reads it (display.Lore strings, each capped at 1024 characters).
+    private static final java.lang.reflect.Field HANDLE = handleField();
+
+    private static java.lang.reflect.Field handleField() {
+        try {
+            java.lang.reflect.Field f = org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack.class.getDeclaredField("handle");
+            f.setAccessible(true);
+            return f;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** The item's lore as ItemMeta.getLore() returns it, or null where hasItemMeta()/hasLore() would be false. */
+    private static List<String> lore(ItemStack item) {
+        if (item == null) return null;
+        if (HANDLE != null && item instanceof org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack) {
+            net.minecraft.server.v1_12_R1.ItemStack nms;
+            try { nms = (net.minecraft.server.v1_12_R1.ItemStack) HANDLE.get(item); } catch (IllegalAccessException e) { nms = null; }
+            if (nms == null) return null;
+            net.minecraft.server.v1_12_R1.NBTTagCompound tag = nms.getTag();
+            if (tag == null || tag.isEmpty() || !tag.hasKey("display")) return null;
+            net.minecraft.server.v1_12_R1.NBTTagCompound display = tag.getCompound("display");
+            if (!display.hasKey("Lore")) return null;
+            net.minecraft.server.v1_12_R1.NBTTagList list = display.getList("Lore", 8);
+            if (list.isEmpty()) return null;
+            List<String> out = new ArrayList<>(list.size());
+            for (int i = 0; i < list.size(); i++) {
+                String line = list.getString(i);
+                out.add(line.length() > 1024 ? line.substring(0, 1024) : line);
+            }
+            return out;
+        }
+        if (!item.hasItemMeta()) return null;
+        ItemMeta meta = item.getItemMeta();
+        return meta.hasLore() ? meta.getLore() : null;
+    }
+
+    /** Every relic carried anywhere in the inventory (what carries() tests one at a time). */
+    private static java.util.EnumSet<Trinket> carried(PlayerInventory inv) {
+        java.util.EnumSet<Trinket> out = java.util.EnumSet.noneOf(Trinket.class);
+        for (ItemStack item : inv.getContents()) { Trinket t = trinketOf(item); if (t != null) out.add(t); }
+        for (ItemStack item : inv.getArmorContents()) { Trinket t = trinketOf(item); if (t != null) out.add(t); }
+        return out;
     }
 
     static Trinket trinketOf(ItemStack item) {
@@ -208,10 +255,14 @@ final class Trinkets implements Listener {
     /** Every second: the potion-like powers of carried and held relics. */
     void tick() {
         for (Player p : plugin.getServer().getOnlinePlayers()) {
-            if (carries(p, Trinket.TIDE_PEARL) || wearing(p, Trinket.CROWN)) effect(p, PotionEffectType.WATER_BREATHING, 0);
-            if (carries(p, Trinket.IDOL_OF_THE_DREAMER)) effect(p, PotionEffectType.DAMAGE_RESISTANCE, 0);
-            if (offhand(p, Trinket.STAR_SHARD)) effect(p, PotionEffectType.INCREASE_DAMAGE, 0);
-            if (offhand(p, Trinket.TENTACLE_CHARM) && p.getHealth() < p.getMaxHealth() / 2) effect(p, PotionEffectType.REGENERATION, 0);
+            // One pass over the inventory instead of one per relic; same tests, same order of effects.
+            PlayerInventory inv = p.getInventory();
+            java.util.EnumSet<Trinket> carried = carried(inv);
+            Trinket offhand = trinketOf(inv.getItemInOffHand());
+            if (carried.contains(Trinket.TIDE_PEARL) || trinketOf(inv.getHelmet()) == Trinket.CROWN) effect(p, PotionEffectType.WATER_BREATHING, 0);
+            if (carried.contains(Trinket.IDOL_OF_THE_DREAMER)) effect(p, PotionEffectType.DAMAGE_RESISTANCE, 0);
+            if (offhand == Trinket.STAR_SHARD) effect(p, PotionEffectType.INCREASE_DAMAGE, 0);
+            if (offhand == Trinket.TENTACLE_CHARM && p.getHealth() < p.getMaxHealth() / 2) effect(p, PotionEffectType.REGENERATION, 0);
         }
     }
 
