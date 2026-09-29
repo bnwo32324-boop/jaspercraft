@@ -154,4 +154,9 @@ function kill() {
   const ps = "for($i=0;$i -lt 6;$i++){ $ps=Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -like '*" + tag + "*' }; if(-not $ps){break}; foreach($p in (@($ps | Where-Object { $_.CommandLine -notmatch '--type=' }) + @($ps))){ if($p){ Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue } }; Start-Sleep 2 }";
   try { spawnSync('powershell', ['-NoProfile', '-Command', ps], {windowsHide: true, timeout: 40000}); } catch (e) { }
 }
-setTimeout(() => { console.error('probe timeout'); kill(); process.exit(3); }, Number(process.env.PROBE_TIMEOUT || 240000)).unref();
+setTimeout(() => {
+  console.error('probe timeout');
+  kill();
+  try { fs.rmSync(profile, {recursive: true, force: true}); } catch (e) { }   // a frozen page's run leaves no profile behind
+  process.exit(3);
+}, Number(process.env.PROBE_TIMEOUT || 240000)).unref();
