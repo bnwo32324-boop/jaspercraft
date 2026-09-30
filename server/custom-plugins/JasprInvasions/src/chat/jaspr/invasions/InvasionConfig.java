@@ -27,6 +27,8 @@ final class InvasionConfig {
     final int invadeEveryDays;
     final boolean broadcast;
     final List<String> worlds;
+    /** Sleeping in a bed marks a player; their invasion comes on a night at least this many days later. */
+    final int daysAfterSleep;
 
     // -------------------------------------------------------------- progression
     final double minDaysPlayed;
@@ -73,6 +75,7 @@ final class InvasionConfig {
         this.invadeEveryDays = clamp(config.getInt("schedule.invade-every-days", 3), 1, 100, 3);
         this.broadcast = config.getBoolean("schedule.broadcast", true);
         this.worlds = lowercased(config.getStringList("schedule.worlds"));
+        this.daysAfterSleep = clamp(config.getInt("schedule.days-after-sleep", 7), 1, 100, 7);
 
         this.minDaysPlayed = positive(config.getDouble("progression.min-days-played", 3.0d), 3.0d);
         double full = positive(config.getDouble("progression.full-difficulty-days-played", 25.0d), 25.0d);
@@ -101,7 +104,7 @@ final class InvasionConfig {
         this.soldierCooldownTicks = clamp(config.getInt("behaviour.soldier-cooldown-ticks", 30), 5, 400, 30);
         this.maxPillarHeight = clamp(config.getInt("behaviour.max-pillar-height", 12), 1, 40, 12);
         this.sunriseDamagePerSecond = ratio(config.getDouble("behaviour.sunrise-damage-per-second", 4.0d), 0.0d, 100.0d, 4.0d);
-        this.preventSleep = config.getBoolean("behaviour.prevent-sleep", true);
+        this.preventSleep = config.getBoolean("behaviour.prevent-sleep", false);
         this.gearDropChance = ratio(config.getDouble("behaviour.gear-drop-chance", 0.0d), 0.0d, 1.0d, 0.0d);
         this.nameInvaders = config.getBoolean("behaviour.name-invaders", false);
 

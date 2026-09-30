@@ -18,6 +18,8 @@ final class PlayerProgress {
     int invasionsSurvived;
     int invasionsFaced;
     long lastInvasionDay = -1L;
+    /** Main-world time (full ticks) of the sleep that got this player noticed; -1 while nothing is on its way. */
+    long sleptAt = -1L;
     /** Set once the player has been told an invasion is coming tonight. */
     transient boolean warnedThisNight;
 
@@ -47,6 +49,20 @@ final class PlayerProgress {
         if (raw < 0.0d) return 0.0d;
         if (raw > 1.0d) return 1.0d;
         return raw;
+    }
+
+    /** Night, by a world's time of day: from dusk, when beds can be used, until just before dawn. */
+    static boolean night(long timeOfDay) {
+        long t = Math.floorMod(timeOfDay, InvasionConfig.TICKS_PER_DAY);
+        return t >= 12500L && t < 23500L;
+    }
+
+    /**
+     * Whether the invasion a sleep called is due now: at least {@code daysAfterSleep} whole days after the sleep, and
+     * night where the player is. Never before, and never without a sleep.
+     */
+    static boolean due(long sleptAt, long now, long timeOfDay, int daysAfterSleep) {
+        return sleptAt >= 0L && now - sleptAt >= daysAfterSleep * InvasionConfig.TICKS_PER_DAY && night(timeOfDay);
     }
 
     /** How long until this player's first invasion, in real minutes. Zero once they are eligible. */

@@ -69,17 +69,25 @@ final class InvasionListener implements Listener {
             event.getDrops().add(new ItemStack(Material.ROTTEN_FLESH, 1));
     }
 
-    /** You do not get to sleep through your own invasion. And settling down is what calls one. */
+    /** Only with prevent-sleep on (off by default): no sleeping through your own invasion. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBed(PlayerBedEnterEvent event) {
         Player player = event.getPlayer();
-        if (plugin.isBeingInvaded(player.getUniqueId())) {
-            if (!plugin.settings().preventSleep) return;
-            event.setCancelled(true);
-            player.sendMessage(ChatColor.RED + "You cannot sleep while something is trying to get in.");
-            return;
-        }
-        if (plugin.tryBedSummon(player)) event.setCancelled(true);
+        if (!plugin.settings().preventSleep || !plugin.isBeingInvaded(player.getUniqueId())) return;
+        event.setCancelled(true);
+        player.sendMessage(ChatColor.RED + "You cannot sleep while something is trying to get in.");
+    }
+
+    /**
+     * Sleeping always works. A night actually spent in bed is what gets a player noticed: their invasion comes on a
+     * night at least a week later (schedule.days-after-sleep). Checked a tick later, so only a sleep that happened counts.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSleep(PlayerBedEnterEvent event) {
+        final Player player = event.getPlayer();
+        org.bukkit.Bukkit.getScheduler().runTask(plugin, new Runnable() {
+            @Override public void run() { if (player.isOnline() && player.isSleeping()) plugin.noteSleep(player); }
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

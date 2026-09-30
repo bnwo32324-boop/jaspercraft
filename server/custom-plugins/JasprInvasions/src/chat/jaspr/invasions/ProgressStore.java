@@ -43,6 +43,7 @@ final class ProgressStore {
             progress.invasionsSurvived = Math.max(0, row.getInt("invasions-survived", 0));
             progress.invasionsFaced = Math.max(0, row.getInt("invasions-faced", 0));
             progress.lastInvasionDay = row.getLong("last-invasion-day", -1L);
+            progress.sleptAt = row.getLong("slept-at", -1L);
             byId.put(id, progress);
         }
     }
@@ -60,6 +61,7 @@ final class ProgressStore {
                 yaml.set(base + ".invasions-survived", progress.invasionsSurvived);
                 yaml.set(base + ".invasions-faced", progress.invasionsFaced);
                 yaml.set(base + ".last-invasion-day", progress.lastInvasionDay);
+                yaml.set(base + ".slept-at", progress.sleptAt);
             }
             yaml.save(file);
             dirty = false;

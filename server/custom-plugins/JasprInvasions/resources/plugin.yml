@@ -1,5 +1,5 @@
 name: JasprInvasions
-version: 1.0.0
+version: 1.1.0
 main: chat.jaspr.invasions.InvasionPlugin
 author: Jaspr
 description: Per-player nightly invasions for JasperCraft. Miners dig in, soldiers climb over.

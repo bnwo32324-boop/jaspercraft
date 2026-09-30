@@ -63,8 +63,8 @@ public final class InvasionPlugin extends JavaPlugin {
             @Override public void run() { pump(); }
         }, TICK_INTERVAL, TICK_INTERVAL);
 
-        getLogger().info("JASPR_INVASIONS enabled every=" + settings.invadeEveryDays + "d"
-                + " firstDay=" + settings.firstInvasionDay
+        getLogger().info("JASPR_INVASIONS enabled daysAfterSleep=" + settings.daysAfterSleep
+                + " preventSleep=" + settings.preventSleep
                 + " minDaysPlayed=" + settings.minDaysPlayed
                 + " caps=" + settings.maxConcurrentPerPlayer + "/" + settings.maxConcurrentGlobal);
     }
@@ -120,6 +120,7 @@ public final class InvasionPlugin extends JavaPlugin {
         }
 
         restorer.tick(ticks);
+        summonDue();
 
         int globalAlive = 0;
         for (ActiveInvasion invasion : active.values()) globalAlive += invasion.aliveCount();
@@ -141,25 +142,54 @@ public final class InvasionPlugin extends JavaPlugin {
         }
     }
 
+    /** The clock invasions are timed by: the main world's full time (sleeping there moves it on), or -1. */
+    private static long clock() {
+        List<World> worlds = Bukkit.getWorlds();
+        return worlds.isEmpty() ? -1L : worlds.get(0).getFullTime();
+    }
+
     /**
-     * Bed summons: climbing into bed is the only thing that calls an invasion down.
-     * One per night per player; the night schedule never starts anything by itself.
+     * Sleeping is what gets a player noticed, never what starts an invasion: a night spent in bed marks them, and
+     * their invasion comes on a night at least schedule.days-after-sleep days later (see summonDue). A mark already
+     * on its way is never pushed back by sleeping again.
      */
-    boolean tryBedSummon(Player player) {
-        if (!settings.enabled || player == null) return false;
-        if (!settings.allowsWorld(player.getWorld().getName())) return false;
-        if (active.containsKey(player.getUniqueId())) return false;
+    void noteSleep(Player player) {
+        if (!settings.enabled || player == null) return;
+        if (!settings.allowsWorld(player.getWorld().getName())) return;
+        GameMode mode = player.getGameMode();
+        if (mode != GameMode.SURVIVAL && mode != GameMode.ADVENTURE) return;
+        if (active.containsKey(player.getUniqueId())) return;
         PlayerProgress progress = store.get(player);
-        if (!canBeInvaded(player, progress)) return false;
-        long day = player.getWorld().getFullTime() / InvasionConfig.TICKS_PER_DAY;
-        if (progress.lastInvasionDay == day) return false;
-        progress.lastInvasionDay = day;
-        progress.invasionsFaced++;
+        if (progress.sleptAt >= 0L) return;
+        long now = clock();
+        if (now < 0L) return;
+        progress.sleptAt = now;
         store.markDirty();
-        start(player, progress.difficulty(settings), false, "bed");
-        player.sendMessage(ChatColor.DARK_RED + "You try to sleep, but something has found you. "
-                + ChatColor.GRAY + "No rest tonight.");
-        return true;
+        getLogger().info("JASPR_INVASIONS event=marked player=" + player.getName() + " day=" + (now / InvasionConfig.TICKS_PER_DAY)
+                + " dueFromDay=" + ((now + settings.daysAfterSleep * InvasionConfig.TICKS_PER_DAY) / InvasionConfig.TICKS_PER_DAY));
+        player.sendMessage(ChatColor.DARK_GRAY + "" + ChatColor.ITALIC + "Somewhere out in the dark, something has noticed where you sleep.");
+    }
+
+    /** Every pump: anyone whose sleep was long enough ago, on a night, and who can be invaded, is found. */
+    private void summonDue() {
+        if (!settings.enabled) return;
+        long now = clock();
+        if (now < 0L) return;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (active.containsKey(player.getUniqueId())) continue;
+            PlayerProgress progress = store.get(player);
+            // A /time set that turns the clock back would otherwise leave the mark waiting forever: count from now.
+            if (progress.sleptAt > now) { progress.sleptAt = now; store.markDirty(); }
+            if (!PlayerProgress.due(progress.sleptAt, now, player.getWorld().getTime(), settings.daysAfterSleep)) continue;
+            if (!settings.allowsWorld(player.getWorld().getName()) || !canBeInvaded(player, progress)) continue;
+            long waited = (now - progress.sleptAt) / InvasionConfig.TICKS_PER_DAY;
+            progress.sleptAt = -1L;
+            progress.lastInvasionDay = now / InvasionConfig.TICKS_PER_DAY;
+            progress.invasionsFaced++;
+            store.markDirty();
+            start(player, progress.difficulty(settings), false, "sleep+" + waited + "d");
+            player.sendMessage(ChatColor.DARK_RED + "Whatever noticed where you sleep has found you. " + ChatColor.GRAY + "They are coming.");
+        }
     }
 
     /** Eligibility is per player: the right mode, settled in, and enough time on the server. */
@@ -263,7 +293,7 @@ public final class InvasionPlugin extends JavaPlugin {
         if (main != null) day = main.getFullTime() / InvasionConfig.TICKS_PER_DAY;
 
         sender.sendMessage(ChatColor.GOLD + "Invasions " + ChatColor.GRAY + "- day " + day
-                + ChatColor.GRAY + ", summoned by sleeping (once per night).");
+                + ChatColor.GRAY + ", an invasion comes on a night " + settings.daysAfterSleep + "+ days after you sleep in a bed.");
 
         if (active.isEmpty()) {
             sender.sendMessage(ChatColor.GRAY + "  Nothing running.");
@@ -285,6 +315,13 @@ public final class InvasionPlugin extends JavaPlugin {
                     + ChatColor.GRAY + " (" + String.format(Locale.ROOT, "%.2f", difficulty) + "), survived "
                     + ChatColor.WHITE + progress.invasionsSurvived;
             sender.sendMessage(line);
+            if (progress.sleptAt >= 0L) {
+                sender.sendMessage(ChatColor.GRAY + "  Something is on its way: it comes on a night from day " + ChatColor.WHITE
+                        + ((progress.sleptAt + settings.daysAfterSleep * InvasionConfig.TICKS_PER_DAY) / InvasionConfig.TICKS_PER_DAY)
+                        + ChatColor.GRAY + " (you slept on day " + progress.sleptAt / InvasionConfig.TICKS_PER_DAY + ").");
+            } else {
+                sender.sendMessage(ChatColor.DARK_GRAY + "  Nothing is on its way. Sleeping in a bed changes that.");
+            }
             if (!progress.eligible(settings)) {
                 sender.sendMessage(ChatColor.DARK_GRAY + "  Not yet hunted: "
                         + progress.minutesUntilEligible(settings) + " more minutes of play.");

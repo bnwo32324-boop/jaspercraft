@@ -9,7 +9,12 @@
 enabled: true
 
 schedule:
-  # World day of the first possible invasion, then one every N days after that.
+  # Sleeping in a bed is what gets a player noticed. Their invasion comes on a night at least this many Minecraft
+  # days after that sleep (sleeping again meanwhile does not push it back); after it, the next sleep starts the
+  # count again. Sleeping itself always works.
+  days-after-sleep: 7
+
+  # Not used since invasions follow sleeping (kept for older tools that read them).
   first-invasion-day: 3
   invade-every-days: 6
 
@@ -74,8 +79,9 @@ behaviour:
   # Damage per second dealt to invaders still standing after sunrise.
   sunrise-damage-per-second: 4.0
 
-  # You cannot sleep through your own invasion.
-  prevent-sleep: true
+  # True: no sleeping while your own invasion is running. Off, so sleeping always works (vanilla still refuses a
+  # bed with monsters close by).
+  prevent-sleep: false
 
   # Chance an invader drops a piece of its gear. Zero keeps invasions a threat, not a farm.
   gear-drop-chance: 0.0

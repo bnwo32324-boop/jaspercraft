@@ -8,9 +8,14 @@ entirely server-side, using vanilla mobs dressed for the occasion.
 
 ## What an invasion is
 
-Nothing starts on a schedule. An invasion comes only when an eligible player climbs into
-bed — settling down for the night calls one down instead of letting them sleep, once per
-night per player. Who it comes for, and what it sends, is personal.
+> 2026-09-30 (1.1.0): the bed no longer starts an invasion or refuses the sleep. Before, every bed click
+> started one on the spot and you could never sleep.
+
+Nothing starts on a schedule, and nothing starts at the bed. Sleeping always works. A night spent in bed
+gets an eligible player noticed, and their invasion comes on a night at least 7 Minecraft days later
+(`schedule.days-after-sleep`). Sleeping again in the meantime does not push it back. After the invasion, the
+next sleep starts the count again. `/invasion status` shows when yours is due. Who it comes for, and what it
+sends, is personal.
 
 Each player has their own difficulty, derived from their own time played on this server. On a
 single invasion night a veteran can be fighting armoured, enchanted raiders at one base while a
