@@ -237,6 +237,7 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
             return null;
         }
         atlas = w;
+        lightBeforeSending(w);
         w.setKeepSpawnInMemory(false);
         w.setDifficulty(main.getDifficulty() == Difficulty.PEACEFUL ? Difficulty.EASY : main.getDifficulty());
         w.setGameRuleValue("doWeatherCycle", "false");
@@ -255,9 +256,31 @@ public final class AtlasPlugin extends JavaPlugin implements Listener {
         return w;
     }
 
+    private java.lang.ref.WeakReference<World> lightWorld = new java.lang.ref.WeakReference<>(null);
+
+    /**
+     * Atlas is lit by its lamps, lanterns and forges, not the sky. With Spigot's random-light-updates off (the server default)
+     * a new chunk is sent before its light is worked out and stays dark on the client until it is sent again; for this world
+     * alone the server waits for the light first, as the game itself does. Once per world object (Atlas is unloaded and loaded
+     * again as players come and go; the weak reference never keeps an unloaded world in memory).
+     */
+    private void lightBeforeSending(World w) {
+        if (lightWorld.get() == w) return;
+        lightWorld = new java.lang.ref.WeakReference<>(w);
+        String mode = "wait";
+        try {
+            ((org.bukkit.craftbukkit.v1_12_R1.CraftWorld) w).getHandle().spigotConfig.randomLightUpdates = true;
+        } catch (Throwable t) {
+            mode = "unavailable";
+            getLogger().warning("ATLAS_LIGHT mode=unavailable world=" + w.getName() + " error=" + t.getClass().getSimpleName());
+        }
+        getLogger().info("ATLAS_LIGHT mode=" + mode + " world=" + w.getName());
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void worldInit(WorldInitEvent e) {
         if (!isAtlas(e.getWorld())) return;
+        lightBeforeSending(e.getWorld());   // before the spawn chunks are prepared
         e.getWorld().setKeepSpawnInMemory(false);
         atlas = e.getWorld();
         try { generator.masks.load(new File(e.getWorld().getWorldFolder(), MASK_FILE)); }

@@ -170,6 +170,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
             return null;
         }
         ruins = w;
+        lightBeforeSending(w);
         w.setKeepSpawnInMemory(false);
         w.setDifficulty(main.getDifficulty());
         // Endless night over Drownhollow: the horrors spawn on every stone, and beds do not work.
@@ -211,10 +212,31 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         emptySince = 0;
     }
 
+    private java.lang.ref.WeakReference<World> lightWorld = new java.lang.ref.WeakReference<>(null);
+
+    /**
+     * Drownhollow is lit by its lamps and torches, not the sky (it is night all the time). With Spigot's random-light-updates off
+     * (the server default) a new chunk is sent before its light is worked out and stays dark on the client until it is sent
+     * again; for this world alone the server waits for the light first, as the game itself does. Once per world object
+     * (the world is unloaded and loaded again as players come and go; the weak reference never keeps an unloaded world in memory).
+     */
+    private void lightBeforeSending(World w) {
+        if (lightWorld.get() == w) return;
+        lightWorld = new java.lang.ref.WeakReference<>(w);
+        String mode = "wait";
+        try {
+            ((org.bukkit.craftbukkit.v1_12_R1.CraftWorld) w).getHandle().spigotConfig.randomLightUpdates = true;
+        } catch (Throwable t) {
+            mode = "unavailable";
+            getLogger().warning("RUINS_LIGHT mode=unavailable world=" + w.getName() + " error=" + t.getClass().getSimpleName());
+        }
+        getLogger().info("RUINS_LIGHT mode=" + mode + " world=" + w.getName());
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void worldInit(WorldInitEvent e) {
         // Fired before CraftServer preloads spawn chunks (WorldCreator has no such flag in 1.12).
-        if (isRuins(e.getWorld())) { e.getWorld().setKeepSpawnInMemory(false); ruins = e.getWorld(); }
+        if (isRuins(e.getWorld())) { lightBeforeSending(e.getWorld()); e.getWorld().setKeepSpawnInMemory(false); ruins = e.getWorld(); }
     }
 
     /** A player who logged out inside the ruins finds them loaded again, instead of waking up at the overworld spawn. */

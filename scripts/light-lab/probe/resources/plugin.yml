@@ -1,0 +1,8 @@
+name: LightProbe
+version: 0.1
+main: lightlab.LightProbe
+description: Fixture-only test helper (never deployed). Cross-world teleport and the per-world light flag.
+commands:
+  lprobe:
+    description: fixture helper
+    usage: /lprobe tp <player> <world> <x> <y> <z> | flag <world> [on|off] | worlds

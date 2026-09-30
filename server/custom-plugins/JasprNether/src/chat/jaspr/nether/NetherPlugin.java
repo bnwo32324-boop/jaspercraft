@@ -31,7 +31,7 @@ import org.bukkit.plugin.java.JavaPlugin;
  * Everything the browser client sees is vanilla.
  */
 public final class NetherPlugin extends JavaPlugin implements Listener {
-    static final String VERSION = "1.2.0";
+    static final String VERSION = "1.2.1";
     /**
      * Regeneration epoch. Raising it regenerates the Nether once more on the next start (v1 2026-09-26: the port;
      * v2 2026-09-28: the owner asked for a fresh Nether with the mega structures and wonders; v3 2026-09-29: the owner
@@ -175,8 +175,29 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
 
     boolean isNether(World w) { return w != null && w.getEnvironment() == World.Environment.NETHER && w.getName().equals(worldName); }
 
+    private java.lang.ref.WeakReference<World> lightWorld = new java.lang.ref.WeakReference<>(null);
+
+    /**
+     * The Nether is lit by lava, glowstone and fire, not the sky. With Spigot's random-light-updates off (the server default) a
+     * new chunk is sent before its light is worked out, so lava seas and the structures arrive dark until something sends the
+     * chunk again; for this world alone the server waits for the light first, as the game itself does. Once per world object.
+     */
+    private void lightBeforeSending(World w) {
+        if (lightWorld.get() == w) return;
+        lightWorld = new java.lang.ref.WeakReference<>(w);
+        String mode = "wait";
+        try {
+            ((org.bukkit.craftbukkit.v1_12_R1.CraftWorld) w).getHandle().spigotConfig.randomLightUpdates = true;
+        } catch (Throwable t) {
+            mode = "unavailable";
+            getLogger().warning("NETHER_LIGHT mode=unavailable world=" + w.getName() + " error=" + t.getClass().getSimpleName());
+        }
+        getLogger().info("NETHER_LIGHT mode=" + mode + " world=" + w.getName());
+    }
+
     private void attach(World w) {
         if (!isNether(w)) return;
+        lightBeforeSending(w);   // before the first chunk is sent, whether or not the generator attaches
         if (genDisabled && gen == null && BlockMap.rows == 0) return;
         removeOuterRealms(w);
         if (gen != null && nether == w) return;

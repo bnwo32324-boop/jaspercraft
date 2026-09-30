@@ -1,5 +1,5 @@
 name: JasprRuins
-version: 1.1.1
+version: 1.1.2
 main: chat.jaspr.ruins.RuinsPlugin
 depend: [JasprLostCities, JasprHorrorBiomes]
 author: Jaspr
