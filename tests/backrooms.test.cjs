@@ -55,6 +55,8 @@ test("the owner's rules are in the source", () => {
   // Access: a conqueror of Atlas, Drownhollow, the Nether or the End (the dragon, now or before) lights and enters.
   for (const k of ['"jr_beat_atlas", "jr_beat_ruins", "jr_beat_nether"', 'NamespacedKey.minecraft("end/kill_dragon")', 'public void onDragon(EntityDeathEvent e)']) assert.ok(conquest.includes(k), k);
   for (const k of ['Material.YELLOW_GLAZED_TERRACOTTA', 'if (!plugin.conquest().conqueror(p)) {', 'private void goIn(Player p, Gate g)']) assert.ok(portals.includes(k), k);
+  // Other plugins cannot carve it either: JasprInvasions' invaders (they dig with direct block changes) never stay.
+  assert.ok(mobs.includes('static final String INVADER = "jaspr_invader";') && mobs.includes('turnAway(e); continue;'), 'invaders are turned away');
   // Lit before it is seen: the Backrooms are lit by blocks, and a chunk sent before its light is worked out stays dark.
   assert.ok(read(P + 'BackroomsPlugin.java').includes('spigotConfig.randomLightUpdates = true'), 'chunks wait for their light');
   // A peaceful spawn; harder with every level and further in.

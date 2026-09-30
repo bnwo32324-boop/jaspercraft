@@ -104,7 +104,7 @@ final class Mobs implements Listener {
 
     private final BackroomsPlugin plugin;
     private final Random random = new Random();
-    long spawned, elites, slain, despawned, transformed, refusedVanilla;
+    long spawned, elites, slain, despawned, transformed, refusedVanilla, invadersTurnedAway;
 
     Mobs(BackroomsPlugin plugin) { this.plugin = plugin; }
 
@@ -127,7 +127,13 @@ final class Mobs implements Listener {
         World w = plugin.world();
         if (w == null) return;
         List<LivingEntity> ours = new ArrayList<>();
-        for (LivingEntity e : w.getLivingEntities()) if (isOurs(e) && !e.isDead()) ours.add(e);
+        for (LivingEntity e : w.getLivingEntities()) {
+            if (e.getScoreboardTags().contains(INVADER)) { turnAway(e); continue; }
+            if (isOurs(e) && !e.isDead()) ours.add(e);
+        }
+        // Far monsters go first, so they never hold the cap full.
+        cleanup(w, ours);
+        ours.removeIf(e -> !e.isValid());
         int players = 0;
         for (Player p : w.getPlayers()) if (p.getGameMode() == GameMode.SURVIVAL || p.getGameMode() == GameMode.ADVENTURE) players++;
         if (ours.size() >= 24 + 10 * players) return;
@@ -147,7 +153,16 @@ final class Mobs implements Listener {
             int count = k == Kind.HOUND || k == Kind.PACK_HOUND || k == Kind.STRAY_HOUND ? 2 + random.nextInt(2) : k == Kind.GRID_CRAWLER || k == Kind.SHREDDER ? 2 : 1;
             for (int i = 0; i < count; i++) spawn(k, at, g, random.nextDouble() < eliteChance(g));
         }
-        cleanup(w, ours);
+    }
+
+    /** JasprInvasions' invaders dig and pillar with direct block changes that no event reports, so none may stay here. */
+    static final String INVADER = "jaspr_invader";
+
+    void turnAway(LivingEntity e) {
+        if (!e.isValid() || !e.getScoreboardTags().contains(INVADER)) return;
+        e.remove();
+        invadersTurnedAway++;
+        if (invadersTurnedAway == 1 || invadersTurnedAway % 25 == 0) plugin.getLogger().info("BACKROOMS_INVADERS_TURNED_AWAY count=" + invadersTurnedAway);
     }
 
     private Kind pick(Level lv, double d) {
@@ -347,7 +362,11 @@ final class Mobs implements Listener {
                 e.getEntity().addScoreboardTag(KIND + Kind.BURNER.name());
                 return;
             }
-            default:
+            default: {
+                // An invader is tagged only after it spawns: look again next tick, before it can dig.
+                LivingEntity spawned = e.getEntity();
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> turnAway(spawned));
+            }
         }
     }
 
@@ -399,7 +418,7 @@ final class Mobs implements Listener {
     }
 
     String describe() {
-        return "spawned=" + spawned + " elites=" + elites + " slain=" + slain + " despawned=" + despawned + " mimicsRevealed=" + transformed + " vanillaRefused=" + refusedVanilla;
+        return "spawned=" + spawned + " elites=" + elites + " slain=" + slain + " despawned=" + despawned + " mimicsRevealed=" + transformed + " vanillaRefused=" + refusedVanilla + " invadersTurnedAway=" + invadersTurnedAway;
     }
 
     /** One of a kind next to a player (owner test tool). */

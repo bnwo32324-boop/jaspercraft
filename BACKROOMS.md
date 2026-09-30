@@ -72,7 +72,12 @@ a beaten dimension. The exit behind the Deep End takes you home.
 ## Safety and compatibility
 - The world `jaspr_levels` loads on demand and unloads a minute after the last player leaves. It never has weather,
   daylight cycle, fire spread, mob griefing or vanilla spawning.
-- JasprDisasters is kept out of `jaspr_levels`, because its meteors would carve the terrain.
+- JasprDisasters and JasprInvasions are kept out of `jaspr_levels`: meteors would carve the terrain, and invaders dig
+  through walls with block changes that no protection can see.
+  - Both live configs now list their worlds explicitly (backups: `config.yml.before-backrooms`). **A new world must be
+    added to both lists** to get disasters and invasions.
+  - As a backstop, JasprBackrooms removes any invader that appears in its world (`invadersTurnedAway` in
+    `/backrooms status`).
 - Blight poison and Daylight slowness do not apply in the Backrooms.
 - Log events: `BACKROOMS_READY`, `BACKROOMS_WORLD_LOADED`, `BACKROOMS_LIGHT`, `BACKROOMS_LEVEL_REACHED`,
   `BACKROOMS_BOSS_WOKE` / `SLAIN`, `BACKROOMS_CONQUERED` and `BACKROOMS_SELFTEST`. No IPs or secrets are logged.
