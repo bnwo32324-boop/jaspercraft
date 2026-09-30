@@ -85,7 +85,7 @@ function java(sources, main, extraClasspath) {
   const cp = [path.join(root, 'server/cache/patched_1.12.2.jar'), ...extraClasspath].join(path.delimiter);
   const javac = spawnSync(path.join(jdk, 'javac.exe'), ['--release', '8', '-encoding', 'UTF-8', '-proc:none', '-Xlint:-options', '-nowarn', '-cp', cp, '-d', out, ...sources], {encoding: 'utf8'});
   assert.equal(javac.status, 0, javac.stderr);
-  const run = spawnSync(path.join(jdk, 'java.exe'), ['-ea', '-cp', out + path.delimiter + cp, main], {encoding: 'utf8'});
+  const run = spawnSync(path.join(jdk, 'java.exe'), ['-ea', '-cp', out + path.delimiter + cp, main], {encoding: 'utf8', cwd: root});
   fs.rmSync(out, {recursive: true, force: true});
   assert.equal(run.status, 0, run.stderr + run.stdout);
   return run.stdout;

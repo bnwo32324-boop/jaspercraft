@@ -48,6 +48,35 @@ public final class TanksLogicTest {
         Settings clamped = Settings.load(wild);
         ok(near(clamped.power, 10) && clamped.cooldownTicks == 5 && near(clamped.walkSpeed(), 0.6f), "config values are clamped");
         ok(clamped.strikeDrones == 6 && near(clamped.healthBonus, 40), "sentinel and health values are clamped");
+
+        // Friendly fire (owner, 2026-09-29): off by default and in the shipped config; players and anyone's tamed
+        // pets are spared by shells and drone strikes, wild creatures are not.
+        ok(!defaults.friendlyFire, "friendly fire is off by default (live configs without the key stay safe)");
+        java.io.File shipped = new java.io.File(args.length > 0 ? args[0] : "server/custom-plugins/JasprTanks/resources/config.yml");
+        ok(!Settings.load(YamlConfiguration.loadConfiguration(shipped)).friendlyFire, "shipped config keeps friendly fire off");
+        Object anyPlayer = stub(org.bukkit.entity.Player.class, null);
+        Object wildWolf = stub(org.bukkit.entity.Wolf.class, null);
+        Object tamedWolf = stub(org.bukkit.entity.Wolf.class, stub(org.bukkit.entity.AnimalTamer.class, null));
+        Object zombie = stub(org.bukkit.entity.Zombie.class, null);
+        ok(TanksPlugin.spared(defaults, (org.bukkit.entity.Entity) anyPlayer), "players are never hit");
+        ok(TanksPlugin.spared(defaults, (org.bukkit.entity.Entity) tamedWolf), "tamed pets are never hit");
+        ok(!TanksPlugin.spared(defaults, (org.bukkit.entity.Entity) wildWolf), "wild wolves are fair game");
+        ok(!TanksPlugin.spared(defaults, (org.bukkit.entity.Entity) zombie), "monsters are fair game");
+        YamlConfiguration pvp = new YamlConfiguration();
+        pvp.set("cannon.friendly-fire", true);
+        ok(!TanksPlugin.spared(Settings.load(pvp), (org.bukkit.entity.Entity) anyPlayer), "friendly-fire: true hands players back to the PvP rules");
+        ok(TanksPlugin.LOCK_MARGIN <= 0.3 && TanksPlugin.LOCK_TAP_GAP >= 10, "sentinel lock-on needs a deliberate tap right on the player");
         System.out.println("TANKS_LOGIC_OK");
+    }
+
+    /** A Bukkit interface stand-in: getOwner returns {@code owner}, booleans are false, everything else null. */
+    private static Object stub(Class<?> type, final Object owner) {
+        return java.lang.reflect.Proxy.newProxyInstance(TanksLogicTest.class.getClassLoader(), new Class<?>[] {type}, (proxy, method, a) -> {
+            if (method.getName().equals("getOwner")) return owner;
+            if (method.getName().equals("equals")) return proxy == a[0];
+            if (method.getName().equals("hashCode")) return System.identityHashCode(proxy);
+            Class<?> r = method.getReturnType();
+            return r == boolean.class ? Boolean.FALSE : r == int.class ? 0 : r == double.class ? 0.0 : r == float.class ? 0f : r == long.class ? 0L : null;
+        });
     }
 }

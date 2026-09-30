@@ -36,7 +36,11 @@ cannon:
   # Shells never dig craters or break item frames, paintings, minecarts or dropped items unless this is true.
   break-blocks: false
   fire: false
-  # Shells hurt other players only in worlds with PvP on.
+  # Friendly fire (owner, 2026-09-29: off). While false, shells and drone strikes never aim at, detonate on or
+  # hurt any player or any player's tamed pet, in a tank or a sentinel. When true, damage-players and the
+  # world's PvP rule decide as before.
+  friendly-fire: false
+  # Shells hurt other players only in worlds with PvP on (only while friendly-fire is true).
   damage-players: true
 
 sentinel:

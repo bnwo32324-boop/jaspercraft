@@ -9,7 +9,7 @@ final class Settings {
     double stepHeight = 1.0, speedMultiplier = 2.25, armor = 6, knockbackResistance = 1.0;
     int cooldownTicks = 30, range = 96;
     double power = 6.0, speed = 2.5, aimAssist = 0.45, homingDegrees = 9;
-    boolean breakBlocks = false, fire = false, damagePlayers = true;
+    boolean breakBlocks = false, fire = false, damagePlayers = true, friendlyFire = false;
     double flySpeed = 0.12, strikePower = 4.0, pickupRange = 24, autoPickupRadius = 8, followHeight = 3.0, followDistance = 2.0;
     int strikeDrones = 3, strikeCooldownTicks = 50;
 
@@ -31,6 +31,7 @@ final class Settings {
         s.breakBlocks = c.getBoolean("cannon.break-blocks", s.breakBlocks);
         s.fire = c.getBoolean("cannon.fire", s.fire);
         s.damagePlayers = c.getBoolean("cannon.damage-players", s.damagePlayers);
+        s.friendlyFire = c.getBoolean("cannon.friendly-fire", s.friendlyFire);
         s.flySpeed = clamp(c.getDouble("sentinel.fly-speed", s.flySpeed), 0.05, 0.3);
         s.strikeDrones = (int) clamp(c.getInt("sentinel.strike-drones", s.strikeDrones), 1, 6);
         s.strikePower = clamp(c.getDouble("sentinel.strike-power", s.strikePower), 1, 8);

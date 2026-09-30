@@ -5,13 +5,25 @@
  if(!mobile)return;
  var host=null,canvas=null,lastMode='',lastEnabled='',held=new Set(),pointers=new Map(),rightClick=false,shiftClick=false,sheet=null;
  // Tank mode (JasprTanks): the server advertises tanks; these controls claim one and drive it.
- var tank={state:'none',view:'first',vehicle:'',pickup:null,claimed:false,polled:0,cooldownMs:1500,coolUntil:0},fireButton=null,tankButton=null,viewButton=null,modeButton=null,pickupButton=null,jumpButton=null,sneakButton=null,stickLabel=null,stickSprint=false;
+ var tank={state:'none',view:'first',vehicle:'',pickup:null,follow:false,unlockAt:0,claimed:false,polled:0,cooldownMs:1500,coolUntil:0},fireButton=null,tankButton=null,viewButton=null,modeButton=null,pickupButton=null,jumpButton=null,sneakButton=null,stickLabel=null,stickSprint=false;
  function bridge(){return window.JasprVideoMobileBridge;}
+ // Control diagnostics (read by jaspercraft-mobile-diagnostics.js): counts, durations and states only, never
+ // positions or typed text. Readable names for the engine's key-binding fields.
+ var NAMES={bDc:'forward',bIW:'back',bPQ:'left',bZ5:'right',bOT:'sprint',bvG:'jump',b3c:'sneak','A$':'attack',Nc:'use',bUd:'swap',Hb:'inventory',bBx:'drop',$jasprStatsKey:'stats',$jasprWaypointKey:'waypoints'};
+ function counters(){return {taps:0,canvasTouches:0,lookMoves:0,stickTouches:0,stickMs:0,buttons:{},cancels:0,lostCaptures:0,stuckReleases:0,followCancels:0,maxHoldMs:0,maxHoldKey:''};}
+ var stats=counters(),activeTouches=0,heldSince={},stuckSince=0,last='',lastAt=0,anomalies=[],anomalyId=0,fingers=0,touchSeen=false;
+ // Fingers actually on the screen, as the browser counts them (independent of the controls' own bookkeeping).
+ ['touchstart','touchend','touchcancel'].forEach(function(t){document.addEventListener(t,function(e){touchSeen=true;fingers=e.touches?e.touches.length:0;},{capture:true,passive:true});});
+ function noteControl(what){last=what;lastAt=performance.now();}
+ function anomaly(kind,extra){if(anomalies.length>=20)anomalies.shift();var a={id:++anomalyId,kind:kind,at:Math.round(performance.now())};for(var k in extra)a[k]=extra[k];anomalies.push(a);}
+ function name(field){return NAMES[field]||'other';}
+ // A following sentinel flies itself; touching the stick or Up/Down hands control back to the driver.
+ function takeControl(source){var now=performance.now();if(tank.vehicle!=='sentinel'||!tank.follow||now-tank.unlockAt<1500||!bridge())return;tank.unlockAt=now;stats.followCancels++;anomaly('follow-cancel',{source:source});bridge().text('/tank unlock '+source,true);}
  // Tank or Orbital Sentinel, as chosen on the Edit Profile screen (kept by the game client in this browser).
  function vehicleChoice(){try{return localStorage.getItem('jaspr.vehicle.v1')==='sentinel'?'sentinel':'tank';}catch(e){return 'tank';}}
  function state(){return bridge()?bridge().state():{ready:false,playing:false,menu:false,enabled:true,sensitivity:1};}
- function key(field,down){if(!bridge()||held.has(field)===!!down)return;if(down)held.add(field);else held.delete(field);bridge().key(field,down);}
- function release(){held.forEach(function(field){if(bridge())bridge().key(field,false);});held.clear();pointers.clear();stickSprint=false;if(canvas)mouse('mouseup',0,0,0);
+ function key(field,down){if(!bridge()||held.has(field)===!!down)return;var now=performance.now();if(down){held.add(field);heldSince[field]=now;}else{held.delete(field);var ms=now-(heldSince[field]||now);if(ms>stats.maxHoldMs){stats.maxHoldMs=Math.round(ms);stats.maxHoldKey=name(field);}delete heldSince[field];}bridge().key(field,down);}
+ function release(){held.forEach(function(field){if(bridge())bridge().key(field,false);});held.clear();heldSince={};pointers.clear();stuckSince=0;stickSprint=false;if(canvas)mouse('mouseup',0,0,0);
   if(shiftClick){shiftClick=false;window.dispatchEvent(new KeyboardEvent('keyup',{bubbles:true,code:'ShiftLeft',key:'Shift',keyCode:16,which:16}));var shift=host&&host.querySelector('[data-zone="shift"]');if(shift)shift.textContent='Shift: OFF';}
  }
  function press(code,keyName,keyCode){['keydown','keyup'].forEach(function(type){window.dispatchEvent(new KeyboardEvent(type,{bubbles:true,cancelable:true,code:code,key:keyName,keyCode:keyCode,which:keyCode}));});}
@@ -25,6 +37,7 @@
   bridge().look(yaw,pitch);setTimeout(function(){pulse('A$');},80);}
  function syncTank(s){var b=bridge(),now=performance.now();if(!host||now-tank.polled<250)return;tank.polled=now;
   var t=b&&b.tank?b.tank():null,state=!t||!t.supported?'none':t.active?'on':'off';if(t&&t.cooldown>0)tank.cooldownMs=t.cooldown*50;
+  var follow=!!(t&&t.follow);if(follow!==tank.follow){tank.follow=follow;anomaly(follow?'follow-start':'follow-end',{});}
   var vehicle=t&&t.mode==='sentinel'?'sentinel':'tank',pickup=!!(t&&t.pickup);
   if(vehicle!==tank.vehicle||pickup!==tank.pickup){tank.vehicle=vehicle;tank.pickup=pickup;host.dataset.vehicle=vehicle;var sky=vehicle==='sentinel';
    modeButton.textContent=sky?'Mode: Sentinel':'Mode: Tank';fireButton.textContent=sky?'STRIKE':'FIRE';jumpButton.textContent=sky?'Up':'Jump';sneakButton.textContent=sky?'Down':'Sneak';
@@ -45,8 +58,9 @@
   sheet.append(input,send,cancel);sheet.onsubmit=function(e){e.preventDefault();if(bridge()&&input.value)bridge().text(input.value,chat);close();};document.body.append(sheet);input.focus();
  }
  function button(label,zone,action,hold){var b=document.createElement('button'),began=0,released=true,timer=0;b.type='button';b.textContent=label;b.setAttribute('aria-label',label);b.dataset.zone=zone;
-  b.addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();clearTimeout(timer);began=performance.now();released=false;b.setPointerCapture(e.pointerId);if(hold)key(hold,true);else action();});
-  function up(e){e.preventDefault();if(released)return;released=true;if(hold){var remaining=e.type==='pointerup'&&hold==='bvG'?90-(performance.now()-began):0;if(remaining>0)timer=setTimeout(function(){key(hold,false);},remaining);else key(hold,false);}}
+  b.addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();clearTimeout(timer);began=performance.now();if(released)activeTouches++;released=false;b.setPointerCapture(e.pointerId);
+   stats.buttons[zone]=(stats.buttons[zone]||0)+1;noteControl(zone);if(zone==='jump'||zone==='sneak')takeControl(zone);if(hold)key(hold,true);else action();});
+  function up(e){e.preventDefault();if(released)return;released=true;activeTouches=Math.max(0,activeTouches-1);if(e.type==='pointercancel')stats.cancels++;else if(e.type==='lostpointercapture')stats.lostCaptures++;if(hold){var remaining=e.type==='pointerup'&&hold==='bvG'?90-(performance.now()-began):0;if(remaining>0)timer=setTimeout(function(){key(hold,false);},remaining);else key(hold,false);}}
   b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('lostpointercapture',up);host.append(b);return b;}
  function attach(){
   if(host)return;document.documentElement.classList.add('jaspr-touch-device');host=document.createElement('div');host.id='jaspr-touch';host.dataset.tank='none';host.dataset.view='first';host.dataset.vehicle='tank';host.setAttribute('aria-label','Minecraft touch controls');document.body.append(host);
@@ -72,29 +86,36 @@
    key('bDc',dy<-.23);key('bIW',dy>.23);key('bPQ',dx<-.23);key('bZ5',dx>.23);
    // Tanks sprint when the stick is pushed all the way forward.
    var sprint=tank.state==='on'&&dy<-.85&&Math.abs(dx)<.6;if(sprint!==stickSprint){stickSprint=sprint;key('bOT',sprint);}}
-  stick.onpointerdown=function(e){e.preventDefault();stick.setPointerCapture(e.pointerId);stick.classList.add('jaspr-held');move(e);};stick.onpointermove=function(e){if(stick.hasPointerCapture(e.pointerId)){e.preventDefault();move(e);}};
-  function end(){['bDc','bIW','bPQ','bZ5'].forEach(function(k){key(k,false);});if(stickSprint){stickSprint=false;key('bOT',false);}stick.classList.remove('jaspr-held');knob.style.transform='';}stick.onpointerup=end;stick.onpointercancel=end;stick.onlostpointercapture=end;host.append(stick);
+  var stickAt=0;
+  stick.onpointerdown=function(e){e.preventDefault();stick.setPointerCapture(e.pointerId);if(!stickAt){stickAt=performance.now();activeTouches++;stats.stickTouches++;}noteControl('stick');takeControl('stick');stick.classList.add('jaspr-held');move(e);};stick.onpointermove=function(e){if(stick.hasPointerCapture(e.pointerId)){e.preventDefault();move(e);}};
+  function end(e){if(stickAt){stats.stickMs+=Math.round(performance.now()-stickAt);stickAt=0;activeTouches=Math.max(0,activeTouches-1);if(e&&e.type==='pointercancel')stats.cancels++;}['bDc','bIW','bPQ','bZ5'].forEach(function(k){key(k,false);});if(stickSprint){stickSprint=false;key('bOT',false);}stick.classList.remove('jaspr-held');knob.style.transform='';}stick.onpointerup=end;stick.onpointercancel=end;stick.onlostpointercapture=end;host.append(stick);
   window.addEventListener('blur',release);window.addEventListener('pagehide',release);document.addEventListener('visibilitychange',release);window.addEventListener('orientationchange',release);
  }
  function attachCanvas(c){
   if(canvas===c)return;canvas=c;canvas.style.touchAction='none';canvas.tabIndex=0;
-  canvas.addEventListener('pointerdown',function(e){if(e.pointerType!=='touch')return;e.preventDefault();canvas.setPointerCapture(e.pointerId);var s=state();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,menu:s.menu,button:rightClick?2:0,at:performance.now(),moved:0});
+  canvas.addEventListener('pointerdown',function(e){if(e.pointerType!=='touch')return;e.preventDefault();canvas.setPointerCapture(e.pointerId);stats.canvasTouches++;var s=state();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,menu:s.menu,button:rightClick?2:0,at:performance.now(),moved:0});
     if(s.menu){mouse('mousemove',e.clientX,e.clientY,0);mouse('mousedown',e.clientX,e.clientY,rightClick?2:0);}
   });
   canvas.addEventListener('pointermove',function(e){var p=pointers.get(e.pointerId);if(!p)return;e.preventDefault();var dx=e.clientX-p.x,dy=e.clientY-p.y,s=state();
     if(p.menu){if(pointers.size>1)canvas.dispatchEvent(new WheelEvent('wheel',{bubbles:true,cancelable:true,clientX:e.clientX,clientY:e.clientY,deltaY:-dy*3}));else mouse('mousemove',e.clientX,e.clientY,p.button);}
-    else if(s.playing&&bridge())bridge().look(dx*.23*s.sensitivity,dy*.23*s.sensitivity);
+    else if(s.playing&&bridge()){bridge().look(dx*.23*s.sensitivity,dy*.23*s.sensitivity);if(!p.looked){p.looked=1;stats.lookMoves++;noteControl('look');}}
     p.moved+=Math.abs(dx)+Math.abs(dy);p.x=e.clientX;p.y=e.clientY;
   });
-  function end(e){var p=pointers.get(e.pointerId);if(!p)return;e.preventDefault();if(p.menu)mouse('mouseup',e.clientX,e.clientY,p.button);pointers.delete(e.pointerId);
-   if(e.type==='pointerup'&&!p.menu&&p.moved<12&&performance.now()-p.at<250&&tank.state==='on'&&tank.vehicle==='sentinel')tapAim(e.clientX,e.clientY);}
+  function end(e){var p=pointers.get(e.pointerId);if(!p)return;e.preventDefault();if(p.menu)mouse('mouseup',e.clientX,e.clientY,p.button);pointers.delete(e.pointerId);if(e.type==='pointercancel')stats.cancels++;
+   if(e.type==='pointerup'&&!p.menu&&p.moved<12&&performance.now()-p.at<250&&tank.state==='on'&&tank.vehicle==='sentinel'){stats.taps++;noteControl('tap');tapAim(e.clientX,e.clientY);}}
   canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);canvas.addEventListener('lostpointercapture',end);
  }
  window.JasprMobile={sync:function(){if(!canvas||!canvas.isConnected){var c=document.querySelector('#game_frame canvas');if(!c)return;release();attach();attachCanvas(c);}var s=state(),mode=s.playing&&!sheet?'play':s.menu?'menu':'hidden',enabled=s.enabled?'true':'false';
    if(enabled!==lastEnabled){host.dataset.enabled=enabled;lastEnabled=enabled;}
    if(mode!==lastMode){release();host.dataset.mode=mode;document.documentElement.classList.toggle('jaspr-touch-menu',mode==='menu');lastMode=mode;}
-   syncTank(s);
-  },release:release,status:function(){return {mobile:mobile,mode:lastMode,held:Array.from(held),pointers:pointers.size,tank:tank.state,view:tank.view,vehicle:tank.vehicle,pickup:tank.pickup,claimed:tank.claimed,cooldownMs:tank.cooldownMs};}};
+   syncTank(s);watchdog();
+  },release:release,status:function(){return {mobile:mobile,mode:lastMode,held:Array.from(held),pointers:pointers.size,tank:tank.state,view:tank.view,vehicle:tank.vehicle,pickup:tank.pickup,follow:tank.follow,claimed:tank.claimed,cooldownMs:tank.cooldownMs};},
+  // Control counters since the last reset, held keys by name, and control anomalies newer than `after`.
+  stats:function(reset,after){var out=stats,now=performance.now();out.activeTouches=activeTouches;out.heldNow=Array.from(held).map(name);out.last=last;out.sinceLastMs=lastAt?Math.round(now-lastAt):null;
+   out.anomalies=anomalies.filter(function(a){return a.id>(after|0);});if(reset){stats=counters();}return out;}};
+ // A key still held 2 s after the last finger left the screen is stuck (a touch end the controls never got): release it.
+ function watchdog(){if(!touchSeen||!held.size||fingers>0){stuckSince=0;return;}var now=performance.now();if(!stuckSince){stuckSince=now;return;}
+  if(now-stuckSince<2000)return;var keys=Array.from(held).map(name);stats.stuckReleases++;anomaly('stuck-release',{keys:keys.slice(0,6)});release();}
  // Small bounded bootstrap; after initialization the engine owns updates.
  var attempts=0,timer=setInterval(function(){window.JasprMobile.sync();if(bridge()||++attempts>120)clearInterval(timer);},250);
 })();

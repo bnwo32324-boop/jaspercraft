@@ -91,6 +91,9 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
     /** Barrel tip of the turret model, relative to the driver's feet. */
     static final double MUZZLE_HEIGHT = 0.85, MUZZLE_REACH = 1.55;
     static final double PROXIMITY = 0.35;
+    /** Sentinel lock-on: hit margin around the player, and the quiet time (ticks) before a swing counts as a tap. */
+    static final double LOCK_MARGIN = 0.3;
+    static final long LOCK_TAP_GAP = 10;
     static final int MAX_SHELLS_PER_DRIVER = 9, MAX_SHELLS = 72;
     /** Riders sit on the hull stand; clients place them on the track guards. */
     static final int MAX_RIDERS = 4;
@@ -110,6 +113,11 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
     private final Set<UUID> noticed = new HashSet<UUID>();
     private final Map<UUID, Long> fallSafe = new HashMap<UUID, Long>();
     private final Map<UUID, Long> lastTap = new HashMap<UUID, Long>();
+    /** Every arm swing, so a held attack or mining never counts as a deliberate lock-on tap. */
+    private final Map<UUID, Long> lastSwing = new HashMap<UUID, Long>();
+    /** Last friendly-fire block logged per shooter and victim, so a strike on a crowd logs once. */
+    private final Map<String, Long> friendlyFireLogged = new HashMap<String, Long>();
+    private long friendlyFireBlocked;
     private final Map<UUID, Long> joinedAt = new HashMap<UUID, Long>();
     /** Mobile claims arrive a few seconds after joining; leftovers are only cleaned up after this grace. */
     static final long JOIN_GRACE_TICKS = 600;
@@ -137,7 +145,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         for (Player player : getServer().getOnlinePlayers()) joined(player);
         getLogger().info("TANKS_READY enabled=" + settings.enabled + " cooldownTicks=" + settings.cooldownTicks
             + " power=" + settings.power + " range=" + settings.range + " breakBlocks=" + settings.breakBlocks
-            + " sentinel=true healthBonus=" + settings.healthBonus);
+            + " sentinel=true healthBonus=" + settings.healthBonus + " friendlyFire=" + settings.friendlyFire);
     }
 
     @Override
@@ -192,6 +200,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         noticed.remove(id);
         fallSafe.remove(id);
         lastTap.remove(id);
+        lastSwing.remove(id);
         joinedAt.remove(id);
     }
 
@@ -245,7 +254,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
             }
             if (sentinels.add(id)) savePlayers();
         } else {
-            tank.follow = null;
+            setFollow(player, tank, null, "mode");
             fallSafe.put(id, now + 200);
             if (sentinels.remove(id)) savePlayers();
         }
@@ -318,7 +327,11 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
                 return true;
             }
             case "unlock":
-                if (tank != null && tank.follow != null) { tank.follow = null; bar(player, ChatColor.GRAY + "Stopped following"); }
+                // Also sent by the touch controls when the driver takes the stick while following.
+                if (tank != null && tank.follow != null) {
+                    setFollow(player, tank, null, args.length > 1 ? args[1].replaceAll("[^a-z-]", "") : "command");
+                    bar(player, ChatColor.GRAY + "Stopped following" + ChatColor.DARK_GRAY + " · you have control");
+                }
                 return true;
             case "status":
                 status(player);
@@ -610,6 +623,8 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         Player driver = event.getPlayer();
         Tank tank = tanks.get(driver.getUniqueId());
         if (tank == null || tank.mode != Tank.Mode.SENTINEL || !tank.built() || !shown(driver)) return;
+        Long swung = lastSwing.put(driver.getUniqueId(), now);
+        boolean deliberate = swung == null || now - swung >= LOCK_TAP_GAP; // not part of a held attack or mining
         Long last = lastTap.get(driver.getUniqueId());
         if (last != null && now - last < 5) return; // held attack swings every few ticks
         lastTap.put(driver.getUniqueId(), now);
@@ -619,7 +634,11 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         double[] look = Aim.direction(eye.getYaw(), eye.getPitch());
         double blockAt = solidHit(world, origin, look, settings.pickupRange + 24);
         double[] at = new double[1];
-        Player friend = firstPlayer(world, origin, look, blockAt >= 0 ? blockAt : settings.pickupRange + 24, driver, at);
+        // Locking on takes one deliberate tap right on the player, within pickup range. It used to catch any swing
+        // up to 48 blocks away with a 0.7-block margin, so mining or fighting near a friend started a follow and
+        // the sentinel then flew by itself.
+        double lockReach = Math.min(blockAt >= 0 ? blockAt : settings.pickupRange, settings.pickupRange);
+        Player friend = deliberate ? firstPlayer(world, origin, look, lockReach, driver, at) : null;
         if (friend != null) { toggleFollow(driver, tank, friend); return; }
         Item item = firstItem(world, origin, look, blockAt >= 0 ? blockAt + 1 : settings.pickupRange, driver);
         if (item != null) pull(driver, item, true);
@@ -627,15 +646,27 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
 
     private void toggleFollow(Player driver, Tank tank, Player friend) {
         if (friend.getUniqueId().equals(tank.follow)) {
-            tank.follow = null;
+            setFollow(driver, tank, null, "tap");
             bar(driver, ChatColor.GRAY + "Stopped following " + friend.getName());
             return;
         }
-        tank.follow = friend.getUniqueId();
-        bar(driver, ChatColor.GREEN + "Following " + friend.getName() + ChatColor.GRAY + " · tap them again to stop");
+        setFollow(driver, tank, friend.getUniqueId(), "tap");
+        // A following sentinel flies itself: say so in large letters, not only in the action bar.
+        driver.sendTitle("", ChatColor.GREEN + "Following " + friend.getName(), 5, 40, 10);
+        bar(driver, ChatColor.GREEN + "Following " + friend.getName() + ChatColor.GRAY + " · move or tap them again to stop");
         bar(friend, ChatColor.GREEN + driver.getName() + "'s Orbital Sentinel is guarding you");
         driver.playSound(driver.getLocation(), Sound.BLOCK_NOTE_PLING, 0.6f, 1.6f);
-        getLogger().info("TANK_FOLLOW player=" + driver.getName() + " target=" + friend.getName());
+    }
+
+    /** The one place a follow starts or ends: tells the browser (score "follow") and logs the transition. */
+    private void setFollow(Player driver, Tank tank, UUID target, String reason) {
+        if (target == null ? tank.follow == null : target.equals(tank.follow)) return;
+        UUID before = tank.follow;
+        tank.follow = target;
+        sendScores(driver);
+        Player other = getServer().getPlayer(target != null ? target : before);
+        String name = other != null ? other.getName() : "offline";
+        getLogger().info((target != null ? "TANK_FOLLOW" : "TANK_UNFOLLOW") + " player=" + driver.getName() + " target=" + name + " reason=" + reason);
     }
 
     /** Keeps a following sentinel above and just behind its friend: glides when close, jumps when far. */
@@ -643,16 +674,17 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         Player friend = getServer().getPlayer(tank.follow);
         if (friend == null || !friend.isOnline() || friend.isDead() || friend.getGameMode() == GameMode.SPECTATOR
                 || !friend.getWorld().equals(driver.getWorld())) {
-            tank.follow = null;
+            setFollow(driver, tank, null, "lost");
             bar(driver, ChatColor.GRAY + "Lost your lock");
             return;
         }
+        if (now % 60 == 0) bar(driver, ChatColor.GREEN + "Following " + friend.getName() + ChatColor.GRAY + " · move or tap them again to stop");
         Location target = friend.getLocation();
         double yaw = Math.toRadians(target.getYaw());
         Location spot = target.clone().add(Math.sin(yaw) * settings.followDistance, settings.followHeight, -Math.cos(yaw) * settings.followDistance);
         Vector delta = spot.toVector().subtract(driver.getLocation().toVector());
         double distance = delta.length();
-        if (distance > 64) { tank.follow = null; bar(driver, ChatColor.GRAY + "Lock lost: " + friend.getName() + " is too far"); return; }
+        if (distance > 64) { setFollow(driver, tank, null, "far"); bar(driver, ChatColor.GRAY + "Lock lost: " + friend.getName() + " is too far"); return; }
         if (distance > 12) {
             Location jump = spot.clone();
             jump.setYaw(driver.getLocation().getYaw());
@@ -706,7 +738,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
             if (player.isDead() || player.getGameMode() == GameMode.SPECTATOR || !self.canSee(player)) continue;
             double[] box = Nms.box(player);
             if (box == null) continue;
-            double t = Aim.ray(o[0], o[1], o[2], d[0], d[1], d[2], Aim.grow(box, 0.7), bestAt);
+            double t = Aim.ray(o[0], o[1], o[2], d[0], d[1], d[2], Aim.grow(box, LOCK_MARGIN), bestAt);
             if (t >= 0 && t <= bestAt) { best = player; bestAt = t; }
         }
         at[0] = bestAt;
@@ -754,6 +786,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         scores.put("cooldown", settings.cooldownFor(sentinel ? Tank.Mode.SENTINEL : Tank.Mode.TANK));
         scores.put("mode", sentinel ? 1 : 0);
         scores.put("pickup", autoPickup.contains(player.getUniqueId()) ? 1 : 0);
+        scores.put("follow", tank != null && tank.follow != null ? 1 : 0);
         return scores;
     }
 
@@ -975,7 +1008,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         double bestAt = max;
         for (Entity entity : world.getNearbyEntities(middle, half, half, half)) {
             if (!(entity instanceof LivingEntity) || entity instanceof ArmorStand || entity.isDead()) continue;
-            if (entity.getUniqueId().equals(shooter) || friendly(entity, shooter)) continue;
+            if (entity.getUniqueId().equals(shooter) || friendly(entity, shooter) || spared(settings, entity)) continue;
             if (entity instanceof Player) {
                 Player player = (Player) entity;
                 if (player.getGameMode() == GameMode.SPECTATOR || (owner != null && !owner.canSee(player))) continue;
@@ -998,6 +1031,28 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         if (!(entity instanceof Tameable)) return false;
         AnimalTamer owner = ((Tameable) entity).getOwner();
         return owner != null && shooter.equals(owner.getUniqueId());
+    }
+
+    /** Friendly fire off: every player and every player's tamed pet is out of bounds for shells and strikes. */
+    static boolean spared(Settings settings, Entity entity) {
+        if (settings.friendlyFire) return false;
+        if (entity instanceof Player) return true;
+        return entity instanceof Tameable && ((Tameable) entity).getOwner() != null;
+    }
+
+    private void friendlyFireBlocked(Shell shell, Entity victim) {
+        friendlyFireBlocked++;
+        Player shooter = shell == null ? null : getServer().getPlayer(shell.shooter);
+        String who = shooter != null ? shooter.getName() : "unknown";
+        String key = who + ">" + victim.getUniqueId();
+        Long at = friendlyFireLogged.get(key);
+        if (at != null && now - at < 100) return;
+        if (friendlyFireLogged.size() > 256) friendlyFireLogged.clear();
+        friendlyFireLogged.put(key, now);
+        Tank tank = shell == null ? null : tanks.get(shell.shooter);
+        getLogger().info("TANK_FRIENDLY_FIRE_BLOCKED shooter=" + who
+            + " victim=" + (victim instanceof Player ? victim.getName() : "pet:" + victim.getType().name().toLowerCase(Locale.ROOT))
+            + " mode=" + (tank != null ? tank.mode.name().toLowerCase(Locale.ROOT) : "unknown") + " total=" + friendlyFireBlocked);
     }
 
     private static double[] center(LivingEntity entity) {
@@ -1027,6 +1082,7 @@ public final class TanksPlugin extends JavaPlugin implements Listener {
         Shell shell = shellOf(damager);
         Entity victim = event.getEntity();
         if (shell != null && (victim.getUniqueId().equals(shell.shooter) || friendly(victim, shell.shooter))) { event.setCancelled(true); return; }
+        if (spared(settings, victim)) { event.setCancelled(true); friendlyFireBlocked(shell, victim); return; }
         if (!(victim instanceof LivingEntity) || victim instanceof ArmorStand) { if (!settings.breakBlocks) event.setCancelled(true); return; }
         if (victim instanceof Player && (!settings.damagePlayers || !victim.getWorld().getPVP())) event.setCancelled(true);
     }

@@ -1,5 +1,5 @@
 name: JasprTanks
-version: 1.1.0
+version: 1.2.0
 main: chat.jaspr.tanks.TanksPlugin
 softdepend: [AuthMe, EaglercraftXServer, JasprRevive, TestServerControl]
 description: Mobile players get double health and a Tank or a flying Orbital Sentinel with an infinite TNT cannon or drone strikes.
