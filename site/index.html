@@ -18,6 +18,7 @@
   <meta name="twitter:image" content="https://jaspr.chat/jaspercraft/jaspercraft-banner.png">
   <link rel="icon" href="jaspercraft-cat-face.png?build=20260914-dlights10">
   <link rel="stylesheet" href="jaspr-sso.css?build=20260914-dlights10">
+  <style>/* Parked controls stay in the page, idle, until their hidden attribute is removed. */[data-parked][hidden]{display:none!important}</style>
   <script defer src="jaspr-profile.js?build=20260927-join1"></script>
 <script defer src="jaspr-sso.js?build=20260929-cloud1"></script>
 <link rel="stylesheet" href="jaspercraft-mobile-host.css?build=20260920-video2">
@@ -25,7 +26,7 @@
 <script defer src="jaspercraft-mobile-viewport.js?build=20260920-rotate1"></script>
 </head>
 <body class="checking">
-  <nav class="game-nav" aria-label="Jaspr.chat navigation">
+  <nav class="game-nav" aria-label="Jaspr.chat navigation" hidden data-parked="owner 2026-09-29: hidden for now; remove hidden to bring back">
     <a id="back-chat" class="chat-cat-link" href="https://jaspr.chat/" target="_self" aria-label="Go to Jaspr.chat" title="Go to Jaspr.chat">
       <img src="jaspercraft-cat-face.png?build=20260914-dlights10" alt="" width="42" height="42">
       <span>Go to Jaspr.chat</span>
@@ -99,7 +100,7 @@
     <span id="game-status-text">Connecting your Jaspr.chat identity…</span>
     <button id="retry-game" type="button" hidden>Try again</button>
   </aside>
-  <aside class="discord-promo" aria-label="JasperCraft Discord community">
+  <aside class="discord-promo" aria-label="JasperCraft Discord community" hidden data-parked="owner 2026-09-29: hidden for now; remove hidden to bring back">
     <p class="discord-promo-label">Join our Discord</p>
     <a class="discord-promo-link" href="https://discord.gg/5cdQYGXkvP" target="_blank" rel="noopener noreferrer" aria-label="Join the JasperCraft Discord server" title="Join our Discord">
       <img src="/auth/discord-clyde.svg" alt="Discord" width="32" height="24">

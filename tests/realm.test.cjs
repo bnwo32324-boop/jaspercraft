@@ -7,6 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const {CLIENT_BUILD} = require('./client-build.cjs');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
@@ -27,7 +28,7 @@ test('realm stage: four fenced hooks after the portal stage, idempotent, install
   assert.equal(fields.portal, 'Kum');
   for (const n of ['fallingdust', 'flame', 'lava', 'endRod', 'townaura']) assert.match(fields[n], /^\w+$/, n);
   new vm.Script(staged);
-  assert.ok(read('site/client.html').includes('classes.js?v=20260929-cloud1'), 'browsers fetch the new client');
+  assert.ok(read('site/client.html').includes('classes.js?v=' + CLIENT_BUILD), 'browsers fetch the new client');
 });
 
 /** Runs the realm block against a stub engine; returns the context and a handle to drive it. */

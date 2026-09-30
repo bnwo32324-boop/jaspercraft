@@ -7,6 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const {CLIENT_BUILD} = require('./client-build.cjs');
 const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
@@ -34,7 +35,7 @@ test('site/classes.js carries every JASPR_PERF_V1 patch and parses', () => {
   assert.ok(src.includes(patches.MARKER));
   for (const name of Object.keys(patches.PATCHES)) assert.ok(src.includes(`JASPR_PERF_V1_BEGIN ${name}`), name);
   assert.doesNotThrow(() => new Function(src));
-  assert.match(fs.readFileSync(path.join(root, 'site', 'client.html'), 'utf8'), /classes\.js\?v=20260929-perf1/);
+  assert.ok(fs.readFileSync(path.join(root, 'site', 'client.html'), 'utf8').includes('classes.js?v=' + CLIENT_BUILD));
 });
 
 test('patch script is idempotent on the shipped client', () => {

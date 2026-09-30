@@ -7,6 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const {CLIENT_BUILD} = require('./client-build.cjs');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
@@ -23,7 +24,7 @@ test('cloud stage: keys at the server ids 6..11, installed, idempotent, offsets 
   assert.deepEqual(cloudKeyIds(before), [8, 9, 10, 11, 12, 13], 'the reversal restores the old ids');
   assert.equal(build(before), text, 'building from the old client gives the installed one');
   new vm.Script(text);
-  assert.ok(read('site/client.html').includes('classes.js?v=20260929-cloud1'), 'browsers fetch the fixed client');
+  assert.ok(read('site/client.html').includes('classes.js?v=' + CLIENT_BUILD), 'browsers fetch the fixed client');
   assert.ok(read('site/jaspr-sso.js').includes('client.html?build=20260929-cloud1') && read('site/index.html').includes('jaspr-sso.js?build=20260929-cloud1'));
 });
 
