@@ -12,9 +12,9 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const P = 'server/custom-plugins/';
 const KITS = {nether: P + 'JasprNether/src/chat/jaspr/nether/GuideKit.java', ruins: P + 'JasprRuins/src/chat/jaspr/ruins/GuideKit.java',
-  atlas: P + 'JasprAtlas/src/chat/jaspr/atlas/GuideKit.java'};
+  atlas: P + 'JasprAtlas/src/chat/jaspr/atlas/GuideKit.java', backrooms: P + 'JasprBackrooms/src/chat/jaspr/backrooms/GuideKit.java'};
 
-test('one kit, three identical copies (only the package line differs)', () => {
+test('one kit, identical copies in all four realm plugins (only the package line differs)', () => {
   const body = f => read(f).replace(/\r\n/g, '\n').split('\n').slice(1).join('\n');
   const nether = body(KITS.nether);
   for (const [k, f] of Object.entries(KITS)) {

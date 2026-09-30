@@ -1,0 +1,19 @@
+name: JasprBackrooms
+version: 1.0.0
+main: chat.jaspr.backrooms.BackroomsPlugin
+author: Jaspr
+description: The Backrooms, seven liminal spaces (Yellow Rooms, Warehouse, Maintenance Tunnels, Electrical Corridors, Abandoned Office, Endless City, Poolrooms), reached through a yellow glazed terracotta portal only a conqueror can light.
+commands:
+  backrooms:
+    description: The Backrooms status and owner tools.
+    usage: /backrooms [status|tp [1-7]|arena <1-7>|back|where|guide|quest|boss <1-7>|mob <kind>|item <id|all>|clear <n>|reach <n>|conqueror|reset|unload|selftest|as <player> <sub>]
+    aliases: [br]
+    permission: jaspr.backrooms.admin
+  goals:
+    description: Your goals in Atlas, Drownhollow, the Nether and the Backrooms, ticked off as you go
+    usage: /goals
+    aliases: [goal, quests, quest, checklist]
+permissions:
+  jaspr.backrooms.admin:
+    description: Use the /backrooms owner tools.
+    default: op

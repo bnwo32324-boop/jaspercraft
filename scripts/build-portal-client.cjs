@@ -3,7 +3,8 @@
 // Exact, candidate-only JasprPortal stage for the composed browser client (site/classes.js) and its resource archive
 // (site/assets.epk): every portal is coloured by its frame. A portal whose column stands on mossy cobblestone (a gate to
 // Drownhollow, once Ul'Nhaar) glows green; a quartz gate (to Atlas, the Divided Realm) burns half blue and half black at once, split down
-// its middle; any other (obsidian: the Nether) keeps its purple. New gate kinds add a frame -> colour entry.
+// its middle; a yellow glazed terracotta gate (to the Backrooms) hums fluorescent yellow; any other (obsidian: the Nether) keeps its
+// purple. New gate kinds add a frame -> colour entry.
 //  - assets: portal.png becomes a neutral (grey) animation, and portal_ns/portal_ew faces get tintindex 0;
 //  - BlockColors.colorMultiplier (FEI): portal blocks (id 90) are tinted by their frame (walks down to the frame block);
 //  - ParticlePortal factory (E_F): particles spawned inside a green portal are green;
@@ -24,6 +25,8 @@ const sha = value => crypto.createHash('sha256').update(value).digest('hex');
 const MARK = '/*JASPR_PORTAL_V1*/';
 // Vanilla purple as a multiplier over the neutral texture (least-squares fit of the original animation), and green.
 const PURPLE = [0.457, 0.056, 1.0], GREEN = [0.30, 1.0, 0.42];
+// The Backrooms' gate: the colour of old fluorescent light on yellow wallpaper.
+const YELLOW = [1.0, 0.86, 0.30];
 // Atlas's divided light: the Hearthstar's blue and the Cinder Heart's black (a little violet, so the swirl still shows),
 // and the seam between them where a gate is an odd number of blocks wide.
 const BLUE = [0.26, 0.55, 1.0], BLACK = [0.09, 0.07, 0.13], SEAM = [0.17, 0.30, 0.56];
@@ -36,8 +39,8 @@ const BLOCK = [
   ' * frame splits its portal down the middle: the half nearer the west (or north) end burns blue, the other black.',
   ' * Read-only; no engine calls from DOM handlers. */',
   'var JasprPortal=(function(){',
-  '  var FRAMES={48:' + rgb(GREEN) + '},PURPLE=' + rgb(PURPLE) + ',BLUE=' + rgb(BLUE) + ',BLACK=' + rgb(BLACK) + ',SEAM=' + rgb(SEAM) + ',TINT={},mc=null,world=null,cache=new Map(),failure=null;',
-  '  TINT[' + rgb(GREEN) + ']=[' + GREEN.join(',') + '];TINT[PURPLE]=[' + PURPLE.join(',') + '];TINT[BLUE]=[' + BLUE.join(',') + '];TINT[BLACK]=[' + BLACK.join(',') + '];TINT[SEAM]=[' + SEAM.join(',') + '];',
+  '  var FRAMES={48:' + rgb(GREEN) + ',239:' + rgb(YELLOW) + '},PURPLE=' + rgb(PURPLE) + ',BLUE=' + rgb(BLUE) + ',BLACK=' + rgb(BLACK) + ',SEAM=' + rgb(SEAM) + ',TINT={},mc=null,world=null,cache=new Map(),failure=null;',
+  '  TINT[' + rgb(GREEN) + ']=[' + GREEN.join(',') + '];TINT[' + rgb(YELLOW) + ']=[' + YELLOW.join(',') + '];TINT[PURPLE]=[' + PURPLE.join(',') + '];TINT[BLUE]=[' + BLUE.join(',') + '];TINT[BLACK]=[' + BLACK.join(',') + '];TINT[SEAM]=[' + SEAM.join(',') + '];',
   '  var api={ov:[' + PURPLE.join(',') + ']};',
   '  function key(x,y,z){return x+","+y+","+z;}',
   '  api.tick=function(m){mc=m;var w=m&&m.X;if(w!==world){world=w;cache.clear();}};',

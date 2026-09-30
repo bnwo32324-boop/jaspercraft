@@ -22,6 +22,7 @@ test('portal stage: four fenced hooks, block refresh is idempotent, installed, p
     '/*JASPR_PORTAL_V1*/JasprPortal.particle(k,d,e,f,l);return k;', '/*JASPR_PORTAL_V1*/JasprPortal.overlay(a.ds);'])
     assert.ok(staged.includes(hook), hook);
   assert.ok(staged.includes('var FRAMES={48:'), 'mossy cobblestone frames are coloured');
+  assert.ok(/var FRAMES=\{48:\d+,239:\d+\}/.test(staged), 'yellow glazed terracotta frames (the Backrooms) are coloured too');
   assert.equal(build(staged), staged, 'refreshing the fenced block is idempotent');
   assert.equal(staged, live, 'site/classes.js carries the current portal block');
   new vm.Script(staged);

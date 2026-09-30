@@ -1,0 +1,3 @@
+# JasprBackrooms. The Backrooms world (jaspr_levels) loads when someone enters and unloads a minute after the last
+# player leaves. Set enabled to false to switch the whole realm off (the portal then stays cold).
+enabled: true

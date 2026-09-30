@@ -54705,8 +54705,8 @@ var JasprSky=(function(){
  * frame splits its portal down the middle: the half nearer the west (or north) end burns blue, the other black.
  * Read-only; no engine calls from DOM handlers. */
 var JasprPortal=(function(){
-  var FRAMES={48:5111659},PURPLE=7671551,BLUE=4361471,BLACK=1511969,SEAM=2837903,TINT={},mc=null,world=null,cache=new Map(),failure=null;
-  TINT[5111659]=[0.3,1,0.42];TINT[PURPLE]=[0.457,0.056,1];TINT[BLUE]=[0.26,0.55,1];TINT[BLACK]=[0.09,0.07,0.13];TINT[SEAM]=[0.17,0.3,0.56];
+  var FRAMES={48:5111659,239:16767821},PURPLE=7671551,BLUE=4361471,BLACK=1511969,SEAM=2837903,TINT={},mc=null,world=null,cache=new Map(),failure=null;
+  TINT[5111659]=[0.3,1,0.42];TINT[16767821]=[1,0.86,0.3];TINT[PURPLE]=[0.457,0.056,1];TINT[BLUE]=[0.26,0.55,1];TINT[BLACK]=[0.09,0.07,0.13];TINT[SEAM]=[0.17,0.3,0.56];
   var api={ov:[0.457,0.056,1]};
   function key(x,y,z){return x+","+y+","+z;}
   api.tick=function(m){mc=m;var w=m&&m.X;if(w!==world){world=w;cache.clear();}};
