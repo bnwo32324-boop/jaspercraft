@@ -78,16 +78,29 @@ import org.bukkit.util.Vector;
  *   <li>the Crimson Tyrant (giant magma cube): crushing landings, rings of fire, magma hulks;</li>
  *   <li>the Blood Count (zombie pigman lord): drinks the life he takes, blood bats, mist form, ghoul thralls.</li>
  * </ul>
+ * Since 2026-10-01 three more Lords keep the colossal structures and the Catacombs (the Sunless Pharaoh in the Great
+ * Pyramid, the Ember Sovereign in the Caldera Citadel, the Hollow King in the Endless Catacombs' Heart), and ten
+ * champions (mini-bosses) keep the keys to their seals: each of these wakes only for a player inside its hall who can
+ * see its place, keeps closer to it, and leaves its structure's own treasure; a champion gives no Lord's credit but
+ * hands its key to everyone who fought it; a Lord's fall opens its treasury (see {@link Ordeals}).
  * No Lord damages blocks: their explosions, skulls, fireballs and bodies leave the strongholds standing.
  */
 final class Lords implements Listener {
     static final class Def {
         final String id, name; final EntityType base; final double hp, dmg, speed, armor; final boolean flies; final String minion;
         final BarColor colour; final String relic;
+        // the colossal structures' and the Catacombs' bosses (2026-10-01): where they wake, what they keep
+        int rouse = NEAR, rouseDy = 28; boolean sight, champion; String key, hoard, home;
         Def(String id, String name, EntityType base, double hp, double dmg, double speed, double armor, boolean flies, String minion, BarColor colour, String relic) {
             this.id = id; this.name = name; this.base = base; this.hp = hp; this.dmg = dmg; this.speed = speed; this.armor = armor; this.flies = flies;
             this.minion = minion; this.colour = colour; this.relic = relic;
         }
+        /** Wakes only for a player within r blocks (and dy up or down) who can see its place: a boss in a closed hall. */
+        Def arena(int r, int dy) { rouse = r; rouseDy = dy; sight = true; return this; }
+        /** A champion (a mini-boss): no Lord's credit; everyone who fought it receives its key. */
+        Def champion(String key) { champion = true; this.key = key; return this; }
+        /** Its hoard's table and the structure it keeps (instead of a GLM stronghold's). */
+        Def hoard(String table, String home) { hoard = table; this.home = home; return this; }
     }
 
     static final Map<String, Def> DEFS = new LinkedHashMap<>();
@@ -103,9 +116,41 @@ final class Lords implements Listener {
         def(new Def("bone_colossus", "The Bone Colossus", EntityType.IRON_GOLEM, 320, 16, 0.25, 10, false, "ashbone_archer", BarColor.WHITE, "colossus_maul"));
         def(new Def("crimson_tyrant", "The Crimson Tyrant", EntityType.MAGMA_CUBE, 340, 14, 0.3, 6, false, "magma_hulk", BarColor.RED, "tyrant_heart"));
         def(new Def("blood_count", "The Blood Count", EntityType.PIG_ZOMBIE, 240, 11, 0.32, 8, false, "charred_ghoul", BarColor.RED, "bloodfang_dagger"));
+        // the Lords of the colossal structures and the Catacombs (owner, 2026-10-01: "Each one should have a boss")
+        def(new Def("sunless_pharaoh", "The Sunless Pharaoh", EntityType.HUSK, 320, 13, 0.3, 10, false, "mummy", BarColor.YELLOW, "pharaoh_crook")
+            .arena(14, 6).hoard("jaspr:colossus/pyramid_vault", "the Great Pyramid"));
+        def(new Def("ember_sovereign", "The Ember Sovereign", EntityType.ZOMBIE, 360, 13, 0.32, 10, false, "royal_guard", BarColor.RED, "sovereign_flame")
+            .arena(34, 8).hoard("jaspr:colossus/citadel_vault", "the Caldera Citadel"));
+        def(new Def("hollow_king", "The Hollow King", EntityType.STRAY, 400, 14, 0.3, 12, false, "crypt_guard", BarColor.WHITE, "hollow_crown")
+            .arena(40, 8).hoard("jaspr:depths/heart", "the Endless Catacombs"));
+        // their champions (owner: "don't forget about loot and mini-bosses"): each keeps a key to the way on
+        def(new Def("sphinx_sentinel", "The Sphinx Sentinel", EntityType.IRON_GOLEM, 180, 13, 0.25, 10, false, "asp", BarColor.YELLOW, null)
+            .arena(18, 8).champion("canopic_jar_duamutef").hoard("jaspr:colossus/pyramid_rich", "the Great Pyramid"));
+        def(new Def("vizier_hekkat", "Vizier Hekkat", EntityType.WITCH, 130, 6, 0.3, 4, false, "asp", BarColor.PURPLE, null)
+            .arena(10, 5).champion("canopic_jar_imsety").hoard("jaspr:colossus/pyramid_rich", "the Great Pyramid"));
+        def(new Def("scarab_matriarch", "The Scarab Matriarch", EntityType.SPIDER, 160, 9, 0.34, 6, false, "scarab", BarColor.GREEN, null)
+            .arena(18, 5).champion("canopic_jar_qebehsenuef").hoard("jaspr:colossus/pyramid_rich", "the Great Pyramid"));
+        def(new Def("high_fire_sage", "The High Fire Sage", EntityType.BLAZE, 150, 8, 0.25, 4, true, "flame_adept", BarColor.YELLOW, null)
+            .arena(8, 4).champion("sun_seal").hoard("jaspr:colossus/citadel_rich", "the Caldera Citadel"));
+        def(new Def("blazing_admiral", "The Blazing Admiral", EntityType.VINDICATOR, 180, 12, 0.35, 8, false, "ember_legionnaire", BarColor.RED, null)
+            .arena(16, 6).champion("admiral_seal").hoard("jaspr:colossus/citadel_war", "the Caldera Citadel"));
+        def(new Def("boiling_warden", "The Warden of the Boiling Keep", EntityType.SKELETON, 170, 11, 0.3, 10, false, "ember_legionnaire", BarColor.WHITE, null)
+            .arena(11, 7).champion("warden_seal").hoard("jaspr:colossus/citadel_rich", "the Caldera Citadel"));
+        def(new Def("gaoler", "The Gaoler", EntityType.WITHER_SKELETON, 190, 12, 0.3, 10, false, "crypt_guard", BarColor.WHITE, null)
+            .arena(26, 6).champion("warden_key_gaol").hoard("jaspr:depths/warden", "the Gaol"));
+        def(new Def("bone_harrower", "The Bone Harrower", EntityType.SKELETON, 170, 8, 0.3, 6, false, "crypt_guard", BarColor.WHITE, null)
+            .arena(26, 6).champion("warden_key_ossuary").hoard("jaspr:depths/warden", "the Bone Harrow"));
+        def(new Def("weeping_shade", "The Weeping Shade", EntityType.ILLUSIONER, 170, 8, 0.32, 4, false, "lost_soul", BarColor.PURPLE, null)
+            .arena(26, 6).champion("warden_key_gallery").hoard("jaspr:depths/warden", "the Weeping Gallery"));
+        def(new Def("rot_mother", "The Rot Mother", EntityType.SLIME, 200, 10, 0.3, 6, false, "deep_crawler", BarColor.GREEN, null)
+            .arena(26, 6).champion("warden_key_pits").hoard("jaspr:depths/warden", "the Rot Pits"));
     }
 
     static boolean isLord(String kind) { return kind != null && DEFS.containsKey(kind); }
+
+    /** The Lords that count towards the Urn of Sorrow (every boss but the champions). */
+    static final java.util.List<String> COUNTED = new java.util.ArrayList<>();
+    static { for (Def d : DEFS.values()) if (!d.champion) COUNTED.add(d.id); }
 
     static void specs(java.util.function.Consumer<Mobs.Spec> spec) {
         for (Def d : DEFS.values())
@@ -151,6 +196,43 @@ final class Lords implements Listener {
                 break;
             }
             case "crimson_tyrant": ((MagmaCube) e).setSize(10); break;
+            case "sunless_pharaoh":
+                q.setItemInMainHand(new ItemStack(Material.GOLD_HOE));
+                q.setHelmet(new ItemStack(Material.GOLD_HELMET));
+                q.setChestplate(dyed(Material.LEATHER_CHESTPLATE, Color.fromRGB(0xE8D9A8)));
+                q.setLeggings(dyed(Material.LEATHER_LEGGINGS, Color.fromRGB(0x1D3F8F)));
+                q.setBoots(new ItemStack(Material.GOLD_BOOTS));
+                break;
+            case "ember_sovereign":
+                q.setItemInMainHand(new ItemStack(Material.BLAZE_ROD));
+                q.setHelmet(new ItemStack(Material.GOLD_HELMET));
+                q.setChestplate(dyed(Material.LEATHER_CHESTPLATE, Color.fromRGB(0x8E1111)));
+                q.setLeggings(dyed(Material.LEATHER_LEGGINGS, Color.fromRGB(0x1A0A0A)));
+                q.setBoots(dyed(Material.LEATHER_BOOTS, Color.fromRGB(0x1A0A0A)));
+                if (e instanceof org.bukkit.entity.Zombie) ((org.bukkit.entity.Zombie) e).setBaby(false);
+                break;
+            case "hollow_king":
+                q.setItemInMainHand(new ItemStack(Material.STONE_SWORD));
+                q.setHelmet(new ItemStack(Material.GOLD_HELMET));
+                q.setChestplate(dyed(Material.LEATHER_CHESTPLATE, Color.fromRGB(0x2A2A33)));
+                break;
+            case "boiling_warden":
+                q.setItemInMainHand(new ItemStack(Material.IRON_SWORD));
+                q.setHelmet(new ItemStack(Material.IRON_HELMET));
+                q.setChestplate(new ItemStack(Material.IRON_CHESTPLATE));
+                break;
+            case "gaoler":
+                q.setItemInMainHand(new ItemStack(Material.IRON_AXE));
+                q.setHelmet(new ItemStack(Material.CHAINMAIL_HELMET));
+                q.setChestplate(new ItemStack(Material.CHAINMAIL_CHESTPLATE));
+                break;
+            case "bone_harrower":
+                q.setItemInMainHand(new ItemStack(Material.BOW));
+                q.setHelmet(dyed(Material.LEATHER_HELMET, Color.fromRGB(0xD8D2BE)));
+                break;
+            case "blazing_admiral": q.setItemInMainHand(new ItemStack(Material.IRON_AXE)); break;
+            case "rot_mother": ((org.bukkit.entity.Slime) e).setSize(6); break;
+            case "sphinx_sentinel": ((IronGolem) e).setPlayerCreated(false); break;
             case "bone_colossus": ((IronGolem) e).setPlayerCreated(false); break;
             case "voidborn": ((Enderman) e).setCarriedMaterial(new org.bukkit.material.MaterialData(Material.OBSIDIAN)); break;
             default:
@@ -167,6 +249,7 @@ final class Lords implements Listener {
         final Set<UUID> fought = new HashSet<>();
         final Map<String, Long> cd = new HashMap<>();
         long lastSeen, swoopUntil; int phase; boolean airborne; double orbit, lastX, lastZ;
+        long boltAt; UUID boltAim;   // the Ember Sovereign's gathered lightning: when it is loosed, and at whom
         Location goal;          // where a dragon is flying to (the plugin flies it: the hover phase never moves by itself)
         final List<Entity> bats = new ArrayList<>();
         Fight(LivingEntity e, Def d, BossBar bar, int hx, int hy, int hz) {
@@ -195,7 +278,7 @@ final class Lords implements Listener {
     /** The Lords a player has conquered (from the jn_lord_* tags). */
     static Set<String> conquered(Player p) {
         Set<String> out = new TreeSet<>();
-        for (String t : p.getScoreboardTags()) if (t.startsWith("jn_lord_") && DEFS.containsKey(t.substring(8))) out.add(t.substring(8));
+        for (String t : p.getScoreboardTags()) if (t.startsWith("jn_lord_") && COUNTED.contains(t.substring(8))) out.add(t.substring(8));
         return out;
     }
 
@@ -221,18 +304,23 @@ final class Lords implements Listener {
         }
     }
 
-    /** A Lord rises when a player comes near its arena and it is not resting. */
+    static final int ROUSE_MAX = 48;
+
+    /**
+     * A Lord rises when a player comes near its arena and it is not resting; a boss in a closed hall (the colossal
+     * structures', the Catacombs') only for a player in reach who can see its place, so none wakes behind a wall.
+     */
     private void rouse() {
         World w = plugin.nether;
         if (plugin.registry == null) return;
         for (Player p : w.getPlayers()) {
             if (p.isDead() || p.getGameMode() == GameMode.SPECTATOR || p.getGameMode() == GameMode.CREATIVE) continue;
             Location l = p.getLocation();
-            for (Registry.Entry e : plugin.registry.near(l.getBlockX(), l.getBlockZ(), NEAR, "lord")) {
+            for (Registry.Entry e : plugin.registry.near(l.getBlockX(), l.getBlockZ(), ROUSE_MAX, "lord")) {
                 Def d = DEFS.get(e.name);
-                if (d == null || Math.abs(e.y1 - l.getBlockY()) > 28) continue;
+                if (d == null || Math.abs(e.y1 - l.getBlockY()) > d.rouseDy) continue;
                 double dx = e.x1 + 0.5 - l.getX(), dz = e.z1 + 0.5 - l.getZ();
-                if (dx * dx + dz * dz > NEAR * NEAR) continue;
+                if (dx * dx + dz * dz > d.rouse * (double) d.rouse) continue;
                 String key = e.x1 + "_" + e.y1 + "_" + e.z1;
                 Long until = rest.get(key);
                 if (until != null && now < until) continue;
@@ -240,9 +328,23 @@ final class Lords implements Listener {
                 for (Fight f : fights.values()) if (f.point.equals(key)) up = true;
                 if (up) continue;
                 if (!w.isChunkLoaded(e.x1 >> 4, e.z1 >> 4)) continue;
+                if (d.sight && !sees(p.getEyeLocation(), e.x1 + 0.5, e.y1 + 1.5, e.z1 + 0.5)) continue;
                 rise(w, d, e.x1, e.y1, e.z1);
             }
         }
+    }
+
+    /** Whether nothing opaque stands between an eye and a point (only loaded chunks are looked through). */
+    static boolean sees(Location eye, double tx, double ty, double tz) {
+        World w = eye.getWorld();
+        double dx = tx - eye.getX(), dy = ty - eye.getY(), dz = tz - eye.getZ();
+        int steps = (int) Math.ceil(Math.sqrt(dx * dx + dy * dy + dz * dz) / 0.4);
+        for (int i = 1; i < steps; i++) {
+            double q = i / (double) steps;
+            int x = (int) Math.floor(eye.getX() + dx * q), y = (int) Math.floor(eye.getY() + dy * q), z = (int) Math.floor(eye.getZ() + dz * q);
+            if (!w.isChunkLoaded(x >> 4, z >> 4) || w.getBlockAt(x, y, z).getType().isOccluding()) return false;
+        }
+        return true;
     }
 
     LivingEntity rise(World w, Def d, int x, int y, int z) {
@@ -257,9 +359,9 @@ final class Lords implements Listener {
         rest.put(f.point, now + 200);        // no second rising while this one stands
         w.playSound(at, d.base == EntityType.ENDER_DRAGON ? Sound.ENTITY_ENDERDRAGON_GROWL : Sound.ENTITY_WITHER_SPAWN, 3f, 0.7f);
         w.spawnParticle(Particle.LAVA, at, 60, 2, 2, 2, 0);
-        for (Player p : w.getPlayers()) if (p.getLocation().distanceSquared(at) < 64 * 64)
-            p.sendTitle(ChatColor.DARK_RED + d.name, ChatColor.GOLD + "a Nether Lord rises", 10, 60, 20);
-        plugin.getLogger().info("NETHER_LORD_RISEN lord=" + d.id + " at=" + x + "," + y + "," + z + " hp=" + (int) e.getMaxHealth());
+        for (Player p : w.getPlayers()) if (p.getLocation().distanceSquared(at) < (d.sight ? 40 * 40 : 64 * 64))
+            p.sendTitle(ChatColor.DARK_RED + d.name, ChatColor.GOLD + (d.champion ? "a champion of " + d.home + " wakes" : "a Nether Lord rises"), 10, 60, 20);
+        plugin.getLogger().info("NETHER_LORD_RISEN lord=" + d.id + " at=" + x + "," + y + "," + z + " hp=" + (int) e.getMaxHealth() + " champion=" + d.champion);
         return e;
     }
 
@@ -317,9 +419,9 @@ final class Lords implements Listener {
                 }
         }
         // keep to the arena
-        double leash = f.d.flies ? 70 : 40;
+        double leash = f.d.sight ? f.d.rouse + 12 : f.d.flies ? 70 : 40, high = f.d.sight ? f.d.rouseDy + 10 : 30;
         if (f.d.base != EntityType.ENDER_DRAGON && (Math.abs(e.getLocation().getX() - home.getX()) > leash || Math.abs(e.getLocation().getZ() - home.getZ()) > leash
-            || Math.abs(e.getLocation().getY() - home.getY()) > 30)) {
+            || Math.abs(e.getLocation().getY() - home.getY()) > high)) {
             e.teleport(home);
             abilities++;
         }
@@ -379,6 +481,80 @@ final class Lords implements Listener {
                 if (target != null && ready(f, "bats", (int) (200 * speedUp))) bats(f, target);
                 biteBats(f);
                 break;
+            // the Lords of the colossal structures and the Catacombs
+            case "sunless_pharaoh":
+                if (target != null && best < 14 * 14 && ready(f, "sand", (int) (170 * speedUp))) sandstorm(f, 12);
+                if (target != null && ready(f, "curse", (int) (140 * speedUp))) curse(f, 10, new PotionEffect(PotionEffectType.WITHER, 60, 1, false, true), Particle.SPELL_WITCH);
+                if (target != null && best > 25 && best < 24 * 24 && ready(f, "blink", (int) (160 * speedUp))) blink(f, target);
+                if (f.phase >= 1 && ready(f, "swarm", 360) && count(f, "scarab") < 6) summon(f, "scarab", 3, target);
+                if (f.phase >= 2 && target != null && ready(f, "eclipse", 400)) eclipse(f, 20, target);
+                break;
+            case "ember_sovereign":
+                bolt(f);
+                if (target != null && best < 12 * 12 && ready(f, "whip", (int) (90 * speedUp))) whip(f, target, 10);
+                if (target != null && best > 36 && best < 20 * 20 && ready(f, "dash", (int) (150 * speedUp))) dash(f, target);
+                if (target != null && f.boltAt == 0 && ready(f, "lightning", (int) (240 * speedUp))) gather(f, target);
+                if (target != null && ready(f, "ring", (int) (200 * speedUp))) nova(f, 7, 7, 100, Particle.FLAME);
+                if (f.phase >= 2 && target != null && ready(f, "comet", 260)) rain(f, target, 10);
+                break;
+            case "hollow_king":
+                if (target != null && best < 10 * 10 && ready(f, "drain", (int) (160 * speedUp))) drain(f, 8, 6);
+                if (target != null && ready(f, "dread", (int) (200 * speedUp))) curse(f, 12, new PotionEffect(PotionEffectType.SLOW, 60, 1, false, true), Particle.SPELL_WITCH);
+                if (target != null && best > 25 && best < 28 * 28 && ready(f, "blink", (int) (150 * speedUp))) blink(f, target);
+                if (ready(f, "souls", 420) && count(f, "lost_soul") < 4) summon(f, "lost_soul", 2, target);
+                if (f.phase >= 2 && ready(f, "nova", 180)) nova(f, 7, 8, 0, Particle.SPELL_WITCH);
+                break;
+            // their champions
+            case "sphinx_sentinel":
+                if (target != null && best < 36 && ready(f, "slam", (int) (150 * speedUp))) slam(f, 6, 10, 0.7);
+                if (target != null && best < 16 * 16 && ready(f, "sand", (int) (220 * speedUp))) sandstorm(f, 9);
+                if (target != null && ready(f, "gaze", (int) (200 * speedUp))) gaze(f, target);
+                break;
+            case "vizier_hekkat":
+                if (target != null && best < 9 && ready(f, "blink", 80)) blinkAway(f, target);
+                if (target != null && ready(f, "hex", (int) (160 * speedUp))) curse(f, 9, new PotionEffect(PotionEffectType.WEAKNESS, 100, 0, false, true), Particle.SPELL_WITCH);
+                if (ready(f, "asps", 300) && count(f, "asp") < 4) summon(f, "asp", 2, target);
+                break;
+            case "scarab_matriarch":
+                if (target != null && ready(f, "brood", (int) (260 * speedUp)) && count(f, "scarab") < 6) summon(f, "scarab", 3, target);
+                if (target != null && best < 12 * 12 && ready(f, "web", (int) (140 * speedUp))) web(f, target);
+                if (target != null && best < 9 && ready(f, "burrow", (int) (220 * speedUp))) burrow(f);
+                break;
+            case "high_fire_sage":
+                if (target != null && best < 24 * 24 && ready(f, "volley", (int) (90 * speedUp))) volley(f, target, 3, 0.14, false);
+                if (target != null && best < 36 && ready(f, "nova", (int) (160 * speedUp))) nova(f, 6, 6, 100, Particle.FLAME);
+                break;
+            case "blazing_admiral":
+                if (target != null && best < 10 * 10 && ready(f, "whip", (int) (100 * speedUp))) whip(f, target, 9);
+                if (target != null && best > 25 && best < 18 * 18 && ready(f, "dash", (int) (140 * speedUp))) dash(f, target);
+                if (f.phase >= 1 && target != null && ready(f, "ring", 220)) nova(f, 6, 6, 100, Particle.FLAME);
+                break;
+            case "boiling_warden":
+                if (target != null && best > 9 && best < 14 * 14 && ready(f, "chain", (int) (160 * speedUp))) shackle(f, target);
+                if (target != null && best < 25 && ready(f, "slam", (int) (170 * speedUp))) slam(f, 5, 9, 0.6);
+                if (target != null && ready(f, "steam", (int) (220 * speedUp))) steam(f, 8);
+                break;
+            case "gaoler":
+                if (target != null && best > 9 && best < 16 * 16 && ready(f, "chain", (int) (150 * speedUp))) shackle(f, target);
+                if (target != null && best < 25 && ready(f, "slam", (int) (160 * speedUp))) slam(f, 6, 10, 0.6);
+                if (target != null && ready(f, "guards", 400) && count(f, "crypt_guard") < 4) summon(f, "crypt_guard", 2, target);
+                break;
+            case "bone_harrower":
+                if (target != null && best < 24 * 24 && ready(f, "storm", (int) (140 * speedUp))) boneStorm(f);
+                if (target != null && best < 9 && ready(f, "blink", 100)) blinkAway(f, target);
+                break;
+            case "weeping_shade":
+                if (target != null && ready(f, "wail", (int) (180 * speedUp))) curse(f, 12, new PotionEffect(PotionEffectType.SLOW, 60, 0, false, true), Particle.SPELL_WITCH);
+                if (target != null && best < 16 && ready(f, "fade", 120)) blinkAway(f, target);
+                if (target != null && ready(f, "souls", 380) && count(f, "lost_soul") < 4) summon(f, "lost_soul", 2, target);
+                break;
+            case "rot_mother": {
+                boolean ground = e.isOnGround();
+                if (f.airborne && ground && target != null && best < 64) slam(f, 5, 8, 0.5);
+                f.airborne = !ground;
+                if (target != null && ready(f, "rot", (int) (160 * speedUp))) curse(f, 9, new PotionEffect(PotionEffectType.POISON, 80, 0, false, true), Particle.SLIME);
+                break;
+            }
             default:
         }
     }
@@ -448,6 +624,7 @@ final class Lords implements Listener {
             b.setShooter(f.e);
             b.setDirection(d);
             if (large) { ((LargeFireball) b).setYield(1.5f); b.setIsIncendiary(false); }
+            else if (f.d.hoard != null) b.setIsIncendiary(false);       // the colossal halls do not burn
             tag(b);
         }
         from.getWorld().playSound(from, Sound.ENTITY_GHAST_SHOOT, 2f, 0.6f);
@@ -462,6 +639,7 @@ final class Lords implements Listener {
             SmallFireball b = w.spawn(at, SmallFireball.class);
             b.setShooter(f.e);
             b.setDirection(new Vector(0, -1, 0));
+            if (f.d.hoard != null) b.setIsIncendiary(false);
             tag(b);
         }
         w.playSound(target.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.5f, 0.5f);
@@ -579,6 +757,150 @@ final class Lords implements Listener {
         f.e.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 80, 0, false, false), true);
         f.e.getWorld().spawnParticle(Particle.REDSTONE, f.e.getLocation().add(0, 1, 0), 80, 1, 1, 1, 0);
         if (target != null) blink(f, target);
+    }
+
+    // ---- the colossal structures' and the Catacombs' bosses ------------------------------------------------------------------
+    private void sandstorm(Fight f, double r) {
+        Location c = f.e.getLocation();
+        for (Entity n : f.e.getNearbyEntities(r, r / 2 + 2, r)) {
+            if (!victim(n)) continue;
+            Player p = (Player) n;
+            plugin.mobs.hurt(p, f.e, 3 * plugin.mobs.dmgMult);
+            p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 40, 0, false, true), true);
+            p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 60, 1, false, true), true);
+        }
+        c.getWorld().spawnParticle(Particle.BLOCK_DUST, c.clone().add(0, 1, 0), 80, r / 2, 1.5, r / 2, 0.2, new org.bukkit.material.MaterialData(Material.SAND));
+        c.getWorld().playSound(c, Sound.WEATHER_RAIN, 2f, 0.5f);
+    }
+
+    /** The Pharaoh's eclipse: darkness on all around, and his dead rise to his side. */
+    private void eclipse(Fight f, double r, Player target) {
+        for (Entity n : f.e.getNearbyEntities(r, r / 2 + 2, r)) if (victim(n)) ((Player) n).addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 60, 0, false, true), true);
+        f.e.getWorld().spawnParticle(Particle.SMOKE_LARGE, f.e.getLocation().add(0, 1, 0), 60, 2, 1.5, 2, 0.02);
+        f.e.getWorld().playSound(f.e.getLocation(), Sound.ENTITY_WITHER_AMBIENT, 2f, 0.4f);
+        summon(f, "mummy", 2, target);
+    }
+
+    /** A whip of fire along the line to the target (stopped by walls): whoever stands on it burns. */
+    private void whip(Fight f, Player target, double range) {
+        Location from = f.e.getLocation().add(0, 1.2, 0);
+        Vector dir = target.getLocation().add(0, 1, 0).toVector().subtract(from.toVector());
+        if (dir.lengthSquared() < 1e-4) return;
+        dir.normalize();
+        World w = from.getWorld();
+        double reach = range;
+        for (double s = 1; s <= range; s += 0.5) {
+            Location at = from.clone().add(dir.clone().multiply(s));
+            if (at.getBlock().getType().isOccluding()) { reach = s; break; }
+            w.spawnParticle(Particle.FLAME, at, 2, 0.06, 0.06, 0.06, 0.01);
+        }
+        for (Entity n : f.e.getNearbyEntities(range, 3, range)) {
+            if (!victim(n)) continue;
+            Vector to = n.getLocation().add(0, 1, 0).toVector().subtract(from.toVector());
+            double along = to.dot(dir);
+            if (along < 0 || along > reach || to.clone().subtract(dir.clone().multiply(along)).length() > 1.4) continue;
+            plugin.mobs.hurt((Player) n, f.e, 7 * plugin.mobs.dmgMult);
+            n.setFireTicks(Math.max(n.getFireTicks(), 80));
+        }
+        w.playSound(from, Sound.ENTITY_BLAZE_SHOOT, 1.6f, 0.8f);
+    }
+
+    /** A leap of flame at the target. */
+    private void dash(Fight f, Player target) {
+        Vector v = target.getLocation().toVector().subtract(f.e.getLocation().toVector()).setY(0);
+        if (v.lengthSquared() < 1e-4) return;
+        f.e.setVelocity(v.normalize().multiply(1.3).setY(0.35));
+        f.e.getWorld().spawnParticle(Particle.FLAME, f.e.getLocation().add(0, 1, 0), 30, 0.4, 0.6, 0.4, 0.05);
+        f.e.getWorld().playSound(f.e.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.4f, 0.5f);
+    }
+
+    /** The Sovereign gathers lightning for two seconds (sparks, a warning): it is loosed at its mark unless they hide. */
+    private void gather(Fight f, Player target) {
+        f.boltAt = now + 40;
+        f.boltAim = target.getUniqueId();
+        f.e.getWorld().playSound(f.e.getLocation(), Sound.ENTITY_LIGHTNING_THUNDER, 0.5f, 1.8f);
+        for (Player p : f.e.getWorld().getPlayers()) if (p.getLocation().distanceSquared(f.e.getLocation()) < 40 * 40)
+            Effects.bar(p, ChatColor.GOLD + f.d.name + " gathers lightning" + (p == target ? ": get out of its sight!" : ""));
+    }
+
+    private void bolt(Fight f) {
+        if (f.boltAt == 0) return;
+        if (now < f.boltAt) {
+            if ((now % 4) == 0) f.e.getWorld().spawnParticle(Particle.FIREWORKS_SPARK, f.e.getLocation().add(0, 1.6, 0), 12, 0.6, 0.8, 0.6, 0.05);
+            return;
+        }
+        f.boltAt = 0;
+        Player p = f.boltAim == null ? null : Bukkit.getPlayer(f.boltAim);
+        boolean hits = p != null && victim(p) && p.getWorld() == f.e.getWorld() && p.getLocation().distanceSquared(f.e.getLocation()) < 30 * 30
+            && sees(f.e.getEyeLocation(), p.getEyeLocation().getX(), p.getEyeLocation().getY(), p.getEyeLocation().getZ());
+        if (!hits) {      // it struck the wall they hid behind
+            f.e.getWorld().strikeLightningEffect(f.e.getLocation().add(f.e.getLocation().getDirection().setY(0).multiply(3)));
+            return;
+        }
+        p.getWorld().strikeLightningEffect(p.getLocation());
+        plugin.mobs.hurt(p, f.e, 10 * plugin.mobs.dmgMult);
+        p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 40, 2, false, true), true);
+    }
+
+    /** The Hollow King drinks the life of all near him. */
+    private void drain(Fight f, double r, double dmg) {
+        double took = 0;
+        for (Entity n : f.e.getNearbyEntities(r, r / 2 + 1, r)) {
+            if (!victim(n)) continue;
+            plugin.mobs.hurt((Player) n, f.e, dmg * plugin.mobs.dmgMult);
+            took += dmg;
+            n.getWorld().spawnParticle(Particle.SPELL_WITCH, n.getLocation().add(0, 1, 0), 20, 0.3, 0.6, 0.3, 0.05);
+        }
+        if (took > 0 && f.e.isValid()) f.e.setHealth(Math.min(f.e.getMaxHealth(), f.e.getHealth() + took * 0.5));
+        f.e.getWorld().playSound(f.e.getLocation(), Sound.ENTITY_WITHER_HURT, 1.5f, 0.5f);
+    }
+
+    /** The Sphinx's gaze: whoever meets it reels. */
+    private void gaze(Fight f, Player target) {
+        Location eye = f.e.getEyeLocation(), t = target.getEyeLocation();
+        if (!sees(eye, t.getX(), t.getY(), t.getZ())) return;
+        target.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 100, 0, false, true), true);
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 60, 1, false, true), true);
+        target.getWorld().spawnParticle(Particle.SPELL_MOB, t, 20, 0.3, 0.3, 0.3, 1);
+        target.getWorld().playSound(t, Sound.ENTITY_ELDER_GUARDIAN_CURSE, 0.8f, 1.2f);
+    }
+
+    private void web(Fight f, Player target) {
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 50, 3, false, true), true);
+        target.getWorld().spawnParticle(Particle.BLOCK_CRACK, target.getLocation().add(0, 1, 0), 30, 0.4, 0.6, 0.4, 0, new org.bukkit.material.MaterialData(Material.WEB));
+        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_SPIDER_AMBIENT, 1.5f, 0.6f);
+    }
+
+    /** The Matriarch digs into the sand and comes up elsewhere in her pit. */
+    private void burrow(Fight f) {
+        Location at = free(f.home(f.e.getWorld()), 12);
+        if (at == null) return;
+        org.bukkit.material.MaterialData sand = new org.bukkit.material.MaterialData(Material.SAND);
+        f.e.getWorld().spawnParticle(Particle.BLOCK_DUST, f.e.getLocation(), 40, 0.6, 0.3, 0.6, 0.1, sand);
+        f.e.teleport(at);
+        at.getWorld().spawnParticle(Particle.BLOCK_DUST, at, 40, 0.6, 0.3, 0.6, 0.1, sand);
+        at.getWorld().playSound(at, Sound.BLOCK_SAND_BREAK, 2f, 0.5f);
+    }
+
+    /** A chain flung at the target drags them in. */
+    private void shackle(Fight f, Player target) {
+        Vector v = f.e.getLocation().toVector().subtract(target.getLocation().toVector());
+        if (v.lengthSquared() < 4) return;
+        target.setVelocity(v.normalize().multiply(1.1).setY(0.35));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 40, 2, false, true), true);
+        target.getWorld().spawnParticle(Particle.CRIT, target.getLocation().add(0, 1, 0), 20, 0.3, 0.5, 0.3, 0.1);
+        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_IRONGOLEM_ATTACK, 1.5f, 1.4f);
+    }
+
+    /** Scalding steam from the keep's vents. */
+    private void steam(Fight f, double r) {
+        for (Entity n : f.e.getNearbyEntities(r, r / 2 + 1, r)) {
+            if (!victim(n)) continue;
+            plugin.mobs.hurt((Player) n, f.e, 3 * plugin.mobs.dmgMult);
+            ((Player) n).addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 30, 0, false, true), true);
+        }
+        f.e.getWorld().spawnParticle(Particle.CLOUD, f.e.getLocation().add(0, 1, 0), 60, r / 2, 1, r / 2, 0.05);
+        f.e.getWorld().playSound(f.e.getLocation(), Sound.BLOCK_LAVA_EXTINGUISH, 2f, 0.6f);
     }
 
     // ---- the Pit Lord walks, the dragons fly ------------------------------------------------------------------------------
@@ -710,6 +1032,15 @@ final class Lords implements Listener {
             }
             case "cursed_king": v.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 60, 1, false, true), true); break;
             case "pit_lord": case "crimson_tyrant": v.setFireTicks(Math.max(v.getFireTicks(), 100)); break;
+            case "ember_sovereign": case "blazing_admiral": case "boiling_warden": v.setFireTicks(Math.max(v.getFireTicks(), 80)); break;
+            case "sunless_pharaoh": v.addPotionEffect(new PotionEffect(PotionEffectType.HUNGER, 100, 1, false, true), true); break;
+            case "hollow_king":
+                v.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 60, 0, false, true), true);
+                s.e.setHealth(Math.min(s.e.getMaxHealth(), s.e.getHealth() + 2));
+                break;
+            case "scarab_matriarch": v.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 80, 0, false, true), true); break;
+            case "rot_mother": v.addPotionEffect(new PotionEffect(PotionEffectType.HUNGER, 120, 1, false, true), true); break;
+            case "gaoler": v.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 40, 1, false, true), true); break;
             default:
         }
     }
@@ -718,6 +1049,8 @@ final class Lords implements Listener {
     boolean launch(Mobs.T t, Projectile p) {
         tag(p);
         if (p instanceof LargeFireball) { ((LargeFireball) p).setYield(1.5f); ((LargeFireball) p).setIsIncendiary(false); }
+        Def d = DEFS.get(t.spec.kind);
+        if (p instanceof SmallFireball && d != null && d.hoard != null) ((SmallFireball) p).setIsIncendiary(false);
         return false;
     }
 
@@ -729,19 +1062,58 @@ final class Lords implements Listener {
         if (f != null) { f.bar.removeAll(); for (Entity b : f.bats) b.remove(); }
         slain++;
         slainBy.merge(d.id, 1, Integer::sum);
-        String theme = "fortress";
-        if (plugin.gen != null) { GlmSites.Entry en = plugin.gen.glm.lordEntry(d.id); if (en != null) theme = en.theme; }
         Random r = random;
-        drops.addAll(Loot.roll("glm:vault:" + theme, r));
-        drops.addAll(Loot.roll("glm:rich:" + theme, r));
-        drops.add(Items.create("hellforged_shard", 4 + r.nextInt(5)));
-        drops.add(Items.create("amethyst_crystal", 6 + r.nextInt(7)));
-        drops.add(new ItemStack(Material.GOLD_INGOT, 3 + r.nextInt(5)));
-        if (r.nextInt(100) < 50) drops.add(Items.create(d.relic, 1));
-        event.setDroppedExp(d.base == EntityType.ENDER_DRAGON ? 0 : 250);
-        credit(t.e, d, f);
+        if (d.hoard != null) {
+            // a colossal structure's or the Catacombs' boss: its own structure's treasure
+            drops.addAll(Loot.roll(d.hoard, r));
+            if (!d.champion) drops.addAll(Loot.roll(d.hoard, r));
+        } else {
+            String theme = "fortress";
+            if (plugin.gen != null) { GlmSites.Entry en = plugin.gen.glm.lordEntry(d.id); if (en != null) theme = en.theme; }
+            drops.addAll(Loot.roll("glm:vault:" + theme, r));
+            drops.addAll(Loot.roll("glm:rich:" + theme, r));
+        }
+        if (d.champion) {
+            drops.add(Items.create("hellforged_shard", 2 + r.nextInt(3)));
+            drops.add(Items.create("amethyst_crystal", 3 + r.nextInt(4)));
+            drops.add(new ItemStack(Material.GOLD_INGOT, 1 + r.nextInt(3)));
+            event.setDroppedExp(120);
+        } else {
+            drops.add(Items.create("hellforged_shard", 4 + r.nextInt(5)));
+            drops.add(Items.create("amethyst_crystal", 6 + r.nextInt(7)));
+            drops.add(new ItemStack(Material.GOLD_INGOT, 3 + r.nextInt(5)));
+            // a colossal structure's Lord, reached through every seal of its hall, always leaves its relic
+            if (d.relic != null && (d.hoard != null || r.nextInt(100) < 50)) drops.add(Items.create(d.relic, 1));
+            event.setDroppedExp(d.base == EntityType.ENDER_DRAGON ? 0 : 250);
+        }
+        if (d.champion) keys(t.e, d, f); else credit(t.e, d, f);
         String key = f != null ? f.point : pointOf(t.e);
         if (key != null) rest.put(key, now + REST_TICKS);
+        // the seals this boss kept (its treasury) part for a while
+        if (d.hoard != null && plugin.ordeals != null) {
+            int hx = f != null ? f.hx : t.e.getLocation().getBlockX(), hz = f != null ? f.hz : t.e.getLocation().getBlockZ();
+            plugin.ordeals.bossFell(d.id, t.e.getWorld(), hx, hz);
+        }
+    }
+
+    /** A champion's key goes to everyone who fought it or stood near when it fell (a key is never used up). */
+    private void keys(LivingEntity e, Def d, Fight f) {
+        Location at = e.getLocation();
+        int given = 0;
+        for (Player p : e.getWorld().getPlayers()) {
+            boolean near = p.getGameMode() != GameMode.SPECTATOR && p.getLocation().distanceSquared(at) < 64 * 64;
+            if (!near && (f == null || !f.fought.contains(p.getUniqueId()))) continue;
+            if (d.key != null && !Ordeals.carries(p, d.key)) {
+                ItemStack k = Items.create(d.key, 1);
+                if (!p.getInventory().addItem(k).isEmpty()) p.getWorld().dropItemNaturally(p.getLocation(), k);
+                given++;
+            }
+            p.sendTitle(ChatColor.GOLD + "CHAMPION DEFEATED", ChatColor.YELLOW + d.name, 10, 60, 20);
+            if (d.key != null) p.sendMessage(ChatColor.GOLD + d.name + " fell. " + ChatColor.YELLOW + "You carry " + Items.name(d.key)
+                + ChatColor.GRAY + " -- it opens the way on in " + d.home + ".");
+            p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1.2f);
+        }
+        plugin.getLogger().info("NETHER_CHAMPION_DEFEATED champion=" + d.id + " at=" + at.getBlockX() + "," + at.getBlockY() + "," + at.getBlockZ() + " keys=" + given);
     }
 
     private static String pointOf(LivingEntity e) {
@@ -760,7 +1132,7 @@ final class Lords implements Listener {
             ItemStack sigil = Items.create("sigil_" + d.id, 1);
             if (!p.getInventory().addItem(sigil).isEmpty()) p.getWorld().dropItemNaturally(p.getLocation(), sigil);
             p.sendTitle(ChatColor.GOLD + "LORD CONQUERED", ChatColor.YELLOW + d.name, 10, 70, 20);
-            p.sendMessage(ChatColor.GOLD + "You conquered " + d.name + "! " + ChatColor.YELLOW + "Nether Lords conquered: " + n + " of " + DEFS.size()
+            p.sendMessage(ChatColor.GOLD + "You conquered " + d.name + "! " + ChatColor.YELLOW + "Nether Lords conquered: " + n + " of " + COUNTED.size()
                 + (n < NEEDED ? ChatColor.GRAY + " (" + (NEEDED - n) + " more before the Urn of Sorrow answers)" : ChatColor.GREEN + " -- the Urn of Sorrow will answer you"));
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             credited++;

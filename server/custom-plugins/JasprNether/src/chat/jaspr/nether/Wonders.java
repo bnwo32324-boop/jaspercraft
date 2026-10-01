@@ -332,7 +332,7 @@ final class Wonders {
         List<String> pages = new ArrayList<>();
         pages.add("Day " + (3 + r.nextInt(40)) + ".\n\n" + FATE[r.nextInt(FATE.length)] + "\n\nI write down what we learned, for whoever comes after.");
         for (Mega.Kind k : Mega.Kind.values()) {
-            Mega.Site s = g.mega.nearest(k, x, z, 4);
+            Mega.Site s = g.nearestMega(k, x, z, 4);
             if (s == null) continue;
             int dist = (int) (Math.round(Math.hypot(s.x - x, s.z - z) / 10.0) * 10);
             pages.add(k.display + "\n\n" + rumour(k) + ".\n\nAbout " + dist + " blocks " + bearing(x, z, s.x, s.z) + " of this camp.");

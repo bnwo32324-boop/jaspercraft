@@ -29,9 +29,10 @@ import org.bukkit.event.inventory.InventoryOpenEvent;
  *       player is within 16 blocks and brings one or two of its kind every 10-25 s, at most four near it; breaking
  *       the spawner ends it. The plugin does the spawning so that any of the Nether creatures can come from a
  *       spawner, whatever the light and the floor (vanilla spawners would refuse most of them);</li>
- *   <li>trapped chests: opening one inside a stronghold springs an ambush of the build's guards, once;</li>
- *   <li>fire never destroys a stronghold: burning and fire spreading from lava or flames are stopped inside the
- *       builds' boxes (fireballs still set fires, they just do not eat the walls).</li>
+ *   <li>trapped chests: opening one inside a stronghold springs an ambush of the build's guards, once (so do the
+ *       colossal structures' and the Catacombs' trapped chests, with their own creatures);</li>
+ *   <li>fire never destroys a stronghold or a colossal structure: burning and fire spreading from lava or flames are
+ *       stopped inside their boxes (fireballs still set fires, they just do not eat the walls).</li>
  * </ul>
  */
 final class GlmLife implements Listener {
@@ -79,7 +80,7 @@ final class GlmLife implements Listener {
         if (near >= CAP) return;
         woken++;
         int n = 1 + (random.nextInt(3) == 0 ? 1 : 0);
-        boolean flier = Fiends.flies(e.name) || e.name.equals("blaze") || e.name.equals("ghastling");
+        boolean flier = Fiends.flies(e.name) || Dwellers.flies(e.name) || e.name.equals("blaze") || e.name.equals("ghastling");
         for (int i = 0; i < n && near < CAP; i++) {
             Location at = spot(w, e.x1, e.y1, e.z1, flier);
             if (at == null) continue;
@@ -132,12 +133,23 @@ final class GlmLife implements Listener {
         Block b = ((org.bukkit.block.Chest) e.getInventory().getHolder()).getBlock();
         if (b.getType() != Material.TRAPPED_CHEST || !plugin.isNether(b.getWorld())) return;
         int x = b.getX(), y = b.getY(), z = b.getZ();
-        if (plugin.registry.at(x, y, z, "glm") == null || plugin.registry.at(x, y, z, "sprung") != null) return;
-        GlmSites.Site s = plugin.gen.builtGlmAt(x, z);
-        if (s == null) return;
-        plugin.registry.add("sprung", s.e.key, x, y, z, x, y, z);
+        if (plugin.registry.at(x, y, z, "sprung") != null) return;
+        String[] roster;
+        String where;
+        boolean glm = plugin.registry.at(x, y, z, "glm") != null;
+        if (glm) {
+            GlmSites.Site s = plugin.gen.builtGlmAt(x, z);
+            if (s == null) return;
+            roster = GlmSites.roster(s.e.theme);
+            where = s.e.key;
+        } else {
+            Colossi.Site c = plugin.gen.builtColossusAt(x, z);
+            if (c != null) { roster = c.kind == Colossi.Kind.PYRAMID ? PYRAMID_ROSTER : CITADEL_ROSTER; where = c.kind.id; }
+            else if (plugin.gen.depths != null && y <= Depths.TOP && plugin.gen.depths.top(x, z) >= 0) { roster = DEPTHS_ROSTER[plugin.gen.depths.zone(x, z)]; where = "catacombs"; }
+            else return;
+        }
+        plugin.registry.add("sprung", where, x, y, z, x, y, z);
         Player p = (Player) e.getPlayer();
-        String[] roster = GlmSites.roster(s.e.theme);
         int made = 0;
         for (int i = 0; i < 3; i++) {
             Location at = spot(b.getWorld(), x, y, z, false);
@@ -151,12 +163,17 @@ final class GlmLife implements Listener {
         ambushes++;
         p.sendTitle(ChatColor.DARK_RED + "Ambush!", ChatColor.GOLD + "the chest was a trap", 5, 40, 10);
         b.getWorld().playSound(b.getLocation(), Sound.ENTITY_WITHER_SKELETON_AMBIENT, 1.5f, 0.6f);
-        plugin.getLogger().info("NETHER_GLM_AMBUSH build=" + s.e.key + " at=" + x + "," + y + "," + z + " spawned=" + made);
+        if (glm) plugin.getLogger().info("NETHER_GLM_AMBUSH build=" + where + " at=" + x + "," + y + "," + z + " spawned=" + made);
+        else plugin.getLogger().info("NETHER_AMBUSH where=" + where + " at=" + x + "," + y + "," + z + " spawned=" + made);
     }
+
+    static final String[] PYRAMID_ROSTER = {"mummy", "mummy", "asp", "tomb_guardian"}, CITADEL_ROSTER = {"ember_legionnaire", "royal_guard", "flame_adept"};
+    static final String[][] DEPTHS_ROSTER = {{"crypt_guard", "deep_crawler"}, {"crypt_guard", "charred_ghoul", "deep_crawler"}, {"crypt_guard", "lost_soul", "soul_wraith"}};
 
     // ---- fire never eats a stronghold ---------------------------------------------------------------------------------
     private boolean inBuild(Block b) {
-        return plugin.registry != null && plugin.isNether(b.getWorld()) && plugin.registry.at(b.getX(), b.getY(), b.getZ(), "glm") != null;
+        return plugin.registry != null && plugin.isNether(b.getWorld())
+            && (plugin.registry.at(b.getX(), b.getY(), b.getZ(), "glm") != null || plugin.registry.at(b.getX(), b.getY(), b.getZ(), "colossus") != null);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

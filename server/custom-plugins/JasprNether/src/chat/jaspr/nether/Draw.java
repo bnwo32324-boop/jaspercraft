@@ -192,6 +192,16 @@ final class Draw {
         out.entities.add(new int[]{x, y, z});
         out.entityKinds.add(kind);
     }
+    /** A sign (wall sign 68 with its facing, or standing sign 63 with its rotation) with up to four lines of text. */
+    void sign(int x, int y, int z, int block, String... lines) {
+        if (!inTiles(x, z) || y < 1 || y > 126) return;
+        set(x, y, z, 0);
+        String[] l = new String[4];
+        for (int i = 0; i < 4; i++) l[i] = i < lines.length && lines[i] != null ? (lines[i].length() > 15 ? lines[i].substring(0, 15) : lines[i]) : "";
+        out.signs.add(new int[]{x, y, z, block});
+        out.signLines.add(l);
+    }
+
     /** A registered point: "urn", "bluefire", "statue" or "garrison:kind+kind". */
     void point(int x, int y, int z, String kind) {
         if (!inTiles(x, z)) return;
@@ -226,9 +236,14 @@ final class Draw {
         void point(int u, int y, int v, String kind) { d.point(x(u, v), y, z(u, v), kind); }
         void resident(int u, int y, int v, String kind) { d.resident(x(u, v), y, z(u, v), kind); }
         void skull(int u, int y, int v, int type, int rot16) { d.skull(x(u, v), y, z(u, v), type, rot16 + rot * 4); }
+        /** A wall sign on the face of the block towards local facing f (2-5), with its text. */
+        void wallSign(int u, int y, int v, int f, String... lines) { d.sign(x(u, v), y, z(u, v), b(68, facing(f)), lines); }
         void line(double u0, double y0, double v0, double u1, double y1, double v1, double r, Mat m) {
             d.line(xd(u0, v0), y0, zd(u0, v0), xd(u1, v1), y1, zd(u1, v1), r, m);
         }
+        void cyl(double u, double v, double r, int ya, int yb, Mat m) { d.cyl(xd(u, v), zd(u, v), r, ya, yb, m); }
+        void ring(double u, double v, double r, double wall, int ya, int yb, Mat m) { d.ring(xd(u, v), zd(u, v), r, wall, ya, yb, m); }
+        void disk(double u, double v, double r, int y, Mat m) { d.disk(xd(u, v), zd(u, v), r, y, m); }
         double xd(double u, double v) { switch (rot) { case 1: return ox - v; case 2: return ox - u; case 3: return ox + v; default: return ox + u; } }
         double zd(double u, double v) { switch (rot) { case 1: return oz + u; case 2: return oz - v; case 3: return oz - u; default: return oz + v; } }
     }

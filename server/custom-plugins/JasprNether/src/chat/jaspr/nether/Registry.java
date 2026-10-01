@@ -39,6 +39,7 @@ final class Registry {
     private final Map<Long, Boolean> cities = new HashMap<>();
     private final Map<Long, Boolean> megas = new HashMap<>();
     private final Map<String, Boolean> glms = new HashMap<>();
+    private final Map<Long, Boolean> colossi = new HashMap<>();
     private int count;
     private BufferedWriter out;
     int writeFailures;
@@ -88,6 +89,8 @@ final class Registry {
                         cities.put(((long) Integer.parseInt(p[1]) << 32) ^ (Integer.parseInt(p[2]) & 0xffffffffL), p[3].equals("1"));
                     } else if (p[0].equals("megacell") && p.length == 4) {
                         megas.put(((long) Integer.parseInt(p[1]) << 32) ^ (Integer.parseInt(p[2]) & 0xffffffffL), p[3].equals("1"));
+                    } else if (p[0].equals("colossuscell") && p.length == 4) {
+                        colossi.put(((long) Integer.parseInt(p[1]) << 32) ^ (Integer.parseInt(p[2]) & 0xffffffffL), p[3].equals("1"));
                     } else if (p[0].equals("glmcell") && p.length == 5) {
                         glms.put(p[1] + " " + p[2] + " " + p[3], p[4].equals("1"));
                     } else if (p.length == 8) {
@@ -127,6 +130,14 @@ final class Registry {
     synchronized void setMegaDecision(int cellX, int cellZ, boolean built) {
         megas.put(((long) cellX << 32) ^ (cellZ & 0xffffffffL), built);
         write("megacell " + cellX + " " + cellZ + (built ? " 1" : " 0"));
+    }
+
+    /** Whether a colossal structure's cell is built (decided once; see Gen.colossusBuilt). */
+    synchronized Boolean colossusDecision(int cellX, int cellZ) { return colossi.get(((long) cellX << 32) ^ (cellZ & 0xffffffffL)); }
+
+    synchronized void setColossusDecision(int cellX, int cellZ, boolean built) {
+        colossi.put(((long) cellX << 32) ^ (cellZ & 0xffffffffL), built);
+        write("colossuscell " + cellX + " " + cellZ + (built ? " 1" : " 0"));
     }
 
     /** Whether a GLM build's cell (tier L/G/C) is built (decided once, by the first chunk that reaches it). */
@@ -170,6 +181,8 @@ final class Registry {
             for (Map.Entry<Long, Boolean> c : megas.entrySet())
                 w.write("megacell " + (int) (c.getKey() >> 32) + " " + (int) (long) c.getKey() + (c.getValue() ? " 1" : " 0") + "\n");
             for (Map.Entry<String, Boolean> c : glms.entrySet()) w.write("glmcell " + c.getKey() + (c.getValue() ? " 1" : " 0") + "\n");
+            for (Map.Entry<Long, Boolean> c : colossi.entrySet())
+                w.write("colossuscell " + (int) (c.getKey() >> 32) + " " + (int) (long) c.getKey() + (c.getValue() ? " 1" : " 0") + "\n");
             for (Entry e : keep) { w.write(e.line()); w.newLine(); index(e); }
         } catch (IOException e) {
             log.warning("NETHER_REGISTRY_COMPACT_FAILED reason=" + e.getClass().getSimpleName());

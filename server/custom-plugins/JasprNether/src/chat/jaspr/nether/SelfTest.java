@@ -188,7 +188,7 @@ final class SelfTest implements Listener {
     private void mega() {
         java.util.LinkedHashSet<Long> want = new java.util.LinkedHashSet<>();
         for (Mega.Kind k : Mega.Kind.values()) {
-            Mega.Site s = plugin.gen.mega.nearest(k, 0, 0, 8);
+            Mega.Site s = plugin.gen.nearestMega(k, 0, 0, 8);
             if (s == null) { check("mega_planned_" + k.id, false, "no site within 8 cells"); continue; }
             megaSites.add(s);
             addSquare(want, s.x >> 4, s.z >> 4, Mega.REACH / 16 + 1);
@@ -280,7 +280,7 @@ final class SelfTest implements Listener {
     private final List<GlmSites.Site> glmSites = new ArrayList<>();
 
     private void glm() {
-        check("glm_builds_loaded", plugin.gen.glm.size() >= 90 && plugin.gen.glm.lords.size() == Lords.DEFS.size(),
+        check("glm_builds_loaded", plugin.gen.glm.size() >= 90 && plugin.gen.glm.lords.size() == GlmSites.LORD_ORDER.size(),
             "builds=" + plugin.gen.glm.size() + " lords=" + plugin.gen.glm.lords.size());
         java.util.LinkedHashSet<Long> want = new java.util.LinkedHashSet<>();
         for (GlmSites.Tier t : GlmSites.Tier.values()) {
@@ -345,6 +345,154 @@ final class SelfTest implements Listener {
         }
         check("glm_gen_cost", plugin.avgMs() < 25, "avgMs=" + NetherPlugin.fmt(plugin.avgMs()) + " maxMs=" + NetherPlugin.fmt(plugin.maxNanos / 1e6) + " wallMs=" + wallMs
             + " loads=" + plugin.gen.glm.loads + " loadMs=" + NetherPlugin.fmt(plugin.gen.glm.loadNanos / 1e6) + " phaseMs[" + plugin.gen.phases(plugin.populated) + "]");
+        later(5, this::colossi);
+    }
+
+    // ---- stage 3d: the colossal structures and the Endless Catacombs ----------------------------------------------------
+    private final List<Colossi.Site> colossal = new ArrayList<>();
+
+    /** Generates the nearest Great Pyramid and Caldera Citadel whole, and the Catacombs' Heart and a Warden's vault. */
+    private void colossi() {
+        java.util.LinkedHashSet<Long> want = new java.util.LinkedHashSet<>();
+        for (Colossi.Kind k : Colossi.Kind.values()) {
+            List<Colossi.Site> near = plugin.gen.colossi.near(k, 0, 0, 3);
+            if (near.isEmpty()) { check("colossus_planned_" + k.id, false, "none within 3 cells"); continue; }
+            Colossi.Site s = near.get(0);
+            colossal.add(s);
+            addSquare(want, s.x >> 4, s.z >> 4, Colossi.REACH / 16 + 2);
+        }
+        Depths dp = plugin.gen.depths;
+        check("catacombs_attached", dp != null, dp == null ? "none" : "heart=" + dp.hx + "," + dp.hz + " history=" + (plugin.gen.history.fresh ? "fresh" : plugin.gen.history.chunks + "chunks"));
+        if (dp != null) {
+            addSquare(want, dp.hx >> 4, dp.hz >> 4, 6);
+            addSquare(want, dp.hx >> 4, (dp.hz - Depths.WARD * Depths.P) >> 4, 4);
+        }
+        List<long[]> list = new ArrayList<>();
+        for (long k : want) list.add(new long[]{k >> 32, (int) k});
+        plugin.getLogger().info("NETHER_SELFTEST colossi sites=" + colossal.size() + " chunks=" + list.size());
+        colossusBatch(list, 0, System.currentTimeMillis());
+    }
+
+    private void colossusBatch(List<long[]> list, int from, long t0) {
+        int to = Math.min(list.size(), from + 24);
+        for (int i = from; i < to; i++) w.loadChunk((int) list.get(i)[0], (int) list.get(i)[1], true);
+        if (to < list.size()) { later(1, () -> colossusBatch(list, to, t0)); return; }
+        later(10, () -> colossusInspect(System.currentTimeMillis() - t0));
+    }
+
+    /** What one ordeal's blocks are: its seal still standing, its levers in place (the drawing and the runtime agree). */
+    private String ordealBlocks(Ordeals.Ordeal o) {
+        int want = 0, found = 0;
+        if (o.type == Ordeals.Type.KEYSEAL || o.type == Ordeals.Type.BOSSSEAL)
+            for (int x = o.x1; x <= o.x2; x++) for (int y = o.y1; y <= o.y2; y++) for (int z = o.z1; z <= o.z2; z++) {
+                want++;
+                Block b = w.getBlockAt(x, y, z);
+                if (b.getTypeId() == (o.block >> 4) && b.getData() == (o.block & 15)) found++;
+            }
+        if (o.parts != null) for (int[] q : o.parts) {
+            want++;
+            Material m = w.getBlockAt(q[0], q[1], q[2]).getType();
+            if (o.type == Ordeals.Type.LEVERS ? m == Material.LEVER : m == Material.NETHERRACK) found++;
+        }
+        if (o.seal != null) for (int x = o.seal[0]; x <= o.seal[3]; x++) for (int y = o.seal[1]; y <= o.seal[4]; y++) for (int z = o.seal[2]; z <= o.seal[5]; z++) {
+            want++;
+            Block b = w.getBlockAt(x, y, z);
+            if (b.getTypeId() == (o.block >> 4) && b.getData() == (o.block & 15)) found++;
+        }
+        return found + "/" + want;
+    }
+
+    private static boolean whole(String counts) { String[] p = counts.split("/"); return p[0].equals(p[1]); }
+
+    /** A boss seal parts when its boss falls and closes again. */
+    private boolean sealCycle(Ordeals.Ordeal o, String boss, int x, int z) {
+        plugin.ordeals.bossFell(boss, w, x, z);
+        boolean opened = w.getBlockAt(o.x1, o.y1, o.z1).getType() == Material.AIR && w.getBlockAt(o.x2, o.y2, o.z2).getType() == Material.AIR;
+        plugin.ordeals.closeSeals(true);
+        return opened && whole(ordealBlocks(o));
+    }
+
+    private void colossusInspect(long wallMs) {
+        int[] forbidden = {41, 42, 57, 133, 22, 152, 138, 46, 90, 119, 137, 210, 211, 255, 166};
+        for (Colossi.Site s : colossal) {
+            for (int cx = (s.minX >> 4) - 1; cx <= (s.maxX >> 4) + 1; cx++) for (int cz = (s.minZ >> 4) - 1; cz <= (s.maxZ >> 4) + 1; cz++) w.getChunkAt(cx, cz);
+            Boolean built = plugin.registry.colossusDecision(s.cellX, s.cellZ);
+            int chests = 0, filled = 0, trapped = 0, signs = 0, bad = 0;
+            for (int cx = s.minX >> 4; cx <= s.maxX >> 4; cx++) for (int cz = s.minZ >> 4; cz <= s.maxZ >> 4; cz++) {
+                org.bukkit.Chunk c = w.getChunkAt(cx, cz);
+                for (org.bukkit.block.BlockState t : c.getTileEntities()) {
+                    if (t.getX() < s.minX || t.getX() > s.maxX || t.getZ() < s.minZ || t.getZ() > s.maxZ) continue;
+                    if (t instanceof org.bukkit.block.Sign) signs++;
+                    if (!(t instanceof Chest)) continue;
+                    chests++;
+                    if (t.getType() == Material.TRAPPED_CHEST) trapped++;
+                    for (ItemStack it : ((Chest) t).getBlockInventory().getContents()) if (it != null) { filled++; break; }
+                }
+                ChunkSnapshot snap = c.getChunkSnapshot(false, false, false);
+                for (int y = 1; y < 127; y++) for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) {
+                    int id = snap.getBlockTypeId(x, y, z);
+                    for (int f : forbidden) if (id == f) bad++;
+                }
+            }
+            java.util.Set<String> bosses = new java.util.TreeSet<>();
+            for (Registry.Entry e : plugin.registry.near(s.x, s.z, Colossi.REACH, "lord")) bosses.add(e.name);
+            int garrisons = plugin.registry.near(s.x, s.z, Colossi.REACH, "garrison").size(), spawners = plugin.registry.near(s.x, s.z, Colossi.REACH, "glmspawner").size();
+            List<Ordeals.Ordeal> os = Colossi.design(s.kind).ordeals(s);
+            StringBuilder seals = new StringBuilder();
+            boolean sealsOk = true, cycled = false;
+            for (Ordeals.Ordeal o : os) {
+                if (o.type != Ordeals.Type.KEYSEAL && o.type != Ordeals.Type.BOSSSEAL && o.type != Ordeals.Type.LEVERS && o.type != Ordeals.Type.BRAZIERS) continue;
+                String got = ordealBlocks(o);
+                seals.append(' ').append(o.id).append('=').append(got);
+                sealsOk &= whole(got);
+                if (o.type == Ordeals.Type.BOSSSEAL) cycled = sealCycle(o, o.boss, s.x, s.z);
+            }
+            boolean named = String.join(" ", plugin.whereLines(new Location(w, s.x + 10, s.y + 4, s.z + 10))).contains(s.kind.display);
+            String[] want = s.kind == Colossi.Kind.PYRAMID ? new String[]{"scarab_matriarch", "sphinx_sentinel", "sunless_pharaoh", "vizier_hekkat"}
+                : new String[]{"blazing_admiral", "boiling_warden", "ember_sovereign", "high_fire_sage"};
+            boolean allBosses = bosses.containsAll(java.util.Arrays.asList(want));
+            String detail = "at=" + s.x + "," + s.y + "," + s.z + " built=" + built + " chests=" + chests + " filled=" + filled + " trapped=" + trapped + " signs=" + signs
+                + " bosses=" + bosses + " garrisons=" + garrisons + " spawners=" + spawners + " ordeals=" + os.size() + " forbidden=" + bad + " where=" + named
+                + " seals[" + seals.toString().trim() + "] treasuryCycle=" + cycled;
+            check("colossus_" + s.kind.id, Boolean.TRUE.equals(built) && chests >= 15 && filled == chests && bad == 0 && allBosses && garrisons >= 10 && spawners >= 1
+                && signs >= 8 && os.size() >= 6 && named && sealsOk && cycled, detail);
+        }
+        Depths dp = plugin.gen.depths;
+        if (dp != null) {
+            for (int cx = (dp.hx >> 4) - 6; cx <= (dp.hx >> 4) + 6; cx++) for (int cz = (dp.hz >> 4) - 6; cz <= (dp.hz >> 4) + 6; cz++) w.getChunkAt(cx, cz);
+            java.util.Set<String> bosses = new java.util.TreeSet<>();
+            for (Registry.Entry e : plugin.registry.near(dp.hx, dp.hz, 80, "lord")) bosses.add(e.name);
+            int chests = 0, filled = 0;
+            for (int cx = (dp.hx - 66) >> 4; cx <= (dp.hx + 66) >> 4; cx++) for (int cz = (dp.hz - 66) >> 4; cz <= (dp.hz + 66) >> 4; cz++)
+                for (org.bukkit.block.BlockState t : w.getChunkAt(cx, cz).getTileEntities()) {
+                    if (!(t instanceof Chest) || t.getY() > Depths.TOP || Math.max(Math.abs(t.getX() - dp.hx), Math.abs(t.getZ() - dp.hz)) > 66) continue;
+                    chests++;
+                    for (ItemStack it : ((Chest) t).getBlockInventory().getContents()) if (it != null) { filled++; break; }
+                }
+            StringBuilder seals = new StringBuilder();
+            boolean sealsOk = true, cycled = false;
+            for (Ordeals.Ordeal o : dp.ordealsNear(dp.hx, dp.hz, 66)) {
+                if (o.type != Ordeals.Type.KEYSEAL && o.type != Ordeals.Type.BOSSSEAL && o.type != Ordeals.Type.LEVERS) continue;
+                String got = ordealBlocks(o);
+                seals.append(' ').append(o.id).append('=').append(got);
+                sealsOk &= whole(got);
+                if (o.type == Ordeals.Type.BOSSSEAL) cycled = sealCycle(o, o.boss, dp.hx, dp.hz);
+            }
+            boolean hall = w.getBlockAt(dp.hx + 3, Depths.FLOOR + 2, dp.hz + 3).getType() == Material.AIR && w.getBlockAt(dp.hx + 3, Depths.FLOOR, dp.hz + 3).getType().isSolid();
+            boolean named = String.join(" ", plugin.whereLines(new Location(w, dp.hx + 3, Depths.FLOOR + 1, dp.hz + 3))).contains("Endless Catacombs");
+            check("catacombs_heart", bosses.contains("hollow_king") && chests >= 12 && filled == chests && sealsOk && cycled && hall && named,
+                "heart=" + dp.hx + "," + dp.hz + " bosses=" + bosses + " chests=" + chests + " filled=" + filled + " seals[" + seals.toString().trim() + "] treasuryCycle=" + cycled
+                + " hall=" + hall + " where=" + named);
+            int vx = dp.hx, vz = dp.hz - Depths.WARD * Depths.P;
+            java.util.Set<String> wardens = new java.util.TreeSet<>();
+            for (Registry.Entry e : plugin.registry.near(vx, vz, 40, "lord")) wardens.add(e.name);
+            check("catacombs_vault_gaol", wardens.contains("gaoler"), "at=" + vx + "," + vz + " bosses=" + wardens);
+            Map<String, Integer> census = dp.census(40);
+            check("catacombs_census", census.getOrDefault("stair", 0) > 0 && census.getOrDefault("puzzle", 0) > 0 && census.getOrDefault("hall", 0) > 0,
+                census + " columns=" + dp.drawnColumns + " shafts=" + dp.shafts + " capped=" + dp.capped);
+        }
+        check("colossus_gen_cost", plugin.avgMs() < 25, "avgMs=" + NetherPlugin.fmt(plugin.avgMs()) + " maxMs=" + NetherPlugin.fmt(plugin.maxNanos / 1e6) + " wallMs=" + wallMs
+            + " phaseMs[" + plugin.gen.phases(plugin.populated) + "]");
         later(5, this::mobs);
     }
 
@@ -630,7 +778,7 @@ final class SelfTest implements Listener {
         if (e.getEntity().getScoreboardTags().contains("jn_lord")) lordDrops.put(plugin.mobs.kind(e.getEntity()), new ArrayList<>(e.getDrops()));
     }
 
-    // ---- stage 7: the ten Nether Lords, one at a time -------------------------------------------------------------------
+    // ---- stage 7: the Nether Lords and the champions, one at a time -------------------------------------------------------
     private final Map<String, List<ItemStack>> lordDrops = new TreeMap<>();
 
     private void lords(List<String> ids, int i) {

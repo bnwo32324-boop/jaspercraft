@@ -104,10 +104,13 @@ final class Mobs implements Listener {
         spec(new Spec("ghast", "Ghast", EntityType.GHAST, 10, 6, 0, 100, 0, 0, true, true, false, true, false, "Wailing Ghast"));
         // the GLM strongholds' creatures and the Nether Lords (Fiends, Lords)
         Fiends.specs(Mobs::spec);
+        // the colossal structures' and the Catacombs' creatures (Dwellers)
+        Dwellers.specs(Mobs::spec);
         Lords.specs(Mobs::spec);
     }
     static int netherExKinds() { return 15; }
     static int fiendKinds() { return Fiends.KINDS.size(); }
+    static int dwellerKinds() { return Dwellers.KINDS.size(); }
 
     static final class T {
         final LivingEntity e; final Spec spec; final boolean elite; final long born;
@@ -196,6 +199,7 @@ final class Mobs implements Listener {
             case "ghast": case "ghastling": case "ghast_queen": break;
             default:
                 if (Fiends.KINDS.contains(s.kind)) Fiends.configure(this, e, s, elite);
+                else if (Dwellers.KINDS.contains(s.kind)) Dwellers.configure(this, e, s, elite);
                 else if (Lords.isLord(s.kind)) Lords.configure(this, e, s);
         }
         if (elite && s.elite != null) name = s.elite;
@@ -423,7 +427,7 @@ final class Mobs implements Listener {
             }
             case "brute": brute(t); break;
             case "gold_golem": case "pigtificate": leash(t); break;
-            default: Fiends.think(this, t);
+            default: if (!Fiends.think(this, t)) Dwellers.think(this, t);
         }
     }
 
@@ -643,6 +647,7 @@ final class Mobs implements Listener {
                 break;
             default:
                 Fiends.onHit(this, s, v);
+                Dwellers.onHit(this, s, v);
                 if (Lords.isLord(s.spec.kind) && plugin.lords != null) plugin.lords.onHit(s, v);
         }
     }
@@ -657,9 +662,16 @@ final class Mobs implements Listener {
             if (t.spec.neutral && target != null && !(t.angryUntil > now && target.getUniqueId().equals(t.angerAt))) { e.setCancelled(true); return; }
         }
         if (target instanceof Player && (e.getEntity() instanceof Skeleton || e.getEntity() instanceof WitherSkeleton || e.getEntity() instanceof Stray)
-            && (t == null || !t.spec.kind.equals("wight")) && plugin.mechanics.fullSet((Player) target, "wither_bone")) {
+            && (t == null || !t.spec.kind.equals("wight")) && !e.getEntity().getScoreboardTags().contains("jn_lord") && plugin.mechanics.fullSet((Player) target, "wither_bone")) {
             e.setCancelled(true);
         }
+    }
+
+    /** The colossal structures' and the Catacombs' creatures never change a block (asps hide in no stone, no door breaks). */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDwellerBlock(org.bukkit.event.entity.EntityChangeBlockEvent e) {
+        T t = track(e.getEntity());
+        if (t != null && Dwellers.KINDS.contains(t.spec.kind)) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -669,6 +681,7 @@ final class Mobs implements Listener {
         T t = track((LivingEntity) p.getShooter());
         if (t == null) return;
         if (Fiends.launch(this, t, p)) return;
+        if (Dwellers.launch(this, t, p)) return;
         if (Lords.isLord(t.spec.kind) && plugin.lords != null && plugin.lords.launch(t, p)) return;
         LivingEntity shooter = t.e;
         if (t.spec.kind.equals("frost") && p instanceof SmallFireball) {
@@ -830,7 +843,8 @@ final class Mobs implements Listener {
             case "gold_golem": drops.add(new ItemStack(Material.GOLD_INGOT, 3 + random.nextInt(3))); break;
             case "ghast_queen": plugin.boss.loot(t, drops, looting); break;
             default:
-                if (!Fiends.loot(this, t, drops, looting, byPlayer) && Lords.isLord(t.spec.kind) && plugin.lords != null) plugin.lords.loot(t, drops, e);
+                if (!Fiends.loot(this, t, drops, looting, byPlayer) && !Dwellers.loot(this, t, drops, looting, byPlayer) && Lords.isLord(t.spec.kind) && plugin.lords != null)
+                    plugin.lords.loot(t, drops, e);
                 Fiends.died(this, t);
         }
         if (t.elite) { addN(drops, "amethyst_crystal", 1 + random.nextInt(3)); e.setDroppedExp(e.getDroppedExp() * 3 + 10); }

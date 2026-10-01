@@ -123,6 +123,7 @@ final class Items {
         def(new Def("stalagnate_bowl_mushroom", Material.MUSHROOM_SOUP, 0, "Mushroom Stew", bn, false));
         def(new Def("stalagnate_bowl_apple", Material.RABBIT_STEW, 0, "Black Apple Stew", bn, false));
         glm();
+        colossal();
     }
 
     // ---- the GLM strongholds' loot (owner, 2026-09-29: "a lot of custom loot that has a Nether theme ... new trinkets
@@ -181,6 +182,46 @@ final class Items {
         for (int i = 0; i < LORD_IDS.length; i++)
             def(new Def("sigil_" + LORD_IDS[i], DISCS[i], 0, "Sigil of " + Character.toUpperCase(LORD_NAMES[i].charAt(0)) + LORD_NAMES[i].substring(1), JC, true,
                 "Proof that " + LORD_NAMES[i] + " fell to you", "Three Lords conquered open the Urn of Sorrow"));
+    }
+
+    // ---- the colossal structures' and the Catacombs' treasure (owner, 2026-10-01: "Add loot ... and mini-bosses") ------------
+    static final Color PHARAOH = Color.fromRGB(0xD9B44A), EMBER_GUARD = Color.fromRGB(0x8E1111), DEEPWARDEN = Color.fromRGB(0x45454F);
+    private static void colossal() {
+        // the keys the champions keep (never used up by the seals they open)
+        def(new Def("canopic_jar_imsety", Material.SHULKER_SHELL, 0, "Canopic Jar of Imsety", JC, true, "Kept by Vizier Hekkat", "One of four for the Canopic Seal", "of the Great Pyramid"));
+        def(new Def("canopic_jar_hapy", Material.SHULKER_SHELL, 0, "Canopic Jar of Hapy", JC, true, "Kept in the Hall of Stars", "One of four for the Canopic Seal", "of the Great Pyramid"));
+        def(new Def("canopic_jar_duamutef", Material.SHULKER_SHELL, 0, "Canopic Jar of Duamutef", JC, true, "Kept by the Sphinx Sentinel", "One of four for the Canopic Seal", "of the Great Pyramid"));
+        def(new Def("canopic_jar_qebehsenuef", Material.SHULKER_SHELL, 0, "Canopic Jar of Qebehsenuef", JC, true, "Kept by the Scarab Matriarch", "One of four for the Canopic Seal", "of the Great Pyramid"));
+        def(new Def("sun_seal", Material.IRON_NUGGET, 0, "Seal of the Sun", JC, true, "Kept by the High Fire Sage", "One of three for the Throne Gate", "of the Caldera Citadel"));
+        def(new Def("admiral_seal", Material.IRON_NUGGET, 0, "Seal of the Admiral", JC, true, "Kept by the Blazing Admiral", "One of three for the Throne Gate", "of the Caldera Citadel"));
+        def(new Def("warden_seal", Material.IRON_NUGGET, 0, "Seal of the Warden", JC, true, "Kept by the Warden of the Boiling Keep", "One of three for the Throne Gate", "of the Caldera Citadel"));
+        def(new Def("warden_key_gaol", Material.BONE, 0, "Key of the Gaol", JC, true, "Kept by the Gaoler", "One of four for the Heart's gates", "in the Endless Catacombs"));
+        def(new Def("warden_key_ossuary", Material.BONE, 0, "Key of the Bone Harrow", JC, true, "Kept by the Bone Harrower", "One of four for the Heart's gates", "in the Endless Catacombs"));
+        def(new Def("warden_key_gallery", Material.BONE, 0, "Key of the Weeping Gallery", JC, true, "Kept by the Weeping Shade", "One of four for the Heart's gates", "in the Endless Catacombs"));
+        def(new Def("warden_key_pits", Material.BONE, 0, "Key of the Rot Pits", JC, true, "Kept by the Rot Mother", "One of four for the Heart's gates", "in the Endless Catacombs"));
+        def(new Def("hollow_reliquary", Material.SHULKER_SHELL, 0, "Hollow Reliquary", JC, true, "A puzzle's prize from the Catacombs", "Right-click: open it"));
+        // weapons and trinkets
+        def(new Def("khopesh", Material.DIAMOND_SWORD, 0, "Khopesh of the Necropolis", JC, true, 0, 0, null, 8, 1.6, 0, "Its blows poison"));
+        def(new Def("fire_nation_dao", Material.DIAMOND_SWORD, 0, "Dao of the Fire Nation", JC, true, 0, 0, null, 8, 1.8, 0, "Burns its foes and quickens you"));
+        def(new Def("bone_reaver", Material.DIAMOND_AXE, 0, "Bone Reaver", JC, true, 0, 0, null, 11, 0.9, 0, "Its blows weaken"));
+        def(new Def("scarab_amulet", Material.GOLD_NUGGET, 0, "Scarab Amulet", JC, true, "In the off hand: poison cannot touch you"));
+        def(new Def("phoenix_feather", Material.FEATHER, 0, "Phoenix Feather", JC, true, "Carried: when you are near death,", "you rise in flame (once in five minutes)"));
+        // armour sets
+        String[] slots = {"helmet", "chestplate", "leggings", "boots"}, slotNames = {"Helmet", "Chestplate", "Leggings", "Boots"};
+        Material[] leather = {Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE, Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS};
+        int[] ph = {3, 7, 5, 3}, eg = {3, 7, 6, 3}, dw = {3, 8, 6, 3};
+        for (int i = 0; i < 4; i++) {
+            def(new Def("pharaoh_" + slots[i], leather[i], 0, "Pharaoh's " + slotNames[i], JC, false, ph[i], 2, PHARAOH, 0, 0, 0, "Full set: no hunger, and no sand blinds you"));
+            def(new Def("ember_guard_" + slots[i], leather[i], 0, "Ember Guard " + slotNames[i], JC, false, eg[i], 2, EMBER_GUARD, 0, 0, 0, "Full set: fire cannot burn you"));
+            def(new Def("deepwarden_" + slots[i], leather[i], 0, "Deepwarden " + slotNames[i], JC, false, dw[i], 3, DEEPWARDEN, 0, 0, 0, "Full set: the wither and poison cannot touch you"));
+        }
+        // the colossal Lords' relics (always in their hoard) and sigils
+        def(new Def("pharaoh_crook", Material.GOLD_HOE, 0, "Crook of the Sunless Pharaoh", JC, true, 0, 0, null, 9, 1.4, 0, "Relic of the Sunless Pharaoh", "Its blows blind and slow").unbreakable());
+        def(new Def("sovereign_flame", Material.BLAZE_ROD, 0, "Sovereign's Flame", JC, true, "Relic of the Ember Sovereign", "Right-click: lash a whip of fire"));
+        def(new Def("hollow_crown", Material.GOLD_HELMET, 0, "Hollow Crown", JC, true, 4, 2, null, 0, 0, 0, "Relic of the Hollow King", "Worn: your blows drink life,", "and the wither cannot touch you").unbreakable());
+        def(new Def("sigil_sunless_pharaoh", Material.GOLD_RECORD, 0, "Sigil of the Sunless Pharaoh", JC, true, "Proof that the Sunless Pharaoh fell to you", "Three Lords conquered open the Urn of Sorrow"));
+        def(new Def("sigil_ember_sovereign", Material.RECORD_4, 0, "Sigil of the Ember Sovereign", JC, true, "Proof that the Ember Sovereign fell to you", "Three Lords conquered open the Urn of Sorrow"));
+        def(new Def("sigil_hollow_king", Material.GREEN_RECORD, 0, "Sigil of the Hollow King", JC, true, "Proof that the Hollow King fell to you", "Three Lords conquered open the Urn of Sorrow"));
     }
 
     /** Items made only from JasperCraft's GLM loot: a vanilla recipe must never take them as plain materials. */
@@ -296,6 +337,9 @@ final class Items {
     }
 
     static boolean is(ItemStack s, String id) { return id.equals(id(s)); }
+
+    /** The display name of an item id (the id itself when unknown). */
+    static String name(String id) { Def d = DEFS.get(id); return d == null ? id : d.name; }
 
     static List<String> ids() { return new ArrayList<>(DEFS.keySet()); }
 

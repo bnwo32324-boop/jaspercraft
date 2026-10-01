@@ -43,6 +43,12 @@ final class Gen {
     final Mega legacyMega;
     final Registry legacyRegistry;
     final Wonders wonders;
+    /** The colossal structures (2026-10-01), planned after the cities; see Colossi. */
+    final Colossi colossi;
+    /** What land existed before the colossal structures and the Catacombs (set on attach); they never draw into it. */
+    History history = History.none();
+    /** The Endless Catacombs (set on attach, once the Heart's place is known). */
+    Depths depths;
     /** True when every chunk of this world was populated by a JasprNether that plans mega structures (set on attach). */
     boolean megaComplete;
     final Map<String, Integer> placed = new java.util.TreeMap<>();
@@ -79,6 +85,101 @@ final class Gen {
             mega.pin(x, z, accepted);
         }
         this.wonders = new Wonders(this);
+        this.colossi = new Colossi(seed, this::cityReach);
+    }
+
+    // ---- the colossal structures and the Catacombs (2026-10-01) --------------------------------------------------------------
+    /**
+     * Whether a colossus is built, decided once (by the first chunk that reaches it, or the first mega or GLM site that
+     * would overlap it): only where none of its land existed before this version and no recorded structure lies in its box.
+     */
+    boolean colossusBuilt(Colossi.Site s) {
+        Boolean on = registry.colossusDecision(s.cellX, s.cellZ);
+        if (on != null) return on;
+        on = !history.anyOld(s.minX, s.minZ, s.maxX, s.maxZ) && !registry.structureReach(s.minX, s.minZ, s.maxX, s.maxZ);
+        registry.setColossusDecision(s.cellX, s.cellZ, on);
+        if (on) {
+            int[] b = s.box();
+            registry.add("colossus", s.kind.id, b[0], b[1], b[2], b[3], b[4], b[5]);
+            count("colossus_" + s.kind.id);
+        }
+        plugin.getLogger().info("NETHER_COLOSSUS_PLANNED kind=" + s.kind.id + " at=" + s.x + "," + s.y + "," + s.z + " built=" + on);
+        return on;
+    }
+
+    /**
+     * The nearest mega site of a kind (any if null) that stands or will stand: not decided against, and not given way to
+     * a colossus (for rumours, navigation and the self-test).
+     */
+    Mega.Site nearestMega(Mega.Kind kind, int x, int z, int cells) {
+        int ccx = Math.floorDiv(x, Mega.CELL), ccz = Math.floorDiv(z, Mega.CELL);
+        Mega.Site best = null;
+        double bd = Double.MAX_VALUE;
+        for (int dx = -cells; dx <= cells; dx++) for (int dz = -cells; dz <= cells; dz++) {
+            Mega.Site s = mega.site(ccx + dx, ccz + dz);
+            if (s == null || (kind != null && s.kind != kind)) continue;
+            Boolean on = registry.megaDecision(s.cellX, s.cellZ);
+            if (Boolean.FALSE.equals(on) || (on == null && colossusClaims(s.minX, s.minZ, s.maxX, s.maxZ))) continue;
+            double d = (double) (s.x - x) * (s.x - x) + (double) (s.z - z) * (s.z - z);
+            if (d < bd) { bd = d; best = s; }
+        }
+        return best;
+    }
+
+    /** Whether a box lies in a built colossus (deciding it now if need be): a mega or GLM site there gives way to it. */
+    boolean colossusClaims(int x0, int z0, int x1, int z1) {
+        for (Colossi.Site c : colossi.touching(x0, z0, x1, z1)) if (colossusBuilt(c)) return true;
+        return false;
+    }
+
+    /** A built colossus whose reach contains the column, or null. */
+    Colossi.Site builtColossusAt(int x, int z) {
+        Colossi.Site s = colossi.at(x, z);
+        return s != null && Boolean.TRUE.equals(registry.colossusDecision(s.cellX, s.cellZ)) ? s : null;
+    }
+
+    /**
+     * Whether a structure reaches down into the Catacombs' depth over the box (the Catacombs leave such cells solid):
+     * the Nether Cities' caverns, and the GLM builds (planned, or old and accepted) whose cavern goes below y 24.
+     */
+    boolean deepClaim(int x0, int z0, int x1, int z1) {
+        if (cityReach(x0, z0, x1, z1)) return true;
+        for (GlmSites.Site s : glm.touching(x0, z0, x1, z1)) if (s.box()[1] <= Depths.TOP + 1) return true;
+        for (GlmSites.Site s : legacyGlm.touching(x0, z0, x1, z1))
+            if (s.box()[1] <= Depths.TOP + 1 && Boolean.TRUE.equals(legacyRegistry.glmDecision(s.decisionTier(), s.cellX, s.cellZ))) return true;
+        for (Mega.Site s : mega.touching(x0, z0, x1, z1)) if (Mega.box(s)[1] <= Depths.TOP + 1) return true;
+        return false;
+    }
+
+    /**
+     * Where the Catacombs' Heart may not be put: a Nether City, or a recorded (built) structure reaching down into the
+     * Catacombs' depth. Builds not yet decided there give way to the Heart instead (see {@link #heartClaims}).
+     */
+    boolean builtDeep(int x0, int z0, int x1, int z1) {
+        if (cityReach(x0, z0, x1, z1)) return true;
+        for (Registry.Entry e : registry.near((x0 + x1) / 2, (z0 + z1) / 2, Math.max(x1 - x0, z1 - z0) / 2 + 2, null))
+            if (!Registry.point(e.type) && e.y1 <= Depths.TOP + 1 && e.x2 >= x0 && e.x1 <= x1 && e.z2 >= z0 && e.z1 <= z1) return true;
+        return false;
+    }
+
+    /** Whether a build reaching down into the Catacombs' depth would cut into the Heart or a Warden's vault (it gives way). */
+    boolean heartClaims(int[] box) {
+        return depths != null && box[1] <= Depths.TOP + 1 && depths.heartOrVault(box[0], box[2], box[3], box[5]);
+    }
+
+    /**
+     * Whether any structure is planned over the box (built or not, so the answer never depends on the order chunks come
+     * in): a Catacombs stairwell never climbs up into one, it is capped under the rock instead.
+     */
+    boolean shaftClaim(int x0, int z0, int x1, int z1) {
+        return cityReach(x0, z0, x1, z1) || !colossi.touching(x0, z0, x1, z1).isEmpty() || !mega.touching(x0, z0, x1, z1).isEmpty()
+            || !glm.touching(x0, z0, x1, z1).isEmpty() || !legacyGlm.touching(x0, z0, x1, z1).isEmpty();
+    }
+
+    private List<Colossi.Site> activeColossi(int bx0, int bz0, int bx1, int bz1) {
+        List<Colossi.Site> out = new ArrayList<>(1);
+        for (Colossi.Site s : colossi.touching(bx0, bz0, bx1, bz1)) if (colossusBuilt(s)) out.add(s);
+        return out;
     }
 
     /** The keep-outs of the planning order: cities, Lords' strongholds, mega structures, then the other GLM builds. */
@@ -118,8 +219,8 @@ final class Gen {
     // ------------------------------------------------------------------------------------------------------------
     /** Populates chunk (cx, cz). Returns the number of blocks written. */
     /** Accumulated nanoseconds per phase: read, terrain, city, betternether, netherex, mega, wonders, flush+light, tiles. */
-    final long[] phase = new long[10];
-    static final String[] PHASES = {"read", "terrain", "city", "bn", "nex", "mega", "glm", "wonder", "flush", "tiles"};
+    final long[] phase = new long[12];
+    static final String[] PHASES = {"read", "terrain", "city", "bn", "nex", "mega", "glm", "wonder", "flush", "tiles", "colossus", "depths"};
 
     int populate(int cx, int cz) {
         long t = System.nanoTime(), t2;
@@ -133,9 +234,11 @@ final class Gen {
         // mega sites are drawn over the whole 2x2-chunk area (see Draw), so the sites reaching the area count
         List<Mega.Site> sites = activeSites(a, a.ox, a.oz, a.ox + 31, a.oz + 31);
         List<GlmSites.Site> glmSites = activeGlm(a, a.ox, a.oz, a.ox + 31, a.oz + 31);
+        List<Colossi.Site> colossal = activeColossi(a.ox, a.oz, a.ox + 31, a.oz + 31);
         boolean quiet = false;              // inside a mega structure's or a GLM build's reach the mods' small structures stay away
         for (Mega.Site s : sites) if (s.maxX >= bx0 && s.minX <= bx1 && s.maxZ >= bz0 && s.minZ <= bz1) quiet = true;
         for (GlmSites.Site s : glmSites) if (s.maxX >= bx0 && s.minX <= bx1 && s.maxZ >= bz0 && s.minZ <= bz1) quiet = true;
+        for (Colossi.Site s : colossal) if (s.maxX >= bx0 && s.minX <= bx1 && s.maxZ >= bz0 && s.minZ <= bz1) quiet = true;
         cities.populate(a, post);
         t2 = System.nanoTime(); phase[2] += t2 - t; t = t2;
         bn.populate(a, rand, post, quiet);
@@ -155,6 +258,18 @@ final class Gen {
             post.add(tiles, "glm_" + s.e.key);
         }
         t2 = System.nanoTime(); phase[6] += t2 - t; t = t2;
+        for (Colossi.Site s : colossal) {
+            Template.Placed tiles = new Template.Placed();
+            Colossi.draw(s, new Draw(a, a.ox, a.oz, a.ox + 31, a.oz + 31, bx0, bz0, bx1, bz1, tiles));
+            post.add(tiles, "colossus_" + s.kind.id);
+        }
+        t2 = System.nanoTime(); phase[10] += t2 - t; t = t2;
+        if (depths != null) {
+            Template.Placed tiles = new Template.Placed();
+            depths.draw(new Draw(a, a.ox, a.oz, a.ox + 31, a.oz + 31, bx0, bz0, bx1, bz1, tiles));
+            post.add(tiles, "depths");
+        }
+        t2 = System.nanoTime(); phase[11] += t2 - t; t = t2;
         if (!quiet) wonders.populate(a, chunkRandom(cx, cz, 0x574F4EL), centre, post);
         t2 = System.nanoTime(); phase[7] += t2 - t; t = t2;
         a.flush();
@@ -177,6 +292,7 @@ final class Gen {
                 int ccx = s.x >> 4, ccz = s.z >> 4;
                 boolean centreHere = ccx >= a.cx && ccx <= a.cx + 1 && ccz >= a.cz && ccz <= a.cz + 1;
                 on = megaComplete || centreHere || !world.isChunkGenerated(ccx, ccz);
+                if (on && colossusClaims(s.minX, s.minZ, s.maxX, s.maxZ)) on = false;      // a colossus holds the land
                 registry.setMegaDecision(s.cellX, s.cellZ, on);
                 if (on) {
                     int[] b = Mega.box(s);
@@ -207,6 +323,8 @@ final class Gen {
                 int ccx = s.x >> 4, ccz = s.z >> 4;
                 boolean centreHere = ccx >= a.cx && ccx <= a.cx + 1 && ccz >= a.cz && ccz <= a.cz + 1;
                 on = !world.isChunkGenerated(ccx, ccz) || centreHere;
+                if (on && colossusClaims(s.minX, s.minZ, s.maxX, s.maxZ)) on = false;      // a colossus holds the land
+                if (on && heartClaims(s.box())) on = false;                                    // the Catacombs' Heart holds the deep
                 registry.setGlmDecision(tier, s.cellX, s.cellZ, on);
                 if (on) {
                     int[] b = s.box();
@@ -672,11 +790,12 @@ final class Gen {
                 for (int c = 0; c < p.spawners.size(); c++) {
                     int[] v = p.spawners.get(c);
                     String mob = p.spawnerMobs.get(c);
-                    boolean glmSpawner = kind.startsWith("glm_");
+                    boolean glmSpawner = kind.startsWith("glm_") || kind.startsWith("colossus_") || kind.equals("depths");
                     g.plugin.structures.placeSpawner(g.world, v[0], v[1], v[2], mob, glmSpawner);
                     if (glmSpawner) g.registry.add("glmspawner", mob, v[0], v[1], v[2], v[0], v[1], v[2]);
                 }
                 for (int[] v : p.skulls) g.plugin.structures.placeSkull(g.world, v[0], v[1], v[2], v[3], v[4]);
+                for (int c = 0; c < p.signs.size(); c++) { int[] v = p.signs.get(c); g.plugin.structures.placeSign(g.world, v[0], v[1], v[2], v[3], p.signLines.get(c)); }
                 for (int c = 0; c < p.entities.size(); c++) {
                     int[] v = p.entities.get(c);
                     g.plugin.structures.spawnResident(g.world, v[0], v[1], v[2], p.entityKinds.get(c));

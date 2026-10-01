@@ -95,5 +95,6 @@ test('nether mega wiring: loot, tables, quiet mods, peace, skulls, history, lava
   assert.ok(plugin.includes('" mega=" + Mega.Kind.values().length'));
   // camps carry the expedition journal with rumours of the nearest mega structures
   assert.match(java('StructureOps'), /if \(table\.equals\("jaspr:wonder\/camp"\) && plugin\.gen != null\)/);
-  assert.match(java('Wonders'), /g\.mega\.nearest\(k, x, z, 4\)/);
+  // (since the colossal update: only sites that stand, not those that gave way to a colossus)
+  assert.match(java('Wonders'), /g\.nearestMega\(k, x, z, 4\)/);
 });

@@ -28,7 +28,10 @@ final class StructureOps {
     void placeChest(World w, int x, int y, int z, int facing, String table, Random r) {
         if (!w.isChunkLoaded(x >> 4, z >> 4)) return;
         Block b = w.getBlockAt(x, y, z);
-        b.setTypeIdAndData(Blocks.CHEST, (byte) facing, false);
+        // a table ending in !trap is a trapped chest (the colossal structures' and the Catacombs' ambushes)
+        boolean trapped = table.endsWith("!trap");
+        if (trapped) table = table.substring(0, table.length() - 5);
+        b.setTypeIdAndData(trapped ? 146 : Blocks.CHEST, (byte) facing, false);
         BlockState s = b.getState();
         if (!(s instanceof Chest)) return;
         org.bukkit.inventory.Inventory inv = ((Chest) s).getBlockInventory();
@@ -133,6 +136,18 @@ final class StructureOps {
             }
             default:
         }
+    }
+
+    /** A sign block with its text (the colossal structures' and the Catacombs' clues). */
+    void placeSign(World w, int x, int y, int z, int block, String[] lines) {
+        if (!w.isChunkLoaded(x >> 4, z >> 4)) return;
+        Block b = w.getBlockAt(x, y, z);
+        b.setTypeIdAndData(block >> 4, (byte) (block & 15), false);
+        BlockState s = b.getState();
+        if (!(s instanceof org.bukkit.block.Sign)) return;
+        for (int i = 0; i < 4; i++) ((org.bukkit.block.Sign) s).setLine(i, lines[i]);
+        s.update(true, false);
+        signs++;
     }
 
     void placeSkull(World w, int x, int y, int z, int type, int rot) {

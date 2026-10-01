@@ -217,6 +217,74 @@ final class Loot {
         THEME.put("ruin", new Pool(1, 2).add(5, nx("charred_bone", 1, 3)).add(5, nx("hellhound_fang", 1, 2)).add(4, v(Material.COOKED_BEEF, 2, 4)).add(3, v(Material.ARROW, 4, 10)));
     }
 
+    // ---- the colossal structures and the Endless Catacombs (owner, 2026-10-01: "Add loot ... don't forget about loot") --------
+    static final String[] COLOSSAL_GEAR = {"khopesh", "fire_nation_dao", "bone_reaver", "scarab_amulet", "phoenix_feather"};
+    /** The Great Pyramid's chests: tomb goods, gold and the dead's possessions. */
+    static final Pool COLOSSUS_PYRAMID = new Pool(3, 7)
+        .add(10, v(Material.GOLD_NUGGET, 3, 12)).add(6, v(Material.GOLD_INGOT, 1, 3)).add(6, v(Material.BONE, 2, 6)).add(5, nx("wither_bone", 1, 2))
+        .add(5, v(Material.PAPER, 2, 6)).add(4, v(Material.GOLDEN_CARROT, 1, 3)).add(4, nx("amethyst_crystal", 1, 4)).add(4, nx("soul_essence", 1, 2))
+        .add(3, nx("hellforged_shard", 1, 3)).add(3, potion(org.bukkit.potion.PotionType.FIRE_RESISTANCE)).add(3, v(Material.SANDSTONE, 4, 10))
+        .add(2, book()).add(2, v(Material.EXP_BOTTLE, 2, 5)).add(1, nx("scarab_amulet", 1, 1));
+    static final Pool COLOSSUS_PYRAMID_RICH = new Pool(4, 7)
+        .add(8, v(Material.GOLD_INGOT, 2, 6)).add(6, nx("amethyst_crystal", 3, 7)).add(5, nx("hellforged_shard", 2, 5)).add(3, nx("hellforged_ingot", 1, 2))
+        .add(3, v(Material.DIAMOND, 1, 2)).add(3, v(Material.GOLDEN_APPLE, 1, 1)).add(4, book()).add(4, v(Material.EXP_BOTTLE, 3, 8))
+        .add(3, nx("soul_essence", 1, 3)).add(2, nx("khopesh", 1, 1)).add(2, armour("pharaoh")).add(2, nx("scarab_amulet", 1, 1))
+        .add(2, potion(org.bukkit.potion.PotionType.STRENGTH)).add(1, nx("phoenix_feather", 1, 1));
+    /** The Pharaoh's treasury (and his hoard): always a piece of his regalia. */
+    static final Pool COLOSSUS_PYRAMID_VAULT = new Pool(5, 8)
+        .add(8, v(Material.GOLD_INGOT, 4, 10)).add(6, v(Material.DIAMOND, 2, 4)).add(7, nx("amethyst_crystal", 6, 12)).add(4, v(Material.GOLDEN_APPLE, 1, 2))
+        .add(4, nx("hellforged_ingot", 1, 3)).add(4, armour("pharaoh")).add(3, nx("khopesh", 1, 1)).add(3, nx("scarab_amulet", 1, 1))
+        .add(4, book()).add(2, nx("phoenix_feather", 1, 1)).add(3, v(Material.EXP_BOTTLE, 4, 10));
+    /** The Sun Chamber at the apex, found by those who climb above the King. */
+    static final Pool COLOSSUS_PYRAMID_SUN = new Pool(4, 6)
+        .add(8, v(Material.GOLD_INGOT, 6, 14)).add(6, v(Material.DIAMOND, 2, 5)).add(5, v(Material.GOLDEN_APPLE, 1, 3)).add(4, armour("pharaoh"))
+        .add(4, nx("amethyst_crystal", 8, 16)).add(3, book());
+    /** The Caldera Citadel's chests: soldiers' kit, blaze stock, fire. */
+    static final Pool COLOSSUS_CITADEL = new Pool(3, 7)
+        .add(8, v(Material.BLAZE_POWDER, 2, 6)).add(5, v(Material.BLAZE_ROD, 1, 3)).add(6, v(Material.IRON_INGOT, 2, 6)).add(5, v(Material.GOLD_INGOT, 1, 3))
+        .add(5, v(Material.COOKED_MUTTON, 2, 5)).add(4, v(Material.ARROW, 6, 16)).add(4, v(Material.FIREBALL, 2, 5)).add(4, nx("pyre_ember", 1, 3))
+        .add(4, nx("hellforged_shard", 1, 3)).add(3, potion(org.bukkit.potion.PotionType.FIRE_RESISTANCE)).add(3, nx("amethyst_crystal", 1, 3)).add(2, book());
+    static final Pool COLOSSUS_CITADEL_RICH = new Pool(4, 7)
+        .add(8, v(Material.GOLD_INGOT, 2, 6)).add(5, nx("hellforged_shard", 2, 5)).add(4, nx("hellforged_ingot", 1, 2)).add(4, nx("molten_core", 1, 2))
+        .add(3, v(Material.DIAMOND, 1, 2)).add(3, v(Material.GOLDEN_APPLE, 1, 1)).add(4, book()).add(5, nx("amethyst_crystal", 3, 7))
+        .add(2, nx("fire_nation_dao", 1, 1)).add(2, armour("ember_guard")).add(3, potion(org.bukkit.potion.PotionType.STRENGTH)).add(1, nx("phoenix_feather", 1, 1));
+    /** The war room: the army's stores. */
+    static final Pool COLOSSUS_CITADEL_WAR = new Pool(4, 7)
+        .add(8, v(Material.ARROW, 8, 24)).add(6, v(Material.IRON_INGOT, 3, 8)).add(5, nx("hellforged_ingot", 1, 3)).add(4, v(Material.BOW, 1, 1))
+        .add(4, v(Material.SHIELD, 1, 1)).add(4, v(Material.FIREBALL, 3, 8)).add(3, v(Material.COMPASS, 1, 1)).add(3, nx("fire_nation_dao", 1, 1))
+        .add(2, armour("ember_guard")).add(3, potion(org.bukkit.potion.PotionType.STRENGTH));
+    /** The royal treasury behind the wall of fire (and the Sovereign's hoard): always a piece of the Ember Guard. */
+    static final Pool COLOSSUS_CITADEL_VAULT = new Pool(5, 8)
+        .add(8, v(Material.GOLD_INGOT, 5, 12)).add(6, v(Material.DIAMOND, 2, 5)).add(7, nx("amethyst_crystal", 8, 16)).add(4, v(Material.GOLDEN_APPLE, 1, 2))
+        .add(4, nx("hellforged_ingot", 2, 4)).add(4, armour("ember_guard")).add(3, nx("fire_nation_dao", 1, 1)).add(3, nx("molten_core", 2, 3))
+        .add(4, book()).add(2, nx("phoenix_feather", 1, 1));
+    /** The Catacombs: the dead's leavings, richer the deeper. */
+    static final Pool DEPTHS_COMMON = new Pool(3, 6)
+        .add(8, v(Material.BONE, 2, 6)).add(6, v(Material.ROTTEN_FLESH, 1, 4)).add(6, v(Material.STRING, 1, 4)).add(6, v(Material.IRON_NUGGET, 2, 9))
+        .add(6, v(Material.GOLD_NUGGET, 2, 9)).add(5, v(Material.TORCH, 4, 12)).add(5, nx("charred_bone", 1, 3)).add(4, v(Material.ARROW, 4, 12))
+        .add(3, v(Material.COAL, 2, 6)).add(3, v(Material.BREAD, 1, 3)).add(2, nx("hellforged_shard", 1, 2)).add(2, nx("amethyst_crystal", 1, 2));
+    static final Pool DEPTHS_RICH = new Pool(3, 6)
+        .add(7, v(Material.GOLD_INGOT, 1, 4)).add(6, v(Material.IRON_INGOT, 2, 5)).add(5, nx("soul_essence", 1, 3)).add(5, nx("hellforged_shard", 2, 4))
+        .add(5, nx("amethyst_crystal", 2, 5)).add(4, book()).add(3, potion(org.bukkit.potion.PotionType.FIRE_RESISTANCE)).add(3, potion(org.bukkit.potion.PotionType.STRENGTH))
+        .add(3, v(Material.GOLDEN_APPLE, 1, 1)).add(3, v(Material.EXP_BOTTLE, 2, 6)).add(2, nx("bone_reaver", 1, 1)).add(2, armour("deepwarden"));
+    static final Pool DEPTHS_DEEP = new Pool(4, 7)
+        .add(7, v(Material.GOLD_INGOT, 2, 6)).add(4, v(Material.DIAMOND, 1, 2)).add(5, nx("hellforged_ingot", 1, 2)).add(5, nx("soul_essence", 2, 4))
+        .add(5, nx("amethyst_crystal", 3, 8)).add(4, book()).add(4, v(Material.GOLDEN_APPLE, 1, 2)).add(3, armour("deepwarden")).add(3, nx("bone_reaver", 1, 1))
+        .add(3, r -> Items.create(TRINKETS[r.nextInt(TRINKETS.length)], 1)).add(3, v(Material.EXP_BOTTLE, 3, 8)).add(1, nx("phoenix_feather", 1, 1));
+    /** The libraries of the dead: books and the means to write them. */
+    static final Pool DEPTHS_LIBRARY = new Pool(3, 6)
+        .add(9, book()).add(6, v(Material.BOOK, 1, 4)).add(5, v(Material.PAPER, 3, 9)).add(4, v(Material.INK_SACK, 0, 1, 4)).add(4, v(Material.EXP_BOTTLE, 3, 8))
+        .add(3, v(Material.EMPTY_MAP, 1, 1)).add(3, v(Material.BOOK_AND_QUILL, 1, 1)).add(2, nx("soul_essence", 1, 2));
+    /** A Warden's vault (and its hoard): always a piece of the Deepwarden's mail. */
+    static final Pool DEPTHS_WARDEN = new Pool(5, 8)
+        .add(8, v(Material.GOLD_INGOT, 3, 7)).add(5, v(Material.DIAMOND, 1, 3)).add(6, nx("amethyst_crystal", 4, 10)).add(4, nx("hellforged_ingot", 1, 3))
+        .add(4, armour("deepwarden")).add(3, nx("bone_reaver", 1, 1)).add(3, v(Material.GOLDEN_APPLE, 1, 2)).add(4, book()).add(3, nx("soul_essence", 2, 4));
+    /** The Heart: the old kings' tombs and the Hollow King's treasury. */
+    static final Pool DEPTHS_HEART = new Pool(5, 9)
+        .add(8, v(Material.GOLD_INGOT, 6, 14)).add(6, v(Material.DIAMOND, 3, 6)).add(7, nx("amethyst_crystal", 10, 20)).add(5, v(Material.GOLDEN_APPLE, 1, 3))
+        .add(5, nx("hellforged_ingot", 2, 5)).add(4, armour("deepwarden")).add(3, nx("bone_reaver", 1, 1)).add(3, nx("phoenix_feather", 1, 1))
+        .add(4, book()).add(3, r -> Items.create(COLOSSAL_GEAR[r.nextInt(COLOSSAL_GEAR.length)], 1));
+
     static List<ItemStack> roll(String table, Random r) {
         List<ItemStack> out = new ArrayList<>();
         if (table.startsWith("glm:")) {
@@ -254,6 +322,20 @@ final class Loot {
             case "jaspr:wonder/cage": CAGE.roll(r, out); break;
             case "jaspr:wonder/grave": GRAVE.roll(r, out); break;
             case "jaspr:wonder/obelisk": OBELISK.roll(r, out); break;
+            case "jaspr:colossus/pyramid": COLOSSUS_PYRAMID.roll(r, out); break;
+            case "jaspr:colossus/pyramid_rich": COLOSSUS_PYRAMID_RICH.roll(r, out); break;
+            case "jaspr:colossus/pyramid_vault": COLOSSUS_PYRAMID_VAULT.roll(r, out); out.add(armour("pharaoh").make(r)); break;
+            case "jaspr:colossus/pyramid_sun": COLOSSUS_PYRAMID_SUN.roll(r, out); out.add(Items.create(r.nextBoolean() ? "khopesh" : "phoenix_feather", 1)); break;
+            case "jaspr:colossus/citadel": COLOSSUS_CITADEL.roll(r, out); break;
+            case "jaspr:colossus/citadel_rich": COLOSSUS_CITADEL_RICH.roll(r, out); break;
+            case "jaspr:colossus/citadel_war": COLOSSUS_CITADEL_WAR.roll(r, out); break;
+            case "jaspr:colossus/citadel_vault": COLOSSUS_CITADEL_VAULT.roll(r, out); out.add(armour("ember_guard").make(r)); break;
+            case "jaspr:depths/common": DEPTHS_COMMON.roll(r, out); break;
+            case "jaspr:depths/rich": DEPTHS_RICH.roll(r, out); break;
+            case "jaspr:depths/deep": DEPTHS_DEEP.roll(r, out); break;
+            case "jaspr:depths/library": DEPTHS_LIBRARY.roll(r, out); break;
+            case "jaspr:depths/warden": DEPTHS_WARDEN.roll(r, out); out.add(armour("deepwarden").make(r)); break;
+            case "jaspr:depths/heart": DEPTHS_HEART.roll(r, out); out.add(armour("deepwarden").make(r)); break;
             default: NETHER_BRIDGE.roll(r, out);
         }
         return out;
@@ -264,7 +346,10 @@ final class Loot {
         "jaspr:mega/bazaar", "jaspr:mega/bazaar_vault", "jaspr:mega/pyramid", "jaspr:mega/pyramid_vault", "jaspr:mega/forge", "jaspr:mega/forge_vault",
         "jaspr:mega/cathedral", "jaspr:mega/cathedral_vault", "jaspr:mega/citadel", "jaspr:mega/citadel_vault",
         "jaspr:wonder/camp", "jaspr:wonder/cage", "jaspr:wonder/grave", "jaspr:wonder/obelisk",
-        "glm:scraps:castle", "glm:common:bastion", "glm:rich:crypt", "glm:vault:volcanic", "glm:vault:arcane", "glm:rich:void", "glm:common:farm"};
+        "glm:scraps:castle", "glm:common:bastion", "glm:rich:crypt", "glm:vault:volcanic", "glm:vault:arcane", "glm:rich:void", "glm:common:farm",
+        "jaspr:colossus/pyramid", "jaspr:colossus/pyramid_rich", "jaspr:colossus/pyramid_vault", "jaspr:colossus/pyramid_sun",
+        "jaspr:colossus/citadel", "jaspr:colossus/citadel_rich", "jaspr:colossus/citadel_war", "jaspr:colossus/citadel_vault",
+        "jaspr:depths/common", "jaspr:depths/rich", "jaspr:depths/deep", "jaspr:depths/library", "jaspr:depths/warden", "jaspr:depths/heart"};
 
     /** Vanilla-style fill: each rolled stack goes to a random empty slot (large stacks may be split in two). */
     static int fill(Inventory inv, String table, Random r) {

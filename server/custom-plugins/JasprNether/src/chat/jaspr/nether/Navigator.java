@@ -38,6 +38,8 @@ final class Navigator {
             }
             return new Location(w, best.x1 + 0.5, best.y1 + 1, best.z1 + 0.5);
         }
+        if (t.startsWith("ordeal:")) return ordeal(plugin, from, t.substring(7));
+        if (COLOSSAL.contains(t) || (Lords.isLord(t) && Lords.DEFS.get(t).hoard != null)) return colossal(plugin, from, t);
         GlmSites.Site g = glmSite(plugin, from, t);
         if (g != null) {
             // the plan knows every build, generated or not: arrive on its cavern floor, at the edge of its box
@@ -66,7 +68,7 @@ final class Navigator {
         Mega.Kind mk = Mega.Kind.byId(t);
         if (mk != null || t.equals("mega")) {
             // the plan knows every site, generated or not: arrive on the cavern floor in front of it
-            Mega.Site s = plugin.gen.mega.nearest(mk, from.getBlockX(), from.getBlockZ(), 8);
+            Mega.Site s = plugin.gen.nearestMega(mk, from.getBlockX(), from.getBlockZ(), 8);
             if (s == null) return null;
             for (int back = 70; back >= 40; back -= 10) {
                 Location l = safe(w, s.x, s.z + back, s.y + 16, s.y - 4);
@@ -113,6 +115,134 @@ final class Navigator {
             }
         }
         return null;
+    }
+
+    static final java.util.Set<String> COLOSSAL = new java.util.HashSet<>(java.util.Arrays.asList("colossus", "great_pyramid", "caldera_citadel",
+        "catacombs", "heart", "warden"));
+
+    /**
+     * The colossal structures (inside the cavern, facing the structure), the Catacombs (the nearest open corridor, the
+     * Heart's north gate, the nearest Warden's door) and their bosses (beside their place once it is drawn, otherwise
+     * the structure or hall that keeps them).
+     */
+    static Location colossal(NetherPlugin plugin, Location from, String t) {
+        if (plugin.gen == null) return null;
+        World w = from.getWorld();
+        Lords.Def lord = Lords.DEFS.get(t);
+        if (lord != null) {
+            Registry.Entry best = null;
+            double bd = Double.MAX_VALUE;
+            for (Registry.Entry e : plugin.registry.near(from.getBlockX(), from.getBlockZ(), 8000, "lord")) {
+                if (!e.name.equals(t)) continue;
+                double d = Math.pow(e.x1 - from.getX(), 2) + Math.pow(e.z1 - from.getZ(), 2);
+                if (d < bd) { bd = d; best = e; }
+            }
+            if (best != null) {
+                plugin.getLogger().info("NETHER_GOTO_BOSS boss=" + t + " at=" + best.x1 + "," + best.y1 + "," + best.z1);
+                populate(w, best.x1, best.z1);
+                for (int[] o : new int[][]{{0, 5}, {5, 0}, {0, -5}, {-5, 0}, {3, 3}, {-3, -3}, {0, 8}, {8, 0}, {0, -8}, {-8, 0}}) {
+                    Location l = dry(safe(w, best.x1 + o[0], best.z1 + o[1], best.y1 + 3, best.y1 - 3));
+                    if (l != null) { l.setDirection(new Vector(-o[0], 0, -o[1])); return l; }
+                }
+                return new Location(w, best.x1 + 0.5, best.y1 + 1, best.z1 + 0.5);
+            }
+        }
+        String home = t;
+        if (lord != null) {
+            if (lord.hoard.startsWith("jaspr:depths")) home = lord.champion ? "warden" : "heart";
+            else home = lord.hoard.contains("pyramid") ? "great_pyramid" : "caldera_citadel";
+        }
+        Depths dp = plugin.gen.depths;
+        switch (home) {
+            case "catacombs": {
+                if (dp == null) return null;
+                int ci = Math.floorDiv(Math.max(dp.hx - Depths.HALF + 20, Math.min(dp.hx + Depths.HALF - 20, from.getBlockX())), Depths.P);
+                int cj = Math.floorDiv(Math.max(dp.hz - Depths.HALF + 20, Math.min(dp.hz + Depths.HALF - 20, from.getBlockZ())), Depths.P);
+                for (int r = 0; r <= 24; r++) for (int i = ci - r; i <= ci + r; i++) for (int j = cj - r; j <= cj + r; j++) {
+                    if (Math.max(Math.abs(i - ci), Math.abs(j - cj)) != r) continue;
+                    int x = i * Depths.P + 6, z = j * Depths.P + 6;
+                    if (dp.top(x, z) < Depths.CORR) continue;
+                    return under(plugin, w, x, z);
+                }
+                return null;
+            }
+            case "heart": return dp == null ? null : under(plugin, w, dp.hx, dp.hz - 59);
+            case "warden": {
+                if (dp == null) return null;
+                int[][] off = {{0, -Depths.WARD}, {Depths.WARD, 0}, {0, Depths.WARD}, {-Depths.WARD, 0}};
+                int pick = lord != null ? java.util.Arrays.asList(Depths.WARDENS).indexOf(t) : -1;
+                double bd = Double.MAX_VALUE;
+                if (pick < 0) for (int k = 0; k < 4; k++) {
+                    double d = Math.pow(dp.hx + off[k][0] * Depths.P - from.getX(), 2) + Math.pow(dp.hz + off[k][1] * Depths.P - from.getZ(), 2);
+                    if (d < bd) { bd = d; pick = k; }
+                }
+                return under(plugin, w, dp.hx + off[pick][0] * Depths.P, dp.hz + off[pick][1] * Depths.P - 28);
+            }
+            default: {
+                Colossi.Kind k = home.equals("colossus") ? null : Colossi.Kind.byId(home);
+                for (Colossi.Site s : plugin.gen.colossi.near(k, from.getBlockX(), from.getBlockZ(), 6)) {
+                    if (!plugin.gen.colossusBuilt(s)) continue;
+                    plugin.getLogger().info("NETHER_GOTO_COLOSSUS kind=" + s.kind.id + " at=" + s.x + "," + s.y + "," + s.z);
+                    for (int q = 0; q < 16; q++) {
+                        double a = q * Math.PI / 8;
+                        int x = s.x + (int) Math.round(Math.cos(a) * (s.kind.radius - 30)), z = s.z + (int) Math.round(Math.sin(a) * (s.kind.radius - 30));
+                        populate(w, x, z);
+                        Location l = dry(safe(w, x, z, s.y + 20, s.y - 2));
+                        if (l != null) { l.setDirection(new Vector(s.x - x, 0, s.z - z)); return l; }
+                    }
+                    return new Location(w, s.x + 0.5, s.y + 40, s.z + 0.5);
+                }
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Beside the nearest trap, puzzle or seal of an id (ordeal:pyramid_canopic, ordeal:citadel_rite, ordeal:depths_heart,
+     * ordeal:arrows ...) in the built colossi within three cells or the Catacombs around the Heart, facing it (QA).
+     */
+    static Location ordeal(NetherPlugin plugin, Location from, String id) {
+        if (plugin.gen == null) return null;
+        World w = from.getWorld();
+        List<Ordeals.Ordeal> all = new java.util.ArrayList<>();
+        for (Colossi.Site s : plugin.gen.colossi.near(null, from.getBlockX(), from.getBlockZ(), 3))
+            if (plugin.gen.colossusBuilt(s)) all.addAll(Colossi.design(s.kind).ordeals(s));
+        Depths dp = plugin.gen.depths;
+        if (dp != null) all.addAll(dp.ordealsNear(dp.hx, dp.hz, 70));
+        Ordeals.Ordeal best = null;
+        double bd = Double.MAX_VALUE;
+        for (Ordeals.Ordeal o : all) {
+            if (!o.id.equals(id)) continue;
+            double d = Math.pow((o.x1 + o.x2) / 2.0 - from.getX(), 2) + Math.pow((o.z1 + o.z2) / 2.0 - from.getZ(), 2);
+            if (d < bd) { bd = d; best = o; }
+        }
+        if (best == null) return null;
+        int cx = (best.x1 + best.x2) / 2, cz = (best.z1 + best.z2) / 2;
+        populate(w, cx, cz);
+        plugin.getLogger().info("NETHER_GOTO_ORDEAL id=" + id + " type=" + best.type + " box=" + best.x1 + "," + best.y1 + "," + best.z1 + ".." + best.x2 + "," + best.y2 + "," + best.z2);
+        boolean seal = best.type == Ordeals.Type.KEYSEAL || best.type == Ordeals.Type.BOSSSEAL;
+        if (seal) {
+            // a door: stand two blocks out from its face, on whichever side is open
+            boolean alongX = best.x2 - best.x1 >= best.z2 - best.z1;
+            for (int side = -1; side <= 1; side += 2) for (int out = 2; out <= 3; out++) {
+                int x = alongX ? cx : (side < 0 ? best.x1 : best.x2) + side * out, z = alongX ? (side < 0 ? best.z1 : best.z2) + side * out : cz;
+                Location l = safe(w, x, z, best.y1 + 2, best.y1 - 2);
+                if (l == null) continue;
+                l.setDirection(new Vector(cx + 0.5, best.y1 + 1, cz + 0.5).subtract(l.toVector().add(new Vector(0, 1.62, 0))));
+                return l;
+            }
+        }
+        Location l = safe(w, cx, cz, best.y2 + 1, best.y1 - 2);
+        return l != null ? l : new Location(w, cx + 0.5, best.y1, cz + 0.5);
+    }
+
+    /** A spot on the Catacombs' floor (the chunks around drawn first). */
+    private static Location under(NetherPlugin plugin, World w, int x, int z) {
+        populate(w, x, z);
+        plugin.getLogger().info("NETHER_GOTO_CATACOMBS at=" + x + "," + (Depths.FLOOR + 1) + "," + z);
+        Location l = new Location(w, x + 0.5, Depths.FLOOR + 1, z + 0.5);
+        l.setDirection(new Vector(0, 0, 1));
+        return l;
     }
 
     /** The nearest GLM build for a goto target: "glm" (any), "lord" (any Lord), a Lord's id, or a build's key (n153). */

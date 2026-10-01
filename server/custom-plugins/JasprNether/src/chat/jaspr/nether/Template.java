@@ -127,6 +127,8 @@ final class Template {
         final List<int[]> points = new ArrayList<>();       // urn, blue fire, ends
         final List<String> pointKinds = new ArrayList<>();
         final List<GlmSites.Pending> late = new ArrayList<>(); // GLM tile blocks (chests, signs, banners, skulls, pots)
+        final List<int[]> signs = new ArrayList<>();        // x y z block (the colossal structures' and the Catacombs' clues)
+        final List<String[]> signLines = new ArrayList<>();
     }
 
     /**

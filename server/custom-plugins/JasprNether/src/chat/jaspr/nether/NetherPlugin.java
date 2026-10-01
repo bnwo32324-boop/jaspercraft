@@ -31,7 +31,7 @@ import org.bukkit.plugin.java.JavaPlugin;
  * Everything the browser client sees is vanilla.
  */
 public final class NetherPlugin extends JavaPlugin implements Listener {
-    static final String VERSION = "1.2.4";
+    static final String VERSION = "1.3.0";
     /**
      * Regeneration epoch. Raising it regenerates the Nether once more on the next start (v1 2026-09-26: the port;
      * v2 2026-09-28: the owner asked for a fresh Nether with the mega structures and wonders; v3 2026-09-29: the owner
@@ -59,6 +59,8 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
     Lords lords;
     GlmLife glmLife;
     Relics relics;
+    Ordeals ordeals;
+    Spoils spoils;
 
     // generation health
     long populated, totalNanos, maxNanos, blocksWritten;
@@ -127,6 +129,8 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         lords = new Lords(this);
         glmLife = new GlmLife(this);
         relics = new Relics(this);
+        ordeals = new Ordeals(this);
+        spoils = new Spoils(this);
         quest = new NetherQuest(this);
         guide = new GuideKit(this, quest);
         Bukkit.getPluginManager().registerEvents(quest, this);
@@ -139,6 +143,8 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(lords, this);
         Bukkit.getPluginManager().registerEvents(glmLife, this);
         Bukkit.getPluginManager().registerEvents(relics, this);
+        Bukkit.getPluginManager().registerEvents(ordeals, this);
+        Bukkit.getPluginManager().registerEvents(spoils, this);
         Bukkit.getPluginManager().registerEvents(effects, this);
         crafting.register();
         DimensionTravel.register(this);
@@ -160,13 +166,17 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             + " glmDensity=2.0 glmLayout=2 tpd=creative"
             + " structures=" + (Gen.TEMPLATE_NAMES.length + 1) + " mega=" + Mega.Kind.values().length + " wonders=8 items=" + Items.DEFS.size()
             + " blocks=" + BlockMap.rows + " world=" + worldName + " attached=" + (gen != null) + " disabled=" + genDisabled
-            + " megaComplete=" + (gen != null && gen.megaComplete));
+            + " megaComplete=" + (gen != null && gen.megaComplete)
+            + " dwellers=" + Mobs.dwellerKinds() + " colossi=" + Colossi.Kind.values().length
+            + " catacombs=" + (gen != null && gen.depths != null ? gen.depths.hx + "," + gen.depths.hz : "-")
+            + " history=" + (gen == null ? "-" : gen.history.fresh ? "fresh" : gen.history.chunks + "chunks"));
     }
 
     @Override public void onDisable() {
         if (mobs != null) mobs.shutdown();
         if (boss != null) boss.shutdown();
         if (lords != null) lords.shutdown();
+        if (ordeals != null) ordeals.shutdown();
         if (registry != null) registry.close();
         getLogger().info("NETHER_STOPPED populated=" + populated + " failures=" + failures);
     }
@@ -214,6 +224,15 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             registry = new Registry(new File(getDataFolder(), "data" + File.separator + w.getName()), getLogger());
             gen = new Gen(this, w, registry);
             gen.megaComplete = megaComplete(w);
+            // the colossal structures and the Endless Catacombs (2026-10-01): never drawn into land that already exists
+            File data = new File(getDataFolder(), "data" + File.separator + w.getName());
+            gen.history = History.of(w, data, getLogger());
+            int[] heart = catacombs(data, gen);
+            final Gen g = gen;
+            gen.depths = new Depths(gen.seed, heart[0], heart[1], gen.history, new Depths.Claims() {
+                @Override public boolean deep(int x0, int z0, int x1, int z1) { return g.deepClaim(x0, z0, x1, z1); }
+                @Override public boolean above(int x0, int z0, int x1, int z1) { return g.shaftClaim(x0, z0, x1, z1); }
+            });
             boolean present = false;
             for (BlockPopulator p : w.getPopulators()) if (p instanceof NetherPopulator) present = true;
             if (!present) w.getPopulators().add(new NetherPopulator());
@@ -224,6 +243,33 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             genDisabled = true;
             getLogger().severe("NETHER_ATTACH_FAILED world=" + w.getName() + " reason=" + t.getClass().getSimpleName() + ": " + safe(t.getMessage()));
         }
+    }
+
+    /** Where the Endless Catacombs' Heart lies: chosen once (on land newer than the colossal update) and kept. */
+    private int[] catacombs(File data, Gen g) {
+        File f = new File(data, "catacombs.txt");
+        try {
+            if (f.exists()) for (String line : java.nio.file.Files.readAllLines(f.toPath(), java.nio.charset.StandardCharsets.UTF_8)) {
+                String[] p = line.trim().split(" ");
+                if (p.length == 3 && p[0].equals("heart")) {
+                    int[] h = {Integer.parseInt(p[1]), Integer.parseInt(p[2])};
+                    getLogger().info("NETHER_CATACOMBS heart=" + h[0] + "," + h[1] + " source=file");
+                    return h;
+                }
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            getLogger().warning("NETHER_CATACOMBS_READ_FAILED reason=" + e.getClass().getSimpleName());
+        }
+        int[] h = Depths.chooseHeart(g.seed, g.history, g::builtDeep);
+        try {
+            data.mkdirs();
+            java.nio.file.Files.write(f.toPath(), ("# The Endless Catacombs (JasprNether " + VERSION + ")\nheart " + h[0] + " " + h[1] + "\n")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (java.io.IOException e) {
+            getLogger().warning("NETHER_CATACOMBS_WRITE_FAILED reason=" + e.getClass().getSimpleName());
+        }
+        getLogger().info("NETHER_CATACOMBS heart=" + h[0] + "," + h[1] + " source=chosen");
+        return h;
     }
 
     /**
@@ -329,7 +375,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             lords.tick(ticks);
             garrisons.tick(ticks);
             glmLife.tick(ticks);
+            ordeals.tick(ticks);
             if ((ticks % 20) == 3) relics.tick(ticks);
+            if ((ticks % 20) == 11) spoils.tick();
             if ((ticks & 3) == 0) mechanics.tick(ticks);
             if ((ticks % 5) == 0) fireflies.tick(ticks);
         } catch (Throwable t) {
@@ -361,6 +409,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         if (s != null) {
             String name, origin;
             if (s.type.equals("mega")) { Mega.Kind k = Mega.Kind.byId(s.name); name = k == null ? pretty(s.name) : k.display; origin = "JasperCraft"; }
+            else if (s.type.equals("colossus")) { Colossi.Kind k = Colossi.Kind.byId(s.name); name = k == null ? pretty(s.name) : k.display; origin = "JasperCraft"; }
             else if (s.type.equals("wonder")) { name = Wonders.display(s.name); origin = "JasperCraft"; }
             else if (s.type.equals("glm")) {
                 GlmSites.Entry en = gen.glm.entry(s.name);
@@ -369,6 +418,10 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             }
             else { name = pretty(s.name); origin = s.type.equals("bn") || s.type.equals("city") ? "BetterNether" : "NetherEx"; }
             out.add(ChatColor.GOLD + "Nether structure " + ChatColor.WHITE + name + ChatColor.GRAY + " (" + origin + ")");
+        }
+        if (s == null && gen.depths != null && y <= Depths.TOP + 1 && gen.depths.top(x, z) >= 0) {
+            String[] halls = {"the Old Halls", "the Ember Halls", "the Black Halls"};
+            out.add(ChatColor.GOLD + "Nether structure " + ChatColor.WHITE + "The Endless Catacombs" + ChatColor.GRAY + " (" + halls[gen.depths.zone(x, z)] + ", JasperCraft)");
         }
         return out;
     }
@@ -449,6 +502,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                     + " cached=" + gen.glm.cached() + " cacheKb=" + (gen.glm.cachedBytes() >> 10) + " loadMs=" + fmt(gen.glm.loadNanos / 1e6)
                     + " loadFailures=" + gen.glm.loadFailures + " tiles=" + structures.glmTiles + " loot=" + structures.glmLoot);
                 sender.sendMessage(ChatColor.GRAY + "lords " + lords.describe() + " slain=" + lords.slainBy + " life " + glmLife.describe() + " relics " + relics.describe());
+                sender.sendMessage(ChatColor.GRAY + "ordeals " + ordeals.describe() + " spoils " + spoils.describe()
+                    + (gen != null && gen.depths != null ? " catacombs heart=" + gen.depths.hx + "," + gen.depths.hz + " columns=" + gen.depths.drawnColumns
+                    + " shafts=" + gen.depths.shafts + " capped=" + gen.depths.capped : ""));
                 return true;
             }
             default:
@@ -526,7 +582,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                 if (args.length > 2) p = Bukkit.getPlayerExact(args[2]);
                 if (p == null || args.length < 2) { sender.sendMessage("/jnether conquer <lord|all|none> [player]"); return true; }
                 if (args[1].equals("none")) { for (String id : Lords.DEFS.keySet()) p.removeScoreboardTag("jn_lord_" + id); }
-                else if (args[1].equals("all")) { for (String id : Lords.DEFS.keySet()) p.addScoreboardTag("jn_lord_" + id); }
+                else if (args[1].equals("all")) { for (String id : Lords.COUNTED) p.addScoreboardTag("jn_lord_" + id); }
                 else if (Lords.DEFS.containsKey(args[1])) p.addScoreboardTag("jn_lord_" + args[1]);
                 sender.sendMessage(ChatColor.GREEN + p.getName() + " has conquered " + Lords.conquered(p));
                 getLogger().info("NETHER_LORD_CONQUER_SET player=" + p.getUniqueId() + " lords=" + Lords.conquered(p));
@@ -594,7 +650,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                 return true;
             case "goto": {
                 if (args.length >= 3) p = Bukkit.getPlayerExact(args[2]);   // /jnether goto <target> <player> (console, tests)
-                if (p == null || args.length < 2 || gen == null) { sender.sendMessage("/jnether goto <biome|city|shrine|village|bn|mega|wonder|golden_bazaar|soul_pyramid|cinder_forge|spore_cathedral|frozen_citadel>"); return true; }
+                if (p == null || args.length < 2 || gen == null) { sender.sendMessage("/jnether goto <biome|city|shrine|village|bn|mega|wonder|golden_bazaar|soul_pyramid|cinder_forge|spore_cathedral|frozen_citadel|great_pyramid|caldera_citadel|catacombs|heart|warden|lord id|ordeal:id>"); return true; }
                 Location from = isNether(p.getWorld()) ? p.getLocation() : new Location(nether, 0, 64, 0);
                 Location to = Navigator.find(this, from, args[1].toLowerCase(java.util.Locale.ROOT));
                 if (to == null) { sender.sendMessage(ChatColor.RED + "Nothing found for " + args[1]); return true; }

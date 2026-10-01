@@ -159,7 +159,8 @@ final class NetherQuest implements GuideKit.Realm, Listener {
             boolean done = won || lords.size() > i;
             boolean current = !done && lords.size() == i;
             Lords.Def d = current && next != null ? Lords.DEFS.get(next.e.lord) : null;
-            String hint = d == null ? "The ten Nether Lords rule great strongholds across the Nether. Everyone who hurts a Lord, or stands near when it falls, conquers it."
+            String hint = d == null ? "Ten Nether Lords rule great strongholds across the Nether, and three more keep the Great Pyramid, the Caldera Citadel and the"
+                + " Endless Catacombs. Everyone who hurts a Lord, or stands near when it falls, conquers it."
                 : d.name + " rules " + next.e.title + " in the " + regionName(next.region) + ". Follow the compass or the red mark on the map. Go in"
                 + " armed and armoured: the Lord rises when you come near its hall. Everyone who hurts it, or stands near when it falls, conquers it.";
             t.add(new GuideKit.Task("Conquer " + ordinal[i] + " Nether Lord" + (current ? " (" + lords.size() + "/" + Lords.NEEDED + ")" : ""), hint,
@@ -185,6 +186,8 @@ final class NetherQuest implements GuideKit.Realm, Listener {
         return Arrays.asList(
             ChatColor.BOLD + "NETHER LORDS" + ChatColor.RESET + "\n\nDeathwing, Ignareth, the Pit Lord, the Ashen Wither, the Cursed King, the Dread Sorcerer,"
                 + " the Voidborn, the Bone Colossus, the Crimson Tyrant and the Blood Count. Each holds a hoard and a relic; conquer any three.",
+            ChatColor.BOLD + "COLOSSI" + ChatColor.RESET + "\n\nThe Great Pyramid, the Caldera Citadel and the Endless Catacombs: champions keep"
+                + " the keys to their seals, puzzles and traps guard the way, and a Lord waits at the heart of each.",
             ChatColor.BOLD + "STRONGHOLDS" + ChatColor.RESET + "\n\nCastles, temples and crypts stand in their own caverns, full of loot, spawners and"
                 + " guards. Break a spawner to stop it. Trapped chests spring ambushes. Forge Hellforged and Soulweave gear from what the guards drop.",
             ChatColor.BOLD + "TIPS" + ChatColor.RESET + "\n\nThe Ghast Queen hits hard. Get ready first in the Nether's other great places:\n\n"
