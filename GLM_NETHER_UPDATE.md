@@ -93,3 +93,20 @@ the Potion of Sorrow, the Urn, the Ghast Queen.
   `/jnether lord <id>`, `/jnether lords`, `/jnether conquer <id|all|none> [player]`.
 - Logs: `NETHER_GLM_PLANNED`, `NETHER_LORD_RISEN/PHASE/DEFEATED/CREDIT/RESET`, `NETHER_GLM_AMBUSH`, `NETHER_URN_REFUSED`;
   `/jnether status` shows build loads, tiles, loot, spawner wake-ups, ambushes, fire stopped and relic use.
+
+## 2026-10-01: Sulphur Sewers removed, Nether reset (1.2.2)
+
+The owner removed **N094, The Sulphur Sewers**, identified by their screenshot, and requested Nether regeneration.
+`glm/disabled-natural.txt` disables this build in the planner. Its catalogue entry remains available for recognising
+saved structures. The pool order is retained: other build choices and the ten Nether Lords are preserved. There are
+**97 active GLM builds**, with 98 entries retained in the recognition catalogue.
+
+`REGEN_EPOCH` is now **4**. On the next start, the old Nether region files, the JasprNether terrain records and rime
+records, and the Nether's Fortress/village metadata are archived in `plugins/JasprNether/nether-before-v4/`.
+The `regenerated-v4.txt` marker prevents another reset on later starts. The Nether seed and UUID, players' inventory
+and quest progress, and other dimensions are preserved. N094 is absent from the new terrain.
+
+Verified in isolation: the existing full GLM drawing/planning/wiring suite passes; a 12,000-block planning survey
+finds 97/97 allowed builds, 10/10 Lords, no disabled placements, no overlaps, no mega collisions and no invalid floors.
+A real Paper baseline/reset/second-restart test passes 17 checks, including byte-preserved backup files and persistence.
+Evidence and deployment record: `C:\Users\AM\Documents\JasperCraft-NetherRemoval-20261001\`.

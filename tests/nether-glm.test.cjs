@@ -36,7 +36,7 @@ test('GLM builds: planned, drawn per chunk, deterministic, no valuables, stocked
   const failed = run.stdout.split(/\r?\n/).filter(l => / FAIL$/.test(l.trim())).join(' | ');
   assert.equal(run.status, 0, (failed || run.stderr + run.stdout.slice(-4000)).slice(0, 6000));
   assert.match(run.stdout, /GLM_OK/);
-  assert.match(run.stdout, /glm plan .*distinctBuilds=98\/98 missing=0 .*overlaps=0 megaHits=0 lordRepeat=0 badFloor=0 PASS/);
+  assert.match(run.stdout, /glm plan .*distinctBuilds=97\/97 catalog=98 disabledPlaced=0 missing=0 .*overlaps=0 megaHits=0 lordRepeat=0 badFloor=0 PASS/);
   for (const [key] of builds()) assert.match(run.stdout, new RegExp('glm ' + key + ' .*deterministic=true forbidden=\\{\\} .*PASS'), key);
   for (const lord of LORDS) assert.match(run.stdout, new RegExp('points=\\{[^}]*lord:' + lord + '=1'), lord + ' has its arena');
 });
@@ -126,5 +126,5 @@ test('GLM wiring: creatures, spawners, Lords, loot, relics, quest', () => {
   // chests of the builds are placed with their tile entities (after the flush), loot never followed by update()
   assert.match(ops, /Loot\.fill\(\(\(Chest\) s\)\.getBlockInventory\(\), p\.table, r\); glmLoot\+\+; \} \/\/ live inventory; never update\(\) afterwards/);
   // the regenerated Nether
-  assert.match(java('NetherPlugin'), /static final int REGEN_EPOCH = 3;/);
+  assert.match(java('NetherPlugin'), /static final int REGEN_EPOCH = 4;/);
 });

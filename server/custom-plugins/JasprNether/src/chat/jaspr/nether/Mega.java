@@ -93,15 +93,21 @@ final class Mega {
     final long seed;
     private final Regions regions;
     private final Keepout keepout;
+    private final Map<Long, Site> pins = new java.util.HashMap<>();
     private final Map<Long, Site> cache = new LinkedHashMap<Long, Site>(128, 0.75f, true) {
         @Override protected boolean removeEldestEntry(Map.Entry<Long, Site> e) { return size() > 256; }
     };
 
     Mega(long seed, Regions regions, Keepout keepout) { this.seed = seed; this.regions = regions; this.keepout = keepout; }
 
+    /** Already-decided cells retain their original plan across GLM layout changes. */
+    void pin(int x, int z, Site s) { pins.put(((long) x << 32) ^ (z & 0xffffffffL), s == null ? NONE : s); }
+
     /** The planned site of a cell, or null (every candidate spot fell inside a Nether City's reach). */
     synchronized Site site(int cellX, int cellZ) {
         long key = ((long) cellX << 32) ^ (cellZ & 0xffffffffL);
+        Site pinned = pins.get(key);
+        if (pinned != null) return pinned == NONE ? null : pinned;
         Site s = cache.get(key);
         if (s == null) {
             s = plan(cellX, cellZ);

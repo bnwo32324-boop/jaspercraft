@@ -238,7 +238,7 @@ final class SelfTest implements Listener {
                             empty.append(' ').append(t.getX()).append(',').append(t.getY()).append(',').append(t.getZ()).append(':')
                                 .append(owner == null ? "-" : owner.type + "/" + owner.name).append(':').append(t.getType())
                                 .append(":glm=").append(g == null ? "-" : g.e.key + "/" + g.tier + "@" + g.minX + "," + g.minZ + ".." + g.maxX + "," + g.maxZ
-                                + "/built=" + plugin.registry.glmDecision(g.tier.name().charAt(0), g.cellX, g.cellZ));
+                                + "/built=" + plugin.registry.glmDecision(g.decisionTier(), g.cellX, g.cellZ));
                         }
                     }
                     ChunkSnapshot snap = c.getChunkSnapshot(false, false, false);
@@ -313,7 +313,7 @@ final class SelfTest implements Listener {
     private void glmInspect(long wallMs) {
         int[] forbidden = {41, 42, 57, 133, 22, 152, 138, 46, 90, 119, 120, 137, 210, 211, 255, 166, 116, 130, 145, 84, 154, 27, 28, 147, 148, 71, 167};
         for (GlmSites.Site s : glmSites) {
-            Boolean built = plugin.registry.glmDecision(s.tier.name().charAt(0), s.cellX, s.cellZ);
+            Boolean built = plugin.registry.glmDecision(s.decisionTier(), s.cellX, s.cellZ);
             int chests = 0, filled = 0, bad = 0, spawnerBlocks = 0;
             for (int cx = s.minX >> 4; cx <= s.maxX >> 4; cx++)
                 for (int cz = s.minZ >> 4; cz <= s.maxZ >> 4; cz++) {

@@ -118,25 +118,27 @@ final class Navigator {
     /** The nearest GLM build for a goto target: "glm" (any), "lord" (any Lord), a Lord's id, or a build's key (n153). */
     static GlmSites.Site glmSite(NetherPlugin plugin, Location from, String t) {
         if (plugin.gen == null) return null;
-        GlmSites glm = plugin.gen.glm;
         int x = from.getBlockX(), z = from.getBlockZ();
         GlmSites.Site best = null;
         double bd = Double.MAX_VALUE;
         String key = t.toUpperCase(Locale.ROOT);
-        boolean any = t.equals("glm"), lord = t.equals("lord") || Lords.isLord(t), byKey = glm.entry(key) != null;
+        boolean any = t.equals("glm"), lord = t.equals("lord") || Lords.isLord(t), byKey = plugin.gen.glm.entry(key) != null;
         if (!any && !lord && !byKey) return null;
+        for (GlmSites glm : new GlmSites[]{plugin.gen.glm, plugin.gen.legacyGlm}) {
         for (GlmSites.Tier tier : GlmSites.Tier.values()) {
             if (lord && tier != GlmSites.Tier.LORD) continue;
             int cells = any ? 2 : tier == GlmSites.Tier.COMMON ? 10 : tier == GlmSites.Tier.GREAT ? 7 : 5;
-            int cx = Math.floorDiv(x, tier.cell), cz = Math.floorDiv(z, tier.cell);
+            int cx = Math.floorDiv(x, glm.cell(tier)), cz = Math.floorDiv(z, glm.cell(tier));
             for (int dx = -cells; dx <= cells; dx++) for (int dz = -cells; dz <= cells; dz++) {
                 GlmSites.Site s = glm.site(tier, cx + dx, cz + dz);
-                if (s == null || Boolean.FALSE.equals(plugin.registry.glmDecision(tier.name().charAt(0), s.cellX, s.cellZ))) continue;
+                if (s == null || (glm.legacy ? !Boolean.TRUE.equals(plugin.gen.legacyRegistry.glmDecision(s.decisionTier(), s.cellX, s.cellZ))
+                    : Boolean.FALSE.equals(plugin.registry.glmDecision(s.decisionTier(), s.cellX, s.cellZ)))) continue;
                 if (byKey && !s.e.key.equals(key)) continue;
                 if (Lords.isLord(t) && !t.equals(s.e.lord)) continue;
                 double d = s.dist(x, z);
                 if (d < bd) { bd = d; best = s; }
             }
+        }
         }
         return best;
     }

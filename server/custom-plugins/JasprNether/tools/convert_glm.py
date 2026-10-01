@@ -5,12 +5,12 @@ planner reads). The owner's folder is only read.
 
 What the conversion does to each build (owner, 2026-09-29: "they may contain valuable blocks ... replaced with
 something with a similar color palette"; the builds are raw, so the loot, spawners, mob packs and bosses are ours):
-  * trims empty borders; cuts or scales the few builds taller than the Nether (y 5..121);
+  * extracts structure geometry BEFORE trimming and fitting it to the Nether (y 5..121);
   * replaces valuable and technical blocks with look-alikes (gold block -> yellow concrete, beacon -> sea lantern,
     portal -> purple glass, command blocks -> terracotta/purpur/prismarine, hoppers -> cauldrons ...) and neutralises
     redstone; no block of the plugin's forbidden list survives;
-  * turns natural ground (grass, dirt, stone, sand, snow, trees, plants, water) into placeholders that take on the
-    materials of the Nether region the build is placed in;
+  * removes surrounding soil, rock mass, water, trees and landscape; retains thin stone architecture and the
+    walls/floors of enclosed rooms. Reviewed sculpture exceptions preserve authored dragon geometry;
   * marks the air below the ground outside the build as "keep the world" (VOID), so buried parts sit in rock;
   * records every tile block (chests, signs, banners, skulls, pots) for placement after the block flush;
   * picks loot chests (tiered), spawner spots, mob-pack (garrison) spots and, for the ten Nether Lords, the arena;
@@ -33,9 +33,17 @@ import zlib
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+from stair_alignment import correct_exported_stairs
+from source_materials import original_materials
 SRC = os.environ.get('GLM_DIR', r'C:\Users\AM\Desktop\GLM Nether structures')
 OUT = os.path.normpath(os.path.join(HERE, '..', 'resources', 'glm'))
 VERSION = 1
+# Optional provenance-aware correction supplied by the parent audit. Called as
+# hook(key, path, blocks, metadata) -> corrected metadata, BEFORE extraction or
+# resampling. This module does not infer provenance or alter source stair facing.
+SOURCE_METADATA_HOOK = None
 
 # ------------------------------------------------------------------------------------------------------------------
 # Minimal NBT reader (gzip or raw).
@@ -477,62 +485,383 @@ def detect_ground(b, m, keep):
     good = [y for y in range(H) if cover[y] >= 0.6]
     return (max(good) if good else 0), natural, definite
 
+
+def grow6(mask, radius=1):
+    """Bounded six-neighbour dilation, without wraparound or a scipy dependency."""
+    out = mask.copy()
+    for _ in range(radius):
+        nxt = out.copy()
+        nxt[1:] |= out[:-1]; nxt[:-1] |= out[1:]
+        nxt[:, 1:] |= out[:, :-1]; nxt[:, :-1] |= out[:, 1:]
+        nxt[:, :, 1:] |= out[:, :, :-1]; nxt[:, :, :-1] |= out[:, :, 1:]
+        out = nxt
+    return out
+
+
+def enclosed_air(b):
+    """Air with a floor, a roof and opposing walls on both horizontal axes.
+
+    This directional test includes door-connected rooms; an exterior flood alone
+    would misclassify every room behind an open doorway as landscape. It is used
+    only to retain a two-block boundary, never to retain the solid mountain core.
+    """
+    open_cell = (b == 0) | np.isin(b, list(PASSABLE - {8, 9, 10, 11, 51}))
+    solid = ~open_cell
+    room = open_cell.copy()
+    for axis in range(3):
+        ahead = np.logical_or.accumulate(solid, axis=axis)
+        behind = np.flip(np.logical_or.accumulate(np.flip(solid, axis=axis), axis=axis), axis=axis)
+        room &= ahead & behind
+    return room
+
+
+def interior_rooms(b):
+    """Exclude the broad exterior air, while closing small doors/tunnel mouths.
+
+    Directional enclosure by itself mistakes valleys between separate hills (or
+    air beneath a dragon) for rooms. Flood the exterior's two-block-eroded air
+    first; narrow doorways close, preserving rooms behind them. Then restore the
+    exterior's two-block boundary. Only the residual enclosed air is a room.
+    """
+    air = (b == 0) | np.isin(b, list(PASSABLE - {8, 9, 10, 11, 51}))
+    wide = air.copy()
+    for _ in range(2):
+        narrow = wide.copy()
+        for step in ((1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1)):
+            narrow &= shift(wide, *step, True)
+        wide = narrow
+    seed = np.zeros_like(air)
+    seed[0] = True; seed[-1] = True
+    seed[:,0] = True; seed[:,-1] = True; seed[:,:,0] = True; seed[:,:,-1] = True
+    exterior = grow6(flood(seed, wide), 2) & air
+    rooms = enclosed_air(b) & ~exterior
+    return grow6(rooms) & air & ~exterior
+
+
+def thin_material(mask, radius=3):
+    """Material bounded on opposite sides within radius blocks (wall/slab geometry).
+
+    A hill's exposed surface has air on only one side and does not qualify.
+    A thin wall qualifies on its normal axis even when very long or tall.
+    """
+    out = np.zeros_like(mask)
+    for axis in range(3):
+        left = np.zeros_like(mask); right = np.zeros_like(mask)
+        for distance in range(1, radius + 1):
+            step = [0, 0, 0]; step[axis] = distance
+            left |= shift(~mask, *step, True)
+            step[axis] = -distance
+            right |= shift(~mask, *step, True)
+        out |= left & right
+    return out & mask
+
+
+def prune_reviewed_components(key, keep, b, markers):
+    """Reviewed scene-specific debris cleanup, never a universal largest-only rule.
+
+    N205's detached dead-tree islands have real wooden stairs/fences, so a
+    material-count witness is insufficient. Keep the fortress/roads and actual
+    bone arches or masonry watchtowers. The small N172/N173 stone flecks are
+    terrain; source tile anchors and N172's detached glass crown are retained.
+    """
+    parts = components(keep)
+    if not parts:
+        return keep, 0
+    primary = max(parts, key=len)
+    out = np.zeros_like(keep)
+    out[tuple(primary.T)] = True
+    for pts in parts:
+        ids = b[tuple(pts.T)]
+        retain = bool(markers[tuple(pts.T)].any())
+        if key == 'N205':
+            bone = int((ids == 216).sum())
+            masonry = int(np.isin(ids, [98,109,139]).sum())
+            retain |= len(pts) >= 96 and (bone >= 24 or masonry >= 12 and int((ids == 99).sum()) >= 24)
+        else:
+            retain |= int(np.isin(ids, [20,98,102,155,156,206]).sum()) >= 12
+        if retain:
+            out[tuple(pts.T)] = True
+    return out, int((keep & ~out).sum())
+
+
+def extract_structure(key, b, m, tiles, source_masks=None):
+    """Remove imported terrain, keeping only justified structure boundaries.
+
+    Natural stone is not categorically deleted: room skins, thin connected
+    architecture and its one-block backing survive literally. Dirt/grass never
+    survive. N144's reviewed stone dragon and authored round pedestal are a
+    sculpture; N202's floating dragon is separated from its continuous mountain.
+    N205's cobble/grey mixed palette is terrain even though those ids can be
+    architectural in other builds.
+    """
+    source_shape = list(b.shape)
+    source_nonair = int((b != 0).sum())
+    source_tiles = len(tiles)
+    source_stairs = int(np.isin(b, list(STAIRS_IDS)).sum())
+    soil = np.isin(b, [2, 3, 12, 13, 82, 110, 78, 80, 208])
+    natural = is_raw_stone(b, m) | np.isin(b, [7, 87, 121, 153] + list(ORES))
+    # Sandstone is ordinarily architecture. Raw sand/dirt beneath it are not.
+    # The enormous mixed rock spires in N205 need an explicit palette rule.
+    if key == 'N205':
+        natural |= np.isin(b, [4, 112, 173, 242, 249, 250, 252])
+        natural |= (b == 1) & (m == 6)
+        natural |= (b == 35) & np.isin(m, [7, 8])
+        natural |= (b == 251) & np.isin(m, [7, 8, 15])
+        natural |= (b == 159) & np.isin(m, [6, 8, 9, 14])
+        natural |= (b == 43) & (m == 7)
+    if key in ('N216', 'N218'):
+        natural |= (b == 24) & (m == 0)  # bulk sandstone fill around the buried maze
+    if key == 'N202':
+        natural |= b == 173  # legacy export maps scattered ancient debris to coal blocks
+        natural |= (b == 1) & (m == 6)  # polished dark rock within the mountain blend
+    landscape = natural | soil
+    leaves = np.isin(b, [18, 161])
+    if key == 'N202': leaves |= b == 214  # exported crimson-tree canopy, not temple walls
+    logs = np.isin(b, [17, 162])
+    if source_masks is not None:
+        # Exact original-state provenance catches modern foliage exported as
+        # wool. Logs are candidates, not a categorical deletion of timber walls.
+        for name, target in [('soil',soil),('leaves',leaves),('logs',logs)]:
+            if name in source_masks:
+                mask = np.asarray(source_masks[name],dtype=bool)
+                if mask.shape != b.shape:
+                    raise ValueError('%s: source %s mask dimensions differ' % (key,name))
+                target |= mask
+        landscape = natural | soil
+    custom_crown = np.zeros_like(leaves)
+    if key in ('N018','N202'):
+        # These reviewed crowns mix wool, stained glass and panes in the
+        # ORIGINAL palette, not leaves.
+        # Group diagonal/tiny crown fragments within one voxel, then require a
+        # substantial actual crown touching a log/stem. Small interior
+        # upholstery remains. N202's dragon is never in this lower-height rule.
+        crown = np.isin(b,[35,95,160]) & (m == (6 if key == 'N018' else 14))
+        if key == 'N202':
+            crown &= np.arange(b.shape[0]).reshape(-1,1,1) < 100
+        near_log = grow6(logs,3)
+        for pts in components(grow6(crown)):
+            where = tuple(pts.T)
+            actual = pts[crown[where]]
+            horizontal_crown = len(actual) and np.ptp(actual[:,1]) >= 3 and np.ptp(actual[:,2]) >= 3
+            tree_shape = near_log[where].any() or key == 'N202' and horizontal_crown
+            if len(actual) >= (32 if key == 'N018' else 24) and tree_shape:
+                custom_crown[where] |= crown[where]
+        leaves |= custom_crown
+    decorations = np.isin(b, list(PLANTS) + [106, 111])
+    water = np.isin(b, [8, 9])
+    lava = np.isin(b, [10, 11])
+    # Trees may form a single forest component; the old <=64-log heuristic
+    # incorrectly retained that whole forest. Keep logs used by actual framing.
+    tree = flood(grow6(leaves) & logs, logs) if leaves.any() else np.zeros_like(logs)
+    anchor = (b != 0) & ~landscape & ~leaves & ~logs & ~decorations & ~water & ~lava & ~np.isin(b, list(DROP))
+    structural_log = logs & (~tree | grow6(anchor))
+    if key == 'N113': structural_log = logs  # reviewed treehouse support frame
+    if key == 'N202': structural_log = logs & ~tree  # reviewed exterior garden trunks, not temple/dragon timber
+    structural_log &= ~landscape
+    anchor |= structural_log
+    room_geometry = np.where(leaves | decorations | (tree & ~structural_log) | soil | water, 0, b)
+    rooms = enclosed_air(room_geometry) if key == 'N144' else interior_rooms(room_geometry)
+    # Removing dirt/trees for visibility must not INVENT rooms in their former
+    # solid cells. Only air/passable cells present in the original can be a room.
+    source_open = (b == 0) | np.isin(b, list(PASSABLE - {8, 9, 10, 11, 51}))
+    rooms &= source_open & ~leaves & ~decorations & ~soil & ~water
+    if key == 'N202':
+        # Its mineral/unknown-block voids inside the mountain are not rooms.
+        # The actual furnished temple starts at raw y50. Require a temple roof
+        # within 20 cells above air below the disconnected dragon.
+        ys = np.arange(b.shape[0]).reshape(-1,1,1)
+        roof_block = anchor & (ys < 100) & np.isin(b, [5,43,44,45,98,125,126,155,156,206])
+        roof = np.zeros_like(rooms)
+        run = np.zeros(b.shape[1:], dtype=np.int32)
+        for y in range(b.shape[0]-1,-1,-1):
+            roof[y] = run > 0
+            run = np.where(roof_block[y],20,np.maximum(run-1,0))
+        rooms &= roof | (ys >= 100)
+    if key in ('N195', 'N202', 'N205'):
+        furnished = np.isin(b, list(TESR) + [52,130,5,47,53,58,61,64,65,109,117,118,126,134,135,136,155,156,193,194,195,196,197])
+        rooms = flood(grow6(furnished, 3) & rooms, rooms)
+    room_boundary = natural & grow6(rooms, 2)
+    near_arch = natural & grow6(anchor)
+    thin = thin_material(natural)
+    connected_thin = flood((room_boundary | near_arch) & thin, thin) if thin.any() else thin
+    if key in ('N202', 'N205', 'N216', 'N218') or soil.sum() > 1000:
+        # Thin ground ledges can join a wall. Their connection alone is not
+        # sufficient evidence to import a landscape skin across the whole map.
+        connected_thin &= grow6(anchor, 3) | room_boundary
+    retained_natural = room_boundary | near_arch | connected_thin
+    exception = np.zeros_like(natural)
+    reasons = []
+    if key == 'N132':
+        reasons.append('N132: parent-reviewed timber/clay platform retained as authored architecture; exact-source foliage/soil still excluded')
+    if key == 'N004':
+        reasons.append('N004: compiled cutaways verify hollow basement/arena beneath the house; raw stone walls/floors retained')
+    if key == 'N113':
+        reasons.append('N113: treehouse timber support frame is integral architecture; foliage removed, frame retained')
+    if key == 'N144':
+        exception = natural & ~np.isin(b, [7] + list(ORES) + [153])
+        reasons.append('N144: reviewed authored stone dragon, columns and round pedestal, not a landscape mountain')
+    if key == 'N202':
+        ys = np.arange(b.shape[0]).reshape(-1, 1, 1)
+        # Exact raw layer slices show the mountain ends at y92 and the
+        # disconnected dragon begins above y112 (mostly red nether brick).
+        # Preserve its small stone/rack accents, never the lower mountain rim.
+        exception = natural & (ys >= 100)
+        reasons.append('N202: raw slices verify mountain below y93, disconnected dragon above y112; natural accents kept only above y100')
+    if key == 'N218':
+        reasons.append('N218: cutaways show solid sandstone fill below/around authored maze; retain only room walls/floors and thin connected architecture, as N216')
+    retained_natural |= exception
+    if key == 'N202':
+        retained_natural = room_boundary | exception
+    # Netherrack under intentional fire is an explicit architectural fuel cell.
+    fuel = (b == 87) & shift(b == 51, -1, 0, 0, False)
+    retained_natural |= fuel
+    # Lava beside structure/within its rooms is an authored hazard, not a lake
+    # copied with the mountain. N144's dragon veins are part of the sculpture.
+    keep_lava = lava & (grow6(anchor | retained_natural) & ~grow6(soil))
+    if key == 'N144': keep_lava = lava
+    semantic_region = None
+    semantic_seeds = None
+    if key == 'N205':
+        # Architectural witnesses, not the square obsidian landscape boundary,
+        # determine the arena's footprint. Isolated rock flecks and decorative
+        # mountain stairs do not become standalone fortifications.
+        core = np.isin(b, list(TESR) + list(STAIRS_IDS) + [5,23,25,26,47,52,58,61,64,65,85,96,98,101,102,107,117,118,125,126,139,155,193,194,195,196,197,216]) & ~natural
+        weight = core.sum(axis=0)
+        clusters = components(dilate2(weight > 0, 3)[None])
+        accepted = np.zeros(b.shape[1:],dtype=bool)
+        for comp in clusters:
+            cz,cx = comp[:,1],comp[:,2]
+            if int(weight[cz,cx].sum()) >= 24 and int((weight[cz,cx] > 0).sum()) >= 8:
+                accepted[cz,cx] = True
+        semantic_region = dilate2(accepted, 4)
+        semantic_seeds = core & semantic_region[None]
+        # Only lava immediately framed by an actual accepted structure is an
+        # authored hazard. Never retain channels along removed hill contours.
+        keep_lava = lava & grow6(semantic_seeds) & semantic_region[None]
+        reasons.append('N205: accepted furnished/masonry/bone-arch clusters (>=24 witness blocks and >=8 columns); four-block boundary; no landscape lava channels')
+    keep = anchor | retained_natural | keep_lava | fuel
+    # Always preserve chest/spawner/sign/etc anchors; their palette substitutions
+    # and standard tile/loot handling still happen after extraction.
+    markers = np.isin(b, list(TESR) + [52, 130])
+    keep |= markers
+    keep &= ~soil & ~leaves & ~decorations & ~water
+    if key == 'N202':
+        # Raw y0..47 is exclusively the mountain/caves (first chest and wood
+        # furnishing are at y50); a two-cell floor boundary remains at y48.
+        keep &= (np.arange(b.shape[0]).reshape(-1,1,1) >= 48)
+    if key == 'N205':
+        # Reject isolated flecks of the mixed rock palette left suspended where
+        # its spires were removed. Retain components attached to arena masonry,
+        # furnishings, bone arches or the deliberate obsidian hazard boundary.
+        keep &= semantic_region[None] | markers
+        keep = flood(keep & (semantic_seeds | markers), keep)
+    pruned_components = 0
+    if key in ('N205', 'N172', 'N173'):
+        keep, pruned_components = prune_reviewed_components(key,keep,b,markers)
+        if key == 'N205':
+            reasons.append('N205: detached dead-tree/ground-chip components removed; primary connected fortress/roads plus reviewed bone arches and masonry watchtowers retained')
+        else:
+            reasons.append('%s: disconnected terrain rock flecks removed; source tile anchors and deliberate glass/masonry ornaments preserved' % key)
+    removed = (b != 0) & ~keep
+    justified = room_boundary | near_arch | connected_thin | exception | fuel
+    unexplained = int((keep & natural & ~justified).sum())
+    if unexplained:
+        raise ValueError('%s: unexplained terrain retained: %d' % (key,unexplained))
+    core = natural.copy()
+    for _ in range(3):
+        nxt = core.copy()
+        for step in ((1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1)):
+            nxt &= shift(core,*step,False)
+        core = nxt
+    unjustified_core = int((keep & core & ~(room_boundary | near_arch | exception | fuel)).sum())
+    if unjustified_core:
+        raise ValueError('%s: external terrain core retained: %d' % (key,unjustified_core))
+    info = dict(source_dimensions=[source_shape[2], source_shape[0], source_shape[1]],
+                source_nonair=source_nonair, source_tiles=source_tiles,
+                source_dirt_grass=int(np.isin(b, [2, 3]).sum()),
+                removed_nonair=int(removed.sum()), removed_natural=int((removed & natural).sum()),
+                natural_candidates=int(natural.sum()), retained_natural=int((keep & natural).sum()),
+                room_air=int(rooms.sum()), room_boundary_natural=int((keep & room_boundary).sum()),
+                architecture_backing_natural=int((keep & near_arch).sum()),
+                connected_thin_natural=int((keep & connected_thin).sum()),
+                sculpture_natural=int(exception.sum()), fire_fuel=int(fuel.sum()),
+                removed_trees=int((removed & (leaves | tree)).sum()), removed_water=int((removed & water).sum()),
+                removed_custom_tree_crowns=int((removed & custom_crown).sum()),
+                removed_lava=int((removed & lava).sum()), retained_lava=int(keep_lava.sum()),
+                source_chests=int(np.isin(b, [54, 146, 130]).sum()), source_spawners=int((b == 52).sum()),
+                source_stairs=source_stairs, retained_stairs=int((keep & np.isin(b,list(STAIRS_IDS))).sum()),
+                unexplained_natural=unexplained,unjustified_mass_core=unjustified_core,
+                source_mass_core=int(core.sum()),retained_mass_core=int((core & keep).sum()),
+                disconnected_debris_removed=pruned_components,
+                exceptions=reasons)
+    if source_masks:
+        info['original_material_counts'] = {name:int(mask.sum()) for name,mask in source_masks.items()}
+        info['retained_original_material_counts'] = {name:int((keep & mask).sum()) for name,mask in source_masks.items()}
+    if semantic_region is not None:
+        info['semantic_region_columns'] = int(semantic_region.sum())
+        info['semantic_witness_blocks'] = int(semantic_seeds.sum())
+    b = b.copy(); m = m.copy()
+    b[removed] = 0; m[removed] = 0
+    tiles = {p:t for p,t in tiles.items() if all(0 <= v < s for v,s in zip(p,b.shape)) and b[p] != 0}
+    info['retained_tiles'] = len(tiles)
+    info['retained_chests'] = int(np.isin(b, [54, 146, 130]).sum())
+    info['retained_spawners'] = int((b == 52).sum())
+    info['retained_nonair'] = int((b != 0).sum())
+    info['retained_dirt_grass'] = int(np.isin(b, [2, 3]).sum())
+    # Ground is inferred from authored floors, not the removed grass hill.
+    occupied = b != 0
+    bounds = []
+    for axis in range(3):
+        indexes = np.nonzero(occupied.any(axis=tuple(i for i in range(3) if i != axis)))[0]
+        if not len(indexes): raise ValueError('%s has no extracted structure' % key)
+        bounds.append((int(indexes[0]), int(indexes[-1]) + 1))
+    info['crop_bounds_yzx'] = bounds
+    b,m,tiles = crop(b,m,tiles,*[v for pair in bounds for v in pair])
+    return b,m,tiles,info
+
 # ------------------------------------------------------------------------------------------------------------------
 class Converted:
     pass
 
-def convert(key, path, cfg, log):
+def convert(key, path, cfg, log, metadata_hook=None):
     b, m, tiles = load_build(path)
-    b, m, tiles = trim(b, m, tiles)
-    notes = []
-    if cfg.get('cut_top'):
-        b, m, tiles = crop(b, m, tiles, 0, b.shape[0] - cfg['cut_top'], 0, b.shape[1], 0, b.shape[2]); notes.append('cut top %d' % cfg['cut_top'])
-    if cfg.get('cut_bottom'):
-        b, m, tiles = crop(b, m, tiles, cfg['cut_bottom'], b.shape[0], 0, b.shape[1], 0, b.shape[2]); notes.append('cut bottom %d' % cfg['cut_bottom'])
-    if cfg.get('scale'):
-        b, m, tiles = downscale(b, m, tiles, cfg['scale']); notes.append('scaled 1/%.2f' % cfg['scale'])
-    b, m, tiles = trim(b, m, tiles)
+    m, stair_info = correct_exported_stairs(path, b, m)
+    source_masks = original_materials(path,b.shape)
+    hook = metadata_hook or SOURCE_METADATA_HOOK
+    if hook is not None:
+        m = np.asarray(hook(key, path, b, m), dtype=np.int32)
+        if m.shape != b.shape or np.any((m < 0) | (m > 15)):
+            raise ValueError('%s: source metadata hook returned invalid metadata' % key)
+    b, m, tiles, crop_info = extract_structure(key, b, m, tiles, source_masks=source_masks)
+    crop_info['metadata_hook'] = getattr(hook, '__name__', None)
+    crop_info['stair_metadata'] = stair_info
+    crop_info['material_provenance'] = dict(verified_source=bool(source_masks),
+                                           counts={name:int(mask.sum()) for name,mask in source_masks.items()})
+    notes = ['extracted %d landscape cells' % crop_info['removed_nonair']] + crop_info['exceptions']
+    notes.append('stairs: verified=%s repaired=%d/%d' % (stair_info['verified_export'], stair_info['repaired'],
+                                                       stair_info.get('stair_count', 0)))
     maxh = cfg.get('maxh', 117) - cfg.get('lift', 0)
-    if b.shape[0] > maxh:
-        n = b.shape[0] - maxh
-        if cfg.get('cut') == 'bottom': b, m, tiles = crop(b, m, tiles, n, b.shape[0], 0, b.shape[1], 0, b.shape[2])
-        else: b, m, tiles = crop(b, m, tiles, 0, maxh, 0, b.shape[1], 0, b.shape[2])
-        notes.append('cut %s %d' % (cfg.get('cut', 'top'), n))
+    scale = max(float(cfg.get('scale', 1)), b.shape[0] / maxh)
+    crop_info['fit_scale'] = scale
+    crop_info['extracted_dimensions'] = [b.shape[2], b.shape[0], b.shape[1]]
+    if scale > 1:
+        b, m, tiles = downscale(b, m, tiles, scale)
+        notes.append('scaled complete structure 1/%.4f (no height cuts)' % scale)
         b, m, tiles = trim(b, m, tiles)
     H, L, W = b.shape
-    keep = cfg.get('keep', set())
-    ground, natural, definite = detect_ground(b, m, keep)
-    if 'ground' in cfg: ground = min(cfg['ground'], H - 1)
+    crop_info['fitted_dimensions'] = [W, H, L]
+    crop_info['fitted_source_chests'] = int(np.isin(b, [54,146,130]).sum())
+    crop_info['fitted_source_spawners'] = int((b == 52).sum())
+    crop_info['fitted_tile_entities'] = len(tiles)
+    crop_info['fitted_stairs'] = int(np.isin(b,list(STAIRS_IDS)).sum())
+    # Enclosed rooms are placed under the native cavern floor, retaining their
+    # literal stone boundary; removed external mass is supplied by native world.
+    room = enclosed_air(b)
+    room_levels = np.nonzero(room.any(axis=(1, 2)))[0]
+    ground = min(H - 1, int(room_levels[-1]) + 1) if cfg.get('buried') and len(room_levels) else 0
+    crop_info['recalculated_ground'] = ground
     if cfg.get('lift'): ground = -cfg['lift']
     ys = np.arange(H).reshape(H, 1, 1)
-
-    # ---- terrain: ground-connected natural blocks, plus raw stone, dirt, grass, ores and netherrack anywhere ------------
-    always = np.isin(b, [2, 3, 12, 13, 82, 110, 87] + list(ORES))
-    if 'stone' not in keep: always |= is_raw_stone(b, m)
-    col_ground = np.full(b.shape[1:], max(ground, -1))
-    if ground >= 0:
-        # hills: from the ground layer up through natural blocks, accepted when the run is topped by grass, dirt, sand or snow
-        run = natural[ground].copy()
-        top = np.full(b.shape[1:], ground)
-        topdef = definite[ground].copy()
-        for y in range(ground + 1, H):
-            run &= natural[y]
-            top = np.where(run, y, top)
-            topdef = np.where(run, definite[y], topdef)
-        col_ground = np.where(topdef, top, ground)
-    terrain = natural & (ys <= col_ground[None]) | always
-    terrain &= (b != 0) & ~np.isin(b, [88, 60, 78])          # soul sand, farmland and snow layers keep their own look
-    terrain &= ~((b == 87) & shift(b == 51, -1, 0, 0, False))  # netherrack under a fire stays netherrack (it burns forever)
-
-    # ---- trees: log+leaf clusters with more leaves than logs --------------------------------------------------------
-    tree_logs = np.zeros_like(terrain)
-    leaves = np.isin(b, [18, 161])
-    logs = np.isin(b, [17, 162])
-    if leaves.any():
-        for comp in components(leaves | logs):
-            cy, cz, cx = comp[:, 0], comp[:, 1], comp[:, 2]
-            nl = int(leaves[cy, cz, cx].sum()); nw = len(comp) - nl
-            if nl >= 4 and nw <= 64 and nw <= nl: tree_logs[cy, cz, cx] = logs[cy, cz, cx]
 
     role = np.zeros(b.shape, dtype=np.uint8)
     val = (b << 4) | m
@@ -551,7 +880,7 @@ def convert(key, path, cfg, log):
     val[sel] = (66 << 4) | (m[sel] & 7)
     sel = b == 69
     val[sel] = (69 << 4) | (m[sel] & 7)          # levers off
-    sel = np.isin(b, CROPS)
+    sel = np.isin(b, list(CROPS))
     val[sel] = (115 << 4) | np.minimum(3, m[sel] * 3 // 7)
     sel = b == 7                                   # bedrock in a build -> black concrete (in the ground it is rock)
     val[sel] = (251 << 4) | 15
@@ -574,30 +903,12 @@ def convert(key, path, cfg, log):
     role[plants] = PLANT
     role[upper] = AIR
 
-    # ---- roles for terrain ---------------------------------------------------------------------------------------
-    t_sand = terrain & np.isin(b, [12, 13])
-    t_rest = terrain & ~t_sand
-    open_above = shift(~(terrain | ((b != 0) & ~np.isin(b, list(PASSABLE)))), -1, 0, 0, True)
-    # depth below the nearest open cell above, within the terrain
-    depth = np.zeros(b.shape, dtype=np.int32)
-    run = np.zeros(b.shape[1:], dtype=np.int32)
-    for y in range(H - 1, -1, -1):
-        run = np.where(terrain[y], run + 1, 0)
-        depth[y] = run
-    # SURFACE where open above; SOIL for the next three; ROCK below
-    role[t_rest] = np.where(open_above[t_rest], SURFACE, np.where(depth[t_rest] <= 4, SOIL, ROCK))
-    role[t_rest & np.isin(b, [7] + list(ORES))] = ROCK
-    role[t_rest & open_above & np.isin(b, [7] + list(ORES))] = SURFACE
-    role[t_sand] = SAND
-    role[(b == 78) | ((b == 80) & ~terrain)] = SNOW
-    role[b == 208] = PATH
-    liq = np.isin(b, [8, 9])
-    role[liq] = LIQUID
+    # Extraction has already removed terrain. Retained stone/netherrack is
+    # literal architecture, not SURFACE/SOIL/ROCK/SAND or vegetation placeholders.
+    # Ores needed in room skins keep geometry with ordinary stone look-alikes.
+    val[np.isin(b, list(ORES) + [153])] = 1 << 4
     lava = np.isin(b, [10, 11])
     val[lava] = (11 << 4) | m[lava]                # stationary: keeps its level, never ticked
-    role[np.isin(b, [18, 161])] = CANOPY
-    role[tree_logs] = TRUNK
-    val[tree_logs] = m[tree_logs] & 12
     # plant role only on ground, otherwise air
     below_role = shift(role, 1, 0, 0, 0)
     role[plants & ~np.isin(below_role, [SURFACE, SOIL, SAND])] = AIR
@@ -647,7 +958,8 @@ def convert(key, path, cfg, log):
     if ground >= 0:
         seed = np.zeros(b.shape, dtype=bool)
         seed[:, 0, :] = True; seed[:, -1, :] = True; seed[:, :, 0] = True; seed[:, :, -1] = True; seed[0] = True
-        exterior = flood(seed & air & below, air & below)
+        # Room air must be carved even if a doorway connects it to the exterior.
+        exterior = flood(seed & air & below & ~room, air & below & ~room)
         role[exterior] = VOID
 
     # ---- a way in for buried builds ------------------------------------------------------------------------------------
@@ -710,6 +1022,7 @@ def convert(key, path, cfg, log):
     c.key, c.cfg, c.b, c.m, c.role, c.val, c.tiles, c.ground, c.notes = key, cfg, b, m, role, val, tile_list, ground, notes
     c.M, c.kind, c.ceil, c.low, c.footprint, c.shaft, c.old_spawners = M, kind, ceil, low, footprint, shaft, old_spawners
     c.maxneed = maxneed
+    c.crop_info = crop_info
     place_markers(c)
     return c
 
@@ -740,7 +1053,8 @@ def dig_entrance(b, role, val, ground, notes):
     for y in range(y0, ground + 1):
         role[y, z, x] = AIR
         # a ladder on the north wall of the shaft, a rock wall behind it
-        if role[y, z - 1, x] in (AIR, VOID, PLANT): role[y, z - 1, x] = ROCK
+        if role[y, z - 1, x] in (AIR, VOID, PLANT):
+            role[y, z - 1, x] = LIT; val[y, z - 1, x] = 112 << 4
     for y in range(y0, ground + 1):
         role[y, z, x] = LIT; val[y, z, x] = (65 << 4) | 3
     # a nether-brick well head around the hole, open to the south
@@ -839,14 +1153,14 @@ def place_markers(c):
         added += pick(walk & (role != TILE), missing - len(added), 5, have + added)
     if len(added) < missing and c.ground >= 0 and c.ground + 1 < H:
         floor = np.zeros(role.shape, dtype=bool)
-        floor[c.ground + 1] = np.isin(role[c.ground + 1], [AIR, VOID])
+        floor[c.ground + 1] = np.isin(role[c.ground + 1], [AIR, VOID]) & np.isin(c.kind[c.M:c.M+L,c.M:c.M+W], [1,3])
         added += pick(floor, missing - len(added), 5, have + added)
     for i, p in enumerate(added):
         y, z, x = map(int, p)
         f = int(facing[y, z, x]) or 3
         role[y, z, x] = TILE; val[y, z, x] = (54 << 4) | f
         if y > 0 and role[y - 1, z, x] in (AIR, VOID):     # a chest on the cavern floor needs its floor
-            role[y - 1, z, x] = SURFACE; val[y - 1, z, x] = 87 << 4
+            role[y - 1, z, x] = LIT; val[y - 1, z, x] = 112 << 4
         t = dict(y=y, z=z, x=x, block=54, kind='chest', trapped=False, table=('vault' if len(vaults) + i < n_vault else ('rich' if tier != 'common' else 'common')), added=True)
         c.tiles.append(t)
         have.append((y, z, x))
@@ -866,21 +1180,30 @@ def place_markers(c):
     for (x, y, z) in c.spawners:
         if 0 <= x < W and 0 <= y < H and 0 <= z < L: role[y, z, x] = TILE; val[y, z, x] = 52 << 4
     # garrisons anywhere one can stand (inside first); tiny builds use the cavern floor inside their box
-    ga = pick(shelter, (n_ga + 1) // 2, 16, have) + pick(walk, n_ga // 2, 16, have)
+    # Chests/spawners changed occupancy since walk was first computed. Mob
+    # packs and arenas must use the final roles, not stand inside a new tile.
+    openc = (role == AIR) | ((role == LIT) & np.isin(val >> 4, list(PASSABLE)))
+    solidc = ~openc & (role != VOID) & ~np.isin(val >> 4, [8,9,10,11])
+    walk = openc & shift(openc, -1, 0, 0, False) & shift(solidc, 1, 0, 0, False) & ~lava_near
+    shelter = walk & roof
+    ga = pick(shelter, (n_ga + 1) // 2, 16, have)
+    ga += pick(walk, n_ga // 2, 16, have + ga)
     if len(ga) < n_ga:
         ga += pick(walk & ~shelter, n_ga - len(ga), 12, have + ga)
     if len(ga) < n_ga and c.ground >= 0 and c.ground + 2 < H:
         floor = np.zeros(role.shape, dtype=bool)
-        floor[c.ground + 1] = np.isin(role[c.ground + 1], [AIR, VOID]) & np.isin(role[c.ground + 2], [AIR, VOID])
+        floor[c.ground + 1] = np.isin(role[c.ground + 1], [AIR, VOID]) & np.isin(role[c.ground + 2], [AIR, VOID]) & np.isin(c.kind[c.M:c.M+L,c.M:c.M+W], [1,3])
         ga += pick(floor, n_ga - len(ga), 10, have + ga)
     c.garrisons = [(int(p[2]), int(p[0]), int(p[1])) for p in ga][:n_ga]
     # still too few (a tiny build filling its box): the cavern floor around it, three blocks out
     ring = [(W // 2, c.ground + 1, -3), (W // 2, c.ground + 1, L + 2), (-3, c.ground + 1, L // 2), (W + 2, c.ground + 1, L // 2)]
     for p in ring:
         if len(c.garrisons) >= n_ga or c.ground < 0: break
+        if c.kind[p[2]+c.M,p[0]+c.M] not in (1,3) or c.ceil[p[2]+c.M,p[0]+c.M] < 3: continue
         c.garrisons.append(p)
     for p in ring[::-1]:
         if len(c.spawners) >= n_sp or c.ground < 0: break
+        if c.kind[p[2]+c.M,p[0]+c.M] not in (1,3) or c.ceil[p[2]+c.M,p[0]+c.M] < 3: continue
         if (p[0], p[1] - 1, p[2]) not in c.spawners: c.spawners.append((p[0], p[1] - 1, p[2]))
     # the lord's arena: the most open walkable place (flying lords: above the build's middle)
     c.arena = None
@@ -1003,7 +1326,7 @@ def encode(c):
     u16(len(markers))
     for kind, (x, y, z), arg in markers:
         i16(x); i16(y); i16(z); utf(kind); utf(arg)
-    return gzip.compress(out.getvalue(), 9), pal, vol
+    return gzip.compress(out.getvalue(), 9, mtime=0), pal, vol
 
 # ------------------------------------------------------------------------------------------------------------------
 # Review renders (roles in a sample region palette)

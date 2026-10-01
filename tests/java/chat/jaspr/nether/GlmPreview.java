@@ -130,14 +130,18 @@ public final class GlmPreview {
             }
             if (!mega.touching(a.minX, a.minZ, a.maxX, a.maxZ).isEmpty()) megaHits++;
         }
-        int missing = 0;
+        int missing = 0, disabledPlaced = 0;
         StringBuilder miss = new StringBuilder();
-        for (String k : g.byKey.keySet()) if (!builds.containsKey(k)) { missing++; miss.append(' ').append(k); }
+        for (String k : g.byKey.keySet()) {
+            if (g.generates(k) && !builds.containsKey(k)) { missing++; miss.append(' ').append(k); }
+            if (!g.generates(k) && builds.containsKey(k)) disabledPlaced++;
+        }
         int megas = 0;
         for (int cx = Math.floorDiv(-R, Mega.CELL); cx <= Math.floorDiv(R, Mega.CELL); cx++)
             for (int cz = Math.floorDiv(-R, Mega.CELL); cz <= Math.floorDiv(R, Mega.CELL); cz++) if (mega.site(cx, cz) != null) megas++;
-        boolean ok = overlaps == 0 && megaHits == 0 && lordRepeat == 0 && badFloor == 0 && missing == 0 && lords.size() == Lords.DEFS.size();
-        System.out.println("glm plan sites=" + all.size() + " tiers=" + tiers + " lords=" + lords + " distinctBuilds=" + builds.size() + "/" + g.size()
+        boolean ok = overlaps == 0 && megaHits == 0 && lordRepeat == 0 && badFloor == 0 && missing == 0 && disabledPlaced == 0 && lords.size() == Lords.DEFS.size();
+        System.out.println("glm plan sites=" + all.size() + " tiers=" + tiers + " lords=" + lords + " distinctBuilds=" + builds.size() + "/" + g.activeSize()
+            + " catalog=" + g.size() + " disabledPlaced=" + disabledPlaced
             + " missing=" + missing + miss + " megas=" + megas + " overlaps=" + overlaps + " megaHits=" + megaHits + " lordRepeat=" + lordRepeat + " badFloor=" + badFloor + (ok ? " PASS" : " FAIL"));
         return ok;
     }

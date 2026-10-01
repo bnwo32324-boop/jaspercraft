@@ -39,6 +39,9 @@ final class Gen {
     final Cities cities;
     final Mega mega;
     final GlmSites glm;
+    final GlmSites legacyGlm;
+    final Mega legacyMega;
+    final Registry legacyRegistry;
     final Wonders wonders;
     /** True when every chunk of this world was populated by a JasprNether that plans mega structures (set on attach). */
     boolean megaComplete;
@@ -62,15 +65,32 @@ final class Gen {
         this.bn = new BnGen(this);
         this.cities = new Cities(this);
         // planning order: cities, the Lords' strongholds, the great GLM builds, the mega structures, the common GLM builds
-        this.glm = new GlmSites(seed, biomes::nex, this::cityReach, this::cityOrMegaReach, plugin::getResource);
+        this.legacyRegistry = registry.legacySnapshot();
+        this.legacyGlm = new GlmSites(seed, biomes::nex, this::cityReach, this::legacyCityOrMegaReach,
+            n -> plugin.getResource(n.startsWith("glm/") ? "glm/legacy/" + n.substring(4) : n), true);
+        this.legacyMega = new Mega(seed, biomes::nex, this::legacyCityOrLordReach);
+        this.glm = new GlmSites(seed, biomes::nex, this::cityOrLegacyReach, this::cityOrMegaReach, plugin::getResource);
         this.mega = new Mega(seed, biomes::nex, this::cityOrLordReach);
+        for (Map.Entry<Long, Boolean> decision : legacyRegistry.megaCells().entrySet()) {
+            Long c = decision.getKey();
+            int x = (int) (c >> 32), z = (int) (long) c;
+            Mega.Site accepted = decision.getValue() ? legacyMega.site(x, z) : null;
+            if (decision.getValue() && accepted == null) throw new java.io.IOException("cannot recognise historical mega site " + x + "," + z);
+            mega.pin(x, z, accepted);
+        }
         this.wonders = new Wonders(this);
     }
 
     /** The keep-outs of the planning order: cities, Lords' strongholds, mega structures, then the other GLM builds. */
-    boolean cityOrMegaReach(int x0, int z0, int x1, int z1) { return cityReach(x0, z0, x1, z1) || !mega.touching(x0, z0, x1, z1).isEmpty(); }
+    boolean cityOrMegaReach(int x0, int z0, int x1, int z1) { return cityOrLegacyReach(x0, z0, x1, z1) || !mega.touching(x0, z0, x1, z1).isEmpty(); }
+    boolean cityOrLegacyReach(int x0, int z0, int x1, int z1) { return cityReach(x0, z0, x1, z1) || legacyRegistry.structureReach(x0, z0, x1, z1); }
+    boolean legacyCityOrMegaReach(int x0, int z0, int x1, int z1) { return cityReach(x0, z0, x1, z1) || !legacyMega.touching(x0, z0, x1, z1).isEmpty(); }
+    boolean legacyCityOrLordReach(int x0, int z0, int x1, int z1) {
+        return cityReach(x0, z0, x1, z1) || !legacyGlm.touching(GlmSites.Tier.LORD, x0, z0, x1, z1).isEmpty()
+            || !legacyGlm.touching(GlmSites.Tier.GREAT, x0, z0, x1, z1).isEmpty();
+    }
     boolean cityOrLordReach(int x0, int z0, int x1, int z1) {
-        return cityReach(x0, z0, x1, z1) || !glm.touching(GlmSites.Tier.LORD, x0, z0, x1, z1).isEmpty()
+        return cityOrLegacyReach(x0, z0, x1, z1) || !glm.touching(GlmSites.Tier.LORD, x0, z0, x1, z1).isEmpty()
             || !glm.touching(GlmSites.Tier.GREAT, x0, z0, x1, z1).isEmpty();
     }
 
@@ -177,13 +197,16 @@ final class Gen {
      */
     private List<GlmSites.Site> activeGlm(Area a, int bx0, int bz0, int bx1, int bz1) {
         List<GlmSites.Site> out = new ArrayList<>(1);
+        // Complete only old builds that were already accepted. Their geometry and palette stay unchanged.
+        for (GlmSites.Site old : legacyGlm.touching(bx0, bz0, bx1, bz1))
+            if (Boolean.TRUE.equals(legacyRegistry.glmDecision(old.decisionTier(), old.cellX, old.cellZ))) out.add(old);
         for (GlmSites.Site s : glm.touching(bx0, bz0, bx1, bz1)) {
-            char tier = s.tier.name().charAt(0);
+            char tier = s.decisionTier();
             Boolean on = registry.glmDecision(tier, s.cellX, s.cellZ);
             if (on == null) {
                 int ccx = s.x >> 4, ccz = s.z >> 4;
                 boolean centreHere = ccx >= a.cx && ccx <= a.cx + 1 && ccz >= a.cz && ccz <= a.cz + 1;
-                on = megaComplete || centreHere || !world.isChunkGenerated(ccx, ccz);
+                on = !world.isChunkGenerated(ccx, ccz) || centreHere;
                 registry.setGlmDecision(tier, s.cellX, s.cellZ, on);
                 if (on) {
                     int[] b = s.box();
@@ -200,9 +223,11 @@ final class Gen {
 
     /** A built GLM site whose box contains the column, or null. */
     GlmSites.Site builtGlmAt(int x, int z) {
+        GlmSites.Site old = legacyGlm.at(x, z);
+        if (old != null && Boolean.TRUE.equals(legacyRegistry.glmDecision(old.decisionTier(), old.cellX, old.cellZ))) return old;
         GlmSites.Site s = glm.at(x, z);
         if (s == null) return null;
-        Boolean on = registry.glmDecision(s.tier.name().charAt(0), s.cellX, s.cellZ);
+        Boolean on = registry.glmDecision(s.decisionTier(), s.cellX, s.cellZ);
         return on != null && on ? s : null;
     }
 

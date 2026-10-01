@@ -28,6 +28,8 @@ final class PlayerCommandPolicy {
             // Reading the ground you are standing on changes nothing about it.
             "where", "biome", "survey",
             "jasprhorrorbiomes:where", "jasprhorrorbiomes:biome", "jasprhorrorbiomes:survey",
+            // DimensionTravel enforces Creative mode itself, including usage and tab completion.
+            "tpd", "jasprnether:tpd",
             // A bleeding player has to be able to stop holding on.
             "giveup", "jasprrevive:giveup",
             // Survivor Gear: the player's own trinket slots, menu, XP bank and ability fallbacks.

@@ -1,99 +1,99 @@
 # GLM Nether builds (tools/convert_glm.py). key	title	tier	theme	affinity	lord	sx	sy	sz	ground	margin	maxceil	cavw	cavd	loot	spawners	garrisons	bytes
-N001	Bastion of Cinders	common	bastion	HELL	-	55	54	55	0	19	56	93	93	6	9	6	21754
-N002	The Crimson Ziggurat	great	temple	-	-	203	98	233	0	26	100	255	285	25	24	18	85843
-N003	The Ruined Gatehub	great	hub	-	-	141	81	140	0	25	83	191	190	15	22	14	67427
-N004	Arena of the Ashen Wither	lord	fortress	-	ashen_wither	32	42	40	13	17	47	66	74	18	4	4	10087
-N005	Magma Villa	common	volcanic	TORRID_WASTELAND	-	39	19	29	2	10	17	59	49	19	3	2	2777
-N009	Pigman Gold Pit	common	bastion	HELL	-	65	61	65	0	20	63	105	105	31	9	7	7499
-N010	Wither Killing Floor	common	fortress	RUTHLESS_SANDS	-	58	50	39	0	18	52	94	75	29	6	5	2355
-N011	The Hollow Spires	great	void	-	-	143	105	37	0	26	107	195	89	11	6	5	17279
-N014	The Grand Rotunda	great	hub	-	-	167	118	167	0	26	120	219	219	49	24	18	123150
-N015	Blackstone Exchange	common	bastion	HELL	-	58	26	58	2	12	26	82	82	7	10	7	6840
-N016	Duskfang Keep	great	castle	-	-	84	62	141	5	20	59	124	181	17	21	14	47264
-N018	Castle of the Dread Sorcerer	lord	arcane	-	dread_sorcerer	245	101	161	0	26	103	297	213	40	16	12	232449
-N020	Cindervent Works	great	volcanic	TORRID_WASTELAND	-	36	35	135	20	10	17	56	155	11	10	6	20954
-N023	Crossroads Bunker	common	hub	-	-	68	18	68	0	11	20	90	90	6	9	6	8482
-N024	The Obsidian Drum	common	hub	-	-	93	49	93	0	18	51	129	129	11	10	8	30222
-N055	The Four Gates	common	hub	-	-	107	9	107	0	10	11	127	127	5	6	4	3121
-N057	Gilded Grinder Spire	common	bastion	HELL	-	61	48	61	0	18	50	97	97	24	9	6	3344
-N060	Tidewrack Ring	common	hub	-	-	49	13	49	0	10	15	69	69	4	5	4	4244
-N062	Iron Concourse	common	hub	-	-	53	23	53	0	12	25	77	77	5	7	5	6788
-N063	The Blackstone Silo	common	hub	-	-	81	82	81	0	25	84	131	131	9	10	8	31024
-N064	Ringed Citadel	common	hub	-	-	55	32	53	0	14	34	83	81	5	7	5	9198
-N067	Wayfarer's Rest	common	hub	-	-	27	14	34	0	10	16	47	54	4	2	2	1861
-N069	Pigman Counting-House	common	bastion	HELL	-	31	78	38	0	24	80	79	86	28	2	2	3995
-N070	Pigman War-Barge	common	bastion	HELL	-	15	36	39	0	15	38	45	69	4	2	2	2355
-N072	Magma Rookery	common	volcanic	TORRID_WASTELAND	-	36	13	29	0	10	15	56	49	28	2	2	2186
-N073	Magma Cube Kiln	common	volcanic	TORRID_WASTELAND	-	32	33	32	0	14	35	60	60	28	3	2	2079
-N079	Skull Ossuary	common	crypt	RUTHLESS_SANDS	-	15	20	29	0	11	22	37	51	28	2	2	1595
-N080	Blackrose Hatchery	common	crypt	RUTHLESS_SANDS	-	9	17	25	1	10	18	29	45	4	2	2	1240
-N085	Basalt Foundry	common	volcanic	TORRID_WASTELAND	-	10	11	21	9	10	6	30	41	4	2	2	836
-N086	Grimwood Hold	common	castle	-	-	72	37	60	0	15	39	102	90	21	10	8	24220
-N087	Cursed Reliquary	common	temple	-	-	48	52	39	0	18	54	84	75	4	4	3	13866
-N088	Engine of Malice	common	temple	-	-	41	51	42	0	18	53	77	78	7	4	3	12531
-N090	Sanctum of the Cursed King	lord	temple	-	cursed_king	74	68	88	0	22	70	118	132	8	10	6	22263
-N092	The Brimstone Labyrinth	great	dungeon	-	-	132	13	128	0	10	16	152	148	24	24	18	22595
-N093	The Lesser Labyrinth	common	dungeon	-	-	103	13	103	0	10	16	123	123	12	10	8	6773
-N094	The Sulphur Sewers	great	dungeon	-	-	87	19	133	18	10	16	107	153	29	24	17	34733
-N096	Lavaflow Ruin	common	volcanic	TORRID_WASTELAND	-	50	19	50	5	10	16	70	70	29	7	5	7402
-N098	Domed Manse	common	castle	-	-	37	53	57	0	19	55	75	95	5	6	4	7634
-N102	Pyromancer's Spire	common	arcane	-	-	33	63	33	0	21	65	75	75	4	3	2	6700
-N105	Smuggler's Stash	common	vault	HELL	-	19	13	26	0	10	15	39	46	28	2	2	1777
-N107	Bone Mill	common	fortress	RUTHLESS_SANDS	-	32	39	29	0	16	41	64	61	28	2	2	1815
-N108	The Great Bone Crater	great	fortress	RUTHLESS_SANDS	-	261	118	261	0	26	120	313	313	49	24	18	160536
-N109	The Pale Box	common	void	-	-	44	25	43	0	12	27	68	67	6	5	4	2003
-N113	Crimson Treehouse	common	ruin	FUNGI_FOREST	-	11	27	24	0	13	29	37	50	20	2	2	1802
-N114	Fungus Grove Tower	common	farm	FUNGI_FOREST	-	17	35	12	0	14	36	45	40	9	2	2	1619
-N116	Wart Garden	common	farm	-	-	12	7	13	3	10	6	32	33	4	2	2	500
-N124	Ancient Storehall	common	vault	-	-	68	40	67	0	16	42	100	99	32	10	8	18307
-N129	Charred Lodge	common	ruin	-	-	21	28	23	0	13	30	47	49	28	2	2	5159
-N132	Portal Keep	common	castle	-	-	30	45	64	16	13	31	56	90	4	5	4	10745
-N137	Gold Crucible	common	bastion	HELL	-	58	79	48	0	24	81	106	96	23	5	3	4674
-N143	Brimstone Gaol	common	dungeon	-	-	38	13	33	0	10	15	58	53	4	2	2	4434
-N144	Deathwing's Lair	lord	volcanic	-	deathwing	102	111	89	2	26	127	154	141	8	11	7	55363
-N145	Gallows Manor	common	castle	-	-	85	84	85	46	15	40	115	115	35	10	8	58271
-N146	The Drifting Dungeon	great	dungeon	-	-	204	103	202	-10	26	115	256	254	20	24	18	114704
-N151	Emberwall Castle	common	castle	-	-	80	58	67	19	16	41	112	99	26	10	8	15005
-N152	Ashfall Fort	great	castle	-	-	143	56	123	15	16	43	175	155	49	24	18	37809
-N153	Citadel of Nine Towers	great	castle	-	-	138	87	118	19	22	70	182	162	47	24	18	125816
-N154	Monster Tower	common	arcane	-	-	19	69	19	0	22	71	63	63	4	2	2	4103
-N157	Ossuary of the Bone Colossus	lord	crypt	-	bone_colossus	142	117	71	0	26	119	194	123	12	16	11	61728
-N159	Goldmoat Castle	great	castle	-	-	107	108	131	0	26	110	159	183	21	24	18	36720
-N160	Moatstone Castle	common	castle	-	-	93	39	63	3	15	38	123	93	23	10	8	8829
-N161	The Sealed Vault	common	void	-	-	71	57	55	50	10	16	91	75	9	10	8	18611
-N162	Spire of the Voidborn	lord	void	-	voidborn	95	117	116	16	26	103	147	168	38	16	12	46165
-N163	Dune Fortress	common	temple	RUTHLESS_SANDS	-	69	46	67	33	10	15	89	87	24	10	8	13927
-N164	The Undercroft	great	dungeon	-	-	135	36	103	26	10	16	155	123	21	24	18	4295
-N167	Sewertown	great	dungeon	-	-	134	51	129	50	10	16	154	149	25	24	18	13868
-N169	The Buried Hamlet	common	dungeon	-	-	95	50	92	49	10	16	115	112	35	10	8	31428
-N171	Pyramid of Ash	great	temple	RUTHLESS_SANDS	-	156	82	119	2	25	82	206	169	26	24	18	23219
-N172	Frostpeak Castle	great	castle	ARCTIC_ABYSS	-	119	100	110	50	18	52	155	146	43	24	18	69353
-N173	The Wizard's Keep	great	arcane	-	-	180	87	123	16	23	73	226	169	36	24	18	80658
-N174	Nether Castle	common	fortress	HELL	-	53	43	69	0	16	45	85	101	6	6	4	6461
-N176	Deep Storage	common	vault	-	-	43	49	40	0	18	51	79	76	28	3	2	4050
-N177	Daggerfall Crypts	common	crypt	-	-	42	28	74	19	10	11	62	94	6	9	6	5457
-N181	Castle of Spires	common	castle	-	-	98	81	98	0	25	83	148	148	35	10	8	29001
+N001	Bastion of Cinders	common	bastion	HELL	-	53	54	53	0	19	56	91	91	4	6	4	21425
+N002	The Crimson Ziggurat	great	temple	-	-	203	98	233	0	26	100	255	285	25	24	18	59227
+N003	The Ruined Gatehub	great	hub	-	-	141	81	140	0	25	83	191	190	15	22	14	67343
+N004	Arena of the Ashen Wither	lord	fortress	-	ashen_wither	32	42	40	0	20	60	72	80	18	4	4	9651
+N005	Magma Villa	common	volcanic	TORRID_WASTELAND	-	39	17	25	0	11	19	61	47	19	2	2	2893
+N009	Pigman Gold Pit	common	bastion	HELL	-	65	61	65	0	20	63	105	105	31	9	7	7480
+N010	Wither Killing Floor	common	fortress	RUTHLESS_SANDS	-	58	50	39	0	18	52	94	75	29	6	5	2388
+N011	The Hollow Spires	great	void	-	-	143	105	37	0	26	107	195	89	11	6	5	17283
+N014	The Grand Rotunda	great	hub	-	-	167	118	167	0	26	120	219	219	49	24	18	126630
+N015	Blackstone Exchange	common	bastion	HELL	-	58	26	58	0	13	28	84	84	7	9	7	5705
+N016	Duskfang Keep	great	castle	-	-	84	62	141	0	21	64	126	183	13	10	6	41607
+N018	Castle of the Dread Sorcerer	lord	arcane	-	dread_sorcerer	239	101	159	0	26	103	291	211	40	16	12	165753
+N020	Cindervent Works	great	volcanic	TORRID_WASTELAND	-	36	35	135	0	15	37	66	165	11	9	5	20312
+N023	Crossroads Bunker	common	hub	-	-	68	18	68	0	11	20	90	90	6	9	6	8039
+N024	The Obsidian Drum	common	hub	-	-	93	49	93	0	18	51	129	129	11	10	8	30009
+N055	The Four Gates	common	hub	-	-	107	9	107	0	10	11	127	127	5	6	4	3122
+N057	Gilded Grinder Spire	common	bastion	HELL	-	22	48	22	0	18	50	58	58	4	2	2	1589
+N060	Tidewrack Ring	common	hub	-	-	49	11	49	0	10	13	69	69	4	5	4	3963
+N062	Iron Concourse	common	hub	-	-	53	23	53	0	12	25	77	77	5	7	5	6591
+N063	The Blackstone Silo	common	hub	-	-	81	82	81	0	25	84	131	131	9	10	8	30805
+N064	Ringed Citadel	common	hub	-	-	55	32	53	0	14	34	83	81	5	7	5	8714
+N067	Wayfarer's Rest	common	hub	-	-	27	14	34	0	10	16	47	54	4	2	2	1743
+N069	Pigman Counting-House	common	bastion	HELL	-	31	78	38	0	24	80	79	86	28	2	2	3990
+N070	Pigman War-Barge	common	bastion	HELL	-	15	36	39	0	15	38	45	69	4	2	2	2345
+N072	Magma Rookery	common	volcanic	TORRID_WASTELAND	-	33	116	27	0	26	118	85	79	28	2	2	4631
+N073	Magma Cube Kiln	common	volcanic	TORRID_WASTELAND	-	29	30	29	0	14	32	57	57	28	2	2	2024
+N079	Skull Ossuary	common	crypt	RUTHLESS_SANDS	-	15	20	29	0	11	22	37	51	28	2	2	1582
+N080	Blackrose Hatchery	common	crypt	RUTHLESS_SANDS	-	9	17	25	0	11	19	31	47	4	2	2	1206
+N085	Basalt Foundry	common	volcanic	TORRID_WASTELAND	-	10	11	21	0	10	13	30	41	4	2	2	992
+N086	Grimwood Hold	common	castle	-	-	71	37	60	0	15	39	101	90	19	9	6	24374
+N087	Cursed Reliquary	common	temple	-	-	48	52	39	0	18	54	84	75	4	4	3	13676
+N088	Engine of Malice	common	temple	-	-	41	51	42	0	18	53	77	78	7	4	3	12353
+N090	Sanctum of the Cursed King	lord	temple	-	cursed_king	74	68	88	0	22	70	118	132	8	10	6	22218
+N092	The Brimstone Labyrinth	great	dungeon	-	-	132	13	128	12	10	16	152	148	24	24	18	22581
+N093	The Lesser Labyrinth	common	dungeon	-	-	103	13	103	12	10	16	123	123	12	10	8	6899
+N094	The Sulphur Sewers	great	dungeon	-	-	87	19	133	18	10	16	107	153	27	22	14	33085
+N096	Lavaflow Ruin	common	volcanic	TORRID_WASTELAND	-	50	19	50	0	11	21	72	72	29	7	5	7085
+N098	Domed Manse	common	castle	-	-	37	53	57	0	19	55	75	95	5	6	4	7557
+N102	Pyromancer's Spire	common	arcane	-	-	33	63	33	0	21	65	75	75	4	3	2	6627
+N105	Smuggler's Stash	common	vault	HELL	-	19	13	26	0	10	15	39	46	28	2	2	1774
+N107	Bone Mill	common	fortress	RUTHLESS_SANDS	-	32	39	29	0	16	41	64	61	28	2	2	1845
+N108	The Great Bone Crater	great	fortress	RUTHLESS_SANDS	-	261	118	261	0	26	120	313	313	49	24	18	160540
+N109	The Pale Box	common	void	-	-	44	25	43	0	12	27	68	67	6	5	4	1917
+N113	Crimson Treehouse	common	ruin	FUNGI_FOREST	-	11	27	24	0	13	29	37	50	20	2	2	1801
+N114	Fungus Grove Tower	common	farm	FUNGI_FOREST	-	17	34	12	0	14	36	45	40	9	2	2	1567
+N116	Wart Garden	common	farm	-	-	12	7	13	0	10	9	32	33	4	2	2	585
+N124	Ancient Storehall	common	vault	-	-	68	40	67	0	16	42	100	99	31	10	8	16015
+N129	Charred Lodge	common	ruin	-	-	21	28	23	0	13	30	47	49	28	2	2	5065
+N132	Portal Keep	common	castle	-	-	30	45	64	0	17	47	64	98	4	5	4	10632
+N137	Gold Crucible	common	bastion	HELL	-	58	79	48	0	24	81	106	96	23	5	3	4666
+N143	Brimstone Gaol	common	dungeon	-	-	38	13	33	0	10	15	58	53	4	2	2	4399
+N144	Deathwing's Lair	lord	volcanic	-	deathwing	102	111	89	0	26	129	154	141	8	11	7	55315
+N145	Gallows Manor	common	castle	-	-	85	84	85	0	26	86	137	137	35	10	8	59454
+N146	The Drifting Dungeon	great	dungeon	-	-	156	102	202	-10	26	114	208	254	20	24	18	100391
+N151	Emberwall Castle	common	castle	-	-	80	58	67	0	20	60	120	107	26	8	5	13451
+N152	Ashfall Fort	great	castle	-	-	143	56	112	0	19	58	181	150	36	17	11	32188
+N153	Citadel of Nine Towers	great	castle	-	-	137	87	118	0	26	89	189	170	41	24	16	104815
+N154	Monster Tower	common	arcane	-	-	19	69	19	0	22	71	63	63	4	2	2	4153
+N157	Ossuary of the Bone Colossus	lord	crypt	-	bone_colossus	127	117	63	0	26	119	179	115	10	15	9	63201
+N159	Goldmoat Castle	great	castle	-	-	107	108	131	0	26	110	159	183	21	24	18	36071
+N160	Moatstone Castle	common	castle	-	-	85	39	59	0	16	41	117	91	16	6	4	8734
+N161	The Sealed Vault	common	void	-	-	71	57	55	56	10	16	91	75	9	10	8	16514
+N162	Spire of the Voidborn	lord	void	-	voidborn	77	116	94	0	26	118	129	146	32	9	6	43205
+N163	Dune Fortress	common	temple	RUTHLESS_SANDS	-	69	46	67	0	17	48	103	101	24	10	8	15137
+N164	The Undercroft	great	dungeon	-	-	135	36	102	32	10	16	155	122	12	6	5	5602
+N167	Sewertown	great	dungeon	-	-	131	51	129	44	10	16	151	149	16	22	14	18848
+N169	The Buried Hamlet	common	dungeon	-	-	95	48	92	44	10	16	115	112	35	10	8	32092
+N171	Pyramid of Ash	great	temple	RUTHLESS_SANDS	-	129	82	112	0	25	84	179	162	17	22	14	21640
+N172	Frostpeak Castle	great	castle	ARCTIC_ABYSS	-	96	96	87	0	26	98	148	139	36	15	10	40557
+N173	The Wizard's Keep	great	arcane	-	-	176	87	123	0	26	89	228	175	22	13	8	41424
+N174	Nether Castle	common	fortress	HELL	-	53	43	69	0	16	45	85	101	6	6	4	6373
+N176	Deep Storage	common	vault	-	-	43	49	40	0	18	51	79	76	28	3	2	4053
+N177	Daggerfall Crypts	common	crypt	-	-	41	28	74	0	13	30	67	100	5	5	3	6524
+N181	Castle of Spires	common	castle	-	-	98	81	98	0	25	83	148	148	35	10	8	28751
 N188	Verdigris Tower	common	arcane	-	-	17	58	17	0	20	60	57	57	4	2	2	3752
-N189	Cathedral of Cinders	common	cathedral	-	-	41	57	72	2	19	57	79	110	6	8	6	14593
-N193	Blackspire Abbey	common	cathedral	-	-	58	82	98	0	25	84	108	148	10	10	8	15945
-N194	The Grand Cathedral	great	cathedral	-	-	85	122	239	0	26	124	137	291	25	24	18	70055
-N195	Hollowcrag Valley	great	castle	-	-	174	73	225	23	18	52	210	261	49	24	18	175593
-N200	The Pit Lord's Arena	lord	fortress	-	pit_lord	57	32	92	1	14	33	85	120	8	10	7	12125
-N201	Heaven's Breach	common	temple	-	-	44	60	44	0	20	62	84	84	4	5	4	6416
-N202	Ignareth's Mountain	lord	volcanic	-	ignareth	188	117	179	0	26	135	240	231	31	16	12	139768
-N203	The Haunted Mansion	common	crypt	-	-	72	29	65	0	13	31	98	91	12	10	8	8216
-N204	Fortress of Ten Towers	common	castle	-	-	105	51	105	1	18	52	141	141	16	10	8	35374
-N205	Crimson Valley	lord	volcanic	-	crimson_tyrant	302	100	302	0	26	102	354	354	16	16	12	575657
-N207	Castle of the Blood Count	lord	castle	-	blood_count	88	116	107	0	26	118	140	159	32	5	4	60204
-N208	The Sunless Cathedral	great	cathedral	-	-	118	117	208	0	26	119	170	260	25	24	18	147964
-N211	The Quartz Palace	great	castle	-	-	167	117	99	0	26	119	219	151	48	24	18	105800
-N212	Cinderbrook Castle	common	castle	-	-	82	31	74	0	14	33	110	102	23	10	8	16324
-N213	The Ember Pagoda	common	temple	-	-	49	58	49	1	20	59	89	89	29	6	4	23340
-N214	Castle of Ten Banners	common	castle	-	-	67	77	83	11	22	68	111	127	34	10	8	39782
-N215	Cliffside Keep	common	castle	-	-	30	54	39	11	16	45	62	71	28	3	2	10390
-N216	The Great Labyrinth	great	dungeon	-	-	160	65	160	64	10	16	180	180	49	24	18	47685
-N218	Labyrinth Castle	great	dungeon	-	-	160	62	160	20	16	44	192	192	49	24	18	30605
-N219	The Buried Pyramid	great	temple	-	-	136	85	136	72	10	16	156	156	30	24	18	177243
-N220	The Ashen Graveyard	common	crypt	-	-	53	27	78	0	13	29	79	104	7	10	7	12046
-N221	The Evil Church	great	cathedral	-	-	92	50	154	15	15	37	122	184	45	24	18	27583
-N222	The Hidden Mansion	great	crypt	-	-	108	44	168	43	10	16	128	188	49	24	18	47872
+N189	Cathedral of Cinders	common	cathedral	-	-	41	53	72	0	19	55	79	110	5	7	5	12780
+N193	Blackspire Abbey	common	cathedral	-	-	40	74	93	0	23	76	86	139	6	9	6	11590
+N194	The Grand Cathedral	great	cathedral	-	-	58	122	163	0	26	124	110	215	15	21	14	39845
+N195	Hollowcrag Valley	great	castle	-	-	93	51	160	0	18	53	129	196	35	6	5	28882
+N200	The Pit Lord's Arena	lord	fortress	-	pit_lord	56	32	92	0	14	34	84	120	8	7	4	12787
+N201	Heaven's Breach	common	temple	-	-	44	60	44	0	20	62	84	84	4	4	3	6739
+N202	Ignareth's Mountain	lord	volcanic	-	ignareth	168	117	161	0	26	135	220	213	37	16	12	114520
+N203	The Haunted Mansion	common	crypt	-	-	62	29	58	0	13	31	88	84	7	4	3	8461
+N204	Fortress of Ten Towers	common	castle	-	-	105	51	105	0	18	53	141	141	15	10	8	33792
+N205	Crimson Valley	lord	volcanic	-	crimson_tyrant	171	65	148	0	21	67	213	190	12	16	11	68504
+N207	Castle of the Blood Count	lord	castle	-	blood_count	80	117	97	0	26	119	132	149	19	4	4	51839
+N208	The Sunless Cathedral	great	cathedral	-	-	94	117	166	0	26	119	146	218	12	16	11	87200
+N211	The Quartz Palace	great	castle	-	-	161	116	95	0	26	118	213	147	40	24	15	113375
+N212	Cinderbrook Castle	common	castle	-	-	82	31	74	0	14	33	110	102	22	10	8	16181
+N213	The Ember Pagoda	common	temple	-	-	49	58	49	0	20	60	89	89	29	6	4	22237
+N214	Castle of Ten Banners	common	castle	-	-	64	77	83	0	24	79	112	131	32	10	8	33276
+N215	Cliffside Keep	common	castle	-	-	30	54	39	0	19	56	68	77	28	3	2	9920
+N216	The Great Labyrinth	great	dungeon	-	-	160	65	160	56	10	16	180	180	49	24	18	50764
+N218	Labyrinth Castle	great	dungeon	-	-	160	62	160	0	21	64	202	202	49	24	18	33635
+N219	The Buried Pyramid	great	temple	-	-	136	85	136	80	10	16	156	156	29	24	18	134749
+N220	The Ashen Graveyard	common	crypt	-	-	47	27	78	0	13	29	73	104	4	4	3	9806
+N221	The Evil Church	great	cathedral	-	-	92	50	154	0	18	52	128	190	38	20	13	31800
+N222	The Hidden Mansion	great	crypt	-	-	108	44	168	28	10	18	128	188	42	24	17	18565

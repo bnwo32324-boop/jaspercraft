@@ -9,11 +9,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -21,19 +23,22 @@ import java.util.function.Function;
  * structures into the Nether's natural structure generation ... make these structures dangerous and filled with loot").
  * Three grids share the Nether with the mega structures and the Nether Cities (which keep their places):
  * <ul>
- *   <li>lords (640-block cells, one in every cell): the ten Nether Lords' strongholds, assigned so that neighbouring
+ *   <li>lords (448-block cells, 98 %): the ten Nether Lords' strongholds, assigned so that neighbouring
  *       cells never repeat a lord;</li>
- *   <li>great builds (448-block cells, 65 %): castles, cathedrals, labyrinths, palaces;</li>
- *   <li>common builds (176-block cells, 50 %): keeps, towers, farms, crypts, hubs.</li>
+ *   <li>great builds (384-block cells, 95.510204 %): castles, cathedrals, labyrinths, palaces;</li>
+ *   <li>common builds (176-block cells, 100 %): keeps, towers, farms, crypts, hubs.</li>
  * </ul>
  * A grid only takes spots clear of mega sites, city reaches and the grids above it, and prefers the builds whose theme
  * suits the NetherEx region there. Every build hollows its own cavern (converted per column by tools/convert_glm.py:
  * the ceiling it needs, a lava seal around it, a margin where lava lakes may lie) and takes the region's materials for
- * its ground, trees and water. It is drawn chunk by chunk through {@link Draw} and is deterministic from the seed.
+ * its cavern blending. Imported terrain is removed by the converter, not merely recoloured. Layout 1 remains
+ * available solely to recognise and complete saved old sites. It is drawn chunk by chunk through {@link Draw}
+ * and is deterministic from the seed.
  */
 final class GlmSites {
     enum Tier {
-        LORD(640, 1.0, 0x4C4F5244L), GREAT(448, 0.65, 0x47524541L), COMMON(176, 0.5, 0x434F4D4DL);
+        // Exactly double the original candidates per unit area. Cells still fit the largest cavern of each tier.
+        LORD(448, 0.98, 0x4C4F5244L), GREAT(384, 0.9551020408163265, 0x47524541L), COMMON(176, 1.0, 0x434F4D4DL);
         final int cell; final double chance; final long salt;
         Tier(int cell, double chance, long salt) { this.cell = cell; this.chance = chance; this.salt = salt; }
     }
@@ -53,6 +58,7 @@ final class GlmSites {
     /** A planned build. Its box is the rotated cavern map; layer 0 of the build lies at {@link #base()}. */
     static final class Site {
         final Entry e; final Tier tier; final int cellX, cellZ, rot, floor, minX, minZ, maxX, maxZ, x, z, salt; final Biomes.Nex region;
+        GlmSites source;
         Site(Entry e, Tier tier, int cellX, int cellZ, int rot, int minX, int minZ, int floor, Biomes.Nex region, long seed) {
             this.e = e; this.tier = tier; this.cellX = cellX; this.cellZ = cellZ; this.rot = rot; this.minX = minX; this.minZ = minZ;
             this.maxX = minX + ((rot & 1) == 0 ? e.cavW : e.cavD) - 1; this.maxZ = minZ + ((rot & 1) == 0 ? e.cavD : e.cavW) - 1;
@@ -65,18 +71,21 @@ final class GlmSites {
             int y1 = Math.max(1, Math.min(base(), floor) - 3), y2 = Math.min(126, Math.max(base() + e.sy, floor + e.maxCeil) + 3);
             return new int[]{minX, y1, minZ, maxX, y2, maxZ};
         }
-        String id() { return tier.name().charAt(0) + ":" + cellX + ":" + cellZ; }
+        char decisionTier() { char c = tier.name().charAt(0); return source != null && !source.legacy ? Character.toLowerCase(c) : c; }
+        String id() { return decisionTier() + ":" + cellX + ":" + cellZ; }
         double dist(double px, double pz) { return Math.hypot(px - x, pz - z); }
     }
 
     interface Keepout { boolean blocked(int x0, int z0, int x1, int z1); }
 
     final long seed;
+    final boolean legacy;
     private final Mega.Regions regions;
     private final Keepout lordKeepout, outer;
     private final Function<String, InputStream> resources;
     final List<Entry> lords = new ArrayList<>(), greats = new ArrayList<>(), commons = new ArrayList<>();
     final Map<String, Entry> byKey = new LinkedHashMap<>();
+    private final Set<String> disabledNaturalBuilds = new HashSet<>();
     private static final Site NONE = null;
     private final Map<Long, Object>[] cache;
     private final LinkedHashMap<String, GlmBuild> builds = new LinkedHashMap<>(16, 0.75f, true);
@@ -92,6 +101,11 @@ final class GlmSites {
      * @param outer what the common builds avoid besides the Lords and the great builds (the cities and the mega structures)
      */
     GlmSites(long seed, Mega.Regions regions, Keepout lordKeepout, Keepout outer, Function<String, InputStream> resources) throws IOException {
+        this(seed, regions, lordKeepout, outer, resources, false);
+    }
+
+    GlmSites(long seed, Mega.Regions regions, Keepout lordKeepout, Keepout outer, Function<String, InputStream> resources, boolean legacy) throws IOException {
+        this.legacy = legacy;
         this.seed = seed; this.regions = regions; this.lordKeepout = lordKeepout; this.outer = outer; this.resources = resources;
         cache = new Map[Tier.values().length];
         for (int i = 0; i < cache.length; i++) cache[i] = new LinkedHashMap<Long, Object>(256, 0.75f, true) {
@@ -108,6 +122,19 @@ final class GlmSites {
                 (e.tier == Tier.LORD ? lords : e.tier == Tier.GREAT ? greats : commons).add(e);
             }
         }
+        // Retain the catalogue for recognition and saved records. Only natural placement is disabled.
+        try (InputStream in = resources.apply("glm/disabled-natural.txt")) {
+            if (in != null) {
+                BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+                String line;
+                while ((line = r.readLine()) != null) {
+                    String key = line.split("#", 2)[0].trim();
+                    if (key.isEmpty()) continue;
+                    if (!byKey.containsKey(key)) throw new IOException("unknown disabled GLM build: " + key);
+                    disabledNaturalBuilds.add(key);
+                }
+            }
+        }
         // lords in a fixed order so that the lord of a cell never depends on the file's order
         lords.sort((a, b) -> Integer.compare(LORD_ORDER.indexOf(a.lord), LORD_ORDER.indexOf(b.lord)));
     }
@@ -118,6 +145,10 @@ final class GlmSites {
     Entry entry(String key) { return byKey.get(key); }
     Entry lordEntry(String lord) { for (Entry e : lords) if (lord.equals(e.lord)) return e; return null; }
     int size() { return byKey.size(); }
+    boolean generates(String key) { return byKey.containsKey(key) && !disabledNaturalBuilds.contains(key); }
+    int activeSize() { return byKey.size() - disabledNaturalBuilds.size(); }
+    int cell(Tier t) { return legacy ? (t == Tier.LORD ? 640 : t == Tier.GREAT ? 448 : 176) : t.cell; }
+    double chance(Tier t) { return legacy ? (t == Tier.LORD ? 1.0 : t == Tier.GREAT ? 0.65 : 0.5) : t.chance; }
 
     // ---- planning --------------------------------------------------------------------------------------------------
     synchronized Site site(Tier t, int cx, int cz) {
@@ -133,8 +164,9 @@ final class GlmSites {
     }
 
     private Site plan(Tier t, int cx, int cz) {
+        int cell = cell(t);
         Random r = new Random(seed ^ (cx * 0x5DEECE66DL + cz * 0x2545F4914F6CDD1DL) ^ t.salt);
-        if (r.nextDouble() >= t.chance) return null;
+        if (r.nextDouble() >= chance(t)) return null;
         List<Entry> list = t == Tier.LORD ? lords : t == Tier.GREAT ? greats : commons;
         if (list.isEmpty()) return null;
         int n = list.size();
@@ -142,7 +174,7 @@ final class GlmSites {
         int pick = t == Tier.LORD ? Math.floorMod(cx + 3 * cz + (int) Math.floorMod(seed, 10L), n)
             : Math.floorMod(cx * 7 + cz * 3 + (int) (seed & 0xffff), n);
         for (int tries = 0; tries < 24; tries++) {
-            int px = cx * t.cell + 8 + r.nextInt(t.cell - 16), pz = cz * t.cell + 8 + r.nextInt(t.cell - 16);
+            int px = cx * cell + 8 + r.nextInt(cell - 16), pz = cz * cell + 8 + r.nextInt(cell - 16);
             Biomes.Nex region = regions.at(px, pz);
             Entry e = list.get(pick);
             if (t != Tier.LORD && e.affinity != null && e.affinity != region) {
@@ -153,15 +185,18 @@ final class GlmSites {
                 }
                 if (e == null) continue;
             }
+            if (!generates(e.key)) return null;
             int rot = r.nextInt(4);
             int w = (rot & 1) == 0 ? e.cavW : e.cavD, d = (rot & 1) == 0 ? e.cavD : e.cavW;
-            int x0 = cx * t.cell + 8, z0 = cz * t.cell + 8, x1 = (cx + 1) * t.cell - 9 - w, z1 = (cz + 1) * t.cell - 9 - d;
+            int x0 = cx * cell + 8, z0 = cz * cell + 8, x1 = (cx + 1) * cell - 9 - w, z1 = (cz + 1) * cell - 9 - d;
             if (x1 < x0 || z1 < z0) continue;
             int minX = Math.max(x0, Math.min(x1, px - w / 2)), minZ = Math.max(z0, Math.min(z1, pz - d / 2));
             if (blocked(t, minX - 8, minZ - 8, minX + w + 7, minZ + d + 7)) continue;
             long siteSeed = r.nextLong();
             int floor = floor(e, r);
-            return new Site(e, t, cx, cz, rot, minX, minZ, floor, regions.at(minX + w / 2, minZ + d / 2), siteSeed);
+            Site s = new Site(e, t, cx, cz, rot, minX, minZ, floor, regions.at(minX + w / 2, minZ + d / 2), siteSeed);
+            s.source = this;
+            return s;
         }
         return null;
     }
@@ -191,8 +226,9 @@ final class GlmSites {
     /** Planned sites of one tier whose box overlaps the block box (a site never leaves its cell). */
     List<Site> touching(Tier t, int x0, int z0, int x1, int z1) {
         List<Site> out = new ArrayList<>(1);
-        for (int cx = Math.floorDiv(x0, t.cell); cx <= Math.floorDiv(x1, t.cell); cx++)
-            for (int cz = Math.floorDiv(z0, t.cell); cz <= Math.floorDiv(z1, t.cell); cz++) {
+        int cell = cell(t);
+        for (int cx = Math.floorDiv(x0, cell); cx <= Math.floorDiv(x1, cell); cx++)
+            for (int cz = Math.floorDiv(z0, cell); cz <= Math.floorDiv(z1, cell); cz++) {
                 Site s = site(t, cx, cz);
                 if (s != null && s.maxX >= x0 && s.minX <= x1 && s.maxZ >= z0 && s.minZ <= z1) out.add(s);
             }
@@ -208,7 +244,7 @@ final class GlmSites {
     /** The planned site whose box contains the column, or null. */
     Site at(int x, int z) {
         for (Tier t : Tier.values()) {
-            Site s = site(t, Math.floorDiv(x, t.cell), Math.floorDiv(z, t.cell));
+            Site s = site(t, Math.floorDiv(x, cell(t)), Math.floorDiv(z, cell(t)));
             if (s != null && x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ) return s;
         }
         return null;
@@ -216,7 +252,7 @@ final class GlmSites {
 
     /** Nearest planned lord stronghold within {@code cells} lord cells whose lord is not in {@code skip}. */
     Site nearestLord(int x, int z, Collection<String> skip, int cells, java.util.function.Predicate<Site> built) {
-        int ccx = Math.floorDiv(x, Tier.LORD.cell), ccz = Math.floorDiv(z, Tier.LORD.cell);
+        int ccx = Math.floorDiv(x, cell(Tier.LORD)), ccz = Math.floorDiv(z, cell(Tier.LORD));
         Site best = null;
         double bd = Double.MAX_VALUE;
         for (int dx = -cells; dx <= cells; dx++) for (int dz = -cells; dz <= cells; dz++) {
@@ -314,6 +350,7 @@ final class GlmSites {
     // ---- drawing -------------------------------------------------------------------------------------------------------
     /** Draws the part of a site inside d's box: sealing ring, cavern, build, then its tiles and markers (tile box only). */
     void draw(Site s, Draw d) {
+        if (s.source != null && s.source != this) { s.source.draw(s, d); return; }
         if (!d.touches(s.minX, s.minZ, s.maxX, s.maxZ)) return;
         GlmBuild b = build(s.e.key);
         if (b == null) return;
@@ -398,6 +435,7 @@ final class GlmSites {
 
     /** Where a Lord's stronghold raises its Lord (world x, y, z), from the build itself; null for other builds. */
     int[] arena(Site s) {
+        if (s.source != null && s.source != this) return s.source.arena(s);
         if (s.e.lord == null) return null;
         GlmBuild b = build(s.e.key);
         if (b == null) return null;

@@ -50,6 +50,31 @@ final class Registry {
         load();
     }
 
+    /** Freeze only the pre-density placement history once. Never regenerate or edit any chunks. */
+    synchronized Registry legacySnapshot() throws IOException {
+        flush();
+        File folder = new File(file.getParentFile(), "legacy-layout-v1");
+        if (!folder.isDirectory() && !folder.mkdirs()) throw new IOException("cannot create legacy layout snapshot");
+        File snapshot = new File(folder, "placed.txt");
+        if (!snapshot.exists()) {
+            java.nio.file.Path temp = new File(folder, "placed.tmp").toPath();
+            if (file.exists()) java.nio.file.Files.copy(file.toPath(), temp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            else java.nio.file.Files.write(temp, new byte[0]);
+            try { java.nio.file.Files.move(temp, snapshot.toPath(), java.nio.file.StandardCopyOption.ATOMIC_MOVE); }
+            catch (java.nio.file.AtomicMoveNotSupportedException e) { java.nio.file.Files.move(temp, snapshot.toPath()); }
+            log.info("NETHER_GLM_LEGACY_FROZEN");
+        }
+        return new Registry(folder, log);
+    }
+
+    synchronized Map<Long, Boolean> megaCells() { return new HashMap<>(megas); }
+
+    boolean structureReach(int x0, int z0, int x1, int z1) {
+        for (Entry e : near((x0 + x1) / 2, (z0 + z1) / 2, Math.max(x1 - x0, z1 - z0) / 2 + 2, null))
+            if (!point(e.type) && e.x2 >= x0 && e.x1 <= x1 && e.z2 >= z0 && e.z1 <= z1) return true;
+        return false;
+    }
+
     private static long key(int x, int z) { return ((long) (x >> 7) << 32) ^ ((z >> 7) & 0xffffffffL); }
 
     private void load() {

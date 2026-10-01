@@ -31,13 +31,14 @@ import org.bukkit.plugin.java.JavaPlugin;
  * Everything the browser client sees is vanilla.
  */
 public final class NetherPlugin extends JavaPlugin implements Listener {
-    static final String VERSION = "1.2.1";
+    static final String VERSION = "1.2.3";
     /**
      * Regeneration epoch. Raising it regenerates the Nether once more on the next start (v1 2026-09-26: the port;
      * v2 2026-09-28: the owner asked for a fresh Nether with the mega structures and wonders; v3 2026-09-29: the owner
-     * asked for the GLM structures, their creatures and the Nether Lords, "and then, once you're done, regenerate the Nether").
+     * asked for the GLM structures, their creatures and the Nether Lords, "and then, once you're done, regenerate the Nether";
+     * v4 2026-10-01: the owner removed N094, The Sulphur Sewers, and requested a fresh Nether).
      */
-    static final int REGEN_EPOCH = 3;
+    static final int REGEN_EPOCH = 4;
     static final String OUTER_REALMS = "chat.jaspr.biomes.OuterRealms";
 
     String worldName = "world_nether";
@@ -91,6 +92,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
             File records = new File(getDataFolder(), "data" + File.separator + name), rime = new File(getDataFolder(), "rime.txt");
             if (records.exists()) { backup.mkdirs(); java.nio.file.Files.move(records.toPath(), new File(backup, "data-" + name).toPath()); }
             if (rime.exists()) { backup.mkdirs(); java.nio.file.Files.move(rime.toPath(), new File(backup, "rime.txt").toPath()); }
+            // Fortress/village metadata belongs to the discarded terrain, not the fresh dimension.
+            File worldData = new File(new File(Bukkit.getWorldContainer(), name), "data");
+            if (worldData.isDirectory()) { backup.mkdirs(); java.nio.file.Files.move(worldData.toPath(), new File(backup, "world-data").toPath()); }
             java.nio.file.Files.write(marker.toPath(), ("regenerated " + java.time.Instant.now() + " world=" + name + " movedRegionFiles=" + files + "\n")
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8));
             getLogger().info("NETHER_REGENERATED epoch=" + REGEN_EPOCH + " world=" + name + " movedRegionFiles=" + files + " backup=plugins/" + getDataFolder().getName() + "/nether-before-v" + REGEN_EPOCH);
@@ -136,6 +140,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(relics, this);
         Bukkit.getPluginManager().registerEvents(effects, this);
         crafting.register();
+        DimensionTravel.register(this);
         for (World w : Bukkit.getWorlds()) attach(w);
         Bukkit.getScheduler().runTaskTimer(this, this::tick, 1L, 1L);
         Bukkit.getScheduler().runTaskTimer(this, this::slowTick, 40L, 100L);
@@ -149,7 +154,9 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         readyLogged = true;
         int mobKinds = Mobs.netherExKinds() + 1; // NetherEx mobs + Ghast Queen + BetterNether firefly swarms
         getLogger().info("NETHER_READY version=" + VERSION + " biomes=" + Biomes.BIOME_COUNT + " mobs=" + mobKinds + " fiends=" + Mobs.fiendKinds()
-            + " lords=" + Lords.DEFS.size() + " glm=" + (gen == null ? 0 : gen.glm.size())
+            + " lords=" + Lords.DEFS.size() + " glm=" + (gen == null ? 0 : gen.glm.activeSize())
+            + " glmCatalog=" + (gen == null ? 0 : gen.glm.size())
+            + " glmDensity=2.0 glmLayout=2 tpd=creative"
             + " structures=" + (Gen.TEMPLATE_NAMES.length + 1) + " mega=" + Mega.Kind.values().length + " wonders=8 items=" + Items.DEFS.size()
             + " blocks=" + BlockMap.rows + " world=" + worldName + " attached=" + (gen != null) + " disabled=" + genDisabled
             + " megaComplete=" + (gen != null && gen.megaComplete));
@@ -531,7 +538,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
                 Location l = p.getLocation();
                 if (args.length > 1 && args[1].equals("trap")) {
                     GlmSites.Site here = gen.builtGlmAt(l.getBlockX(), l.getBlockZ());
-                    GlmBuild b = here == null ? null : gen.glm.build(here.e.key);
+                    GlmBuild b = here == null ? null : (here.source == null ? gen.glm : here.source).build(here.e.key);
                     if (b == null) { sender.sendMessage(ChatColor.RED + "Not in a GLM build"); return true; }
                     List<Location> traps = new ArrayList<>();
                     for (GlmBuild.Tile t : b.tiles) if (t.type == GlmBuild.T_CHEST && t.trapped) {

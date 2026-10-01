@@ -1,0 +1,2 @@
+# Owner-requested removals from natural Nether generation. Catalogue entries remain recognisable.
+N094 # The Sulphur Sewers, removed 2026-10-01

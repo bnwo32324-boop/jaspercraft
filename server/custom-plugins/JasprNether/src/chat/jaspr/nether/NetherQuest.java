@@ -87,10 +87,14 @@ final class NetherQuest implements GuideKit.Realm, Listener {
     List<GlmSites.Site> lordSites(int x, int z, int cells) {
         List<GlmSites.Site> out = new ArrayList<>();
         if (plugin.gen == null) return out;
-        int cx = Math.floorDiv(x, GlmSites.Tier.LORD.cell), cz = Math.floorDiv(z, GlmSites.Tier.LORD.cell);
+        for (GlmSites g : new GlmSites[]{plugin.gen.glm, plugin.gen.legacyGlm}) {
+        int cx = Math.floorDiv(x, g.cell(GlmSites.Tier.LORD)), cz = Math.floorDiv(z, g.cell(GlmSites.Tier.LORD));
         for (int dx = -cells; dx <= cells; dx++) for (int dz = -cells; dz <= cells; dz++) {
-            GlmSites.Site s = plugin.gen.glm.site(GlmSites.Tier.LORD, cx + dx, cz + dz);
-            if (s != null && s.e.lord != null && !Boolean.FALSE.equals(plugin.registry.glmDecision('L', s.cellX, s.cellZ))) out.add(s);
+            GlmSites.Site s = g.site(GlmSites.Tier.LORD, cx + dx, cz + dz);
+            if (s != null && s.e.lord != null && (g.legacy
+                ? Boolean.TRUE.equals(plugin.gen.legacyRegistry.glmDecision(s.decisionTier(), s.cellX, s.cellZ))
+                : !Boolean.FALSE.equals(plugin.registry.glmDecision(s.decisionTier(), s.cellX, s.cellZ)))) out.add(s);
+        }
         }
         return out;
     }

@@ -1,11 +1,14 @@
 name: JasprNether
-version: 1.2.1
+version: 1.2.3
 main: chat.jaspr.nether.NetherPlugin
 author: Jaspr
 load: STARTUP
 softdepend: [JasprHorrorBiomes]
 description: BetterNether 0.1.8.6 and NetherEx 2.2.5 ported to vanilla-rendered Paper 1.12.2 as one harmonised, harder Nether.
 commands:
+  tpd:
+    description: Travel to any dimension by its stable ID (Creative mode only).
+    usage: /tpd <dimension ID>
   jnether:
     description: JasprNether biome, status and admin tools
     usage: /jnether [where|status|spawn|give|effect|queen|guide|quest|selftest]
