@@ -232,8 +232,12 @@ final class Navigator {
                 return l;
             }
         }
-        Location l = safe(w, cx, cz, best.y2 + 1, best.y1 - 2);
-        return l != null ? l : new Location(w, cx + 0.5, best.y1, cz + 0.5);
+        // a trap or a puzzle room: standing inside its zone (feet between its bottom and its top)
+        for (int[] q : new int[][]{{cx, cz}, {best.x1, best.z1}, {best.x2, best.z2}, {best.x1, best.z2}, {best.x2, best.z1}}) {
+            Location l = safe(w, q[0], q[1], best.y2 - 1, best.y1 - 2);
+            if (l != null && l.getY() >= best.y1 && l.getY() <= best.y2) return l;
+        }
+        return new Location(w, cx + 0.5, best.y1, cz + 0.5);
     }
 
     /** A spot on the Catacombs' floor (the chunks around drawn first). */

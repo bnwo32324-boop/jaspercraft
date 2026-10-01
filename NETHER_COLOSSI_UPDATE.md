@@ -6,8 +6,8 @@ sprawling dungeon that goes on for miles. These are all megastructures that shou
 enemies, different dangers, puzzles, and traps." and then "don't forget about loot and mini-bosses".
 
 ## Where they stand, and what they leave alone
-- **No regeneration, nothing moved.** `REGEN_EPOCH` stays 4. Every existing city, mega structure, GLM build and wonder
-  keeps its place and its decision.
+- **No regeneration, nothing moved.** `REGEN_EPOCH` stays 5 (the Nether regenerated at 12:54 the same day for the GLM
+  audit, 1.2.4). Every existing city, mega structure, GLM build and wonder keeps its place and its decision.
 - **Only on new land.** At the first start of 1.3.0 the plugin records which Nether chunks already exist (the region
   files' tables, plus loaded chunks) in `plugins/JasprNether/data/world_nether/colossi-history.txt`. The new structures
   are never drawn into those chunks, so nothing already explored changes; they appear as players reach new land.

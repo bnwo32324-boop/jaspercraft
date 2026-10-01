@@ -43,7 +43,7 @@ test('nether mega wiring: loot, tables, quiet mods, peace, skulls, history, lava
   const loot = java('Loot'), items = java('Items');
   const known = new Set([...items.matchAll(/def\(new Def\("([a-z_]+)"/g)].map(m => m[1]));
   for (const h of ['withered', 'blazed', 'frosted']) for (const t of ['sword', 'pickaxe', 'shovel', 'axe', 'hoe', 'hammer']) known.add(h + '_amedian_' + t);
-  for (const set of ['wither_bone', 'orange_salamander_hide', 'black_salamander_hide']) for (const slot of ['helmet', 'chestplate', 'leggings', 'boots']) known.add(set + '_' + slot);
+  for (const set of ['wither_bone', 'orange_salamander_hide', 'black_salamander_hide', 'pharaoh', 'ember_guard', 'deepwarden']) for (const slot of ['helmet', 'chestplate', 'leggings', 'boots']) known.add(set + '_' + slot);
   for (const m of loot.matchAll(/nx\("([a-z_]+)"|Items\.create\("([a-z_]+)"|armour\("([a-z_]+)"\)/g)) {
     const id = m[1] || m[2];
     if (id) assert.ok(known.has(id), 'loot names an unknown item ' + id);
@@ -79,7 +79,7 @@ test('nether mega wiring: loot, tables, quiet mods, peace, skulls, history, lava
   assert.match(gen, /if \(!quiet\) wonders\.populate\(/);
   // mega sites keep out of the cities, and (since the GLM update) of the Lords' strongholds and the great GLM builds
   assert.match(gen, /this\.mega = new Mega\(seed, biomes::nex, this::cityOrLordReach\);/);
-  assert.match(gen, /boolean cityOrLordReach\(int x0, int z0, int x1, int z1\) \{\s*return cityReach\(x0, z0, x1, z1\)/);
+  assert.match(gen, /boolean cityOrLordReach\(int x0, int z0, int x1, int z1\) \{\s*return (?:cityReach|cityOrLegacyReach)\(x0, z0, x1, z1\)/);   // (1.2.4: the legacy layout too)
   // the Golden Bazaar keeps the peace; garrisons never hand out wither skulls and log no player
   assert.match(java('Mobs'), /if \(plugin\.gen\.peaceful\(l\.getBlockX\(\), l\.getBlockZ\(\), type == EntityType\.GHAST\)\) \{ e\.setCancelled\(true\);/);
   const garrisons = java('Garrisons');

@@ -139,7 +139,7 @@ public final class GlmPreview {
         int megas = 0;
         for (int cx = Math.floorDiv(-R, Mega.CELL); cx <= Math.floorDiv(R, Mega.CELL); cx++)
             for (int cz = Math.floorDiv(-R, Mega.CELL); cz <= Math.floorDiv(R, Mega.CELL); cz++) if (mega.site(cx, cz) != null) megas++;
-        boolean ok = overlaps == 0 && megaHits == 0 && lordRepeat == 0 && badFloor == 0 && missing == 0 && disabledPlaced == 0 && lords.size() == Lords.DEFS.size();
+        boolean ok = overlaps == 0 && megaHits == 0 && lordRepeat == 0 && badFloor == 0 && missing == 0 && disabledPlaced == 0 && lords.size() == GlmSites.LORD_ORDER.size();
         System.out.println("glm plan sites=" + all.size() + " tiers=" + tiers + " lords=" + lords + " distinctBuilds=" + builds.size() + "/" + g.activeSize()
             + " catalog=" + g.size() + " disabledPlaced=" + disabledPlaced
             + " missing=" + missing + miss + " megas=" + megas + " overlaps=" + overlaps + " megaHits=" + megaHits + " lordRepeat=" + lordRepeat + " badFloor=" + badFloor + (ok ? " PASS" : " FAIL"));

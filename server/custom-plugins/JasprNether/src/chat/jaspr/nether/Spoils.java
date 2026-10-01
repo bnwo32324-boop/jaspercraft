@@ -168,7 +168,8 @@ final class Spoils implements Listener {
                 break;
             default:
         }
-        if (e.getFinalDamage() < p.getHealth() || p.getHealth() > p.getMaxHealth() * 0.5 || !Ordeals.carries(p, "phoenix_feather")) return;
+        if (e.getCause() == EntityDamageEvent.DamageCause.VOID || e.getCause() == EntityDamageEvent.DamageCause.SUICIDE) return;
+        if (e.getFinalDamage() < p.getHealth() || !Ordeals.carries(p, "phoenix_feather")) return;
         Long last = feather.get(p.getUniqueId());
         long now = System.currentTimeMillis();
         if (last != null && now - last < 5 * 60 * 1000L) return;
