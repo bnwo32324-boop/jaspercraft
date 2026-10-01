@@ -31,14 +31,15 @@ import org.bukkit.plugin.java.JavaPlugin;
  * Everything the browser client sees is vanilla.
  */
 public final class NetherPlugin extends JavaPlugin implements Listener {
-    static final String VERSION = "1.2.3";
+    static final String VERSION = "1.2.4";
     /**
      * Regeneration epoch. Raising it regenerates the Nether once more on the next start (v1 2026-09-26: the port;
      * v2 2026-09-28: the owner asked for a fresh Nether with the mega structures and wonders; v3 2026-09-29: the owner
      * asked for the GLM structures, their creatures and the Nether Lords, "and then, once you're done, regenerate the Nether";
-     * v4 2026-10-01: the owner removed N094, The Sulphur Sewers, and requested a fresh Nether).
+     * v4 2026-10-01: the owner removed N094, The Sulphur Sewers, and requested a fresh Nether;
+     * v5 2026-10-01: the owner requested a fresh Nether with the audited crops, corrected stairs and doubled GLM density).
      */
-    static final int REGEN_EPOCH = 4;
+    static final int REGEN_EPOCH = 5;
     static final String OUTER_REALMS = "chat.jaspr.biomes.OuterRealms";
 
     String worldName = "world_nether";

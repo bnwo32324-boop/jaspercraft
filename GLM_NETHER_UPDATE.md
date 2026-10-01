@@ -110,3 +110,25 @@ Verified in isolation: the existing full GLM drawing/planning/wiring suite passe
 finds 97/97 allowed builds, 10/10 Lords, no disabled placements, no overlaps, no mega collisions and no invalid floors.
 A real Paper baseline/reset/second-restart test passes 17 checks, including byte-preserved backup files and persistence.
 Evidence and deployment record: `C:\Users\AM\Documents\JasperCraft-NetherRemoval-20261001\`.
+
+## 2026-10-01: audited crops, stair corrections, doubled density and fresh Nether (1.2.4)
+
+All **98 unique GLM resources** were audited and updated; **97 remain enabled**, with N094 still disabled.
+Imported hills, foliage, dirt/grass, water and bulk terrain were removed while preserving authored architecture,
+room skins and basements. Original litematic states verified 357,307 source stairs and corrected 251,807 facing/half
+metadata values before fitting. Native Paper stair rotation checks cover all four rotations. Existing downsampling
+can still lose or duplicate thin geometry; this is not a claim of perfect appearance for every resampled stair flight.
+
+GLM candidate density is now **2x in every tier**. Collision-adjusted sample counts rose about 2.05–2.11x. Existing
+layouts are recognised with their old assets and decisions; freshly regenerated terrain uses the cleaned builds.
+Creative-mode players can use `/tpd 1` (Overworld), `2` (Nether), `3` (End), `4` (Atlas), `5` (Drownhollow), and
+`6` (Backrooms), regardless of their source dimension. `/tpd` lists additional loaded dimensions with stable IDs.
+
+The owner explicitly requested another regeneration after the audit. **Epoch 5** archives the current Nether's
+regions, JasprNether terrain records/rime and native structure metadata under `plugins/JasprNether/nether-before-v5/`.
+The `regenerated-v5.txt` marker prevents repeated regeneration. The seed, world UUID, player inventories and other
+dimensions are preserved. Regeneration replaces Nether constructions; the old terrain is recoverable from the backup.
+
+Evidence: `C:\Users\AM\Documents\JasperCraft-NetherAudit-20261001\` (98-build audit, stairs, density and actual
+dimension travel) and `C:\Users\AM\Documents\JasperCraft-NetherCommit-Regen-20261001\` (scoped Git commits,
+epoch-5 baseline/reset/restart fixture, live verification and recovery checkpoint).
