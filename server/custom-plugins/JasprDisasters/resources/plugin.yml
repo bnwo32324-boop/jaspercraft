@@ -1,5 +1,5 @@
 name: JasprDisasters
-version: 1.2.0
+version: 1.2.1
 main: chat.jaspr.disasters.DisasterPlugin
 author: Jaspr
 description: Natural disasters for JasperCraft. One disaster runs at a time, server-wide.

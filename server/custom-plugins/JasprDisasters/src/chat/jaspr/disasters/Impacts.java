@@ -15,7 +15,7 @@ import org.bukkit.block.BlockFace;
 final class Impacts {
     /** Blocks a disaster will never overwrite, so a strike cannot quietly eat storage or bedrock. */
     private static final Set<Material> PROTECTED = EnumSet.of(
-            Material.BEDROCK, Material.BARRIER, Material.ENDER_PORTAL, Material.ENDER_PORTAL_FRAME,
+            Material.BEDROCK, Material.OBSIDIAN, Material.BARRIER, Material.ENDER_PORTAL, Material.ENDER_PORTAL_FRAME,
             Material.PORTAL, Material.ENDER_CHEST, Material.CHEST, Material.TRAPPED_CHEST,
             Material.HOPPER, Material.DROPPER, Material.DISPENSER, Material.FURNACE,
             Material.BURNING_FURNACE, Material.BREWING_STAND, Material.BEACON, Material.MOB_SPAWNER,

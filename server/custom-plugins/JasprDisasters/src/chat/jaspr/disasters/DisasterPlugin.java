@@ -65,6 +65,7 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
         stateFile = new File(getDataFolder(), "state.yml");
         loadState();
         getServer().getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvents(new ObsidianProtection(), this);
 
         loop = getServer().getScheduler().runTaskTimer(this, new Runnable() {
             @Override public void run() { pump(); }
@@ -73,6 +74,7 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
         getLogger().info("JASPR_DISASTERS enabled"
                 + " shower=" + settings.meteorMinDays + "-" + settings.meteorMaxDays + "d/" + minutesUntil(Kind.METEOR) + "m"
                 + " storm=" + settings.stormMinDays + "-" + settings.stormMaxDays + "d/" + minutesUntil(Kind.STORM) + "m");
+        getLogger().info("OBSIDIAN_PROTECTION_READY mobs=true explosions=true disasterTerrain=true");
     }
 
     @Override public void onDisable() {

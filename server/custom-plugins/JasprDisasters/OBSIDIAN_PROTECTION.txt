@@ -1,0 +1,41 @@
+JASPERCRAFT OBSIDIAN RULE - 2026-10-01
+
+Obsidian cannot be destroyed/replaced by mob block-change events or any entity
+or block explosion. Fire events also leave it intact. The global listener runs
+even when automatic disasters are disabled. No timers/world scans or changes
+to damage, creature spawning, lighting, player mining or other materials.
+
+Hellstorm craters, netherrack floors and meteor/hellstorm magma scatter explicitly
+exclude obsidian. Ordinary fire above obsidian may still exist; this protects
+the block, not players from disaster damage. Invasion miners hard-reject obsidian
+even if an administrator removes it from their configurable unbreakable list.
+Apocalypse's existing SiegeRules already excludes obsidian for digs and TNT
+carriers, and that plugin/source is not rebuilt or changed.
+
+JasprDisasters 1.2.1 and JasprInvasions 1.1.1 are built from the exact current
+deployed baseline. All unchanged deployed payloads are retained. Three existing
+source/binary differences in DisasterPlugin inner classes and ThunderHellStorm
+are preserved rather than overwritten by a whole stale rebuild. See private
+reports/build.json. Keep this preservation step in any subsequent rebuild.
+Intentional player-operated puzzle/portal doors remain unchanged.
+
+Tests in C:/Users/AM/Documents/JasperCraft-ObsidianProtection-20261001:
+111 real isolated Paper checks, including clean restart/persistence, 16 mob
+types, custom zombie changes, partial explosions, maximum-strength disaster
+impacts and terrain overlays, configurable invasion exclusions, and player
+mining. A native charged wither skull damages obsidian without the guard and
+does not damage it with the guard. All mutations were in a disposable flat
+test world; no destructive production-world test or browser/mouse use.
+Run node tests/runtime.cjs after building; evidence in reports/runtime.json.
+
+Build candidates privately using scripts/build.cjs; do not rerun against changed
+production without taking a new baseline. prepare-release.cjs verifies payload
+preservation and all hashes. deploy.ps1 uses the shared lock, waits for an empty
+server and a five-minute restart gap, backs up source/JARs, stages only the two
+JARs, then requests one clean restart. No maintenance-mode or world rewrites.
+
+The rule covers the current mob destruction APIs and audited direct mutation
+paths. A future plugin that calls Block.setType directly must preserve obsidian
+at that call site; Bukkit does not emit grief/explosion events for such edits.
+Exact deployment backup, live verification and recoverable checkpoint are
+recorded in build/release/ and reports/ in the isolated workspace.
