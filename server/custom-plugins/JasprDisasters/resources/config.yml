@@ -4,7 +4,8 @@
 # That is the cost model: no matter how many people are online, the server is only ever paying
 # for one bounded event near one player.
 
-# Master switch. False stops every scheduled disaster; /shower and /lightning still work.
+# Master switch. False stops every scheduled disaster; /shower, /lightning, /quake, /tornado and
+# /blizzard still work.
 enabled: true
 
 # Quiet gap after any disaster ends, so one never rolls straight into the next.
@@ -111,8 +112,8 @@ earthquake:
   jolt-strength: 0.22
   nausea: true
 
-  # Rocks that shake loose overhead (cave ceilings, overhangs, roofs, or the sky) and burst where
-  # they land. They hurt whoever they hit and leave no block behind.
+  # Rocks that shake loose overhead (cave ceilings, overhangs, roofs; never out of open sky) and
+  # burst where they land. They hurt whoever they hit and leave no block behind.
   rockfall: 18
 
   # Fissures torn open across natural ground (never buildings, roads, farms, protected blocks or
