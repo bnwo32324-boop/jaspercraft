@@ -234,3 +234,38 @@ test('BetterCombat strikes drive the bent arm: the upper arm ends up exactly at 
   assert.ok(typeof mut.lastData.bettercombatTime === 'number', 'the strike pauses Mo\' Bends\' own attack layer');
   mut.demutate();
 });
+
+test('diagnostics: the switch reports jaspercraft.mobends.state; a failure reports one bounded jaspercraft.mobends.error', { skip: !live }, () => {
+  load();
+  // a separate client instance: the failure below switches the stage off for the rest of that page
+  const { fn, context } = loadClientSource(source, { filename: 'mobends-diagnostics.js' });
+  const sent = [];
+  context.fetch = (url, init) => { sent.push({ url, init, body: JSON.parse(init.body) }); return Promise.resolve({ ok: true }); };
+  context.location = { pathname: '/' };
+  const B = fn.JasprMoBendsBridge;
+  fn.JasprVideoAction(973);
+  assert.equal(sent.length, 0, 'events only leave the game page');
+  context.location = { pathname: '/jaspercraft/client.html' };
+  fn.JasprVideoAction(973);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].url, '/api/diagnostics/events');
+  assert.equal(sent[0].init.credentials, 'same-origin');
+  const state = sent[0].body.events[0];
+  assert.equal(state.event, 'jaspercraft.mobends.state');
+  assert.deepEqual([state.details.enabled, state.details.failed], [true, false]);
+  // an exception inside a hook: the stage turns itself off for the session, restores vanilla and reports once
+  fn.HEH = { cp: 0, get v() { throw new Error('model state broke\nsecond line ' + 'x'.repeat(400)); } };
+  B.tick(); B.tick(); B.frame(0.5, null);
+  const errors = sent.filter(s => s.body.events[0].event === 'jaspercraft.mobends.error');
+  assert.equal(errors.length, 1, 'one error event');
+  const details = errors[0].body.events[0].details;
+  assert.equal(details.stage, 'tick');
+  assert.ok(details.error.length <= 180 && !/[\r\n]/.test(details.error), 'the message is one bounded line');
+  assert.equal(details.stats.errors, 1);
+  assert.equal(B.enabled(), false);
+  assert.equal(context.JasprMoBendsDiagnostics.status().failed, true);
+  assert.equal(fn.$rt_ustr(fn.JasprVideoLabel(973)), "Mo' Bends animations: OFF (error)");
+  // bounded: at most 12 events per page however often the switch flips
+  for (let i = 0; i < 30; i++) B.setEnabled(i % 2 === 0);
+  assert.equal(sent.length, 12);
+});
