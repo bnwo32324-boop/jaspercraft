@@ -206,33 +206,10 @@ test('armor follows the bent limbs: vanilla armor boxes are sliced at the elbow 
   assert.equal(armor.gM, vanillaArm, 'deapply restores the vanilla armor parts');
 });
 
-test('BetterCombat strikes drive the bent arm: the upper arm ends up exactly at the rig\'s angles', { skip: !live }, () => {
-  const { fn } = load();
-  const T = fn.JasprMoBendsBridge._test, core = T.core, draws = recorder(fn);
-  const vanilla = new fn.BVS(); fn.Hlq(vanilla, 0, 0);
-  const renderer = { iK: vanilla, d9q: 0, cHT: fn.Bq() };
-  const mut = new T.PlayerMutator(T.registry()[0]);
-  assert.equal(mut.mutate(renderer), true);
-  const bent = renderer.iK;
-  mut.lastData = { renderRightItemRotation: new core.SmoothOrientation(), renderLeftItemRotation: new core.SmoothOrientation() };
-  mut.lastData.renderRightItemRotation.orientInstantX(90);
-  // what the rig leaves on the native joints after JasprMeleeApplyBody: torso twist/lean and a raised sword arm
-  bent.k_.A = 0.12; bent.k_.bb = 0.6; bent.k_.bX = 0;
-  bent.gM.A = -1.9; bent.gM.bb = 0.35; bent.gM.bX = 0.2;
-  T.meleePose(bent, { parts: [{ right: true, main: true }] });
-  draws.length = 0; fn.E7Q(bent.gM, 0.0625);
-  const upper = draws.find(d => d.part === bent.gM);
-  assert.ok(upper, 'the upper arm draws');
-  const want = [rot(0.2, 0, 0, 1), rot(0.35, 0, 1, 0), rot(-1.9, 1, 0, 0)].reduce((a, b) => {
-    const c = new Array(16);
-    for (let col = 0; col < 4; col++) for (let row = 0; row < 4; row++) { let n = 0; for (let k = 0; k < 4; k++) n += a[k * 4 + row] * b[col * 4 + k]; c[col * 4 + row] = n; }
-    return c;
-  });
-  for (const i of [0, 1, 2, 4, 5, 6, 8, 9, 10]) assert.ok(Math.abs(upper.matrix[i] - want[i]) < 1e-6, `rotation[${i}] ${upper.matrix[i]} vs ${want[i]}`);
-  const item = mut.lastData.renderRightItemRotation.getSmooth();
-  assert.ok(Math.abs(item.w - 1) < 1e-9, 'the Mo\' Bends item tilt yields to the rig during the strike');
-  assert.ok(typeof mut.lastData.bettercombatTime === 'number', 'the strike pauses Mo\' Bends\' own attack layer');
-  mut.demutate();
+test("third-person attacks are Mo' Bends' own: the stage wraps no BetterCombat or melee-rig function", { skip: !live }, () => {
+  load();
+  const stage = source.slice(source.indexOf('/* JASPR_MOBENDS_BEGIN */'), source.indexOf('/* JASPR_MOBENDS_END */'));
+  for (const name of ['JasprMeleeApplyBody', 'JasprMeleeThirdPlan', 'JasprBetterCombat', 'bettercombat']) assert.equal(stage.includes(name), false, name);
 });
 
 test('diagnostics: the switch reports jaspercraft.mobends.state; a failure reports one bounded jaspercraft.mobends.error', { skip: !live }, () => {

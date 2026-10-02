@@ -44,6 +44,9 @@ public final class MoBendsPreview extends JavaPlugin implements Listener {
             p.getInventory().setItem(3, new ItemStack(Material.SHIELD));
             p.getInventory().setItem(4, new ItemStack(Material.APPLE, 16));
             p.getInventory().setItem(5, new ItemStack(Material.ARROW, 64));
+            p.getInventory().setItem(6, new ItemStack(Material.IRON_AXE));
+            p.getInventory().setItem(7, new ItemStack(Material.IRON_PICKAXE));
+            p.getInventory().setItem(8, new ItemStack(Material.IRON_SWORD));
             p.getInventory().setChestplate(new ItemStack(Material.IRON_CHESTPLATE));
             p.getInventory().setBoots(new ItemStack(Material.GOLD_BOOTS));
             if (walkers.isEmpty()) lineup(p.getWorld());

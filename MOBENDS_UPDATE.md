@@ -33,8 +33,8 @@ change it. OFF puts every vanilla model back at once (nothing is reloaded); ON b
 - **Dismemberment (gore)**: limbs are cut on the bent model. A cut upper arm or thigh takes the forearm/shin with it;
   forearms and shins can also be lost on their own; a lost arm or forearm drops its held item. Health bands, healing,
   pieces and blood are unchanged.
-- **BetterCombat**: while a BetterCombat strike plays on a player, its swing drives the attacking arm(s) and the torso
-  twist; Mo' Bends keeps the legs and the rest of the body and pauses its own attack animations for that strike.
+- **BetterCombat**: third-person attacks are always Mo' Bends' own (since 2026-10-02 BetterCombat has no third-person
+  layer; see MELEE_UPDATE.md). BetterCombat keeps its gameplay and its first-person weapon motion.
 - **Gear / worn trinkets, armor stands, other client stages**: unchanged. Worn gear attaches to the bent limbs.
 
 ## Safety and diagnostics

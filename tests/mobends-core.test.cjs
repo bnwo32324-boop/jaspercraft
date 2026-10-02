@@ -126,6 +126,13 @@ test('player controller: every state keeps parts finite and normalised', () => {
   }
   // The attack combo walks through slash moves (SwordAction) and the spin is enabled as in the original config
   assert.equal(core.ModConfig.performSpinAttack, true);
+  // Third-person attacks are Mo' Bends' own: nothing outside the core can switch its attack layer off.
+  const fighter = makeEntity({ id: 9 }), fd = new core.PlayerData(fighter);
+  fd.bettercombatActive = true;
+  run(core, fd, fighter, 12, (e, t) => { e.main = stack(SWORD); e.swinging = t % 8 < 6; e.swing = (t % 8) / 6; });
+  const action = fd.getController().actionController;
+  assert.ok(action.layerAction.isPlaying(), 'the sword attack layer plays');
+  assert.equal(action.currentAttackActionType !== null, true);
 });
 
 test('mob controllers: zombie, pig zombie, skeleton, spider, squid and wolf animate without NaN', () => {

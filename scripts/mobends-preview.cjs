@@ -22,7 +22,8 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
   write('classes/plugin.yml', 'name: MoBendsPreview\nmain: chat.jaspr.mobends.MoBendsPreview\nversion: 1\ncommands:\n  mobends:\n    description: Isolated renderer fixture\n');
   run('jar', ['--create', '--file', path.join(server, 'plugins/MoBendsPreview.jar'), '-C', classes, '.']);
   fs.copyFileSync(api, path.join(server, 'paper.jar'));
-  for (const file of ['EaglerXServer.jar', 'EaglerXRewind.jar', 'ViaVersion.jar', 'ViaBackwards.jar', 'ViaRewind.jar', 'ViaRewind-Legacy-Support.jar']) fs.copyFileSync(path.join(live, 'server/plugins', file), path.join(server, 'plugins', file));
+  // JasprBetterCombat runs too: the first-person melee motion only plays while its settings packet says it is active
+  for (const file of ['EaglerXServer.jar', 'EaglerXRewind.jar', 'ViaVersion.jar', 'ViaBackwards.jar', 'ViaRewind.jar', 'ViaRewind-Legacy-Support.jar', 'JasprBetterCombat.jar']) fs.copyFileSync(path.join(live, 'server/plugins', file), path.join(server, 'plugins', file));
   write('server/eula.txt', 'eula=true\n');
   write('server/server.properties', `server-ip=127.0.0.1\nserver-port=${socketPort}\nonline-mode=false\nlevel-type=FLAT\ngenerator-settings=3;minecraft:bedrock,60*minecraft:stone,2*minecraft:dirt,minecraft:grass;1;\nlevel-name=world\nspawn-protection=0\nview-distance=2\ngenerate-structures=false\nallow-nether=false\nspawn-animals=false\nspawn-monsters=false\nspawn-npcs=false\nmax-players=4\nnetwork-compression-threshold=-1\nenable-rcon=false\nenable-query=false\ngamemode=1\n`);
   write('server/bukkit.yml', 'settings:\n  allow-end: false\n');
@@ -42,6 +43,8 @@ async function port() { const s = net.createServer(); await new Promise(r => s.l
     if (key === '/') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Cache-Control', 'no-store'); res.end(html); return; }
     if (!allowed[key]) { res.writeHead(404); res.end(); return; }
     res.setHeader('Content-Type', key.endsWith('.js') ? 'application/javascript; charset=utf-8' : 'application/octet-stream'); res.setHeader('Cache-Control', 'no-store');
+    // fixture only: expose the first-person melee motion so a probe can freeze a clip at a chosen phase
+    if (key === '/classes.js') { res.end(fs.readFileSync(allowed[key], 'latin1').replace('/* JASPR_MELEE_FP_END */', '$rt_globals.JasprMeleeFixture=JasprMeleeMotion;/* JASPR_MELEE_FP_END */'), 'latin1'); return; }
     fs.createReadStream(allowed[key]).pipe(res);
   }); web.listen(webPort, '127.0.0.1');
   const log = fs.createWriteStream(path.join(fixture, 'paper.log'));

@@ -42,7 +42,7 @@ const NATIVE = ['M2', 'DGf', 'DW', 'FR', 'Bq', 'Y', 'Bm', 'HB', 'ECM', 'HV', 'F2
   'KXV', 'KXW', 'KXX', 'KXY', 'KsS', 'HFo', 'KsW', 'KsT', 'KsU', 'C3W', 'CBf', 'Dyw', 'EZ5', 'EjD', 'C52', 'Fr4', 'EG7', 'CCb', 'ENU', 'F9J', 'CF$', 'EUr',
   'Dn1', 'Dy', 'D0', 'CAi', 'DNo', 'FF', 'CCH', 'Co', 'Vf', 'Iw', 'OF', 'PP', 'SN', 'ZL', 'KF', 'Kx', 'OB', 'BVS', 'C4z', 'Gky', 'F$X', 'BIY', 'C2y', 'A7l',
   'OE', 'HM', 'AM9', 'BlY', 'Ht', 'Xh', 'GY', 'AFo', 'Ro', 'BkV', 'Blj', 'E32', 'Ch0', 'Gyc', 'DfJ', 'Clb', 'DQF', 'FTd', 'FmP', 'Dv8', 'Fxy', 'LvD', 'DqH',
-  'Djv', 'EmX', 'Fzs', 'YW', 'Fl9', 'Egf', 'FST', 'Gs', 'HEH', '$rt_str', 'JasprGoreDraw', 'JasprVideoLabel', 'JasprVideoAction', 'JasprMeleeApplyBody'];
+  'Djv', 'EmX', 'Fzs', 'YW', 'Fl9', 'Egf', 'FST', 'Gs', 'HEH', '$rt_str', 'JasprGoreDraw', 'JasprVideoLabel', 'JasprVideoAction'];
 function bounds(source, name) {
   const start = source.indexOf('function ' + name + '('), end = source.indexOf('\nfunction ', start + 10);
   if (start < 0 || end < 0) throw Error('Missing native function ' + name);

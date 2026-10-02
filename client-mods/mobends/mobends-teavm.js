@@ -145,7 +145,7 @@ var JasprMoBendsBridge = (function () {
 
   // ===================== settings, failure handling, diagnostics =====================
   var enabled = true, failed = false, lastError = "";
-  var stats = { mutations: 0, demutations: 0, entities: 0, armorWrappers: 0, trails: 0, errors: 0, frames: 0, ticks: 0, bettercombat: 0, heldItems: 0, capes: 0, elytras: 0, firstPerson: 0, wolfLayers: 0 };
+  var stats = { mutations: 0, demutations: 0, entities: 0, armorWrappers: 0, trails: 0, errors: 0, frames: 0, ticks: 0, heldItems: 0, capes: 0, elytras: 0, firstPerson: 0, wolfLayers: 0 };
   try { var saved = JSON.parse($rt_globals.localStorage.getItem(STORAGE_KEY)); if (saved && saved.enabled === false) enabled = false; } catch (_) {}
   function persist() { try { $rt_globals.localStorage.setItem(STORAGE_KEY, JSON.stringify({ enabled: enabled })); } catch (_) {} }
   var diagnostics = { sent: 0, page: "mobends-" + Date.now().toString(36) };
@@ -875,7 +875,6 @@ var JasprMoBendsBridge = (function () {
       mutator.updateModel(entity, renderer, pt);
       var data = mutator.getOrMakeData(entity);
       mutator.lastData = data; mutator.lastEntity = entity;
-      data.bettercombatActive = data.bettercombatTime !== undefined && DUH.ticks - data.bettercombatTime < 2;
       mutator.performAnimations(data, renderer, pt);
       mutator.syncUpWithData(data);
       bender.renderer.beforeRender(data, entity, pt);
@@ -1111,33 +1110,6 @@ var JasprMoBendsBridge = (function () {
     } catch (e) { fail("arrow_trail", e); }
   }
 
-  // ===================== BetterCombat coexistence =====================
-  // While a BetterCombat strike is playing on a player, its swing drives the attacking arm(s) and the torso twist;
-  // Mo' Bends keeps the legs and everything else, and pauses its own attack layer (see PlayerController).
-  var scratchA = new Quaternion(), scratchB = new Quaternion(), scratchC = new Quaternion();
-  function eulerZYX(x, y, z, out) {
-    // ModelRenderer applies rotate(z) then rotate(y) then rotate(x): q = qz * qy * qx
-    scratchA.setFromAxisAngle(0, 0, 1, z); scratchB.setFromAxisAngle(0, 1, 0, y); Quaternion.mul(scratchA, scratchB, scratchC);
-    scratchA.setFromAxisAngle(1, 0, 0, x); return Quaternion.mul(scratchC, scratchA, out);
-  }
-  var bodyQ = new Quaternion(), armQ = new Quaternion(), invBody = new Quaternion();
-  function meleePose(model, plan) {
-    var m = model && mutatorByModel.get(model);
-    if (!m || !plan || !plan.parts || !plan.parts.length || !m.lastData || failed || !enabled) return;
-    var data = m.lastData;
-    data.bettercombatTime = DUH.ticks; stats.bettercombat++;
-    eulerZYX(m.body.native.A, m.body.native.bb, m.body.native.bX, bodyQ);
-    m.body.rotation.smooth.copy(bodyQ);
-    invBody.set(-bodyQ.x, -bodyQ.y, -bodyQ.z, bodyQ.w);
-    for (var i = 0; i < plan.parts.length; i++) {
-      var right = !!plan.parts[i].right, arm = right ? m.rightArm : m.leftArm, fore = right ? m.rightForeArm : m.leftForeArm;
-      eulerZYX(arm.native.A, arm.native.bb, arm.native.bX, armQ);
-      Quaternion.mul(invBody, armQ, arm.rotation.smooth);
-      fore.rotation.smooth.setIdentity();
-      (right ? data.renderRightItemRotation : data.renderLeftItemRotation).smooth.setIdentity();
-    }
-  }
-
   // ===================== frame / tick =====================
   var lastWorld = null;
   function frame(partialTicks, renderManager) {
@@ -1188,10 +1160,6 @@ var JasprMoBendsBridge = (function () {
     JasprVideoLabel = function (id) { return id === 973 ? $rt_str("Mo' Bends animations: " + (failed ? "OFF (error)" : enabled ? "ON" : "OFF")) : videoLabel(id); };
     JasprVideoAction = function (id) { if (id === 973) { if (!failed) setEnabled(!enabled); JasprVideoRefresh = true; return; } videoAction(id); };
   }
-  if (typeof JasprMeleeApplyBody === "function") {
-    var meleeApply = JasprMeleeApplyBody;
-    JasprMeleeApplyBody = function (model, plan) { meleeApply(model, plan); try { meleePose(model, plan); } catch (e) { fail("bettercombat", e); } };
-  }
   $rt_globals.JasprMoBendsDiagnostics = Object.freeze({
     status: function () {
       var counts = {};
@@ -1224,7 +1192,7 @@ var JasprMoBendsBridge = (function () {
     // Internals for the offline tests (tests/mobends-native.test.cjs); nothing in the game calls these.
     _test: { core: core, ModelPart: ModelPart, BoxFactory: BoxFactory, cloneModel: cloneModel, registry: registry, ArmorWrapper: ArmorWrapper,
       PlayerMutator: PlayerMutator, ZombieMutator: ZombieMutator, SkeletonMutator: SkeletonMutator, PigZombieMutator: PigZombieMutator,
-      SpiderMutator: SpiderMutator, SquidMutator: SquidMutator, WolfMutator: WolfMutator, meleePose: meleePose, stats: stats }
+      SpiderMutator: SpiderMutator, SquidMutator: SquidMutator, WolfMutator: WolfMutator, stats: stats }
   };
 }());
 

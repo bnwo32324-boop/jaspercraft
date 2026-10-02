@@ -1688,8 +1688,7 @@ function createJasprMoBendsCore(N) {
     }
     data.renderLeftItemRotation.orientZero(); data.renderRightItemRotation.orientZero();
     this.layerBase.perform(data); this.layerSneak.perform(data); this.layerTorch.perform(data);
-    // A BetterCombat strike drives the arms itself (see meleePose in mobends-teavm.js); Mo' Bends' attack layer waits.
-    if (!data.bettercombatActive) this.performActionAnimations(data, player);
+    this.performActionAnimations(data, player);
     this.layerCape.perform(data);
   };
   function ZombieController() {
