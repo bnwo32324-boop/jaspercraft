@@ -1,0 +1,19 @@
+name: JasprBounties
+version: 1.0.0
+main: chat.jaspr.bounties.BountiesPlugin
+softdepend: [JasprGear, JasprApocalypse]
+author: Jaspr
+description: The bounty board - daily and weekly bounties paid in experience, materials and trinkets, with reminders in chat.
+commands:
+  bounty:
+    description: Open your bounty board (or /bounty list|claim|reroll <1-3>|remind on|off|top|help).
+    usage: /bounty [list|claim|reroll <1-3>|remind on|off|top|help]
+    aliases: [bounties, contracts]
+    permission: jaspr.bounties.use
+permissions:
+  jaspr.bounties.use:
+    description: Use the bounty board. Every player has this.
+    default: true
+  jaspr.bounties.admin:
+    description: /bounty admin - inspect, reset or complete another player's bounties.
+    default: op

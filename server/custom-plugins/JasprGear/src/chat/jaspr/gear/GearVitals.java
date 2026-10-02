@@ -431,7 +431,8 @@ final class GearVitals implements Listener {
      */
     static boolean hudWanted(GearProfile prof, long now) {
         java.util.Set<GearItem> worn = prof.worn();
-        if (worn.contains(GearItem.CAPACITOR_BELT) || worn.contains(GearItem.PHASE_HEADSET) || worn.contains(GearItem.SCRAP_MAGNET)) return true;
+        if (worn.contains(GearItem.CAPACITOR_BELT) || worn.contains(GearItem.PHASE_HEADSET) || worn.contains(GearItem.SCRAP_MAGNET)
+            || worn.contains(GearItem.EXIT_SIGN)) return true;
         if (prof.mutation != null && prof.mutation.cost > 0) return true;
         for (Long until : prof.status.values()) if (until != null && until > now) return true;
         return false;

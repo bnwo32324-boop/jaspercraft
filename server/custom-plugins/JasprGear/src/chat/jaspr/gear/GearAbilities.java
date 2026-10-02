@@ -81,6 +81,14 @@ final class GearAbilities implements Listener {
         modifier(GearItem.SPRINT_BRACE, Attribute.GENERIC_KNOCKBACK_RESISTANCE, 0.30, AttributeModifier.Operation.ADD_NUMBER);
         modifier(GearItem.GYRO_STABILIZER, Attribute.GENERIC_KNOCKBACK_RESISTANCE, 0.80, AttributeModifier.Operation.ADD_NUMBER);
         modifier(GearItem.RAZOR_CLAWS, Attribute.GENERIC_ATTACK_DAMAGE, 1.0, AttributeModifier.Operation.ADD_NUMBER);
+        // 4.0.0
+        modifier(GearItem.TRENCH_COAT, Attribute.GENERIC_MAX_HEALTH, 4.0, AttributeModifier.Operation.ADD_NUMBER);
+        modifier(GearItem.LUCKY_COIN, Attribute.GENERIC_LUCK, 2.0, AttributeModifier.Operation.ADD_NUMBER);
+        modifier(GearItem.VIGIL_RING, Attribute.GENERIC_ARMOR, 1.0, AttributeModifier.Operation.ADD_NUMBER);
+        modifier(GearItem.DOMINION_SIGNET, Attribute.GENERIC_ARMOR, 2.0, AttributeModifier.Operation.ADD_NUMBER);
+        modifier(GearItem.TITANS_GIRDLE, Attribute.GENERIC_MAX_HEALTH, 6.0, AttributeModifier.Operation.ADD_NUMBER);
+        modifier(GearItem.TITANS_GIRDLE, Attribute.GENERIC_KNOCKBACK_RESISTANCE, 0.5, AttributeModifier.Operation.ADD_NUMBER);
+        modifier(GearItem.EXIT_SIGN, Attribute.GENERIC_MOVEMENT_SPEED, 0.10, AttributeModifier.Operation.ADD_SCALAR);
     }
 
     private void modifier(GearItem item, Attribute attribute, double amount, AttributeModifier.Operation op) {
@@ -432,6 +440,19 @@ final class GearAbilities implements Listener {
             if (arc(p)) { prof.arcReady = now + ARC_MS; armReady(prof, "Arc Shot", prof.arcReady); vitals.spend(p, prof, GearVitals.COST_ARC); }
             else bar(p, ChatColor.GRAY + "Arc Shot: no hostile in your sights (16m)");
         } else if ("dodge".equals(action)) {
+            if (worn.contains(GearItem.EXIT_SIGN) && !worn.contains(GearItem.PHASE_HEADSET) && GearExtras.BACKROOMS.equals(p.getWorld().getName())) {
+                if (now < prof.noclipReady) { cooldown(p, "Noclip", prof.noclipReady - now); return; }
+                if (!vitals.afford(p, prof, GearVitals.COST_BLINK, "Noclip")) return;
+                Location to = GearExtras.noclipTarget(p);
+                if (to == null) { bar(p, ChatColor.GRAY + "Noclip: no wall to slip through ahead (3 blocks at most)"); return; }
+                if (phaseTo(p, to)) {
+                    prof.noclipReady = now + GearExtras.NOCLIP_MS;
+                    armReady(prof, "Noclip", prof.noclipReady);
+                    vitals.spend(p, prof, GearVitals.COST_BLINK);
+                    plugin.extras.noclips++;
+                }
+                return;
+            }
             if (worn.contains(GearItem.PHASE_HEADSET)) {
                 if (p.isSneaking()) {
                     if (now < prof.chestReady) { cooldown(p, "Remote ender chest", prof.chestReady - now); return; }

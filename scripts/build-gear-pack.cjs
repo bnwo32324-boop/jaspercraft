@@ -1,5 +1,5 @@
 'use strict';
-// Survivor Gear assets: original 16x16 pixel art for the 15 trinkets and 6 empty-slot icons,
+// Survivor Gear assets: original 16x16 pixel art for the 32 trinkets and 6 empty-slot icons,
 // item models, and stone_hoe damage-band overrides (the same unbreakable-carrier technique as
 // the apocalypse arsenal). Writes candidate/gear/pack/ and candidate/gear/assets.epk only.
 // Every unrelated EPK entry must stay byte-identical; the merge is idempotent.
@@ -112,6 +112,88 @@ const ART = {
 };
 // The Necrotic Ring is the ring template re-forged in dark iron with a bone-white stone.
 ART.necrotic_ring = ART.tritium_ring.map(row => row.replace(/[gGHjh]/g, c => ({g: 'p', G: 'w', H: '3', j: '4', h: '2'})[c]));
+// 4.0.0 (2026-10-02): eight more craftable trinkets and eight realm trinkets (two each: the Nether, Drownhollow,
+// Atlas, the Backrooms).
+ART.fletchers_quiver = [
+  '......R.z.R.....', '.....RzRzRzR....', '......2.2.2.....', '......2.2.2.....', '.....0000000....', 'f....0FeeeF0....',
+  '.f...0FeeeF0....', '..f..0yYYYy0....', '...f.0FeeeF0....', '....f0FeeeF0....', '.....0FeeeF0f...', '.....0yYYYy0.f..',
+  '.....0FeeeF0..f.', '.....0FeeeF0...f', '.....0000000....', '................'
+];
+ART.sharpshooter_monocle = [
+  '................', '................', '....YYYYY.......', '...Y00000Y......', '..Y0IIzIi0Y.....', '..Y0IzIii0Y.....',
+  '..Y0IIiii0Y.....', '..Y0Iiiii0Y.....', '..Y0iiiii0Y.....', '...Y00000Y......', '....YYYYYh......', '..........h.....',
+  '...........h....', '............h...', '.............hh.', '..............h.'
+];
+ART.trench_coat = [
+  '................', '....00....00....', '...0kk0..0kk0...', '..0SkkS00SkkS0..', '..0SSkkSSkkSS0..', '.0SSSSkSSkSSSS0.',
+  '.0SSSS0SS0SSSS0.', '.0SSSS0yy0SSSS0.', '.0ffffffffffff0.', '.0SSSS0SS0SSSS0.', '.0SSSS0SS0SSSS0.', '.0SSSS0SS0SSSS0.',
+  '.0SSSS0SS0SSSS0.', '.0SSS0....0SSS0.', '.0000......0000.', '................'
+];
+ART.lucky_coin = [
+  '................', '.....yyyyyy.....', '...yyYYYYYYyy...', '..yYLLYYYYYYYy..', '..yYLYYVVYYYYy..', '.yYLYYVggVYYYYy.',
+  '.yYYYVggggVYYYy.', '.yYYYYVggVYYYYy.', '.yYYYVVggVVYYYy.', '.yYYYYYVVYYYYYy.', '..yYYYYVYYYYYy..', '..yYYYYYYYYYYy..',
+  '...yyYYYYYYyy...', '.....yyyyyy.....', '................', '................'
+];
+ART.medics_armband = [
+  '................', '................', '................', '..000000000000..', '.0zzzzzRRzzzzz0.', '.0zzzzzRRzzzzz0.',
+  '.0zzzRRRRRRzzz0.', '.0zzzRRRRRRzzz0.', '.0zzzzzRRzzzzz0.', '.0zzzzzRRzzzzz0.', '.0ZZZZZZZZZZZZ0.', '..000000000000..',
+  '................', '................', '................', '................'
+];
+ART.engineers_toolbelt = [
+  '................', '................', '...hh.......jj..', '...hj......jHj..', '...hh.......H...', '....h......jHj..',
+  '0000h0000000H000', 'fFFFhFFFyYFFHFFf', 'fFFFFFFFYyFFFFFf', '0000000000000000', '....0RR0.0UU0...', '....0RR0.0UU0...',
+  '....0000.0000...', '................', '................', '................'
+];
+ART.hunters_necklace = [
+  '................', '.f............f.', '.f............f.', '..f..........f..', '..f..........f..', '...f........f...',
+  '...fw......wf...', '....fw....wf....', '....wfzzzzfw....', '.....fzwwzf.....', '.....wz00zw.....', '......zwwz......',
+  '......z00z......', '.......zz.......', '................', '................'
+];
+ART.vigil_ring = [
+  '................', '......000.......', '.....0UcU0......', '.....0cCc0......', '....00UcU00.....', '...0HjH000HjH0..',
+  '..0Hj0.....0jH0.', '..0H0.......0H0.', '..0h0.......0h0.', '..0h0.......0h0.', '..0hH0.....0Hh0.', '...0hH00000Hh0..',
+  '....00hhhhh00...', '......00000.....', '................', '................'
+];
+ART.magma_heart = [
+  '...h........h...', '....h......h....', '.....hh..hh.....', '.......hh.......', '...000.hh.000...', '..0oRo0..0oRo0..',
+  '.0oYoRo00oRoRo0.', '.0oYooRooRoooo0.', '.0RoooroorooRR0.', '..0RoorrrroRR0..', '...0RorrrroR0...', '....0RrrrrR0....',
+  '.....0RrrR0.....', '......0RR0......', '.......00.......', '................'
+];
+ART.soulfire_ring = [
+  '......c.........', '.....cC.c.......', '......CcC.......', '.....0cCc0......', '....00UcU00.....', '...0bnb000bnb0..',
+  '..0nb0.....0bn0.', '..0n0.......0n0.', '..0b0.......0b0.', '..0b0.......0b0.', '..0bn0.....0nb0.', '...0bn00000nb0..',
+  '....00bbbbb00...', '......00000.....', '................', '................'
+];
+ART.tidepearl = [
+  '..v..........v..', '...v........v...', '...V........V...', '....v......v....', '....V......V....', '.....v....v.....',
+  '.....Vv..vV.....', '......0000......', '.....0IzIi0.....', '....0IzzIii0....', '....0IzIiiU0....', '....0iIiiiU0....',
+  '.....0iiUU0.....', '......0000......', '................', '................'
+];
+ART.eye_of_the_deep = [
+  '................', '................', '......0000......', '....00ssss00....', '..00sSSSSSSs00..', '.0sSS000000SSs0.',
+  '0sS00VVVVVV00Ss0', '0S0VVggxxggVV0S0', '0S0VVggxxggVV0S0', '0sS00VVVVVV00Ss0', '.0sSS000000SSs0.', '..00sSSSSSSs00..',
+  '....00ssss00....', '......0000......', '................', '................'
+];
+ART.dominion_signet = [
+  '................', '.....000000.....', '....0yYYYYy0....', '....0YRRRRY0....', '....0YRyyRY0....', '....0YRRRRY0....',
+  '...00yYYYYy00...', '..0Yy0....0yY0..', '..0Y0......0Y0..', '..0y0......0y0..', '..0y0......0y0..', '..0yY0....0Yy0..',
+  '...0yY0000Yy0...', '....00yyyy00....', '......0000......', '................'
+];
+ART.titans_girdle = [
+  '................', '................', '................', '0000000000000000', 'Bnnnn0YYYY0nnnnB', 'BnNNn0Y00Y0nNNnB',
+  'BnNNn0YRRY0nNNnB', 'BnNNn0YRRY0nNNnB', 'BnNNn0Y00Y0nNNnB', 'Bnnnn0YYYY0nnnnB', '0000000000000000', '.0hh0.....0hh0..',
+  '.0hh0.....0hh0..', '..00.......00...', '................', '................'
+];
+ART.almond_water = [
+  '................', '.......FF.......', '.......ee.......', '......0aa0......', '......0aa0......', '.....0aAAa0.....',
+  '....0aAAAAa0....', '...0aAAAAAAa0...', '...0awwwwwwa0...', '...0wkwwwwkw0...', '...0wwkkkkww0...', '...0kwwwwwwk0...',
+  '....0kkkkkk0....', '.....000000.....', '................', '................'
+];
+ART.exit_sign = [
+  '....h......h....', '....h......h....', '.0000000000000..', '.0VVVVVVVVVVV0..', '.0VzzzVzVzVzV0..', '.0VzVVVzVzVzV0..',
+  '.0VzzVVVzVVzV0..', '.0VzVVVzVzVzV0..', '.0VzzzVzVzVzV0..', '.0VVVVVVVVVVV0..', '.0000000000000..', '................',
+  '................', '................', '................', '................'
+];
 
 // Phase 2 consumables (pills, bandage, auto-injector, energy drink, crystal ampoule).
 const PILL = ['HYH', 'YoR', 'HRH'];

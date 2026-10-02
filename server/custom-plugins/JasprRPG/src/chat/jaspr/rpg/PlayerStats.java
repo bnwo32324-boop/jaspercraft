@@ -27,9 +27,19 @@ final class PlayerStats {
 
     /** The multiplier this player currently has for a stat, with the server bonus scale applied. */
     double multiplier(StatType stat, RpgConfig settings) {
-        double raw = stat.multiplier(level(stat));
+        double raw = stat.multiplier(level(stat), settings.capFor(stat));
         if (settings.bonusMultiplier == 1.0d) return raw;
         return 1.0d + (raw - 1.0d) * settings.bonusMultiplier;
+    }
+
+    /** Effective level (mastery ranks count half), with the server bonus scale applied: what chance-based stats use. */
+    double effective(StatType stat, RpgConfig settings) {
+        return StatType.effective(level(stat), settings.capFor(stat)) * settings.bonusMultiplier;
+    }
+
+    /** A chance-based stat's value ({@link StatType#perLevel} per effective level). */
+    double linear(StatType stat, RpgConfig settings) {
+        return stat.perLevel * effective(stat, settings);
     }
 
     int totalLevels() {

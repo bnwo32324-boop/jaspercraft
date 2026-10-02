@@ -186,6 +186,18 @@ public final class GearApi {
         return item == null ? 0 : item.rank;
     }
 
+    /**
+     * 4.0.0: whether an online player wears a trinket (by id), e.g. JasprApocalypse's sentries asking for the
+     * Engineer's Toolbelt. False when the player, the id or the plugin is unknown.
+     */
+    public static boolean wearing(org.bukkit.entity.Player player, String gearId) {
+        GearPlugin plugin = GearPlugin.instance;
+        GearItem item = GearItem.byId(gearId);
+        if (plugin == null || item == null || player == null || !player.isOnline()) return false;
+        GearProfile prof = plugin.profile(player);
+        return prof != null && prof.worn().contains(item);
+    }
+
     /** All gear ids in catalogue order. */
     public static List<String> ids() {
         List<String> out = new ArrayList<String>();

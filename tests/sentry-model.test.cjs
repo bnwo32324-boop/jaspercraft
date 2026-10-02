@@ -50,14 +50,17 @@ test('turret geometry is distinct from every gun and blade', () => {
   }
 });
 
-test('pickaxe selector isolates the turret band with vanilla fallback', () => {
-  assert.equal(selector.overrides.length, 3);
-  const [custom, plain, damaged] = selector.overrides;
+test('pickaxe selector isolates the turret bands (the sentry and its seven upgrades) with vanilla fallback', () => {
+  const upgrades = require('../apocalypse-pack/sentry-upgrades.cjs');
+  assert.equal(selector.overrides.length, upgrades.TIERS.length + 2);
+  const custom = selector.overrides[0], plain = selector.overrides[upgrades.TIERS.length], damaged = selector.overrides[upgrades.TIERS.length + 1];
   assert.deepEqual(custom.predicate, { damaged: 0, damage: 100 / 251 });
   assert.equal(custom.model, 'item/apocalypse_sentry_turret');
   assert.equal(plain.model, 'item/apocalypse_vanilla_iron_pickaxe');
+  assert.deepEqual(plain.predicate, { damaged: 0, damage: 108 / 251 });
   assert.deepEqual(damaged, { predicate: { damaged: 1 }, model: 'item/apocalypse_vanilla_iron_pickaxe' });
   assert.ok(Math.abs(custom.predicate.damage - 100 / 251) < 1e-12, 'exact float band');
+  const band = new Map(upgrades.TIERS.map(([, damage, name]) => [damage, 'item/' + name]));
   assert.ok(!fallback.overrides, 'no fallback cycles');
   // Emulate 1.12 float predicates with last-match precedence over every durability.
   const fround = v => Math.fround(v);
@@ -67,7 +70,7 @@ test('pickaxe selector isolates the turret band with vanilla fallback', () => {
     for (const override of selector.overrides) {
       if (Object.entries(override.predicate).every(([k, v]) => properties[k] >= fround(v))) selected = override.model;
     }
-    assert.equal(selected, unbreakable && durability === BAND ? 'item/apocalypse_sentry_turret' : 'item/apocalypse_vanilla_iron_pickaxe',
+    assert.equal(selected, unbreakable && band.has(durability) ? band.get(durability) : 'item/apocalypse_vanilla_iron_pickaxe',
       `pickaxe damage=${durability} unbreakable=${unbreakable}`);
   }
 });

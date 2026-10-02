@@ -1,5 +1,7 @@
 # Survivor Gear (trinket slots) - Phases 1 to 3
 
+> 2026-10-02 (4.0.0): 32 trinkets - eight new craftable ones and eight found only in one realm. See PROGRESSION_UPDATE.md.
+
 Seven Baubles-style trinket slots in the real survival inventory, fifteen apocalyptic trinkets
 with their own 16x16 pixel art, real mechanics, recipes, rare mob drops and a structure-loot API.
 Design parity target: xzeroair *Trinkets and Baubles* 0.33.4 (behaviour reference only; no code

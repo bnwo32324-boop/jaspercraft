@@ -1,0 +1,24 @@
+# The bounty board: three dailies (easy, medium, hard) and two weeklies per player.
+
+# Time zone for the daily (midnight) and weekly (Monday midnight) resets. Empty = the server's own.
+timezone: ""
+
+reminders:
+  # A reminder in chat about once per this many minutes of play (plus up to five), for players who leave them on.
+  every-minutes: 30
+  # The first reminder after joining.
+  after-join-seconds: 60
+
+rewards:
+  # Experience points per bounty tier (stats are bought with experience levels).
+  xp:
+    easy: 150
+    medium: 350
+    hard: 700
+    weekly: 2000
+  # Chance of a trinket on claiming (from JasprGear's boss loot; two diamonds if JasprGear is missing).
+  trinket-chance:
+    hard: 0.10
+    weekly: 0.50
+  # Extra experience per day of the daily streak (up to seven days) for claiming all three dailies.
+  streak-xp: 100

@@ -11,7 +11,7 @@ const root=path.resolve(__dirname,'..');
 
 test('arsenal models pass every durability and held-hand orientation case',()=>{
   const result=validate();
-  assert.equal(result.models,112);
+  assert.equal(result.models,119);
   assert.equal(result.checked,9886);
   assert.equal(result.heldOrientationCases,164);
   assert.equal(result.meleeOrientationCases,160);
@@ -40,7 +40,7 @@ test('sentry head uses the six-times effective, flush body-top placement transfo
 test('client EPK merge resolves actual resources, changes only item models, and is idempotent',()=>{
   const input=fs.readFileSync(path.join(root,'site','assets.epk'));
   const result=merge(input,path.join(root,'apocalypse-pack'));
-  assert.equal(result.models.length,112);
+  assert.equal(result.models.length,119);
   assert.ok(result.unchangedEntries>=5750);
   const repeated=merge(result.output,path.join(root,'apocalypse-pack'));
   assert.deepEqual(repeated.output,result.output);

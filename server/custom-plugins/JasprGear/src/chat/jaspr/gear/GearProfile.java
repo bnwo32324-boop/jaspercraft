@@ -10,6 +10,8 @@ import org.bukkit.inventory.ItemStack;
 /** One survivor's worn gear plus transient ability state. Main-thread only. */
 final class GearProfile {
     final UUID uuid;
+    long noclipReady, vigilReady, medicAt, almondAt, hunterUntil;
+    int hunterStacks;
     final ItemStack[] slots = new ItemStack[GearType.SLOT_COUNT];
     /** A browser client with the gear panel announced itself on this connection. */
     boolean capable;

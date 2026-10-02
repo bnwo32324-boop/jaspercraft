@@ -84,6 +84,10 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
     private int tick, recipes, equips, unequips, mobDrops, supplyDrops, bossDrops, deathDropCount, hellos, rejected;
     private int supplyRecipes, packRecipes;
     GearBackpacks backpacks;
+    GearExtras extras;
+    /** The running plugin, for the static API (GearApi.wearing). */
+    static volatile GearPlugin instance;
+    private int realmDrops;
     private Method authGetter, authCheck, spawnerCheck;
     private boolean authMissing, spawnerMissing;
 
@@ -95,12 +99,15 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         vitals = new GearVitals(this);
         mutations = new GearMutations(this);
         backpacks = new GearBackpacks(this);
+        extras = new GearExtras(this);
+        instance = this;
         registerRecipes();
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(abilities, this);
         getServer().getPluginManager().registerEvents(vitals, this);
         getServer().getPluginManager().registerEvents(mutations, this);
         getServer().getPluginManager().registerEvents(backpacks, this);
+        getServer().getPluginManager().registerEvents(extras, this);
         getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
         getCommand("gear").setExecutor(this);
         getCommand("gear").setTabCompleter(this);
@@ -111,13 +118,13 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             if (wornDirty || tick % 200 == 0) { wornDirty = false; broadcastWorn(); }
             for (Player p : getServer().getOnlinePlayers()) {
                 GearProfile prof = profiles.get(p.getUniqueId());
-                if (prof != null) { abilities.fastTick(p, prof, now, tick); vitals.fast(p, prof, now); mutations.fast(p, prof, now, tick); }
+                if (prof != null) { abilities.fastTick(p, prof, now, tick); extras.fast(p, prof); vitals.fast(p, prof, now); mutations.fast(p, prof, now, tick); }
             }
             if (tick % 20 == 0) {
                 for (Player p : getServer().getOnlinePlayers()) {
                     GearProfile prof = profiles.get(p.getUniqueId());
                     if (prof != null) {
-                        abilities.apply(p, prof); abilities.slowTick(p, prof, now); vitals.second(p, prof, now);
+                        abilities.apply(p, prof); abilities.slowTick(p, prof, now); extras.second(p, prof, now); vitals.second(p, prof, now);
                         mutations.apply(p, prof); mutations.second(p, prof, now);
                     }
                 }
@@ -128,12 +135,14 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         getLogger().info("GEAR_READY items=" + GearItem.values().length + " consumables=" + GearConsumable.values().length
             + " statuses=" + GearStatus.values().length + " mutations=" + GearMutation.values().length + " slots=" + GearType.SLOT_COUNT
             + " recipes=" + recipes + " supplyRecipes=" + supplyRecipes + " backpacks=" + GearBackpack.values().length
-            + " packRecipes=" + packRecipes + " channel=" + CHANNEL + " protocol=" + PROTOCOL);
+            + " packRecipes=" + packRecipes + " realmItems=" + (GearItem.values().length - GearItem.craftableCount()) + " channel=" + CHANNEL + " protocol=" + PROTOCOL);
         if (Boolean.getBoolean("jaspr.gear.selftest")) getServer().getScheduler().runTask(this, () -> new GearSelfTest(this).run(getServer().getConsoleSender()));
     }
 
     @Override
     public void onDisable() {
+        instance = null;
+        if (extras != null) getLogger().info("GEAR_EXTRAS_METRICS " + extras.metrics() + " realmDrops=" + realmDrops);
         if (backpacks != null) backpacks.closeAll(); // queued before the flush below
         for (Player p : getServer().getOnlinePlayers()) {
             GearProfile prof = profiles.get(p.getUniqueId());
@@ -803,6 +812,37 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         getLogger().info("GEAR_MOB_DROP item=" + pick.id + " mob=" + dead.getType().name() + " killer=" + dead.getKiller().getUniqueId());
     }
 
+    /**
+     * 4.0.0 realm trinkets: a creature slain in a realm may drop one of that realm's own trinkets (0.4% for an ordinary
+     * hostile, 3% for an elite, 35% for a boss: the Nether's Lords and bosses, Drownhollow's Wardens, Atlas's lords and
+     * the Backrooms' keepers). Spawner-bred creatures never drop them.
+     */
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void onRealmDeath(EntityDeathEvent e) {
+        LivingEntity dead = e.getEntity();
+        if (dead instanceof Player || dead.getKiller() == null) return;
+        java.util.List<GearItem> pool = GearItem.ofRealm(dead.getWorld().getName());
+        if (pool.isEmpty()) return;
+        boolean bossLike = boss(dead) || dead.getScoreboardTags().contains("br_boss") || dead.getScoreboardTags().contains("jn_lord")
+            || hasTagPrefix(dead, "atlas_boss:");
+        boolean elite = dead.getScoreboardTags().contains("jn_elite") || dead.getScoreboardTags().contains("jaspr_horror_elite")
+            || dead.getScoreboardTags().contains("br_elite");
+        if (!bossLike && (!GearExtras.hostileAnywhere(dead) || spawned(dead))) return;
+        double chance = bossLike ? getConfig().getDouble("drops.realm-boss-chance", 0.35)
+            : elite ? getConfig().getDouble("drops.realm-elite-chance", 0.03) : getConfig().getDouble("drops.realm-chance", 0.004);
+        if (random.nextDouble() >= Math.max(0.0, Math.min(1.0, chance))) return;
+        GearItem pick = pool.get(random.nextInt(pool.size()));
+        e.getDrops().add(GearItems.create(pick));
+        realmDrops++;
+        getLogger().info("GEAR_REALM_DROP item=" + pick.id + " world=" + dead.getWorld().getName() + " mob=" + dead.getType().name()
+            + " boss=" + bossLike + " elite=" + elite + " killer=" + dead.getKiller().getUniqueId());
+    }
+
+    private static boolean hasTagPrefix(LivingEntity e, String prefix) {
+        for (String t : e.getScoreboardTags()) if (t.startsWith(prefix)) return true;
+        return false;
+    }
+
     boolean spawned(LivingEntity entity) {
         if (spawnerMissing) return false;
         try {
@@ -834,6 +874,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
 
     private void registerRecipes() {
         for (GearItem item : GearItem.values()) {
+            if (!item.craftable()) continue;   // realm trinkets are only found
             try {
                 ShapedRecipe recipe = new ShapedRecipe(new NamespacedKey(this, item.id), GearItems.create(item));
                 recipe.shape(item.shape);
@@ -889,6 +930,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
     }
 
     static String recipeText(GearItem item) {
+        if (!item.craftable()) return "not craftable: found only in " + item.realmTitle();
         StringBuilder out = new StringBuilder();
         for (String row : item.shape) out.append('[').append(row.replace(' ', '.')).append("] ");
         for (Map.Entry<Character, String> in : item.ingredientMap().entrySet())

@@ -1,5 +1,7 @@
 # Survivor Upgrades and the expanded arsenal
 
+> 2026-10-02: the six-stat system described below was replaced by JasprRPG (GokiStats port, 23 stats) and is now 45 stats with mastery ranks. See PROGRESSION_UPDATE.md.
+
 Live verified: **2026-09-08 08:18 UTC** at `https://jaspr.chat/jaspercraft/`. The server returned to always-on service after a brief restart. Installation preserved all 233 protected terrain/player/plugin-data files byte-for-byte; all 72 player NBT, stats and advancement files were still unchanged after startup. No world reset.
 
 Pricing refresh live verified: **2026-09-11 03:19 UTC**. The Paper plugin was rebuilt and restarted in maintenance mode; no world, player, inventory, XP, or life-checkpoint data was reset or copied.

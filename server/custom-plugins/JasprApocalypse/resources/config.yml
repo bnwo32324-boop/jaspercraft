@@ -68,11 +68,12 @@ sentry:
   max-stored: 20000
   tick-period: 5
   noise-radius: 10.0
-  slow-damage: 16.0
+  # Damage per shot of the plain (un-upgraded) sentry; upgrades multiply it (2026-10-02: was 16 / 12 / 8).
+  slow-damage: 13.0
   slow-interval-ticks: 22
-  normal-damage: 12.0
+  normal-damage: 10.0
   normal-interval-ticks: 12
-  fast-damage: 8.0
+  fast-damage: 7.0
   fast-interval-ticks: 7
 wall-jump:
   # Server-authoritative for every player; keyboard Shift and touch sneak both work.

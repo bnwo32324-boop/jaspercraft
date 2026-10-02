@@ -87,7 +87,8 @@ public final class ApocalypseItems {
         );
         book.addPage(Arsenal.recipePages());
         book.addPage(ExpeditionEquipment.guidePages());
-        book.addPage("SENTRY TURRET\n\nCraft: 4 iron ingots around 1 iron block.\n\nPlace it; it shoots zombies on its own and needs no ammo. Right-click it to choose targets, range and fire rate. Sneak + right-click picks it back up.");
+        book.addPage("SENTRY TURRET\n\nCraft: seven iron ingots, an iron block and redstone.\n\nPlace it; it shoots zombies on its own and needs no ammo. Right-click it to choose targets, range and fire rate. Sneak + right-click picks it back up.");
+        book.addPage("SENTRY UPGRADES\n\nRight-click a sentry, then the anvil: Reinforced, then Gatling, Cannon or Tesla, each with a second stage. Every upgrade changes its look and sound.\n\nPay from your inventory; a collected sentry keeps its upgrades.");
         book.addPage("SANITIZED FLESH\n\nSmelt rotten flesh in a furnace.\n\nRight-click to eat: up to 8 food and saturation, never sickens like raw flesh.");
         book.addPage("REPLACE THIS GUIDE\n\nCraft one regular book with one rotten flesh, in any arrangement.\n\nListen for digging, watch for TNT helmets, and keep moving when the Blood Moon rises.");
         item.setItemMeta(book); return mark(item, "guide");

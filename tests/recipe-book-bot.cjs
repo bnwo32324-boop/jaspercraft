@@ -42,7 +42,7 @@ const index = key => TABLE.recipes.findIndex(r => r.key === key);
   await new Promise((resolve, reject) => { bot.once('spawn', resolve); bot.once('kicked', r => reject(new Error('kicked ' + r))); bot.once('error', reject); });
   await sleep(1200);
   const X = 480, Y = 200, Z = 480;
-  const TURRET = /id:"(minecraft:\w+)"/.exec(TABLE.recipes[index('jasprapocalypse:sentry_turret')].result)[1] + ' -1 0';
+  const TURRET = /id:"(minecraft:\w+)"/.exec(TABLE.recipes[index('jasprapocalypse:jaspr_sentry_turret')].result)[1] + ' -1 0';
   console_('op Crafter'); console_('gamemode creative Crafter'); console_(`minecraft:tp Crafter ${X} ${Y + 1} ${Z}`);
   await sleep(2500);
   console_(`fill ${X - 4} ${Y} ${Z - 4} ${X + 4} ${Y} ${Z + 4} stone`);
@@ -124,7 +124,7 @@ const index = key => TABLE.recipes.findIndex(r => r.key === key);
     {'pickaxe=1': 'minecraft:stone_pickaxe -1 0', 'cobblestone=2': 'minecraft:cobblestone -1 0', 'stick=0': 'minecraft:stick -1 0'});
   await craft('Leather Satchel (Survivor Gear backpack)', ['leather 6', 'string 2'], 'jasprgear:satchel', false,
     {'satchel=1': 'minecraft:stone_hoe -1 0 {JasprGearPack:{id:"satchel"}}', 'leather=0': 'minecraft:leather -1 0'});
-  await craft('Sentry Turret (one plain click)', ['iron_ingot 4', 'iron_block 1'], 'jasprapocalypse:sentry_turret', false,
+  await craft('Sentry Turret (one plain click)', ['iron_ingot 7', 'iron_block 1', 'redstone 1'], 'jasprapocalypse:jaspr_sentry_turret', false,
     {'iron=0': 'minecraft:iron_ingot -1 0', 'block=0': 'minecraft:iron_block -1 0', 'turret=1': TURRET});
   // Military Salvage: 4 iron nuggets + 1 iron ingot -> 4 tagged iron nuggets.
   await craft('Military Salvage blueprint (one plain click, x4)', ['iron_nugget 4', 'iron_ingot 1'], 'jasprapocalypse:jaspr_scrap', false,

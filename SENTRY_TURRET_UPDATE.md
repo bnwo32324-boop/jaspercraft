@@ -1,5 +1,7 @@
 # Sentry Turret Update
 
+> 2026-10-02 (JasprApocalypse 3.7.0): upgrade tree (Reinforced, Gatling, Cannon, Tesla and their second stages) with a model and sounds per tier; the plain sentry is a little weaker (13/10/7) and only the blueprint recipe remains. See PROGRESSION_UPDATE.md.
+
 Craftable automated defense for the live multiplayer server. No world reset. Multiplayer only; no single-player content.
 
 ## Contents

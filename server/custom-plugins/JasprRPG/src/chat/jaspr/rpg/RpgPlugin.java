@@ -62,14 +62,18 @@ public final class RpgPlugin extends JavaPlugin {
         }, 6000L, 6000L);
 
         for (Player player : getServer().getOnlinePlayers()) effects.refresh(player);
+        RpgApi.bind(this);
 
         getLogger().info("JASPR_RPG enabled stats=" + settings.statsEnabled
+                + " statCount=" + StatType.values().length + " masteryCap=15 categories=" + StatType.Category.values().length
                 + " armaments=" + settings.armamentsEnabled
                 + " costMultiplier=" + settings.costMultiplier
                 + " resetOnDeath=" + settings.resetOnDeath);
     }
 
     @Override public void onDisable() {
+        RpgApi.bind(null);
+        if (effects != null) getLogger().info("RPG_METRICS " + effects.metrics());
         if (loop != null) loop.cancel();
         if (saver != null) saver.cancel();
         if (store != null) store.save();

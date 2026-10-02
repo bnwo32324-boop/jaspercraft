@@ -6,6 +6,11 @@ drops:
   zombie-chance: 0.005
   # Phase 2: chance that a hostile mob killed by a player drops one supply (candy, bandage, rarely a stim). Capped at 5%.
   supply-chance: 0.01
+  # 4.0.0: realm trinkets (two per realm: the Nether, Drownhollow, Atlas, the Backrooms) drop only from creatures slain
+  # there - ordinary hostiles, elites, and bosses (Lords, Wardens, Atlas lords, Backrooms keepers).
+  realm-chance: 0.004
+  realm-elite-chance: 0.03
+  realm-boss-chance: 0.35
 status:
   # Phase 2: chance that a hostile melee hit opens a wound (Bleeding, 1 damage/s for 5 s). Capped at 25%.
   mob-bleed-chance: 0.04

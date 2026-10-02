@@ -20,7 +20,7 @@ public final class GearExport {
     static JsonArray recipes() {
         net.minecraft.server.v1_12_R1.DispenserRegistry.c();
         JsonArray out = new JsonArray();
-        for (GearItem item : GearItem.values()) out.add(recipe("gear_" + item.id, item.shape, item.ingredientMap()));
+        for (GearItem item : GearItem.values()) if (item.craftable()) out.add(recipe("gear_" + item.id, item.shape, item.ingredientMap()));
         for (GearConsumable item : GearConsumable.values())
             if (item.shape != null) out.add(recipe("gear_" + item.id, item.shape, item.ingredientMap()));
         for (GearBackpack item : GearBackpack.values()) out.add(recipe("gear_" + item.id, item.shape, item.ingredientMap()));
@@ -61,6 +61,8 @@ public final class GearExport {
             o.addProperty("type", item.type.name());
             o.addProperty("model", item.model);
             o.addProperty("inspiredBy", item.inspiredBy);
+            o.addProperty("rank", item.rank);
+            if (item.realm != null) o.addProperty("realm", item.realm);
             o.addProperty("recipe", GearPlugin.recipeText(item));
             o.addProperty("snbt", GearItems.canonicalTag(item).toString());
             JsonArray fx = new JsonArray();

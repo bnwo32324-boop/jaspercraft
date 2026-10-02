@@ -76,6 +76,9 @@ final class StatStore {
         return sheet;
     }
 
+    /** The sheet of a player who may be offline, or null when they never trained anything. */
+    PlayerStats find(UUID id) { return byId.get(id); }
+
     void markDirty() { dirty = true; }
 
     Collection<PlayerStats> all() { return new ArrayList<PlayerStats>(byId.values()); }

@@ -70,7 +70,8 @@ final class GearSelfTest {
             check(stack.getMaxStackSize() == 1, "unstackable " + item.id);
             ItemStack back = GearItems.fromSnbt(GearItems.toSnbt(stack));
             check(back != null && GearItems.identify(back) == item && back.isSimilar(stack), "snbt round trip " + item.id);
-            check(models.add(item.model) && item.model > 0 && item.model < GearItems.ICON_BASE_MODEL, "unique model " + item.id);
+            check(models.add(item.model) && item.model > 0 && item.model < 131
+                && (item.model < GearItems.ICON_BASE_MODEL || item.model > GearItems.ICON_BASE_MODEL + 5), "unique model " + item.id);
             check(item.effects.length >= 1 && item.effects.length <= 3, "lore size " + item.id);
             ItemStack plain = new ItemStack(org.bukkit.Material.STONE_HOE, 1, (short) item.model);
             check(GearItems.identify(plain) == null, "untagged hoe is not gear " + item.id);
@@ -114,7 +115,7 @@ final class GearSelfTest {
     }
 
     private void recipes() {
-        check(plugin.recipeCount() == GearItem.values().length, "recipes registered " + plugin.recipeCount());
+        check(plugin.recipeCount() == GearItem.craftableCount(), "recipes registered " + plugin.recipeCount());
         // End-game prices: a Nether Star and 2+ diamond blocks each; rank 3+ an emerald block; rank 4+ three
         // diamond blocks; rank 5 two emerald blocks.
         for (GearItem item : GearItem.LOOT) { // craft-only trinkets are deliberately cheap (checked in bossLoot)
@@ -143,7 +144,7 @@ final class GearSelfTest {
             if (g != null) mine.put(g.id, pattern((org.bukkit.inventory.ShapedRecipe) r, false));
             else others.add((org.bukkit.inventory.ShapedRecipe) r);
         }
-        check(mine.size() == GearItem.values().length, "all trinket patterns found");
+        check(mine.size() == GearItem.craftableCount(), "all trinket patterns found");
         java.util.Set<String> seen = new java.util.HashSet<String>();
         for (String p : mine.values()) check(seen.add(p), "trinket patterns distinct");
         int clashes = 0;
@@ -157,7 +158,7 @@ final class GearSelfTest {
             boolean found = false;
             for (org.bukkit.inventory.Recipe r : Bukkit.getRecipesFor(GearItems.create(item)))
                 if (GearItems.identify(r.getResult()) == item) found = true;
-            check(found, "recipe lookup " + item.id);
+            check(found == item.craftable(), (item.craftable() ? "recipe lookup " : "no recipe for realm trinket ") + item.id);
             for (String ingredient : item.ingredientMap().values())
                 check(!ingredient.startsWith("STONE_HOE"), "no gear/carrier ingredient " + item.id);
         }
@@ -222,7 +223,28 @@ final class GearSelfTest {
             else check(counts[g.ordinal()] == 0, "boss loot never rolls craft-only " + g.id);
         }
         // 3.3.0: the Blight Filter is craft-only and cheap (no Nether Star, no blocks of diamond/emerald/gold/iron).
-        check(!GearItem.BLIGHT_FILTER.loot && GearItem.LOOT.length == GearItem.values().length - 1, "blight filter craft-only");
+        int realmItems = 0;
+        for (GearItem g : GearItem.values()) if (g.realm != null) realmItems++;
+        check(!GearItem.BLIGHT_FILTER.loot && GearItem.LOOT.length == GearItem.values().length - 1 - realmItems, "blight filter craft-only");
+        // 4.0.0: realm trinkets - two per realm, never craftable, never rolled by loot, boss loot or ordinary mob drops
+        check(GearItem.values().length == 32 && realmItems == 8, "thirty-two trinkets, eight of them realm-only");
+        for (String world : new String[]{"world_nether", "jaspr_ruins", "jaspr_atlas", "jaspr_levels"})
+            check(GearItem.ofRealm(world).size() == 2, "two realm trinkets in " + world);
+        for (GearItem g : GearItem.values()) {
+            if (g.realm == null) continue;
+            check(!g.craftable() && !g.loot && g.realmTitle() != null && g.ingredientMap().isEmpty(), "realm-only " + g.id);
+            boolean shown = false;
+            for (String line : GearItems.create(g).getItemMeta().getLore()) shown |= line.contains("Found only in");
+            check(shown, "realm named on the item " + g.id);
+        }
+        java.util.Random rr = new java.util.Random(11L);
+        boolean leaked = false;
+        for (int i = 0; i < 40000 && !leaked; i++) {
+            ItemStack got = GearApi.rollLoot(rr, 1 + (i % 5));
+            GearItem g = got == null ? null : GearItems.identify(got);
+            leaked = g != null && g.realm != null;
+        }
+        check(!leaked, "structure loot never rolls a realm trinket");
         for (String need : GearItem.BLIGHT_FILTER.ingredientMap().values())
             check(!need.startsWith("NETHER_STAR") && !need.endsWith("_BLOCK"), "blight filter cheap: " + need);
         java.util.Random lr = new java.util.Random(7L);

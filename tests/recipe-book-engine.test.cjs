@@ -68,7 +68,8 @@ function replay(b, clicks, slots = null) {
 test('the table holds every server recipe, vanilla and JasperCraft', () => {
   assert.ok(TABLE.recipes.length >= 540, 'recipes ' + TABLE.recipes.length);
   for (const key of ['minecraft:crafting_table', 'minecraft:torch', 'minecraft:furnace', 'minecraft:stone_pickaxe',
-    'jasprapocalypse:sentry_turret', 'jasprapocalypse:field_guide', 'jasprgear:satchel', 'jasprgear:capacitor_belt'])
+    'jasprapocalypse:jaspr_sentry_turret', 'jasprapocalypse:field_guide', 'jasprgear:satchel', 'jasprgear:capacitor_belt',
+    'jasprgear:engineers_toolbelt', 'jasprgear:fletchers_quiver'])
     assert.ok(index(key) >= 0, key);
   const apoc = TABLE.recipes.filter(r => r.key.startsWith('jasprapocalypse:jaspr_'));
   assert.equal(apoc.length, 100, 'all Apocalypse blueprints');
@@ -103,7 +104,10 @@ test('tagged stacks are never spent', () => {
 test('custom recipes: satchel, sentry turret, a blueprint', () => {
   assert.ok(keys(book(3, [stack('leather', 6), stack('string', 2)])).has('jasprgear:satchel'));
   assert.ok(!keys(book(2, [stack('leather', 6), stack('string', 2)])).has('jasprgear:satchel'));
-  assert.ok(keys(book(3, [stack('iron_ingot', 4), stack('iron_block', 1)])).has('jasprapocalypse:sentry_turret'));
+  // 2026-10-02: the cheap 4-ingot sentry recipe is gone; the blueprint (7 ingots, an iron block, redstone) is the one
+  assert.ok(index('jasprapocalypse:sentry_turret') < 0);
+  assert.ok(!keys(book(3, [stack('iron_ingot', 4), stack('iron_block', 1)])).has('jasprapocalypse:jaspr_sentry_turret'));
+  assert.ok(keys(book(3, [stack('iron_ingot', 7), stack('iron_block', 1), stack('redstone', 1)])).has('jasprapocalypse:jaspr_sentry_turret'));
   const scrap = TABLE.recipes[index('jasprapocalypse:jaspr_scrap')];
   assert.ok(scrap && scrap.count === 4);
 });
@@ -115,7 +119,7 @@ test('click scripts replay exactly on a vanilla slot model', () => {
     [2, [stack('log', 7)], 'minecraft:oak_planks', true],
     [3, [stack('planks', 3, 0), stack('planks', 30, 2), stack('planks', 7, 1)], 'minecraft:chest', true],
     [3, [stack('leather', 6), stack('string', 2), stack('dirt', 1)], 'jasprgear:satchel', false],
-    [3, [stack('iron_ingot', 9), stack('iron_block', 2)], 'jasprapocalypse:sentry_turret', false],
+    [3, [stack('iron_ingot', 9), stack('iron_block', 2), stack('redstone', 2)], 'jasprapocalypse:jaspr_sentry_turret', false],
     [2, [stack('stick', 10), stack('coal', 3), stack('coal', 40, 1)], 'minecraft:torch', true],
   ];
   for (const [grid, inv, key, shift] of cases) {

@@ -35,6 +35,7 @@ public final class GearItems {
         NBTTagList lore = new NBTTagList();
         lore.add(new NBTTagString(S + "8" + (item.type == GearType.ANY ? "Any-slot" : item.type.label) + " gear"));
         for (String line : item.effects) lore.add(new NBTTagString(S + "7" + line));
+        if (item.realm != null) lore.add(new NBTTagString(S + "5Found only in " + item.realmTitle()));
         display.set("Lore", lore);
         tag.set("display", display);
         NBTTagCompound gear = new NBTTagCompound();

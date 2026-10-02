@@ -16,6 +16,55 @@
         "damaged": 0,
         "damage": 0.40239043824701193
       },
+      "model": "item/apocalypse_sentry_reinforced"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.4063745019920319
+      },
+      "model": "item/apocalypse_sentry_gatling"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.4103585657370518
+      },
+      "model": "item/apocalypse_sentry_storm_gatling"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.41434262948207173
+      },
+      "model": "item/apocalypse_sentry_cannon"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.41832669322709165
+      },
+      "model": "item/apocalypse_sentry_howitzer"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.42231075697211157
+      },
+      "model": "item/apocalypse_sentry_tesla"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.4262948207171315
+      },
+      "model": "item/apocalypse_sentry_arc_tower"
+    },
+    {
+      "predicate": {
+        "damaged": 0,
+        "damage": 0.4302788844621514
+      },
       "model": "item/apocalypse_vanilla_iron_pickaxe"
     },
     {
