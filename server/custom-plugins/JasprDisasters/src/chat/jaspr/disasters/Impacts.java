@@ -25,13 +25,43 @@ final class Impacts {
     private Impacts() {}
 
     /** Shulker boxes keep their contents, and 1.12.2 spells them one enum per colour. */
-    private static boolean isProtected(Material material) {
+    static boolean isProtected(Material material) {
         return PROTECTED.contains(material) || material.name().endsWith("SHULKER_BOX");
     }
 
-    private static boolean isLiquid(Material material) {
+    static boolean isLiquid(Material material) {
         return material == Material.WATER || material == Material.STATIONARY_WATER
                 || material == Material.LAVA || material == Material.STATIONARY_LAVA;
+    }
+
+    /** Terrain a disaster may tear open: never air or liquid, never protected blocks (obsidian included). */
+    static boolean canBreak(Material material) {
+        return material != Material.AIR && !isLiquid(material) && !isProtected(material);
+    }
+
+    /** Ground that is plainly the world's own: what fissures split and tornadoes tear up. */
+    private static final Set<Material> NATURAL_GROUND = EnumSet.of(
+            Material.GRASS, Material.DIRT, Material.STONE, Material.SAND, Material.SANDSTONE, Material.RED_SANDSTONE,
+            Material.GRAVEL, Material.CLAY, Material.HARD_CLAY, Material.STAINED_CLAY, Material.MYCEL, Material.SNOW_BLOCK,
+            Material.NETHERRACK, Material.SOUL_SAND, Material.ENDER_STONE, Material.MAGMA, Material.COAL_ORE, Material.IRON_ORE);
+
+    static boolean isNaturalGround(Material material) { return NATURAL_GROUND.contains(material); }
+
+    /**
+     * The top natural ground block of a column, looking down through air, plants, snow and trees, or null when
+     * the first solid thing in the way is something else (a roof, a road, a farm): disasters that split or rip
+     * the ground leave built columns alone.
+     */
+    static Block naturalGround(World world, int x, int z) {
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) return null;
+        for (int y = Math.min(254, world.getHighestBlockYAt(x, z)); y > 1; y--) {
+            Block block = world.getBlockAt(x, y, z);
+            Material type = block.getType();
+            if (type == Material.AIR || !type.isSolid() || type == Material.LEAVES || type == Material.LEAVES_2
+                    || type == Material.LOG || type == Material.LOG_2) continue;
+            return isNaturalGround(type) ? block : null;
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------ meteors
@@ -181,7 +211,7 @@ final class Impacts {
     }
 
     /** Finds the solid block nearest the impact height in this column, searching a short span. */
-    private static Block surfaceNear(World world, int x, int impactY, int z, int depth) {
+    static Block surfaceNear(World world, int x, int impactY, int z, int depth) {
         int top = Math.min(254, impactY + 3);
         int bottom = Math.max(1, impactY - depth);
         for (int y = top; y >= bottom; y--) {

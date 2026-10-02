@@ -1,5 +1,5 @@
 name: JasprDisasters
-version: 1.2.1
+version: 1.3.0
 main: chat.jaspr.disasters.DisasterPlugin
 author: Jaspr
 description: Natural disasters for JasperCraft. One disaster runs at a time, server-wide.
@@ -11,6 +11,18 @@ commands:
   lightning:
     description: Call a thunder-hell storm down on yourself.
     usage: /lightning [status|stop|reload]
+    permission: jaspr.disasters.admin
+  quake:
+    description: Call an earthquake down on yourself.
+    usage: /quake [status|stop|reload]
+    permission: jaspr.disasters.admin
+  tornado:
+    description: Call a tornado down on yourself.
+    usage: /tornado [status|stop|reload]
+    permission: jaspr.disasters.admin
+  blizzard:
+    description: Call a blizzard down on yourself.
+    usage: /blizzard [status|stop|reload]
     permission: jaspr.disasters.admin
 permissions:
   jaspr.disasters.admin:

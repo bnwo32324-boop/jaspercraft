@@ -13,11 +13,12 @@ final class DisasterConfig {
     final boolean enabled;
     /** Quiet period after any disaster ends, so two never run back to back. */
     final long cooldownMillis;
+    /** One shared timer for every kind: the next disaster is due this many Minecraft days after the last. */
+    final int scheduleMinDays;
+    final int scheduleMaxDays;
 
     // ------------------------------------------------------------------ meteor shower
     final boolean meteorEnabled;
-    final int meteorMinDays;
-    final int meteorMaxDays;
     final boolean broadcast;
     final boolean skipCreative;
     final List<String> worlds;
@@ -36,8 +37,6 @@ final class DisasterConfig {
 
     // ------------------------------------------------------------------ thunder-hell storm
     final boolean stormEnabled;
-    final int stormMinDays;
-    final int stormMaxDays;
     final boolean stormBroadcast;
     final boolean stormSkipCreative;
     final List<String> stormWorlds;
@@ -63,16 +62,65 @@ final class DisasterConfig {
     final int stormWitherTicks;
     final boolean stormMarkTarget;
 
+    // ------------------------------------------------------------------ earthquake
+    final boolean quakeEnabled;
+    final boolean quakeBroadcast;
+    final boolean quakeSkipCreative;
+    final List<String> quakeWorlds;
+    final long quakeDurationTicks;
+    final int quakeRadius;
+    final long quakeJoltEveryTicks;
+    final double quakeJoltStrength;
+    final boolean quakeNausea;
+    final int quakeRockfall;
+    final boolean quakeBreakBlocks;
+    final int quakeFissures;
+    final int quakeFissureLength;
+    final int quakeFissureDepth;
+    final int quakeLavaPercent;
+
+    // ------------------------------------------------------------------ tornado
+    final boolean tornadoEnabled;
+    final boolean tornadoBroadcast;
+    final boolean tornadoSkipCreative;
+    final List<String> tornadoWorlds;
+    final long tornadoDurationTicks;
+    final double tornadoSpawnDistance;
+    final double tornadoSpeed;
+    final double tornadoHeight;
+    final double tornadoPullRadius;
+    final double tornadoLift;
+    final boolean tornadoBreakBlocks;
+    final double tornadoRipPerSecond;
+    final int tornadoMaxDebris;
+
+    // ------------------------------------------------------------------ blizzard
+    final boolean blizzardEnabled;
+    final boolean blizzardBroadcast;
+    final boolean blizzardSkipCreative;
+    final List<String> blizzardWorlds;
+    final long blizzardDurationTicks;
+    final int blizzardRadius;
+    final boolean blizzardBreakBlocks;
+    final double blizzardSnowPerSecond;
+    final int blizzardMaxSnow;
+    final boolean blizzardFreezeWater;
+    final int blizzardMaxIce;
+    final boolean blizzardThaw;
+    final int blizzardFreezeTicks;
+    final double blizzardFrostDamage;
+    final int blizzardWarmLight;
+
     DisasterConfig(FileConfiguration config) {
         this.enabled = config.getBoolean("enabled", true);
         this.cooldownMillis = clamp(config.getInt("cooldown-seconds", 120), 0, 3600, 120) * 1000L;
+        int low = clamp(config.getInt("schedule.min-days", 2), 1, 365, 2);
+        int high = clamp(config.getInt("schedule.max-days", 13), 1, 365, 13);
+        this.scheduleMinDays = Math.min(low, high);
+        this.scheduleMaxDays = Math.max(low, high);
 
         // -------------------------------------------------------------- meteor shower
         this.meteorEnabled = config.getBoolean("meteor-shower.enabled", true);
-        int low = clamp(config.getInt("meteor-shower.min-days", 1), 1, 365, 1);
-        int high = clamp(config.getInt("meteor-shower.max-days", 14), 1, 365, 14);
-        this.meteorMinDays = Math.min(low, high);
-        this.meteorMaxDays = Math.max(low, high);
         this.broadcast = config.getBoolean("meteor-shower.broadcast", true);
         this.skipCreative = config.getBoolean("meteor-shower.skip-creative", true);
         this.worlds = lowercased(config.getStringList("meteor-shower.worlds"));
@@ -91,10 +139,6 @@ final class DisasterConfig {
 
         // -------------------------------------------------------------- thunder-hell storm
         this.stormEnabled = config.getBoolean("thunder-storm.enabled", true);
-        int stormLow = clamp(config.getInt("thunder-storm.min-days", 1), 1, 365, 1);
-        int stormHigh = clamp(config.getInt("thunder-storm.max-days", 14), 1, 365, 14);
-        this.stormMinDays = Math.min(stormLow, stormHigh);
-        this.stormMaxDays = Math.max(stormLow, stormHigh);
         this.stormBroadcast = config.getBoolean("thunder-storm.broadcast", true);
         this.stormSkipCreative = config.getBoolean("thunder-storm.skip-creative", true);
         this.stormWorlds = lowercased(config.getStringList("thunder-storm.worlds"));
@@ -121,6 +165,60 @@ final class DisasterConfig {
         this.stormIgniteTicks = clamp(config.getInt("thunder-storm.ignite-seconds", 5), 0, 60, 5) * 20;
         this.stormWitherTicks = clamp(config.getInt("thunder-storm.wither-seconds", 4), 0, 60, 4) * 20;
         this.stormMarkTarget = config.getBoolean("thunder-storm.mark-target", true);
+
+        // -------------------------------------------------------------- earthquake
+        this.quakeEnabled = config.getBoolean("earthquake.enabled", true);
+        this.quakeBroadcast = config.getBoolean("earthquake.broadcast", true);
+        this.quakeSkipCreative = config.getBoolean("earthquake.skip-creative", true);
+        this.quakeWorlds = lowercased(config.getStringList("earthquake.worlds"));
+        this.quakeDurationTicks = clamp(config.getInt("earthquake.duration-seconds", 40), 10, 300, 40) * 20L;
+        this.quakeRadius = clamp(config.getInt("earthquake.radius", 24), 6, 64, 24);
+        this.quakeJoltEveryTicks = clamp(config.getInt("earthquake.jolt-every-ticks", 10), 5, 100, 10);
+        this.quakeJoltStrength = fraction(config.getDouble("earthquake.jolt-strength", 0.22d), 0.0d, 1.0d, 0.22d);
+        this.quakeNausea = config.getBoolean("earthquake.nausea", true);
+        this.quakeRockfall = clamp(config.getInt("earthquake.rockfall", 18), 0, 80, 18);
+        this.quakeBreakBlocks = config.getBoolean("earthquake.break-blocks", true);
+        this.quakeFissures = clamp(config.getInt("earthquake.fissures", 4), 0, 12, 4);
+        this.quakeFissureLength = clamp(config.getInt("earthquake.fissure-length", 12), 4, 32, 12);
+        this.quakeFissureDepth = clamp(config.getInt("earthquake.fissure-depth", 5), 1, 12, 5);
+        this.quakeLavaPercent = clamp(config.getInt("earthquake.fissure-lava-percent", 25), 0, 100, 25);
+
+        // -------------------------------------------------------------- tornado
+        this.tornadoEnabled = config.getBoolean("tornado.enabled", true);
+        this.tornadoBroadcast = config.getBoolean("tornado.broadcast", true);
+        this.tornadoSkipCreative = config.getBoolean("tornado.skip-creative", true);
+        this.tornadoWorlds = lowercased(config.getStringList("tornado.worlds"));
+        this.tornadoDurationTicks = clamp(config.getInt("tornado.duration-seconds", 50), 10, 300, 50) * 20L;
+        this.tornadoSpawnDistance = clamp(config.getInt("tornado.spawn-distance", 24), 8, 48, 24);
+        this.tornadoSpeed = fraction(config.getDouble("tornado.speed", 0.18d), 0.02d, 0.6d, 0.18d);
+        this.tornadoHeight = clamp(config.getInt("tornado.height", 26), 8, 64, 26);
+        this.tornadoPullRadius = clamp(config.getInt("tornado.pull-radius", 7), 2, 16, 7);
+        this.tornadoLift = fraction(config.getDouble("tornado.lift", 0.35d), 0.0d, 1.0d, 0.35d);
+        this.tornadoBreakBlocks = config.getBoolean("tornado.break-blocks", true);
+        this.tornadoRipPerSecond = fraction(config.getDouble("tornado.rip-blocks-per-second", 3.0d), 0.0d, 20.0d, 3.0d);
+        this.tornadoMaxDebris = clamp(config.getInt("tornado.max-debris", 60), 0, 300, 60);
+
+        // -------------------------------------------------------------- blizzard
+        this.blizzardEnabled = config.getBoolean("blizzard.enabled", true);
+        this.blizzardBroadcast = config.getBoolean("blizzard.broadcast", true);
+        this.blizzardSkipCreative = config.getBoolean("blizzard.skip-creative", true);
+        this.blizzardWorlds = lowercased(config.getStringList("blizzard.worlds"));
+        this.blizzardDurationTicks = clamp(config.getInt("blizzard.duration-seconds", 90), 15, 600, 90) * 20L;
+        this.blizzardRadius = clamp(config.getInt("blizzard.radius", 28), 6, 64, 28);
+        this.blizzardBreakBlocks = config.getBoolean("blizzard.break-blocks", true);
+        this.blizzardSnowPerSecond = fraction(config.getDouble("blizzard.snow-per-second", 6.0d), 0.0d, 40.0d, 6.0d);
+        this.blizzardMaxSnow = clamp(config.getInt("blizzard.max-snow", 320), 0, 2000, 320);
+        this.blizzardFreezeWater = config.getBoolean("blizzard.freeze-water", true);
+        this.blizzardMaxIce = clamp(config.getInt("blizzard.max-ice", 80), 0, 500, 80);
+        this.blizzardThaw = config.getBoolean("blizzard.thaw", true);
+        this.blizzardFreezeTicks = clamp(config.getInt("blizzard.freeze-seconds", 12), 2, 120, 12) * 20;
+        this.blizzardFrostDamage = fraction(config.getDouble("blizzard.frost-damage", 1.0d), 0.0d, 10.0d, 1.0d);
+        this.blizzardWarmLight = clamp(config.getInt("blizzard.warm-light", 11), 1, 15, 11);
+    }
+
+    /** Whether a world is on a kind's list; an empty list means every world. */
+    static boolean allows(List<String> worlds, String worldName) {
+        return worlds.isEmpty() || worlds.contains(worldName.toLowerCase(Locale.ROOT));
     }
 
     boolean allowsWorld(String worldName) {
@@ -139,6 +237,10 @@ final class DisasterConfig {
             }
         }
         return lowered;
+    }
+
+    private static double fraction(double value, double min, double max, double fallback) {
+        return value < min || value > max || Double.isNaN(value) ? fallback : value;
     }
 
     private static float power(double value, float fallback) {

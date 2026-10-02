@@ -39,3 +39,7 @@ paths. A future plugin that calls Block.setType directly must preserve obsidian
 at that call site; Bukkit does not emit grief/explosion events for such edits.
 Exact deployment backup, live verification and recoverable checkpoint are
 recorded in build/release/ and reports/ in the isolated workspace.
+
+2026-10-02 (JasprDisasters 1.3.0): rebuilt entirely from source. The three preserved classes
+differed only in constant-pool order and World.equals vs Object.equals call targets (javap -c);
+the obsidian rule and every crater/scatter exclusion are unchanged. See README.md.
