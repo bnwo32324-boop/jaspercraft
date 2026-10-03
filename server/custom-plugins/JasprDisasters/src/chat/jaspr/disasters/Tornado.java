@@ -1,9 +1,12 @@
 package chat.jaspr.disasters;
 
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -29,11 +32,16 @@ import org.bukkit.util.Vector;
  * The funnel is drawn with particles that spiral up and widen with height. It wanders as it travels, so it
  * can be outrun but not ignored: anything that gets too close (players, mobs, animals, dropped items) is
  * pulled in, spun around the funnel, lifted, and flung out once it is carried high enough, which is where
- * the danger is. Loose natural ground at its foot (grass, dirt, sand, leaves, small plants) is torn up and
- * thrown out as debris that bursts where it comes down, a bounded number of blocks per tornado; utility blocks,
- * the ground holding them up, obsidian, portals and their frames, farms and buildings are never torn up, armor
- * stands (sentry turrets' stands among them) are never moved, and with break-blocks off the tornado moves things
- * but changes no terrain.
+ * the danger is. Players are reached at any height, from a mine under the funnel to a platform in the sky:
+ * under a roof or underground the wind cannot lift you, so it drags you about and batters you instead. Only an
+ * obsidian bunker (see Bunker) keeps it out.
+ *
+ * Blocks under the funnel are torn up and thrown out as debris that bursts where it comes down, a bounded number
+ * per tornado. Where builds can be wrecked (build-damage-worlds) that is whatever is on top (roofs, walls, trees,
+ * the ground), built blocks dropping as items for the wind to scatter; elsewhere only loose natural ground (grass,
+ * dirt, sand, gravel, leaves, small plants). Obsidian, utility blocks, the block holding one up, portals and their
+ * frames are never torn up, armor stands (sentry turrets' stands among them) are never moved, and with break-blocks
+ * off the tornado moves things but changes no terrain.
  * The weather turns to rain for the duration and is handed back afterwards.
  */
 final class Tornado implements Disaster {
@@ -47,6 +55,8 @@ final class Tornado implements Disaster {
     private final long startTick;
     private final long endTick;
     private final WeatherHold weather;
+    /** This world lets the tornado wreck builds; otherwise it keeps to loose natural ground. */
+    private final boolean wreck;
     /** Debris in the air: it bursts where it comes down instead of landing on someone's roof or chest. */
     private final Set<UUID> debris = new HashSet<UUID>();
 
@@ -57,6 +67,7 @@ final class Tornado implements Disaster {
     private int debrisLeft;
     private double ripCredit;
     private long nextSoundTick;
+    private long nextBatterTick;
     private boolean finished;
 
     Tornado(Plugin plugin, DisasterConfig settings, Random random, Player target, long nowTicks) {
@@ -69,6 +80,7 @@ final class Tornado implements Disaster {
         this.startTick = nowTicks;
         this.endTick = nowTicks + settings.tornadoDurationTicks;
         this.debrisLeft = settings.tornadoBreakBlocks ? settings.tornadoMaxDebris : 0;
+        this.wreck = settings.damagesBuilds(worldName);
 
         // Touches down on a random bearing, out at the configured distance, heading roughly at the target.
         Location at = target.getLocation();
@@ -77,7 +89,12 @@ final class Tornado implements Disaster {
         this.z = at.getZ() + Math.sin(bearing) * settings.tornadoSpawnDistance;
         this.heading = Math.atan2(at.getZ() - z, at.getX() - x);
         this.groundY = at.getY();
-        settle(world);
+        // Touch down on the ground itself, even when the target is down a mine or up in the sky.
+        int bx = (int) Math.floor(x), bz = (int) Math.floor(z);
+        if (world.isChunkLoaded(bx >> 4, bz >> 4)) {
+            int y = world.getHighestBlockYAt(bx, bz);
+            if (y > 0 && y < 255) this.groundY = y;
+        }
 
         this.weather = new WeatherHold(world, false, settings.tornadoDurationTicks);
         announce(target, world);
@@ -90,7 +107,7 @@ final class Tornado implements Disaster {
     private void announce(Player target, World world) {
         target.sendMessage(ChatColor.DARK_AQUA + "The wind screams and the clouds start to turn. " + ChatColor.GRAY + "A tornado has touched down.");
         try {
-            target.sendTitle(ChatColor.AQUA + "Tornado", ChatColor.GRAY + "Run, or get underground", 10, 60, 20);
+            target.sendTitle(ChatColor.AQUA + "Tornado", ChatColor.GRAY + "Run, or seal yourself in obsidian", 10, 60, 20);
         } catch (Throwable olderApi) {
             // Title is decoration; the chat warning already went out.
         }
@@ -123,7 +140,7 @@ final class Tornado implements Disaster {
         steer(target, nowTicks);
         travel(world);
         drawFunnel(world, nowTicks, strength);
-        pull(world, strength);
+        pull(world, strength, nowTicks);
         ripGround(world, strength);
         if (nowTicks >= nextSoundTick) {
             nextSoundTick = nowTicks + 20L;
@@ -210,33 +227,50 @@ final class Tornado implements Disaster {
     /**
      * Pulls everything near the funnel inward, spins it round, lifts it, and throws it out from high up.
      * The shared loop runs every five ticks, so each push is sized to carry an entity until the next one.
+     *
+     * Players are reached anywhere in the funnel's column, from bedrock to the sky; only an obsidian bunker keeps
+     * the wind out. Under a roof or underground it cannot lift you out, so it drags you about and batters you.
      */
-    private void pull(World world, double strength) {
+    private void pull(World world, double strength, long nowTicks) {
         if (strength <= 0.05d) return;
         double reach = settings.tornadoPullRadius + 2.0d;
         double height = settings.tornadoHeight;
-        Location centre = new Location(world, x, groundY + height / 2.0d, z);
+        boolean batterTurn = nowTicks >= nextBatterTick;
+        if (batterTurn) nextBatterTick = nowTicks + 10L;
+        Location column = new Location(world, x, 128.0d, z);
         int moved = 0;
-        for (Entity entity : world.getNearbyEntities(centre, reach, height / 2.0d + 2.0d, reach)) {
+        for (Entity entity : world.getNearbyEntities(column, reach, 130.0d, reach)) {
             if (!(entity instanceof LivingEntity || entity instanceof Item || entity instanceof FallingBlock)) continue;
             if (entity instanceof ArmorStand) continue;   // stands (and sentry turrets on them) stay put
-            if (entity instanceof Player) {
+            boolean player = entity instanceof Player;
+            if (player) {
                 GameMode mode = ((Player) entity).getGameMode();
                 if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) continue;
+            } else if (moved >= 60) {
+                continue;
             }
-            if (moved++ >= 60) break;
             Location at = entity.getLocation();
             double ex = at.getX() - x;
             double ez = at.getZ() - z;
             double distance = Math.sqrt(ex * ex + ez * ez);
             double above = at.getY() - groundY;
-            double radius = radiusAt(Math.max(0.0d, above), strength) + 1.5d;
-            if (distance > radius || above < -2.0d || above > height) continue;
+            // Mobs and loose items only around the funnel itself; players wherever they are in its column.
+            if (!player && (above < -2.0d || above > height)) continue;
+            double radius = radiusAt(Math.max(0.0d, Math.min(height, above)), strength) + 1.5d;
+            if (distance > radius) continue;
+            if (player && Bunker.inside((Player) entity)) continue;   // the one place the wind cannot reach
+            if (!player) moved++;
 
             double inX = -ex / Math.max(0.4d, distance);
             double inZ = -ez / Math.max(0.4d, distance);
             Vector velocity;
-            if (above > height * 0.55d) {
+            if (player && Impacts.roofed(((Player) entity).getEyeLocation())) {
+                // Under a roof or underground: dragged about where you are, and battered by debris.
+                velocity = entity.getVelocity();
+                velocity.setX(velocity.getX() * 0.5d + inX * 0.08d - inZ * 0.25d * strength);
+                velocity.setZ(velocity.getZ() * 0.5d + inZ * 0.08d + inX * 0.25d * strength);
+                if (batterTurn) batter((Player) entity, world);
+            } else if (above > height * 0.55d) {
                 // Carried high enough: thrown clear of the funnel, to fall wherever it lands.
                 velocity = new Vector(-inX * 1.1d - inZ * 0.4d, 0.35d, -inZ * 1.1d + inX * 0.4d);
             } else {
@@ -253,10 +287,26 @@ final class Tornado implements Disaster {
         }
     }
 
+    /** Debris hammering someone the funnel is on top of under a roof or underground: every half second. */
+    private void batter(Player player, World world) {
+        if (settings.tornadoShelterDamage <= 0.0d) return;
+        player.damage(settings.tornadoShelterDamage / 2.0d);
+        world.playSound(player.getLocation(), Sound.BLOCK_GRAVEL_BREAK, 1.0f, 0.6f);
+        try {
+            player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(
+                    ChatColor.AQUA + "☁ The tornado is on top of you" + ChatColor.GRAY + "  only obsidian keeps it out"));
+        } catch (Throwable olderApi) {
+            // The action bar is a convenience; the damage already says it.
+        }
+    }
+
     /**
-     * Tears loose natural ground out from under the funnel and flings it: a few blocks a second, and only
-     * the soft surface of the world itself (never builds, farms, protected blocks or obsidian).
+     * Tears blocks out from under the funnel and flings them: a few a second, a bounded number per tornado. Where
+     * builds can be wrecked that is whatever is on top of the column (roofs, walls, trees, the ground); elsewhere
+     * only the soft natural surface. Never obsidian, a bunker's iron door, a utility block, the block holding one
+     * up, or anything in a portal's frame.
      */
+    @SuppressWarnings("deprecation")
     private void ripGround(World world, double strength) {
         if (debrisLeft <= 0 || strength < 0.5d) return;
         ripCredit += settings.tornadoRipPerSecond * 0.25d;   // five ticks is a quarter of a second
@@ -266,20 +316,28 @@ final class Tornado implements Disaster {
             double distance = random.nextDouble() * 3.0d;
             int bx = (int) Math.floor(x + Math.cos(angle) * distance);
             int bz = (int) Math.floor(z + Math.sin(angle) * distance);
-            if (!world.isChunkLoaded(bx >> 4, bz >> 4)) continue;
-            int top = world.getHighestBlockYAt(bx, bz);
-            Block plant = world.getBlockAt(bx, top, bz);
-            Block ground = world.getBlockAt(bx, top - 1, bz);
-            // Never the ground under a chest, bed, turret or anvil, and never anything in a portal's frame.
-            if (Impacts.offLimits(ground) || Impacts.nearPortal(world, bx, top, bz)) continue;
-            if (isLoosePlant(plant.getType())) plant.setType(Material.AIR, false);
-            Material type = ground.getType();
-            Material thrown = rippable(type);
-            if (thrown == null) continue;
-            ground.setType(Material.AIR, false);
+            Block top = Impacts.topBlock(world, bx, bz);   // null when the chunk is not loaded
+            if (top == null || top.getY() < 2) continue;
+            if (Impacts.nearPortal(world, bx, top.getY(), bz)) continue;
+            if (isLoosePlant(top.getType())) {
+                top.setType(Material.AIR, false);
+                top = top.getRelative(0, -1, 0);
+            }
+            Material type = top.getType();
+            Material thrown;
+            if (wreck) {
+                if (!tearable(type) || !Impacts.mayWreck(top)) continue;
+                thrown = type == Material.GRASS || type == Material.MYCEL ? Material.DIRT : type;
+            } else {
+                if (Impacts.offLimits(top)) continue;   // never the ground under a chest, bed, turret or anvil
+                thrown = rippable(type);
+                if (thrown == null) continue;
+            }
+            byte data = thrown == type ? top.getData() : (byte) 0;
+            if (wreck) Impacts.wreck(top); else top.setType(Material.AIR, false);
             debrisLeft--;
             try {
-                FallingBlock chunk = world.spawnFallingBlock(new Location(world, bx + 0.5d, top, bz + 0.5d), thrown, (byte) 0);
+                FallingBlock chunk = world.spawnFallingBlock(new Location(world, bx + 0.5d, top.getY(), bz + 0.5d), thrown, data);
                 chunk.setDropItem(false);
                 chunk.setHurtEntities(true);
                 chunk.setMetadata(DEBRIS_KEY, new FixedMetadataValue(plugin, Boolean.TRUE));
@@ -309,6 +367,21 @@ final class Tornado implements Disaster {
             default:
                 return null;
         }
+    }
+
+    /** Glass, slabs, stairs, fences and the like: see-through building blocks a tornado tears loose. */
+    private static final Set<Material> SEE_THROUGH = EnumSet.of(Material.GLASS, Material.STAINED_GLASS, Material.THIN_GLASS,
+            Material.STAINED_GLASS_PANE, Material.LEAVES, Material.LEAVES_2, Material.STEP, Material.WOOD_STEP, Material.STONE_SLAB2,
+            Material.PURPUR_SLAB, Material.FENCE, Material.SPRUCE_FENCE, Material.BIRCH_FENCE, Material.JUNGLE_FENCE,
+            Material.DARK_OAK_FENCE, Material.ACACIA_FENCE, Material.NETHER_FENCE, Material.IRON_FENCE, Material.COBBLE_WALL,
+            Material.WOOD_STAIRS, Material.COBBLESTONE_STAIRS, Material.BRICK_STAIRS, Material.SMOOTH_STAIRS,
+            Material.NETHER_BRICK_STAIRS, Material.SANDSTONE_STAIRS, Material.SPRUCE_WOOD_STAIRS, Material.BIRCH_WOOD_STAIRS,
+            Material.JUNGLE_WOOD_STAIRS, Material.QUARTZ_STAIRS, Material.ACACIA_STAIRS, Material.DARK_OAK_STAIRS,
+            Material.RED_SANDSTONE_STAIRS, Material.PURPUR_STAIRS, Material.GLOWSTONE, Material.SEA_LANTERN, Material.ICE);
+
+    /** What a tornado can tear off the top of a column where builds can be wrecked: plain blocks, nothing with contents. */
+    private static boolean tearable(Material type) {
+        return !Impacts.isLiquid(type) && (type.isOccluding() || SEE_THROUGH.contains(type));
     }
 
     private static boolean isLoosePlant(Material type) {

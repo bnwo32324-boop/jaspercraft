@@ -1,7 +1,9 @@
 'use strict';
 // JasprDisasters 1.3.0 (owner 2026-10-02): three more kinds of natural disaster (earthquake, tornado,
 // blizzard), and disasters in general twice as rare: one shared timer instead of one per kind
-// (DisasterScheduleTest measures it against the old two-timer schedule). No server is started.
+// (DisasterScheduleTest measures it against the old two-timer schedule). 1.3.1: no disaster harms obsidian,
+// utility blocks, turrets or portals. 1.4.0: the three new kinds reach you anywhere (underground, in the sky,
+// inside a base) and only an obsidian bunker is safe. No server is started.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -59,7 +61,7 @@ test('five kinds, each with its own command, all admin-only, all run through the
   for (const command of ['shower', 'lightning', 'quake', 'tornado', 'blizzard']) {
     assert.match(yml, new RegExp('\\n  ' + command + ':\\n(?:    .*\\n)*?    permission: jaspr\\.disasters\\.admin'), command);
   }
-  assert.match(yml, /version: 1\.3\.1/);
+  assert.match(yml, /version: 1\.4\.0/);
   const main = read('DisasterPlugin.java');
   for (const kind of ['QUAKE("earthquake", "quake")', 'TORNADO("tornado", "tornado")', 'BLIZZARD("blizzard", "blizzard")']) assert.ok(main.includes(kind), kind);
   assert.ok(main.includes('Schedule.next(now, settings.scheduleMinDays, settings.scheduleMaxDays, random)'), 'one timer after every disaster');
@@ -71,14 +73,20 @@ test('the new disasters respect protected blocks and obsidian, clean up after th
   const impacts = read('Impacts.java'), quake = read('Earthquake.java'), tornado = read('Tornado.java'), blizzard = read('Blizzard.java');
   assert.ok(/PROTECTED = EnumSet\.of\([\s\S]*Material\.OBSIDIAN/.test(impacts), 'obsidian is protected');
   assert.ok(impacts.includes('return material != Material.AIR && !isLiquid(material) && !isProtected(material);'));
-  // fissures only split natural ground and only carve what canBreak allows
-  assert.ok(quake.includes('Impacts.naturalGround(world, x, z)') && quake.includes('if (Impacts.canBreak(block.getType()) && !Impacts.offLimits(block)) block.setType(Material.AIR, false);'));
+  // fissures split the floor at the target's level where builds can be wrecked, natural ground elsewhere, and
+  // only ever carve what mayWreck (or canBreak and not off limits) allows
+  assert.ok(quake.includes('if (wreck) return Impacts.floorNear(fissure.world, x, fissure.y, z, 8, 3);')
+    && quake.includes('return Impacts.naturalGround(fissure.world, x, z);'));
+  assert.ok(quake.includes('if (wreck ? Impacts.mayWreck(block) : Impacts.canBreak(block.getType()) && !Impacts.offLimits(block)) {'));
+  assert.ok(impacts.includes('if (!canBreak(type) || Bunker.isShell(type) || offLimits(block)) return false;'), 'mayWreck never takes obsidian or anything off limits');
+  assert.ok(quake.includes('if (fissure.lava && natural && depth >= 3'), 'lava only in natural ground, never inside a build');
   assert.ok(quake.includes('settings.quakeBreakBlocks ? settings.quakeFissures : 0'), 'break-blocks off: no fissures');
   // rocks burst instead of becoming blocks, and time out if they never land
   assert.ok(quake.includes('void onRockLanded') && quake.includes('expireOverdue'));
   // the tornado tears up only loose natural surface, a bounded number of blocks, and gives the weather back
-  assert.ok(tornado.includes('settings.tornadoBreakBlocks ? settings.tornadoMaxDebris : 0') && tornado.includes('if (Impacts.offLimits(ground) || Impacts.nearPortal(world, bx, top, bz)) continue;'));
-  assert.ok(/case GRASS:[\s\S]*case LEAVES_2:[\s\S]*default:\s*return null;/.test(tornado), 'only grass, dirt, sand, gravel and leaves fly');
+  assert.ok(tornado.includes('settings.tornadoBreakBlocks ? settings.tornadoMaxDebris : 0') && tornado.includes('if (Impacts.nearPortal(world, bx, top.getY(), bz)) continue;'));
+  assert.ok(tornado.includes('if (!tearable(type) || !Impacts.mayWreck(top)) continue;') && tornado.includes('if (Impacts.offLimits(top)) continue;'));
+  assert.ok(/case GRASS:[\s\S]*case LEAVES_2:[\s\S]*default:\s*return null;/.test(tornado), 'where builds are kept only grass, dirt, sand, gravel and leaves fly');
   assert.ok((tornado.match(/weather\.restore\(\)/g) || []).length >= 2, 'weather restored on end and cancel');
   assert.ok(tornado.includes('heading += Math.PI;   // the edge of the loaded world'), 'never loads chunks');
   // the blizzard thaws exactly what it placed, and thaws at once if cancelled
@@ -94,9 +102,32 @@ test('the new disasters respect protected blocks and obsidian, clean up after th
   }
 });
 
+test('only an obsidian bunker keeps the three new disasters out, wherever you are', () => {
+  const bunker = read('Bunker.java'), quake = read('Earthquake.java'), tornado = read('Tornado.java'), blizzard = read('Blizzard.java');
+  const main = read('DisasterPlugin.java'), meteor = read('MeteorShower.java'), storm = read('ThunderHellStorm.java');
+  assert.ok(bunker.includes('EnumSet.of(Material.OBSIDIAN, Material.BEDROCK, Material.BARRIER,') && bunker.includes('Material.IRON_DOOR_BLOCK, Material.IRON_TRAPDOOR'));
+  // every check walks a bounded ray through loaded chunks only
+  assert.ok(bunker.includes('static final int REACH = 12;') && bunker.includes('if (!world.isChunkLoaded(x >> 4, z >> 4)) return false;'));
+  // the quake shakes the whole column, bedrock to sky, except anyone sealed in; no rock falls from obsidian
+  assert.ok(quake.includes('world.getNearbyEntities(column, radius, 130.0d, radius)') && quake.includes('if (Bunker.inside((Player) entity)) continue;'));
+  assert.ok(quake.includes('if (ceiling == null || Bunker.isShell(ceiling.getType())) return;'));
+  // the tornado reaches players anywhere in its column and batters those under a roof or underground
+  assert.ok(tornado.includes('world.getNearbyEntities(column, reach, 130.0d, reach)') && tornado.includes('if (player && Bunker.inside((Player) entity)) continue;'));
+  assert.ok(tornado.includes('if (player && Impacts.roofed(((Player) entity).getEyeLocation())) {') && tornado.includes('if (batterTurn) batter((Player) entity, world);'));
+  // the blizzard: a roof or a fire only slows the cold; only a bunker lets you warm up
+  assert.ok(blizzard.includes('level = shelter == Shelter.BUNKER ? Math.max(0, level - 15) : Math.min(settings.blizzardFreezeTicks, level + rise(shelter));'));
+  // scheduled tornadoes and blizzards no longer skip someone deep in a mine
+  assert.ok(!main.includes('nearSurface'), 'no near-surface rule');
+  // the meteor shower and the storm are unchanged by the bunker rule
+  for (const [name, text] of [['MeteorShower', meteor], ['ThunderHellStorm', storm]]) assert.ok(!text.includes('Bunker.'), name + ' has no bunker rule');
+});
+
 test('the shipped config documents the rarer schedule and every new kind', () => {
   const config = fs.readFileSync(path.join(plugin, 'resources/config.yml'), 'utf8');
   assert.match(config, /\nschedule:\n  min-days: 2\n  max-days: 13\n/);
   assert.equal((config.match(/^ {2}(min|max)-days:/gm) || []).length, 2, 'only the shared schedule has a day window');
   for (const section of ['earthquake:', 'tornado:', 'blizzard:']) assert.ok(config.includes('\n' + section + '\n'), section);
+  assert.match(config, /\nbuild-damage-worlds: \[world\]\n/);
+  assert.match(config, /\n  shelter-damage: 2\.0\n/);
+  assert.match(config, /\n  sheltered-percent: 40\n/);
 });

@@ -14,6 +14,26 @@ That is twice as rare as before 1.3.0, when each of the two kinds kept its own 1
 added up to a disaster every 4 days or so (tests/java/chat/jaspr/disasters/DisasterScheduleTest measures
 both). Because the timer is shared, adding kinds adds variety, not frequency.
 
+## Where is safe? Only an obsidian bunker
+
+Since 1.4.0 the three newest disasters (earthquake, tornado, blizzard) reach you anywhere: deep in a mine,
+up on a sky platform, inside your base. The one place they cannot reach is an **obsidian bunker**:
+
+* obsidian under you, over your head, and on all four sides at both feet and head height, each within 12
+  blocks of you (so a room up to about 23 blocks across counts);
+* an iron door or iron trapdoor is fine as the way in; a wooden door, glass or a plank wall is a gap;
+* what is inside does not matter: chests, beds, furnaces, torches, signs, carpets are all fine.
+
+Sealed in, no quake jolt, tornado wind or blizzard cold reaches you, no rock falls from an obsidian
+ceiling, and these disasters never break obsidian or the iron door in it. Bedrock and barrier blocks count
+as obsidian. The meteor shower and the thunder-hell storm work as before (shelter from them is up to you).
+
+Builds: in the worlds listed in `build-damage-worlds` (the overworld by default) the quake cracks floors and
+shakes blocks out of roofs and ceilings, and the tornado tears through roofs, walls and trees, built blocks
+dropping as items for the wind to scatter. Everywhere else the two only split and tear up natural ground, so
+the realms' own structures are kept. Obsidian, utility blocks and portals are never touched anywhere (see
+below).
+
 ## Meteor shower — `/shower`
 
 Twenty rocks fall out of the sky around the target over about half a minute, anywhere inside a 28
@@ -47,13 +67,16 @@ local to the target.
 
 The ground shakes for about forty seconds, building to a peak halfway through and dying away.
 
-* Every half second everyone on the ground within 24 blocks of the target is jolted sideways, harder at
-  the peak, and the screen sways for the target.
+* Every half second everyone standing on something within 24 blocks of the target, at any height (in a
+  mine, in a base, on a sky platform), is jolted sideways, harder at the peak, and the screen sways for
+  the target. Nobody in an obsidian bunker feels it.
 * Rocks shake loose overhead (cave ceilings, overhangs, roofs) and come crashing down on whoever is
-  under them. They burst where they land and leave no block behind. Under open sky nothing falls.
-* Four fissures tear open across the ground a few blocks from the target, each racing across a dozen
-  columns, up to five blocks deep, a quarter of them glowing with lava at the bottom. Fissures split
-  only natural ground: buildings, roads, farms, protected blocks and obsidian are left alone.
+  under them. They burst where they land. Under open sky nothing falls, and nothing ever falls from
+  obsidian. In `build-damage-worlds` a plain ceiling block breaks out itself and leaves a hole.
+* Four fissures tear open across the floor at the target's level a few blocks away, each racing across a
+  dozen columns, up to five blocks deep; a quarter of them glow with lava at the bottom where they run
+  through natural ground. In `build-damage-worlds` they split whatever the floor is made of (cave floor,
+  base floor, sky platform); elsewhere only natural ground. Obsidian and protected blocks are never split.
 
 ## Tornado — `/tornado`
 
@@ -63,25 +86,30 @@ be outrun.
 
 * Anything that gets close (players, mobs, animals, dropped items) is drawn in, spun round the funnel,
   lifted, and thrown clear once it is carried past half the funnel's height. The fall is the danger.
-* Loose natural ground at its foot (grass, dirt, sand, gravel, leaves, small plants) is torn up and
-  flung as debris, a few blocks a second and at most 60 per tornado. Builds, farms, protected blocks
+* Players are reached at any height in the funnel's column. Under a roof or underground the wind cannot
+  lift you out, so it drags you about and batters you with debris instead: a heart a second while the
+  funnel is on top of you. Only an obsidian bunker keeps it out.
+* Blocks under the funnel are torn up and flung as debris, four a second and at most 120 per tornado: in
+  `build-damage-worlds` whatever is on top (roofs, walls, trees, the ground; built blocks drop as items),
+  elsewhere only loose natural ground (grass, dirt, sand, gravel, leaves, small plants). Protected blocks
   and obsidian are never torn up.
 * It rains for the duration; the world's weather is handed back afterwards, as with the storm.
-* Overworld skies only, and a scheduled tornado only picks a player near the surface.
+* Overworld skies only; a scheduled tornado can pick anyone there, deep in a mine or up in the sky.
 
 ## Blizzard — `/blizzard`
 
 For ninety seconds snow drives in thick around the target.
 
-* Anyone within 28 blocks who is out in the open and away from warmth gets colder: slow, then
-  sluggish, then frostbitten and losing half a heart every two seconds. A cold meter shows on the
-  action bar.
-* Anything overhead keeps the cold off: a roof, an overhang, glass, a tree. So does the light of a
-  torch, fire or lava close by. Out of the cold you warm back up.
+* Everyone within 28 blocks gets colder, wherever they are: slow, then sluggish, then frostbitten and
+  losing half a heart every two seconds. Out in the open frostbite sets in after 12 seconds. A cold meter
+  shows on the action bar.
+* Anything overhead (a roof, an overhang, the rock above a mine, glass, a tree) or the light of a torch,
+  fire or lava close by only slows the cold, to 40%; both together, to 20%. Only an obsidian bunker keeps
+  it out entirely and lets you warm back up.
 * Snow piles up in drifts on open ground and roofs near the target, and still water freezes over
   (never right beside a player). When the blizzard passes, every snow layer and ice sheet it made
   thaws away again, so it leaves no permanent mark.
-* Overworld skies only, and a scheduled blizzard only picks a player near the surface.
+* Overworld skies only; a scheduled blizzard can pick anyone there, deep in a mine or up in the sky.
 
 ## What disasters never harm
 
@@ -103,7 +131,9 @@ the lowest priority takes every off-limits block out of the explosion before any
 the realm gates) sees it. Disaster fire is never lit beside anything protected, fissure lava is never left
 within three blocks of it, and for three minutes after a disaster nothing protected burns in that world.
 `tests/java/chat/jaspr/disasters/DisasterSafetyTest` runs every disaster at full strength through a world packed
-with these blocks and two portals, and checks every single block change against these rules.
+with these blocks and two portals, and checks every single block change against these rules. It also seals a
+player in an obsidian bunker (untouched by all three new disasters), puts one on a sky platform, one down a cave
+and one in a wooden hut (all reached), and checks the hut keeps every plank where builds are not wrecked.
 
 ## Commands
 

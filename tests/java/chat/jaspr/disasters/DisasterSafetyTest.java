@@ -41,6 +41,12 @@ import org.bukkit.util.Vector;
  * nothing protected changed, nothing holding a protected block up changed, nothing within the portal margin
  * changed, no fire beside anything protected, no lava near it, no snow on it, no armor stand moved, and after the
  * blizzard everything it laid is gone again. Disaster explosions lose every off-limits block from their lists.
+ *
+ * Owner 2026-10-02, 1.4.0: the earthquake, the tornado and the blizzard reach you anywhere (underground, on a
+ * sky platform, inside a base) and only an obsidian bunker keeps you safe. The bunker check is tested on its
+ * own, then a player sealed in obsidian sits through all three untouched, while a player on a sky platform, a
+ * player down a cave and a player in a wooden hut are all reached. Builds are wrecked only where the config
+ * allows it; elsewhere the hut comes through every disaster without losing a block.
  */
 public final class DisasterSafetyTest {
     private static void check(boolean ok, String what) { if (!ok) throw new AssertionError(what); }
@@ -58,6 +64,12 @@ public final class DisasterSafetyTest {
     private static int standMoves;
     private static boolean explosionFlagSeen = true;
     private static int explosions;
+    /** What the disasters did to the player: shoves, damage, potion effects, and when the first damage landed. */
+    private static int playerPushes;
+    private static double playerDamage;
+    private static int playerEffects;
+    private static long firstDamageTick = -1L;
+    private static long now;
 
     private static long key(int x, int y, int z) { return ((long) (x + 4096) << 32) | ((long) (z + 4096) << 9) | (y & 511); }
 
@@ -211,7 +223,13 @@ public final class DisasterSafetyTest {
                 if (n.equals("getGameMode")) return GameMode.SURVIVAL;
                 if (n.equals("getUniqueId")) return playerId;
                 if (n.equals("getVelocity")) return new Vector();
-                if (n.equals("addPotionEffect")) return Boolean.TRUE;
+                if (n.equals("setVelocity")) { playerPushes++; return null; }
+                if (n.equals("damage")) {
+                    playerDamage += (Double) a[0];
+                    if (firstDamageTick < 0L) firstDamageTick = now;
+                    return null;
+                }
+                if (n.equals("addPotionEffect")) { playerEffects++; return Boolean.TRUE; }
                 if (n.equals("equals")) return self == a[0];
                 if (n.equals("hashCode")) return 11;
                 return fallback(m.getReturnType());
@@ -301,6 +319,8 @@ public final class DisasterSafetyTest {
             Material from = Material.values()[(int) c[3]], to = Material.values()[(int) c[4]];
             String at = disaster + " changed " + from + "->" + to + " at " + x + "," + y + "," + z;
             check(!PROTECTED_KINDS.contains(from), at + ": a protected block");
+            check(!Bunker.isShell(from), at + ": part of a bunker's shell");
+            check(!Bunker.isShell(originalType(x, y + 1, z)), at + ": the block under an iron door");
             if (from != Material.AIR || to != Material.SNOW && to != Material.FIRE) {
                 check(!originalProtected(x, y + 1, z), at + ": the block holding up " + originalType(x, y + 1, z));
             }
@@ -324,7 +344,94 @@ public final class DisasterSafetyTest {
     }
 
     private static void run(Disaster disaster, long ticks) {
-        for (long t = 0; t <= ticks && !disaster.isFinished(); t += 5) disaster.tick(t);
+        for (long t = 0; t <= ticks && !disaster.isFinished(); t += 5) { now = t; disaster.tick(t); }
+    }
+
+    // ---------------------------------------------------------------- scenes for the bunker rule
+    private static Map<Long, Material> baseline;
+
+    /** Adds a block to the current scene; it counts as original, so the audit protects what it should. */
+    private static void build(int x, int y, int z, Material m) { put(x, y, z, m); original.put(key(x, y, z), m); }
+
+    private static void box(int x0, int y0, int z0, int x1, int y1, int z1, Material m) {
+        for (int x = x0; x <= x1; x++) for (int y = y0; y <= y1; y++) for (int z = z0; z <= z1; z++) build(x, y, z, m);
+    }
+
+    /** A player-sized obsidian shell: floor, ceiling, and four walls two high, around feet at (x, y, z). */
+    private static void bunker(int x, int y, int z) {
+        build(x, y - 1, z, Material.OBSIDIAN);
+        build(x, y + 2, z, Material.OBSIDIAN);
+        for (int dy = 0; dy <= 1; dy++) {
+            build(x + 1, y + dy, z, Material.OBSIDIAN);
+            build(x - 1, y + dy, z, Material.OBSIDIAN);
+            build(x, y + dy, z + 1, Material.OBSIDIAN);
+            build(x, y + dy, z - 1, Material.OBSIDIAN);
+        }
+    }
+
+    private static void resetPlayer(double x, double y, double z) {
+        playerAt = new Location(world, x, y, z);
+        playerPushes = 0;
+        playerDamage = 0.0d;
+        playerEffects = 0;
+        firstDamageTick = -1L;
+    }
+
+    /** Back to the shared world after a scene. */
+    private static void endScene() {
+        original.clear();
+        original.putAll(baseline);
+        placed.clear();
+        placed.putAll(baseline);
+        changes.clear();
+        entities.clear();
+        resetPlayer(0.5d, 65.0d, 0.5d);
+    }
+
+    /** Changes since the last audit that turned this material into something else. */
+    private static int changed(Material from) {
+        int n = 0;
+        for (long[] c : changes) if (c[3] == from.ordinal() && c[4] != from.ordinal()) n++;
+        return n;
+    }
+
+    private static int changedAt(int y) {
+        int n = 0;
+        for (long[] c : changes) if (c[1] == y) n++;
+        return n;
+    }
+
+    private static void bunkerShape() {
+        // Clear ground far from the valuables: only grass, dirt and air around (60, 65, 60).
+        bunker(60, 65, 60);
+        check(Bunker.inside(world, 60, 65, 60), "a sealed obsidian shell is a bunker");
+        put(61, 65, 60, Material.AIR);
+        check(!Bunker.inside(world, 60, 65, 60), "a missing wall block is a gap");
+        put(61, 65, 60, Material.WOOD);
+        check(!Bunker.inside(world, 60, 65, 60), "a plank wall is a gap");
+        put(61, 65, 60, Material.IRON_DOOR_BLOCK);
+        put(61, 66, 60, Material.IRON_DOOR_BLOCK);
+        check(Bunker.inside(world, 60, 65, 60), "an iron door is part of the shell");
+        put(61, 65, 60, Material.WOODEN_DOOR);
+        put(61, 66, 60, Material.WOODEN_DOOR);
+        check(!Bunker.inside(world, 60, 65, 60), "a wooden door is a gap");
+        // The east wall moved out a block, with a chest and a torch in the room: still a bunker.
+        put(61, 65, 60, Material.CHEST);
+        put(61, 66, 60, Material.TORCH);
+        put(62, 65, 60, Material.OBSIDIAN);
+        put(62, 66, 60, Material.OBSIDIAN);
+        check(Bunker.inside(world, 60, 65, 60), "furniture inside is fine");
+        // A plank ceiling under the obsidian one: the shell starts with wood, so it is not a bunker.
+        put(60, 67, 60, Material.WOOD);
+        put(60, 68, 60, Material.OBSIDIAN);
+        check(!Bunker.inside(world, 60, 65, 60), "wood between you and the obsidian is a gap");
+        put(60, 67, 60, Material.AIR);
+        check(Bunker.inside(world, 60, 65, 60), "a taller room with an obsidian roof is a bunker");
+        // Open to the sky: no shell overhead within reach.
+        put(60, 68, 60, Material.AIR);
+        check(!Bunker.inside(world, 60, 65, 60), "no roof is no bunker");
+        // Stone all round (an ordinary mine) is no bunker.
+        check(!Bunker.inside(world, 40, 30, 40), "solid stone is no bunker");
     }
 
     public static void main(String[] args) {
@@ -414,6 +521,121 @@ public final class DisasterSafetyTest {
         }
         check(blast.size() > 1000, "ordinary blocks stay in the blast");
         report.append(" blastSpared=").append(spared);
+
+        // ------------------------------------------------------------ the bunker rule (1.4.0)
+        baseline = new HashMap<Long, Material>(original);
+        bunkerShape();
+        endScene();
+        DisasterConfig plain = config("tornado.duration-seconds", 120, "tornado.spawn-distance", 20);
+        DisasterConfig dense = config("earthquake.fissures", 12, "earthquake.fissure-length", 24, "earthquake.radius", 30);
+
+        // Sealed in obsidian at the target's own spot: no quake, tornado or blizzard reaches in.
+        bunker(0, 65, 0);
+        resetPlayer(0.5d, 65.0d, 0.5d);
+        check(Bunker.inside(player), "the target is sealed in");
+        for (int seed = 1; seed <= 6; seed++) {
+            run(new Earthquake(plugin, dense, new Random(seed), player, 0L), 2000L);
+            run(new Tornado(plugin, plain, new Random(seed), player, 0L), 2400L);
+            Blizzard blizzard = new Blizzard(plain, new Random(seed), player, 0L);
+            run(blizzard, 1800L);
+            for (long t = 1800L; t < 20000L && !blizzard.isFinished(); t += 5) blizzard.tick(t);
+            audit("bunker#" + seed, 0);
+        }
+        check(playerPushes == 0 && playerDamage == 0.0d && playerEffects == 0,
+                "a player in an obsidian bunker was reached: pushes=" + playerPushes + " damage=" + playerDamage + " effects=" + playerEffects);
+        endScene();
+
+        // Up on a wooden sky platform (a chest and an obsidian block on it): shaken, cracked, flung, frozen fast.
+        box(-15, 149, -15, 15, 149, 15, Material.WOOD);
+        build(5, 150, 5, Material.CHEST);
+        build(-5, 149, -5, Material.OBSIDIAN);
+        resetPlayer(0.5d, 150.0d, 0.5d);
+        int skyCracks = 0;
+        for (int seed = 1; seed <= 6; seed++) {
+            run(new Earthquake(plugin, dense, new Random(seed), player, 0L), 2000L);
+            skyCracks += changed(Material.WOOD);
+            audit("sky quake#" + seed, 0);
+        }
+        check(playerPushes > 0, "the quake reaches a player on a sky platform");
+        check(skyCracks > 0, "the quake cracks a wooden sky platform");
+        resetPlayer(0.5d, 150.0d, 0.5d);
+        int skyTorn = 0;
+        for (int seed = 1; seed <= 6; seed++) {
+            run(new Tornado(plugin, plain, new Random(seed), player, 0L), 2400L);
+            skyTorn += changed(Material.WOOD);
+            audit("sky tornado#" + seed, 0);
+        }
+        check(playerPushes > 0, "the tornado reaches a player on a sky platform");
+        check(skyTorn > 0, "the tornado tears planks off a sky platform");
+        resetPlayer(0.5d, 150.0d, 0.5d);
+        Blizzard open = new Blizzard(plain, new Random(5), player, 0L);
+        run(open, 1800L);
+        long openFrost = firstDamageTick;
+        check(openFrost > 0L, "the blizzard freezes a player out in the open");
+        for (long t = 1800L; t < 20000L && !open.isFinished(); t += 5) open.tick(t);
+        audit("sky blizzard", 0);
+        endScene();
+
+        // Down a cave far under the field: shaken, the floor split, rocks breaking out of the roof, battered by the
+        // tornado overhead, and frozen, only more slowly than out in the open.
+        box(-12, 30, -12, 12, 33, 12, Material.AIR);
+        resetPlayer(0.5d, 30.0d, 0.5d);
+        int caveFloor = 0, caveRoof = 0;
+        for (int seed = 1; seed <= 6; seed++) {
+            run(new Earthquake(plugin, dense, new Random(seed), player, 0L), 2000L);
+            caveRoof += changedAt(34);
+            for (int y = 20; y <= 29; y++) caveFloor += changedAt(y);
+            audit("cave quake#" + seed, 0);
+        }
+        check(playerPushes > 0, "the quake reaches a player down a cave");
+        check(caveFloor > 0 && caveRoof > 0, "the quake splits the cave floor (" + caveFloor + ") and drops its roof (" + caveRoof + ")");
+        resetPlayer(0.5d, 30.0d, 0.5d);
+        for (int seed = 1; seed <= 8; seed++) {
+            run(new Tornado(plugin, plain, new Random(seed), player, 0L), 2400L);
+            audit("cave tornado#" + seed, 0);
+        }
+        check(playerDamage > 0.0d, "the tornado batters a player down a cave");
+        resetPlayer(0.5d, 30.0d, 0.5d);
+        Blizzard deep = new Blizzard(plain, new Random(5), player, 0L);
+        run(deep, 1800L);
+        long caveFrost = firstDamageTick;
+        check(caveFrost > openFrost, "the cold reaches a player down a cave, but later (" + caveFrost + ") than in the open (" + openFrost + ")");
+        for (long t = 1800L; t < 20000L && !deep.isFinished(); t += 5) deep.tick(t);
+        audit("cave blizzard", 0);
+        endScene();
+
+        // A wooden hut around the target. Where builds can be wrecked the quake drops its roof and the tornado
+        // tears it; where they cannot (build-damage-worlds empty) the hut keeps every plank, and the player inside
+        // is still shaken and battered.
+        int hutWrecked = 0;
+        for (int pass = 0; pass < 2; pass++) {
+            boolean wrecks = pass == 0;
+            box(-4, 65, -4, 4, 69, 4, Material.WOOD);
+            box(-3, 65, -3, 3, 68, 3, Material.AIR);
+            resetPlayer(0.5d, 65.0d, 0.5d);
+            DisasterConfig quakeHere = wrecks ? dense : config("build-damage-worlds", new ArrayList<String>(), "earthquake.fissures", 12,
+                    "earthquake.fissure-length", 24, "earthquake.radius", 30);
+            DisasterConfig windHere = wrecks ? plain : config("build-damage-worlds", new ArrayList<String>(), "tornado.duration-seconds", 120,
+                    "tornado.spawn-distance", 20);
+            int planks = 0;
+            for (int seed = 1; seed <= 6; seed++) {
+                run(new Earthquake(plugin, quakeHere, new Random(seed), player, 0L), 2000L);
+                planks += changed(Material.WOOD);
+                audit((wrecks ? "hut" : "kept hut") + " quake#" + seed, 0);
+                run(new Tornado(plugin, windHere, new Random(seed), player, 0L), 2400L);
+                planks += changed(Material.WOOD);
+                audit((wrecks ? "hut" : "kept hut") + " tornado#" + seed, 0);
+            }
+            check(playerPushes > 0, "the quake reaches a player inside a hut");
+            check(playerDamage > 0.0d, "the tornado batters a player inside a hut");
+            if (wrecks) check(planks > 0, "where builds can be wrecked the hut loses planks");
+            else check(planks == 0, "where builds are kept the hut lost " + planks + " planks");
+            if (wrecks) hutWrecked = planks;
+            endScene();
+        }
+        report.append(" skyCracks=").append(skyCracks).append(" skyTorn=").append(skyTorn).append(" caveFloor=").append(caveFloor)
+                .append(" caveRoof=").append(caveRoof).append(" hutWrecked=").append(hutWrecked)
+                .append(" frostOpen=").append(openFrost).append(" frostCave=").append(caveFrost);
 
         System.out.println("DISASTER_SAFETY_OK" + report);
     }

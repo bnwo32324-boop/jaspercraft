@@ -24,8 +24,11 @@ public final class DisasterScheduleTest {
         check(shipped.scheduleMinDays == 2 && shipped.scheduleMaxDays == 13, "shipped schedule window 2-13 days");
         check(shipped.meteorEnabled && shipped.stormEnabled && shipped.quakeEnabled && shipped.tornadoEnabled && shipped.blizzardEnabled, "all five kinds on");
         check(shipped.quakeBreakBlocks && shipped.quakeFissures == 4 && shipped.quakeRockfall == 18, "earthquake defaults");
-        check(shipped.tornadoMaxDebris == 60 && shipped.tornadoSpeed < 0.28d, "tornado defaults (slower than a sprint)");
-        check(shipped.blizzardThaw && shipped.blizzardMaxSnow == 320 && shipped.blizzardFreezeTicks == 240, "blizzard defaults (thaws afterwards)");
+        check(shipped.tornadoMaxDebris == 120 && shipped.tornadoSpeed < 0.28d && shipped.tornadoShelterDamage == 2.0d, "tornado defaults (slower than a sprint)");
+        check(shipped.blizzardThaw && shipped.blizzardMaxSnow == 320 && shipped.blizzardFreezeTicks == 240 && shipped.blizzardShelterPercent == 40,
+                "blizzard defaults (thaws afterwards; shelter only slows the cold)");
+        check(shipped.damagesBuilds("world") && !shipped.damagesBuilds("world_nether") && !shipped.damagesBuilds("jaspr_atlas"),
+                "builds are wrecked in the overworld only");
 
         // A live config from before the shared timer has no schedule section: it gets the same rarer default.
         YamlConfiguration old = new YamlConfiguration();
@@ -33,6 +36,10 @@ public final class DisasterScheduleTest {
         old.set("meteor-shower.max-days", 14);
         DisasterConfig upgraded = new DisasterConfig(old);
         check(upgraded.scheduleMinDays == 2 && upgraded.scheduleMaxDays == 13, "old config falls back to the new schedule");
+        // ... and no build-damage-worlds: the overworld only, never the realms. An explicit empty list means nowhere.
+        check(upgraded.damagesBuilds("world") && !upgraded.damagesBuilds("jaspr_ruins"), "old config: builds wrecked in the overworld only");
+        old.set("build-damage-worlds", new java.util.ArrayList<String>());
+        check(!new DisasterConfig(old).damagesBuilds("world"), "an empty build-damage-worlds keeps every build");
 
         Random random = new Random(20261002L);
         long day = DisasterConfig.MILLIS_PER_MC_DAY;

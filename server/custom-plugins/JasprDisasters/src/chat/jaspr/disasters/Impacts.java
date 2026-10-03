@@ -13,6 +13,7 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.inventory.ItemStack;
 
 /**
  * Everything that happens where a meteor lands or a hell bolt comes down, and the rules every disaster obeys
@@ -202,6 +203,97 @@ final class Impacts {
             return isNaturalGround(type) ? block : null;
         }
         return null;
+    }
+
+    // ------------------------------------------------------------------ wrecking builds (earthquake, tornado)
+
+    /**
+     * A block the earthquake or the tornado may break in a world where they wreck builds: anything solid that is
+     * not off limits and not part of a bunker's shell (obsidian, or the iron door or trapdoor let into it), and not
+     * the block an iron door stands on.
+     */
+    static boolean mayWreck(Block block) {
+        Material type = block.getType();
+        if (!canBreak(type) || Bunker.isShell(type) || offLimits(block)) return false;
+        return block.getY() >= 255 || !Bunker.isShell(block.getRelative(BlockFace.UP).getType());
+    }
+
+    /** Built blocks come down as their own items, so a torn roof can be picked up again; plain ground just bursts. */
+    static boolean dropsWhenWrecked(Material type) {
+        switch (type) {
+            case GRASS: case DIRT: case MYCEL: case SAND: case GRAVEL: case STONE: case LEAVES: case LEAVES_2:
+            case SNOW_BLOCK: case NETHERRACK: case CLAY: case SOUL_SAND: case ENDER_STONE: case ICE: case PACKED_ICE:
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    /** Breaks a block for a disaster without physics; built blocks drop as items where they were. */
+    static void wreck(Block block) {
+        Material type = block.getType();
+        if (dropsWhenWrecked(type)) {
+            try {
+                Location at = block.getLocation().add(0.5d, 0.5d, 0.5d);
+                for (ItemStack drop : block.getDrops()) {
+                    if (drop != null && drop.getType() != Material.AIR) block.getWorld().dropItemNaturally(at, drop);
+                }
+            } catch (RuntimeException noDrops) {
+                // The block still goes; only its drops are missing.
+            }
+        }
+        block.setType(Material.AIR, false);
+    }
+
+    private static boolean passThrough(Material type) {
+        return type == Material.AIR || !type.isSolid() || type == Material.LEAVES || type == Material.LEAVES_2
+                || type == Material.LOG || type == Material.LOG_2;
+    }
+
+    /**
+     * The floor nearest the floor under feet at height y, in another column: a solid block with open space above
+     * it, looked for at the same level first, then alternately lower (up to down blocks) and higher (up to up
+     * blocks). Underground that is the cave floor, in a base the floor you stand on, on a sky platform the
+     * platform. Null when there is none in range: a wall or a cliff face (solid all the way), or open air.
+     */
+    static Block floorNear(World world, int x, int y, int z, int down, int up) {
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) return null;
+        for (int d = 0; d <= Math.max(down, up); d++) {
+            for (int side = 0; side < 2; side++) {
+                if (side == 0 ? d > down : d == 0 || d > up) continue;
+                int yy = side == 0 ? y - 1 - d : y - 1 + d;
+                if (yy < 2 || yy > 254) continue;
+                Block block = world.getBlockAt(x, yy, z);
+                if (passThrough(block.getType())) continue;
+                if (passThrough(world.getBlockAt(x, yy + 1, z).getType())) return block;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The highest block of a loaded column, including glass and other see-through blocks the height map skips.
+     * Null if the chunk is not loaded.
+     */
+    static Block topBlock(World world, int x, int z) {
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) return null;
+        int mapped = world.getHighestBlockYAt(x, z);
+        for (int y = Math.min(255, mapped + 16); y >= Math.max(1, mapped - 1); y--) {
+            Block block = world.getBlockAt(x, y, z);
+            if (block.getType() != Material.AIR) return block;
+        }
+        return null;
+    }
+
+    /** Anything at all overhead, up to the sky: a roof, an overhang, the rock above a cave, glass, a tree. */
+    static boolean roofed(Location eye) {
+        World world = eye.getWorld();
+        int x = eye.getBlockX();
+        int z = eye.getBlockZ();
+        for (int y = eye.getBlockY() + 1; y <= Math.min(255, eye.getBlockY() + 48); y++) {
+            if (world.getBlockAt(x, y, z).getType() != Material.AIR) return true;
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ meteors

@@ -30,11 +30,16 @@ import org.bukkit.util.Vector;
 /**
  * An earthquake under one player.
  *
- * The quake builds, peaks halfway through and dies away. The ground shakes in jolts that shove everyone
- * standing near the target, rocks shake loose from overhead (cave ceilings, overhangs, roofs) and come
- * crashing down, and fissures tear open across the ground, the deepest ones glowing with lava at the
- * bottom. Fissures carve only ordinary terrain: protected blocks, liquids and obsidian are left alone,
- * and with break-blocks off the quake keeps its shaking and falling rocks but changes no terrain.
+ * The quake builds, peaks halfway through and dies away. The ground shakes in jolts that shove everyone near
+ * the target at any height (deep in a mine, in a base, on a sky platform), rocks shake loose from overhead
+ * (cave ceilings, overhangs, roofs) and come crashing down, and fissures tear open across the floor at the
+ * target's own level, the deepest ones glowing with lava at the bottom.
+ *
+ * Only an obsidian bunker keeps the quake out (see Bunker): no jolt reaches anyone sealed in one, and no rock
+ * ever falls from obsidian. In worlds where builds can be wrecked (build-damage-worlds) rocks break out of
+ * roofs and ceilings and fissures split built floors; elsewhere rocks only shake loose and fissures split only
+ * natural ground. Obsidian, utility blocks, what holds them up and portals are never touched, and with
+ * break-blocks off the quake keeps its shaking and falling rocks but changes no terrain.
  */
 final class Earthquake implements Disaster {
     static final String ROCK_KEY = "jaspr_quake_rock";
@@ -46,6 +51,8 @@ final class Earthquake implements Disaster {
     private final String worldName;
     private final long startTick;
     private final long endTick;
+    /** This world lets the quake wreck builds; otherwise it keeps to natural ground. */
+    private final boolean wreck;
     private final Map<UUID, Rock> rocks = new HashMap<UUID, Rock>();
     private final List<Fissure> opening = new ArrayList<Fissure>();
 
@@ -70,14 +77,16 @@ final class Earthquake implements Disaster {
         final World world;
         final double x;
         final double z;
+        /** The target's height when the crack opened: it splits the floor at that level. */
+        final int y;
         final double dx;
         final double dz;
         final int length;
         final int depth;
         final boolean lava;
         int at;
-        Fissure(World world, double x, double z, double angle, int length, int depth, boolean lava) {
-            this.world = world; this.x = x; this.z = z; this.dx = Math.cos(angle); this.dz = Math.sin(angle);
+        Fissure(World world, double x, int y, double z, double angle, int length, int depth, boolean lava) {
+            this.world = world; this.x = x; this.y = y; this.z = z; this.dx = Math.cos(angle); this.dz = Math.sin(angle);
             this.length = length; this.depth = depth; this.lava = lava;
         }
     }
@@ -90,6 +99,7 @@ final class Earthquake implements Disaster {
         this.worldName = target.getWorld().getName();
         this.startTick = nowTicks;
         this.endTick = nowTicks + settings.quakeDurationTicks;
+        this.wreck = settings.damagesBuilds(worldName);
         // A short grace period so the warning lands before the ground moves.
         this.nextJoltTick = nowTicks + 30L;
         this.nextRumbleTick = nowTicks;
@@ -107,12 +117,12 @@ final class Earthquake implements Disaster {
     private void announce(Player target) {
         target.sendMessage(ChatColor.GOLD + "The ground lurches under your feet. " + ChatColor.GRAY + "Earthquake!");
         try {
-            target.sendTitle(ChatColor.GOLD + "Earthquake", ChatColor.GRAY + "Get clear of cliffs and ceilings", 10, 60, 20);
+            target.sendTitle(ChatColor.GOLD + "Earthquake", ChatColor.GRAY + "Only an obsidian bunker is safe", 10, 60, 20);
         } catch (Throwable olderApi) {
             // Title is decoration; the chat warning already went out.
         }
         target.getWorld().playSound(target.getLocation(), Sound.ENTITY_LIGHTNING_THUNDER, 2.0f, 0.2f);
-        if (settings.quakeNausea) {
+        if (settings.quakeNausea && !Bunker.inside(target)) {
             target.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 120, 0, true, false), true);
         }
         if (settings.quakeBroadcast) {
@@ -175,17 +185,23 @@ final class Earthquake implements Disaster {
 
     // ------------------------------------------------------------------ shaking
 
-    /** Everyone and everything on the ground near the target is shoved a little, harder at the peak. */
+    /**
+     * Everyone and everything standing on something near the target is shoved a little, harder at the peak, at
+     * any height: the whole column from bedrock to the sky shakes. Only an obsidian bunker keeps it out.
+     */
     private void jolt(Player target, World world, double strength) {
         double radius = settings.quakeRadius;
         double push = settings.quakeJoltStrength * (0.35d + 0.65d * strength);
+        Location at = target.getLocation();
+        Location column = new Location(world, at.getX(), 128.0d, at.getZ());
         int moved = 0;
-        for (Entity entity : world.getNearbyEntities(target.getLocation(), radius, 6.0d, radius)) {
+        for (Entity entity : world.getNearbyEntities(column, radius, 130.0d, radius)) {
             // Armor stands (sentry turrets' stands among them) stay exactly where they were put.
             if (!(entity instanceof LivingEntity) || entity instanceof ArmorStand || !entity.isOnGround()) continue;
             if (entity instanceof Player) {
                 GameMode mode = ((Player) entity).getGameMode();
                 if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) continue;
+                if (Bunker.inside((Player) entity)) continue;
             } else if (moved >= 40) {
                 continue;
             }
@@ -214,7 +230,7 @@ final class Earthquake implements Disaster {
             // Decoration only.
         }
         // A second wave of nausea at the peak, so the strongest shaking is felt as well as heard.
-        if (settings.quakeNausea && strength > 0.95d && nowTicks - startTick > 60L && random.nextInt(4) == 0) {
+        if (settings.quakeNausea && strength > 0.95d && nowTicks - startTick > 60L && random.nextInt(4) == 0 && !Bunker.inside(target)) {
             target.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 80, 0, true, false), true);
         }
     }
@@ -223,8 +239,11 @@ final class Earthquake implements Disaster {
 
     /**
      * A rock shakes loose overhead: from the ceiling of the cave, overhang or roof above a spot near the
-     * target. Under open sky nothing falls. It shatters where it lands.
+     * target. Under open sky nothing falls, and nothing ever falls from obsidian. Where builds can be wrecked a
+     * plain ceiling block breaks out and comes down itself, leaving a hole; elsewhere a rock shakes loose under it.
+     * It shatters where it lands.
      */
+    @SuppressWarnings("deprecation")
     private void dropRock(Player target, World world, long nowTicks) {
         Location base = target.getLocation();
         double angle = random.nextDouble() * Math.PI * 2.0d;
@@ -234,16 +253,30 @@ final class Earthquake implements Disaster {
         if (!world.isChunkLoaded(x >> 4, z >> 4)) return;
         int floorY = base.getBlockY();
         // Only where something overhead can shake loose: open sky drops no rocks.
-        int spawnY = -1;
+        Block ceiling = null;
         for (int y = floorY + 2; y <= Math.min(254, floorY + 16); y++) {
-            if (world.getBlockAt(x, y, z).getType() != Material.AIR) { spawnY = y - 1; break; }
+            Block above = world.getBlockAt(x, y, z);
+            if (above.getType() != Material.AIR) { ceiling = above; break; }
         }
+        if (ceiling == null || Bunker.isShell(ceiling.getType())) return;   // obsidian holds
+        int spawnY = ceiling.getY() - 1;
         if (spawnY <= floorY + 1 || world.getBlockAt(x, spawnY, z).getType() != Material.AIR) return;
+
+        Material falls = random.nextBoolean() ? Material.COBBLESTONE : Material.GRAVEL;
+        byte data = 0;
+        Material roof = ceiling.getType();
+        if (wreck && settings.quakeBreakBlocks && roof.isOccluding() && Impacts.mayWreck(ceiling)) {
+            // The ceiling itself cracks and drops: a hole in the roof, its block falling on whoever is below.
+            falls = roof == Material.GRASS || roof == Material.MYCEL ? Material.DIRT : roof;
+            data = ceiling.getData();
+            Impacts.wreck(ceiling);
+            spawnY = ceiling.getY();
+        }
 
         Location at = new Location(world, x + 0.5d, spawnY, z + 0.5d);
         FallingBlock rock;
         try {
-            rock = world.spawnFallingBlock(at, random.nextBoolean() ? Material.COBBLESTONE : Material.GRAVEL, (byte) 0);
+            rock = world.spawnFallingBlock(at, falls, data);
         } catch (Throwable blocked) {
             return;
         }
@@ -309,7 +342,7 @@ final class Earthquake implements Disaster {
         if (!world.isChunkLoaded((int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4)) return false;
         int length = Math.max(4, (int) Math.round(settings.quakeFissureLength * (0.7d + random.nextDouble() * 0.6d)));
         boolean lava = settings.quakeLavaPercent > 0 && random.nextInt(100) < settings.quakeLavaPercent;
-        opening.add(new Fissure(world, x, z, random.nextDouble() * Math.PI * 2.0d, length, settings.quakeFissureDepth, lava));
+        opening.add(new Fissure(world, x, base.getBlockY(), z, random.nextDouble() * Math.PI * 2.0d, length, settings.quakeFissureDepth, lava));
         world.playSound(new Location(world, x, base.getY(), z), Sound.ENTITY_WITHER_BREAK_BLOCK, 1.2f, 0.5f);
         return true;
     }
@@ -335,29 +368,35 @@ final class Earthquake implements Disaster {
         double along = (index + 0.5d) / fissure.length;
         int depth = 1 + (int) Math.round((fissure.depth - 1) * Math.sin(Math.PI * along));
         boolean wide = depth >= 3;
-        Block ground = Impacts.naturalGround(world, x, z);
-        if (ground == null) return;   // a building, road or farm: the crack passes it by
+        Block ground = floorOf(fissure, x, z);
+        if (ground == null) return;   // nothing to split here (a wall, a cliff face, open air, or a build kept)
         int top = ground.getY();
         if (top < 2) return;
+        boolean natural = Impacts.isNaturalGround(ground.getType());
 
-        int bottom = top;
+        int bottom = top + 1;   // the lowest block split open in the middle column
         for (int w = 0; w <= (wide ? 1 : 0); w++) {
             int cx = w == 0 ? x : x + (int) Math.round(-fissure.dz);
             int cz = w == 0 ? z : z + (int) Math.round(fissure.dx);
-            Block columnGround = w == 0 ? ground : Impacts.naturalGround(world, cx, cz);
+            Block columnGround = w == 0 ? ground : floorOf(fissure, cx, cz);
             if (columnGround == null) continue;
             int columnTop = columnGround.getY();
             for (int y = columnTop; y > columnTop - depth && y > 1; y--) {
                 Block block = world.getBlockAt(cx, y, cz);
-                // Never a utility block, the block holding one up, or anything in a portal's frame.
+                // Never obsidian, a utility block, the block holding one up, or anything in a portal's frame.
                 // No physics update: the ground is splitting open, not being mined.
-                if (Impacts.canBreak(block.getType()) && !Impacts.offLimits(block)) block.setType(Material.AIR, false);
-                if (w == 0) bottom = Math.min(bottom, y);
+                if (wreck ? Impacts.mayWreck(block) : Impacts.canBreak(block.getType()) && !Impacts.offLimits(block)) {
+                    if (wreck) Impacts.wreck(block); else block.setType(Material.AIR, false);
+                    if (w == 0) bottom = Math.min(bottom, y);
+                } else if (block.getType() != Material.AIR) {
+                    break;   // something the quake cannot split: the crack goes no deeper here
+                }
             }
         }
-        // The deepest stretch of a lava fissure glows: the magma below shows through. Never close to anything
-        // protected or to a portal, so no lava ever reaches a chest, a bed, a bookshelf or a portal frame.
-        if (fissure.lava && depth >= 3 && along > 0.3d && along < 0.7d) {
+        // The deepest stretch of a lava fissure glows: the magma below shows through. Only in natural ground (never
+        // inside a build), and never close to anything protected or to a portal, so no lava ever reaches a chest,
+        // a bed, a bookshelf or a portal frame.
+        if (fissure.lava && natural && depth >= 3 && along > 0.3d && along < 0.7d && bottom <= top) {
             Block floor = world.getBlockAt(x, bottom, z);
             Block under = floor.getRelative(0, -1, 0);
             if (floor.getType() == Material.AIR && under.getType().isSolid() && !Impacts.isProtected(under.getType())
@@ -373,6 +412,15 @@ final class Earthquake implements Disaster {
             // Decoration only.
         }
         if (index % 3 == 0) world.playSound(at, Sound.BLOCK_STONE_BREAK, 1.6f, 0.5f);
+    }
+
+    /**
+     * The floor a fissure splits in this column. Where builds can be wrecked: the floor at the target's level,
+     * whatever it is made of (cave floor, base floor, sky platform). Elsewhere: the column's natural ground only.
+     */
+    private Block floorOf(Fissure fissure, int x, int z) {
+        if (wreck) return Impacts.floorNear(fissure.world, x, fissure.y, z, 8, 3);
+        return Impacts.naturalGround(fissure.world, x, z);
     }
 
     /** Ends the quake now: rocks in the air vanish, cracks stop where they are. Safe to call twice. */

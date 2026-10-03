@@ -43,3 +43,9 @@ recorded in build/release/ and reports/ in the isolated workspace.
 2026-10-02 (JasprDisasters 1.3.0): rebuilt entirely from source. The three preserved classes
 differed only in constant-pool order and World.equals vs Object.equals call targets (javap -c);
 the obsidian rule and every crater/scatter exclusion are unchanged. See README.md.
+
+2026-10-02 (JasprDisasters 1.4.0): the earthquake, tornado and blizzard reach players anywhere; an
+obsidian bunker (Bunker.java) is the only safe place. Every new direct Block.setType path (fissures,
+roof rocks, tornado tearing) goes through Impacts.mayWreck, which rejects obsidian, bedrock, barrier,
+iron doors/trapdoors, every protected block, the block under any of them, and the portal zone.
+DisasterSafetyTest audits every change against these rules.

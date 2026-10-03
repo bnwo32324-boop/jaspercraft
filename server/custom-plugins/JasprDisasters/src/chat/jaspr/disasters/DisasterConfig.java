@@ -1,6 +1,7 @@
 package chat.jaspr.disasters;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -16,6 +17,11 @@ final class DisasterConfig {
     /** One shared timer for every kind: the next disaster is due this many Minecraft days after the last. */
     final int scheduleMinDays;
     final int scheduleMaxDays;
+    /**
+     * Worlds where the earthquake and the tornado wreck builds (anything that is not obsidian, a utility block or a
+     * portal). Elsewhere they only split and tear up the natural ground, so the realms' own structures are kept.
+     */
+    final List<String> buildDamageWorlds;
 
     // ------------------------------------------------------------------ meteor shower
     final boolean meteorEnabled;
@@ -93,6 +99,8 @@ final class DisasterConfig {
     final boolean tornadoBreakBlocks;
     final double tornadoRipPerSecond;
     final int tornadoMaxDebris;
+    /** Damage per second to anyone the funnel is on top of who is under a roof or underground. */
+    final double tornadoShelterDamage;
 
     // ------------------------------------------------------------------ blizzard
     final boolean blizzardEnabled;
@@ -110,6 +118,8 @@ final class DisasterConfig {
     final int blizzardFreezeTicks;
     final double blizzardFrostDamage;
     final int blizzardWarmLight;
+    /** How fast the cold builds under a roof or by a fire, in percent of out in the open; both together, half that. */
+    final int blizzardShelterPercent;
 
     DisasterConfig(FileConfiguration config) {
         this.enabled = config.getBoolean("enabled", true);
@@ -118,6 +128,9 @@ final class DisasterConfig {
         int high = clamp(config.getInt("schedule.max-days", 13), 1, 365, 13);
         this.scheduleMinDays = Math.min(low, high);
         this.scheduleMaxDays = Math.max(low, high);
+        // Missing (a config from before 1.4.0): the overworld only. An empty list means nowhere.
+        this.buildDamageWorlds = config.isSet("build-damage-worlds") ? lowercased(config.getStringList("build-damage-worlds"))
+                : Collections.singletonList("world");
 
         // -------------------------------------------------------------- meteor shower
         this.meteorEnabled = config.getBoolean("meteor-shower.enabled", true);
@@ -195,8 +208,9 @@ final class DisasterConfig {
         this.tornadoPullRadius = clamp(config.getInt("tornado.pull-radius", 7), 2, 16, 7);
         this.tornadoLift = fraction(config.getDouble("tornado.lift", 0.35d), 0.0d, 1.0d, 0.35d);
         this.tornadoBreakBlocks = config.getBoolean("tornado.break-blocks", true);
-        this.tornadoRipPerSecond = fraction(config.getDouble("tornado.rip-blocks-per-second", 3.0d), 0.0d, 20.0d, 3.0d);
-        this.tornadoMaxDebris = clamp(config.getInt("tornado.max-debris", 60), 0, 300, 60);
+        this.tornadoRipPerSecond = fraction(config.getDouble("tornado.rip-blocks-per-second", 4.0d), 0.0d, 20.0d, 4.0d);
+        this.tornadoMaxDebris = clamp(config.getInt("tornado.max-debris", 120), 0, 400, 120);
+        this.tornadoShelterDamage = fraction(config.getDouble("tornado.shelter-damage", 2.0d), 0.0d, 20.0d, 2.0d);
 
         // -------------------------------------------------------------- blizzard
         this.blizzardEnabled = config.getBoolean("blizzard.enabled", true);
@@ -214,11 +228,17 @@ final class DisasterConfig {
         this.blizzardFreezeTicks = clamp(config.getInt("blizzard.freeze-seconds", 12), 2, 120, 12) * 20;
         this.blizzardFrostDamage = fraction(config.getDouble("blizzard.frost-damage", 1.0d), 0.0d, 10.0d, 1.0d);
         this.blizzardWarmLight = clamp(config.getInt("blizzard.warm-light", 11), 1, 15, 11);
+        this.blizzardShelterPercent = clamp(config.getInt("blizzard.sheltered-percent", 40), 0, 100, 40);
     }
 
     /** Whether a world is on a kind's list; an empty list means every world. */
     static boolean allows(List<String> worlds, String worldName) {
         return worlds.isEmpty() || worlds.contains(worldName.toLowerCase(Locale.ROOT));
+    }
+
+    /** Whether the earthquake and the tornado wreck builds in this world (see buildDamageWorlds). */
+    boolean damagesBuilds(String worldName) {
+        return worldName != null && buildDamageWorlds.contains(worldName.toLowerCase(Locale.ROOT));
     }
 
     boolean allowsWorld(String worldName) {

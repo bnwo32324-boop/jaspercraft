@@ -9,7 +9,6 @@ import java.util.Random;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
-import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -102,7 +101,8 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
 
         getLogger().info("JASPR_DISASTERS enabled schedule=" + settings.scheduleMinDays + "-" + settings.scheduleMaxDays
                 + "d mean=" + Schedule.meanDays(settings.scheduleMinDays, settings.scheduleMaxDays) + "d next=" + minutesUntilNext() + "m"
-                + " kinds=" + enabledKinds().toString().toLowerCase(Locale.ROOT));
+                + " kinds=" + enabledKinds().toString().toLowerCase(Locale.ROOT)
+                + " bunkerRule=quake,tornado,blizzard buildDamageWorlds=" + settings.buildDamageWorlds);
         getLogger().info("OBSIDIAN_PROTECTION_READY mobs=true explosions=true disasterTerrain=true");
     }
 
@@ -239,23 +239,13 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
             default: worldAllowed = DisasterConfig.allows(settings.blizzardWorlds, name); skipCreative = settings.blizzardSkipCreative; break;
         }
         if (!worldAllowed) return false;
-        // Tornadoes and blizzards are weather: only under an overworld sky, and (when scheduled) only for
-        // someone near the surface rather than deep in a mine.
-        if (kind == Kind.TORNADO || kind == Kind.BLIZZARD) {
-            if (world.getEnvironment() != World.Environment.NORMAL) return false;
-            if (automatic && !nearSurface(player)) return false;
-        }
+        // Tornadoes and blizzards are weather: only in worlds with an overworld sky. Within them they find you
+        // anywhere, deep in a mine or up in the sky (owner 2026-10-02: only an obsidian bunker is safe).
+        if ((kind == Kind.TORNADO || kind == Kind.BLIZZARD) && world.getEnvironment() != World.Environment.NORMAL) return false;
         GameMode mode = player.getGameMode();
         if (mode == GameMode.SPECTATOR) return false;
         if (automatic && skipCreative && mode == GameMode.CREATIVE) return false;
         return true;
-    }
-
-    private static boolean nearSurface(Player player) {
-        Location at = player.getLocation();
-        World world = at.getWorld();
-        if (!world.isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return false;
-        return at.getBlockY() >= world.getHighestBlockYAt(at.getBlockX(), at.getBlockZ()) - 12;
     }
 
     // ---------------------------------------------------------------- impacts

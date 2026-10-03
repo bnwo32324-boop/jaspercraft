@@ -27,11 +27,12 @@ import org.bukkit.potion.PotionEffectType;
  * A blizzard closing in on one player.
  *
  * Snow drives in thick around the target, piling up in drifts on the ground and roofs, and still water near
- * them freezes over. Anyone out in the open near the target slowly gets colder: first slow, then sluggish,
- * then frostbitten and losing health. A roof overhead (any block above, even glass or leaves) or warmth from
- * a torch, fire or lava close by keeps the cold off and lets you warm back up. When the blizzard passes,
- * every snow layer it laid and every ice sheet it froze thaws away again, so it leaves no permanent mark;
- * snow or ice someone has since mined or built over is left as it is.
+ * them freezes over. Everyone near the target gets colder, wherever they are (out in the open, inside a base,
+ * down a mine, up in the sky): first slow, then sluggish, then frostbitten and losing health. A roof overhead
+ * (any block above, even glass or leaves) or warmth from a torch, fire or lava close by only slows the cold;
+ * both together slow it more. Only an obsidian bunker (see Bunker) keeps it out entirely and lets you warm back
+ * up. When the blizzard passes, every snow layer it laid and every ice sheet it froze thaws away again, so it
+ * leaves no permanent mark; snow or ice someone has since mined or built over is left as it is.
  */
 final class Blizzard implements Disaster {
     private final DisasterConfig settings;
@@ -70,9 +71,9 @@ final class Blizzard implements Disaster {
 
     private void announce(Player target, World world) {
         target.sendMessage(ChatColor.AQUA + "The temperature plunges and the air turns white. "
-                + ChatColor.GRAY + "Blizzard! Get under a roof or near a fire.");
+                + ChatColor.GRAY + "Blizzard! A roof or a fire slows the cold; only obsidian keeps it out.");
         try {
-            target.sendTitle(ChatColor.WHITE + "Blizzard", ChatColor.GRAY + "Find shelter or a fire", 10, 60, 20);
+            target.sendTitle(ChatColor.WHITE + "Blizzard", ChatColor.GRAY + "Only an obsidian bunker keeps it out", 10, 60, 20);
         } catch (Throwable olderApi) {
             // Title is decoration; the chat warning already went out.
         }
@@ -206,8 +207,9 @@ final class Blizzard implements Disaster {
     // ------------------------------------------------------------------ cold
 
     /**
-     * Everyone near the target who is out in the open and away from any warmth gets colder; shelter or warmth
-     * lets them recover. Cold builds to slowness, then sluggish hands, then frostbite that hurts.
+     * Everyone near the target gets colder: at full speed out in the open, slower under a roof or by a fire, slower
+     * still with both. Only an obsidian bunker keeps the cold out and lets them recover. Cold builds to slowness,
+     * then sluggish hands, then frostbite that hurts.
      */
     private void chill(Player target, World world, long nowTicks) {
         boolean frostTurn = nowTicks >= nextFrostTick;
@@ -221,8 +223,8 @@ final class Blizzard implements Disaster {
 
             UUID id = player.getUniqueId();
             int level = cold.containsKey(id) ? cold.get(id) : 0;
-            boolean exposed = !sheltered(player) && !warm(player);
-            level = exposed ? Math.min(settings.blizzardFreezeTicks, level + 5) : Math.max(0, level - 15);
+            Shelter shelter = shelter(player);
+            level = shelter == Shelter.BUNKER ? Math.max(0, level - 15) : Math.min(settings.blizzardFreezeTicks, level + rise(shelter));
             cold.put(id, level);
             double fraction = level / (double) Math.max(1, settings.blizzardFreezeTicks);
 
@@ -236,20 +238,24 @@ final class Blizzard implements Disaster {
                     // Decoration only.
                 }
             }
-            if (level > 0) meter(player, fraction, exposed);
+            if (level > 0) meter(player, fraction, shelter);
         }
     }
 
-    /** Anything at all overhead, up to the sky, counts as shelter: a roof, an overhang, glass, a tree. */
-    private static boolean sheltered(Player player) {
-        Location at = player.getEyeLocation();
-        World world = at.getWorld();
-        int x = at.getBlockX();
-        int z = at.getBlockZ();
-        for (int y = at.getBlockY() + 1; y <= Math.min(255, at.getBlockY() + 48); y++) {
-            if (world.getBlockAt(x, y, z).getType() != Material.AIR) return true;
-        }
-        return false;
+    /** How well someone is sheltered from the cold. */
+    private enum Shelter { NONE, ROOF_OR_FIRE, ROOF_AND_FIRE, BUNKER }
+
+    private Shelter shelter(Player player) {
+        if (Bunker.inside(player)) return Shelter.BUNKER;
+        boolean roof = Impacts.roofed(player.getEyeLocation()), fire = warm(player);
+        return roof && fire ? Shelter.ROOF_AND_FIRE : roof || fire ? Shelter.ROOF_OR_FIRE : Shelter.NONE;
+    }
+
+    /** Cold gained per five ticks: five out in the open, sheltered-percent of that under a roof or by a fire, half again with both. */
+    private int rise(Shelter shelter) {
+        if (shelter == Shelter.NONE) return 5;
+        double slowed = 5.0d * settings.blizzardShelterPercent / 100.0d / (shelter == Shelter.ROOF_AND_FIRE ? 2.0d : 1.0d);
+        return settings.blizzardShelterPercent <= 0 ? 0 : Math.max(1, (int) Math.round(slowed));
     }
 
     /** Close to a torch, fire, lava or another bright light: warm enough. */
@@ -259,12 +265,14 @@ final class Blizzard implements Disaster {
                 || player.getEyeLocation().getBlock().getLightFromBlocks() >= settings.blizzardWarmLight;
     }
 
-    private static void meter(Player player, double fraction, boolean exposed) {
+    private static void meter(Player player, double fraction, Shelter shelter) {
         int bars = (int) Math.round(Math.min(1.0d, fraction) * 10.0d);
         StringBuilder line = new StringBuilder();
         line.append(fraction >= 1.0d ? ChatColor.DARK_AQUA + "❄ Frostbite " : ChatColor.AQUA + "❄ Cold ");
         for (int i = 0; i < 10; i++) line.append(i < bars ? ChatColor.AQUA + "|" : ChatColor.DARK_GRAY + "|");
-        line.append(exposed ? ChatColor.GRAY + "  find a roof or a fire" : ChatColor.GREEN + "  warming up");
+        if (shelter == Shelter.BUNKER) line.append(ChatColor.GREEN + "  warming up");
+        else if (shelter == Shelter.NONE) line.append(ChatColor.GRAY + "  find shelter; only obsidian stops it");
+        else line.append(ChatColor.GRAY + "  slowed; only obsidian stops it");
         try {
             player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(line.toString()));
         } catch (Throwable olderApi) {

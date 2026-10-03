@@ -19,6 +19,18 @@ schedule:
   min-days: 2
   max-days: 13
 
+# The earthquake, the tornado and the blizzard reach you anywhere: deep in a mine, up in the sky,
+# inside your base. The only safe place is an obsidian bunker: obsidian under you, over your head
+# and on all four sides (an iron door or iron trapdoor is fine as the way in), each within 12
+# blocks; furniture inside is fine. These three never break obsidian or an iron door in it.
+#
+# Where they wreck builds: in these worlds a quake cracks floors and shakes blocks out of roofs and
+# ceilings, and a tornado tears through roofs, walls and trees. Obsidian, utility blocks (chests,
+# furnaces, anvils, beds, turrets...), what holds them up and portals are never touched. In every
+# other world they only split and tear up the natural ground, so the realms' own structures are
+# kept. Empty means nowhere.
+build-damage-worlds: [world]
+
 meteor-shower:
   enabled: true
 
@@ -105,19 +117,22 @@ earthquake:
   # The quake builds, peaks halfway through and dies away.
   duration-seconds: 40
 
-  # Everyone on the ground within this distance of the target is shoved every jolt-every-ticks,
-  # by up to jolt-strength blocks per tick sideways (harder at the peak). nausea: the screen sways.
+  # Everyone standing on something within this distance of the target, at any height, is shoved
+  # every jolt-every-ticks, by up to jolt-strength blocks per tick sideways (harder at the peak).
+  # nausea: the screen sways. Nobody sealed in an obsidian bunker feels a thing.
   radius: 24
   jolt-every-ticks: 10
   jolt-strength: 0.22
   nausea: true
 
-  # Rocks that shake loose overhead (cave ceilings, overhangs, roofs; never out of open sky) and
-  # burst where they land. They hurt whoever they hit and leave no block behind.
+  # Rocks that shake loose overhead (cave ceilings, overhangs, roofs; never out of open sky and
+  # never from obsidian) and burst where they land. They hurt whoever they hit and leave no block
+  # behind. In build-damage-worlds a plain ceiling block breaks out itself, leaving a hole.
   rockfall: 18
 
-  # Fissures torn open across natural ground (never buildings, roads, farms, protected blocks or
-  # obsidian). Set break-blocks to false to keep the shaking and rocks but change no terrain.
+  # Fissures torn open across the floor at the target's level: in build-damage-worlds whatever it is
+  # made of (cave floor, base floor, sky platform), elsewhere natural ground only. Never obsidian or
+  # protected blocks. Set break-blocks to false to keep the shaking and rocks but change no terrain.
   break-blocks: true
   fissures: 4
   fissure-length: 12
@@ -139,16 +154,23 @@ tornado:
   speed: 0.18
 
   # Funnel shape. Anything within pull-radius of the funnel (wider higher up) is drawn in, spun
-  # round and lifted, and thrown clear once it is carried past half the height.
+  # round and lifted, and thrown clear once it is carried past half the height. Players are reached
+  # at any height, from a mine under the funnel to a platform in the sky above it.
   height: 26
   pull-radius: 7
   lift: 0.35
 
-  # Loose natural ground at the funnel's foot (grass, dirt, sand, gravel, leaves, small plants) is
-  # torn up and flung, a few blocks a second and at most max-debris per tornado.
+  # Under a roof or underground the wind cannot lift you out: it drags you about and batters you
+  # with debris instead, this much damage a second while the funnel is on top of you (2.0 is one
+  # heart). Only an obsidian bunker keeps it out.
+  shelter-damage: 2.0
+
+  # Blocks under the funnel are torn up and flung, a few a second and at most max-debris per
+  # tornado: in build-damage-worlds whatever is on top (roofs, walls, trees, the ground; built
+  # blocks drop as items), elsewhere only loose natural ground (grass, dirt, sand, gravel, leaves).
   break-blocks: true
-  rip-blocks-per-second: 3
-  max-debris: 60
+  rip-blocks-per-second: 4
+  max-debris: 120
 
 blizzard:
   enabled: true
@@ -159,14 +181,16 @@ blizzard:
 
   duration-seconds: 90
 
-  # Snow drives in around the target. Players within this distance who are out in the open and away
-  # from warmth get colder: slow, then sluggish, then frostbite that costs frost-damage every two
-  # seconds after freeze-seconds in the cold. A roof overhead, or light from a torch, fire or lava at
-  # warm-light or brighter, keeps the cold off.
+  # Snow drives in around the target. Everyone within this distance gets colder, wherever they are:
+  # slow, then sluggish, then frostbite that costs frost-damage every two seconds once they have
+  # had freeze-seconds of cold out in the open. A roof overhead, or light from a torch, fire or lava
+  # at warm-light or brighter, slows the cold to sheltered-percent; both together, half that again.
+  # Only an obsidian bunker keeps it out and lets you warm back up.
   radius: 28
   freeze-seconds: 12
   frost-damage: 1.0
   warm-light: 11
+  sheltered-percent: 40
 
   # Snow layers piled on open ground and roofs, and still water frozen over, near the target.
   # thaw: every layer and sheet the blizzard made melts away again once it has passed.
