@@ -1,0 +1,7 @@
+# Chest Finder.
+# search: opened - only containers this player has opened themselves (and their own ender chest) are searched, so Find
+#                  never reveals what another player keeps in a chest they have not seen.
+# search: all    - every chest, shulker box, hopper, dispenser and dropper in range.
+search: opened
+# How far to look, in blocks (8 to 96). Only loaded chunks are searched.
+radius: 48

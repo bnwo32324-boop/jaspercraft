@@ -1,0 +1,5 @@
+name: JasprFinder
+version: 1.0.0
+main: chat.jaspr.finder.FinderPlugin
+author: Jaspr
+description: Chest Finder - "Find in chests" from the crafting panel makes nearby chests holding an item sparkle for the player who asked.

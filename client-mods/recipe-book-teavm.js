@@ -32,6 +32,15 @@
  * Every entry point is wrapped. Any error disables the book for the rest of the session and
  * the screen falls back to stock behaviour, because a crafting table that will not open is
  * far worse than one without a recipe list.
+ *
+ * JasperCraft additions (owner, 2026-10-03: "you should be able to right-click, and then it comes
+ * up with a UI element that says Find ... Chests themselves should also have search boxes"):
+ * a right click on any item in the panel opens a small menu -- Find in chests, Fill grid (the
+ * original's right click, when the recipe can be made), Cancel. Find sends the item over the
+ * jaspr:find plugin channel and closes the screen; the server (JasprFinder) makes the nearby
+ * chests holding it sparkle for this player only. JasprChestSearch, at the end of this file, puts
+ * a search box on chest, ender chest and shulker box screens that dims every slot whose item name
+ * does not match. On a phone, the Right: ON touch button makes a tap a right click.
  */
 
 // Apocalypse blueprints as the server defines them (scripts/sync-apocalypse-blueprints.cjs); kept for
@@ -375,9 +384,91 @@ var JasprRecipeBook = (function () {
 
     book.hover = hover;
     RB.recipeCard(book, prepared, hover, rects, texts, items);
-    return {rects: rects, texts: texts, items: items};
+    var over = {rects: [], texts: []};
+    RB.menuPlan(book, mouseX, mouseY, over);
+    return {rects: rects, texts: texts, items: items, over: over};
    } catch (error) { RB.die("plan", error); return null; }
   };
+
+  /* The right-click menu. It is drawn on top of the list's items (with the depth test off, as
+   * vanilla draws its slot highlight), so it can open right where the click was. */
+  var MENU_W = 96, MENU_ROW = 12;
+
+  /* The list item under a point, from the last frame's plan: a touch moves the pointer and
+   * clicks at once, before any frame has worked out the hover. */
+  RB.itemAt = function (book, x, y) {
+    var plan = book.lastPlan;
+    if (!plan || !plan.items) return -1;
+    for (var n = 0; n < plan.items.length; n++) {
+      var it = plan.items[n];
+      if (it.i === undefined) continue;
+      if (x >= it.x && x < it.x + SIZE && y >= it.y && y < it.y + SIZE) return it.i;
+    }
+    return -1;
+  };
+
+  RB.gridFree = function (book) {
+    for (var g = 0; g < book.grid * book.grid; g++)
+      if (book.craftStacks && !RB.empty(book.craftStacks[g])) return false;
+    return true;
+  };
+
+  RB.openMenu = function (book, index, x, y) {
+    var entries = [{label: "Find in chests", act: "find"}];
+    if (book.craftable && book.craftable.set[index] && RB.gridFree(book)) entries.push({label: "Fill grid", act: "fill"});
+    entries.push({label: "Cancel", act: "close"});
+    var gui = book.gui, h = MENU_ROW * (entries.length + 1) + 4;
+    // Kept on screen: x and y are relative to the window, the screen runs from -guiLeft to width - guiLeft.
+    var minX = -(gui.is | 0), maxX = (gui.q | 0) - (gui.is | 0) - MENU_W - 1;
+    var minY = -(gui.l7 | 0), maxY = (gui.L | 0) - (gui.l7 | 0) - h - 1;
+    x = Math.max(minX + 1, Math.min(x + 2, maxX));
+    y = Math.max(minY + 1, Math.min(y + 2, maxY));
+    book.menu = {i: index, x: x, y: y, w: MENU_W, h: h, title: RB.recipe(index).title, entries: entries};
+    RB.menus = (RB.menus | 0) + 1;
+  };
+
+  /* "find", "fill" or "close" for an entry, "inside" for the title row, null outside the menu. */
+  RB.menuHit = function (menu, x, y) {
+    if (!menu || x < menu.x || x >= menu.x + menu.w || y < menu.y || y >= menu.y + menu.h) return null;
+    var row = (((y - menu.y - 2) / MENU_ROW) | 0) - 1;
+    return row >= 0 && row < menu.entries.length ? menu.entries[row].act : "inside";
+  };
+
+  RB.menuPlan = function (book, mouseX, mouseY, over) {
+    var m = book.menu;
+    if (!m) return;
+    over.rects.push({x: m.x - 1, y: m.y - 1, w: m.w + 2, h: m.h + 2, color: 0xFF5000A0});
+    over.rects.push({x: m.x, y: m.y, w: m.w, h: m.h, color: 0xF8100010});
+    over.texts.push({s: RB.wrap(m.title, 15, 1)[0] || "", x: m.x + 4, y: m.y + 4, color: 0xFFFF55});
+    var hit = RB.menuHit(m, mouseX, mouseY);
+    for (var e = 0; e < m.entries.length; e++) {
+      var ry = m.y + 2 + MENU_ROW * (e + 1), entry = m.entries[e];
+      if (hit === entry.act) over.rects.push({x: m.x + 1, y: ry, w: m.w - 2, h: MENU_ROW, color: 0xFF3A2A6A});
+      over.texts.push({s: entry.label, x: m.x + 6, y: ry + 2, color: entry.act === "find" ? 0x55FF55 : entry.act === "fill" ? 0xFFFFFF : 0xA0A0A0});
+    }
+  };
+
+  /* What Find sends: "find <item id> <damage> <exact> <title>", exact when the result is an
+   * unbreakable JasperCraft model item (the server then matches that item and damage only). */
+  RB.findText = function (index) {
+    var recipe = RB.recipe(index), snbt = String(recipe && recipe.result || "");
+    var id = /^\{id:"([a-z0-9_]+:[a-z0-9_.\/]+)"/.exec(snbt), damage = /Damage:(\d+)s/.exec(snbt);
+    if (!id) return null;
+    var title = String(recipe.title || "").replace(/\u00a7./g, "").replace(/[\x00-\x1f\x7f]/g, "").slice(0, 48);
+    return "find " + id[1] + " " + (damage ? (+damage[1] | 0) : 0) + " " + (/Unbreakable:1b/.test(snbt) ? 1 : 0) + " " + title;
+  };
+  RB.findChannel = function () {
+    if (!RB.findChannelString) RB.findChannelString = $rt_str("jaspr:find");
+    return RB.findChannelString;
+  };
+  /* The connection to send on: mc.v player, player.d_ handler, handler.qf NetworkManager. */
+  RB.findNet = function (gui) {
+    try {
+      var player = gui.j ? gui.j.v : null, handler = player ? player.d_ : null, net = handler ? handler.qf : null;
+      return net && !net.bkf ? net : null;
+    } catch (error) { return null; }
+  };
+  RB.findSent = function () { RB.finds = (RB.finds | 0) + 1; RB.lastFindAt = Date.now(); };
 
   /* The fixed recipe section (see layout): the recipe as it goes into a crafting table -- every
    * ingredient in its own cell of the 3x3 grid (a 2x2 recipe in the top-left, as in the table),
@@ -439,6 +530,7 @@ var JasprRecipeBook = (function () {
 
   RB.scrollBy = function (book, ticks) {
     if (!book || !book.scrollable) return;
+    book.menu = null;   // its item is about to move
     if (ticks < 0) book.scroll++;
     else if (ticks > 0 && book.scroll > 0) book.scroll--;
     if (book.scroll < 0) book.scroll = 0;
@@ -538,6 +630,15 @@ var JasprRecipeBook = (function () {
    try {
     if (!RB.prepared()) return null;
 
+    // An open menu takes this click; anywhere outside it just closes it and the click goes on.
+    if (book.menu) {
+      var menu = book.menu, act = RB.menuHit(menu, localX, localY);
+      book.menu = null;
+      if (act === "find") { book.findRequest = RB.findText(menu.i); return []; }
+      if (act === "fill") return RB.craftClicks(book, menu.i, 1);
+      if (act !== null) return [];   // the title row, or Cancel
+    }
+
     if (book.searchBox) {
       var s = book.searchBox;
       if (localX >= s.x && localX < s.x + s.w && localY >= s.y && localY < s.y + s.h) {
@@ -554,10 +655,21 @@ var JasprRecipeBook = (function () {
     if (card && book.hover >= 0 && localX >= card.x && localX < card.x + card.w && localY >= card.y && localY < card.y + card.h) return [];
 
     var index = book.hover;
+    // A right click opens the menu (Find in chests, Fill grid) instead of filling the grid at once.
+    if (button === 1) {
+      var at = RB.itemAt(book, localX, localY);
+      if (at < 0) at = index;
+      if (at === null || at === undefined || at < 0) return null;
+      RB.openMenu(book, at, localX, localY);
+      return [];
+    }
     if (index === null || index === undefined || index < 0) return null;
+    return RB.craftClicks(book, index, button);
+   } catch (error) { RB.die("clicks", error); return null; }
+  };
 
-    for (var g = 0; g < book.grid * book.grid; g++)
-      if (book.craftStacks && !RB.empty(book.craftStacks[g])) return [];   // grid in use: as the original
+  RB.craftClicks = function (book, index, button) {
+    if (!RB.gridFree(book)) return [];   // grid in use: as the original
 
     // GuiScreen.isShiftKeyDown(), as the original: the game's own Keyboard.isKeyDown (Jz), which sees
     // the key even when the page's own listeners do not; the document listener below is a fallback.
@@ -569,10 +681,10 @@ var JasprRecipeBook = (function () {
       book.pending = button === 0 ? {index: index, until: Date.now() + 1500} : null;
     }
     return clicks;
-   } catch (error) { RB.die("clicks", error); return null; }
   };
 
   RB.key = function (book, ch, code) {
+    if (book && book.menu && code === 1) { book.menu = null; return 1; }   // escape closes the menu first
     if (!book || !book.focused) return 0;
     if (code === 1) { book.focused = false; return 1; }          // escape leaves the box
     if (code === 211) { book.search = ""; book.scroll = 0; return 1; }   // delete clears the box
@@ -745,7 +857,10 @@ function JasprRecipeBookDraw(a, b, c) {
       $p = 6;
       continue _;
     case 9:
-      if (f >= e.texts.length) return;
+      if (f >= e.texts.length) {
+        if (!e.over || (!e.over.rects.length && !e.over.texts.length)) return;
+        $p = 14; continue _;
+      }
       g = e.texts[f];
       h = $rt_str(g.s);
       $p = 10;
@@ -754,9 +869,64 @@ function JasprRecipeBookDraw(a, b, c) {
       f = f + 1 | 0;
       $p = 9;
       continue _;
+    case 14:
+      // The menu, over the list's items: depth test off (C70) as vanilla's slot highlight, back on (DVf) after.
+      C70(); if (B()) break _;
+      f = 0;
+      $p = 15;
+    case 15:
+      if (f >= e.over.rects.length) { f = 0; $p = 17; continue _; }
+      g = e.over.rects[f];
+      $p = 16;
+    case 16:
+      D49(g.x, g.y, g.x + g.w | 0, g.y + g.h | 0, g.color); if (B()) break _;
+      f = f + 1 | 0;
+      $p = 15;
+      continue _;
+    case 17:
+      if (f >= e.over.texts.length) { $p = 19; continue _; }
+      g = e.over.texts[f];
+      h = $rt_str(g.s);
+      $p = 18;
+    case 18:
+      Efa(a.J, h, g.x, g.y, g.color); if (B()) break _;
+      f = f + 1 | 0;
+      $p = 17;
+      continue _;
+    case 19:
+      DVf(); if (B()) break _;
+      return;
     default: FT();
   } }
   Ds().s(a,b,c,d,e,f,g,h,$p);
+}
+
+/* Find: the request over the jaspr:find plugin channel, exactly as the gear module sends its own
+ * (CPacketCustomPayload AKy, a PacketBuffer Iu over a fresh ByteBuf, writeString, sendPacket). */
+function JasprRecipeBookSendFind(a, b) {
+  var c, d, e, f, $p = 0, $z;
+  if (FX()) { var $T = Ds(); $p = $T.l(); f = $T.l(); e = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); a = $T.l(); }
+  _:while (true) { switch ($p) {
+    case 0:
+      f = JasprRecipeBook.findNet(a);
+      if (f === null || b === null) return;
+      c = new AKy; d = new Iu;
+      $p = 1;
+    case 1:
+      $z = Fru(); if (B()) break _;
+      Lg(d, $z); e = $rt_str(b);
+      $p = 2;
+    case 2:
+      $z = FuF(d, e); if (B()) break _;
+      BgN(c, JasprRecipeBook.findChannel(), $z);
+      $p = 3;
+    case 3:
+      f.wd(c); if (B()) break _;
+      JasprRecipeBook.findSent();
+      return;
+    default: FT();
+  } }
+  Ds().s(a, b, c, d, e, f, $p);
 }
 
 /* Sends the click script the plain JavaScript worked out. handleMouseClick is the same
@@ -766,6 +936,8 @@ function JasprRecipeBookClick(a, b, c, d) {
   if (FX()) { var $T=Ds(); $p=$T.l(); g=$T.l(); f=$T.l(); e=$T.l(); d=$T.l(); c=$T.l(); b=$T.l(); a=$T.l(); }
   _:while (true) { switch ($p) {
     case 0:
+      // A chest screen's search box (JasprChestSearch below) takes its own clicks.
+      if (JasprChestSearch.click(a, b | 0, c | 0, d | 0)) { JasprRecipeBookHandled = true; return; }
       if (JasprRecipeBook.disabled()) return;
       e = JasprRecipeBook.of(a);
       if (e === null || e.inventory === null) return;
@@ -773,6 +945,7 @@ function JasprRecipeBookClick(a, b, c, d) {
       // null means the click was not on the panel, so the screen must still see it.
       // An empty script means it was ours and there is simply nothing to send.
       JasprRecipeBookHandled = f !== null;
+      if (e.findRequest) { g = e.findRequest; e.findRequest = null; $p = 4; continue _; }
       if (f === null || f.length === 0) return;
       g = 0;
       $p = 1;
@@ -787,6 +960,14 @@ function JasprRecipeBookClick(a, b, c, d) {
       g = g + 1 | 0;
       $p = 2;
       continue _;
+    case 4:
+      // Find: send it, then close the screen (as Escape does) so the sparks can be seen.
+      JasprRecipeBookSendFind(a, g); if (B()) break _;
+      if (a.j === null || a.j.v === null) return;
+      $p = 5;
+    case 5:
+      Cpd(a.j.v); if (B()) break _;
+      return;
     default: FT();
   } }
   Ds().s(a,b,c,d,e,f,g,$p);
@@ -806,6 +987,7 @@ function JasprRecipeBookConsumedClick() {
 }
 
 function JasprRecipeBookKeyTyped(a, ch, code) {
+  if (JasprChestSearch.key(a, ch | 0, code | 0)) return 1;
   try {
     var book = JasprRecipeBook.of(a);
     if (!book || JasprRecipeBook.disabled()) return 0;
@@ -843,7 +1025,265 @@ function JasprRecipeBookKeyTyped(a, ch, code) {
   } catch (ignored) { }
 }());
 
+/* Chest search (owner, 2026-10-03: "Chests themselves should also have search boxes UI where you
+ * can search any item"). A box in the title row of chest, ender chest and shulker box screens (above
+ * the window instead when a long title would run into it and there is room). Typing dims every
+ * chest slot whose item name does not contain each typed word; matches get a gold frame, and the
+ * box shows how many. Only the container's own slots are searched, not the player's inventory.
+ * A right click on the box clears it, as in the creative search. Names come from the game's own
+ * getDisplayName (EJv), asked once per stack and remembered.
+ * Hooked from the chest and shulker box foreground draws (scripts/build-chest-search-client.cjs);
+ * clicks and keys come through the recipe book's existing GuiContainer hooks above. */
+var JasprChestSearch = (function () {
+  "use strict";
+  var BOX_W = 80, BOX_H = 12, MAX_LEN = 24, SCAN_MS = 250;
+  var states = [], disabled = false, failure = null;
+  var stats = {opened: 0, keys: 0, scans: 0, names: 0, clears: 0};
+  var cache = typeof WeakMap === "function" ? new WeakMap() : null;
+
+  function die(where, error) {
+    if (!disabled) {
+      disabled = true;
+      failure = where + ": " + error;
+      try { if ($rt_globals.console && $rt_globals.console.warn) $rt_globals.console.warn("[JasperCraft chest search] disabled -- " + failure); } catch (ignored) { }
+    }
+    return null;
+  }
+  function of(gui) {
+    for (var i = 0; i < states.length; i++) if (states[i].gui === gui) return states[i];
+    return null;
+  }
+  function ensure(gui) {
+    try {
+      if (disabled) return null;
+      var st = of(gui);
+      if (!st) {
+        st = {gui: gui, search: "", focused: false, titleW: -1, box: null, stacks: [], names: [], matches: null, found: 0, scanAt: 0};
+        states.push(st);
+        if (states.length > 4) states.shift();   // only the open screen matters
+        stats.opened++;
+      }
+      return st;
+    } catch (error) { return die("ensure", error); }
+  }
+  function slotList(st) { var list = st.gui.h2 ? st.gui.h2.cn : null; return list && list.qN ? list : null; }
+  /* The container's own slots come first; the player's 36 follow. */
+  function containerSlots(st) {
+    try { var list = slotList(st); return list ? Math.max(0, (list.g | 0) - 36) : 0; } catch (error) { die("slots", error); return 0; }
+  }
+  function slotAt(st, k) {
+    try { var list = slotList(st); return list && k >= 0 && k < (list.g | 0) ? list.qN.data[k] : null; } catch (error) { return null; }
+  }
+  function width(font, jstr) { try { return CA(font, jstr) | 0; } catch (error) { return 0; } }
+  function clean(s) { return String(s).replace(/\u00a7./g, "").toLowerCase(); }
+  /* A remembered name for this stack, "" for an empty slot, or null when the game must be asked. */
+  function cachedName(stack) {
+    if (JasprRecipeBook.empty(stack)) return "";
+    var c = cache ? cache.get(stack) : null;
+    return c && c.rA === stack.rA && c.bK === stack.bK && c.bV === stack.bV ? c.name : null;
+  }
+  function remember(stack, jname) {
+    var name = "";
+    try { name = jname === null || jname === undefined ? "" : clean($rt_ustr(jname)); } catch (error) { name = ""; }
+    try { if (cache && stack) cache.set(stack, {rA: stack.rA, bK: stack.bK, bV: stack.bV, name: name}); } catch (ignored) { }
+    stats.names++;
+    return name;
+  }
+  /* Time to read the slots again? Only while something is typed, four times a second. */
+  function due(st) {
+    if (!st.search) { st.matches = null; st.found = 0; return false; }
+    var now = Date.now();
+    if (now < st.scanAt) return false;
+    st.scanAt = now + SCAN_MS;
+    st.stacks = []; st.names = [];
+    stats.scans++;
+    return true;
+  }
+  function words(search) {
+    var out = [], parts = String(search).toLowerCase().split(" ");
+    for (var i = 0; i < parts.length; i++) if (parts[i]) out.push(parts[i]);
+    return out;
+  }
+  function match(st) {
+    try {
+      var terms = words(st.search), out = [], found = 0;
+      for (var k = 0; k < st.names.length; k++) {
+        var name = st.names[k], ok = !!name && terms.length > 0;
+        for (var w = 0; ok && w < terms.length; w++) if (name.indexOf(terms[w]) < 0) ok = false;
+        out.push(ok);
+        if (ok) found++;
+      }
+      st.matches = out; st.found = found;
+    } catch (error) { die("match", error); }
+  }
+  function layout(st) {
+    var gui = st.gui, xs = gui.gv | 0, x = xs - 7 - BOX_W, y = 4;
+    if (st.titleW >= 0 && 8 + st.titleW + 4 > x && (gui.l7 | 0) >= BOX_H + 3) { x = xs - BOX_W; y = -BOX_H - 2; }
+    st.box = {x: x, y: y, w: BOX_W, h: BOX_H};
+    return st.box;
+  }
+  /* Rectangles and text, all drawn over the slots' items (depth test off). */
+  function plan(st) {
+    try {
+      var b = layout(st), rects = [], texts = [], active = st.search.length > 0 && st.matches !== null;
+      if (active) {
+        for (var k = 0; k < st.matches.length; k++) {
+          var slot = slotAt(st, k);
+          if (!slot) continue;
+          var x = slot.Lr | 0, y = slot.Fg | 0;
+          if (!st.matches[k]) { rects.push({x: x, y: y, w: 16, h: 16, color: 0xB8101010}); continue; }
+          rects.push({x: x, y: y, w: 16, h: 16, color: 0x40FFC000});
+          rects.push({x: x - 1, y: y - 1, w: 18, h: 1, color: 0xFFFFC000});
+          rects.push({x: x - 1, y: y + 16, w: 18, h: 1, color: 0xFFFFC000});
+          rects.push({x: x - 1, y: y, w: 1, h: 16, color: 0xFFFFC000});
+          rects.push({x: x + 16, y: y, w: 1, h: 16, color: 0xFFFFC000});
+        }
+      }
+      var border = st.focused ? 0xFFFFFFFF : 0xFF8B8B8B;
+      if (active) border = st.found ? 0xFFFFC000 : 0xFFFF5555;
+      rects.push({x: b.x - 1, y: b.y - 1, w: b.w + 2, h: b.h + 2, color: border});
+      rects.push({x: b.x, y: b.y, w: b.w, h: b.h, color: 0xFF000000});
+      var count = active ? String(st.found) : "";
+      var room = Math.max(1, ((b.w - 4 - (count ? 6 * count.length + 3 : 0)) / 6) | 0) - (st.focused ? 1 : 0);
+      var shown = st.search || (st.focused ? "" : "Search\u2026");
+      if (shown.length > room) shown = shown.slice(shown.length - Math.max(1, room));
+      if (st.focused && ((Date.now() / 500) | 0) % 2 === 0) shown += "_";
+      texts.push({s: shown, x: b.x + 2, y: b.y + 2, color: st.search ? 0xFFFFFF : 0x808080});
+      if (count) texts.push({s: count, x: b.x + b.w - 2 - 6 * count.length, y: b.y + 2, color: st.found ? 0xFFC000 : 0xFF5555});
+      return {rects: rects, texts: texts};
+    } catch (error) { return die("plan", error); }
+  }
+  function set(st, search) {
+    st.search = search;
+    st.scanAt = 0;
+    if (!search) { st.matches = null; st.found = 0; }
+  }
+  /* A click on the box focuses it (right click: clears it) and is ours; anywhere else it unfocuses. */
+  function click(gui, mouseX, mouseY, button) {
+    try {
+      var st = disabled ? null : of(gui);
+      if (!st || !st.box) return false;
+      var x = mouseX - (gui.is | 0), y = mouseY - (gui.l7 | 0), b = st.box;
+      if (x >= b.x - 1 && x < b.x + b.w + 1 && y >= b.y - 1 && y < b.y + b.h + 1) {
+        if (button === 1 && st.search) { set(st, ""); stats.clears++; }
+        st.focused = true;
+        return true;
+      }
+      st.focused = false;
+      return false;
+    } catch (error) { die("click", error); return false; }
+  }
+  /* Typing while the box has focus; 1 when the key was ours (it never reaches the screen). */
+  function key(gui, ch, code) {
+    try {
+      var st = disabled ? null : of(gui);
+      if (!st || !st.focused) return 0;
+      stats.keys++;
+      if (code === 1 || ch === 13 || ch === 10) { st.focused = false; return 1; }   // escape or enter leaves the box
+      if (code === 211) { set(st, ""); return 1; }                                // delete clears it
+      if (ch === 8 || code === 14) { set(st, st.search.slice(0, -1)); return 1; }  // backspace (key 14, char 0)
+      if (ch >= 32 && ch < 127 && st.search.length < MAX_LEN) set(st, st.search + String.fromCharCode(ch));
+      return 1;   // while the box has focus it eats every key rather than closing the screen
+    } catch (error) { die("key", error); return 0; }
+  }
+  return {
+    ensure: ensure, of: of, containerSlots: containerSlots, slotAt: slotAt, width: width, due: due, match: match,
+    cachedName: cachedName, remember: remember, plan: plan, click: click, key: key, words: words, layout: layout,
+    BOX_W: BOX_W, BOX_H: BOX_H,
+    disabled: function () { return disabled; },
+    failure: function () { return failure; },
+    status: function () {
+      var st = states.length ? states[states.length - 1] : null;
+      return {disabled: disabled, failure: failure, open: !!st, search: st ? st.search : null, focused: st ? st.focused : false,
+        slots: st ? st.names.length : 0, found: st ? st.found : 0, opened: stats.opened, keys: stats.keys, scans: stats.scans,
+        names: stats.names, clears: stats.clears};
+    }
+  };
+}());
+
+/* Draws the chest search. d is the container's inventory, asked once for its title (so the box can
+ * keep clear of a long name); then, while something is typed, the container's slots are read four
+ * times a second, each new stack's name is asked once, and the plan is drawn over the slots. */
+function JasprChestSearchDraw(a, b, c, d) {
+  var e, f, g, h, i, $p = 0, $z;
+  if (FX()) { var $T = Ds(); $p = $T.l(); i = $T.l(); h = $T.l(); g = $T.l(); f = $T.l(); e = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); a = $T.l(); }
+  _:while (true) { switch ($p) {
+    case 0:
+      e = JasprChestSearch.ensure(a);
+      if (e === null) return;
+      if (e.titleW >= 0 || d === null || d === undefined) { $p = 3; continue _; }
+      e.titleW = 0;   // asked once, even if asking fails
+      $p = 1;
+    case 1:
+      $z = d.iG(); if (B()) break _;
+      f = $z;
+      $p = 2;
+    case 2:
+      $z = DQt(f); if (B()) break _;
+      e.titleW = JasprChestSearch.width(a.J, $z);
+      $p = 3;
+    case 3:
+      if (!JasprChestSearch.due(e)) { $p = 8; continue _; }
+      f = 0;
+      g = JasprChestSearch.containerSlots(e);
+      $p = 4;
+    case 4:
+      if (f >= g) { JasprChestSearch.match(e); $p = 8; continue _; }
+      h = JasprChestSearch.slotAt(e, f);
+      if (h === null) { e.stacks.push(null); e.names.push(""); f = f + 1 | 0; $p = 4; continue _; }
+      $p = 5;
+    case 5:
+      $z = h.eew(); if (B()) break _;
+      h = $z;
+      e.stacks.push(h);
+      i = JasprChestSearch.cachedName(h);
+      if (i !== null) { e.names.push(i); f = f + 1 | 0; $p = 4; continue _; }
+      $p = 6;
+    case 6:
+      $z = EJv(h); if (B()) break _;
+      e.names.push(JasprChestSearch.remember(h, $z));
+      f = f + 1 | 0;
+      $p = 4;
+      continue _;
+    case 8:
+      f = JasprChestSearch.plan(e);
+      if (f === null) return;
+      g = 0;
+      $p = 9;
+    case 9:
+      C70(); if (B()) break _;
+      $p = 10;
+    case 10:
+      if (g >= f.rects.length) { g = 0; $p = 12; continue _; }
+      h = f.rects[g];
+      $p = 11;
+    case 11:
+      D49(h.x, h.y, h.x + h.w | 0, h.y + h.h | 0, h.color); if (B()) break _;
+      g = g + 1 | 0;
+      $p = 10;
+      continue _;
+    case 12:
+      if (g >= f.texts.length) { $p = 14; continue _; }
+      h = f.texts[g];
+      i = $rt_str(h.s);
+      $p = 13;
+    case 13:
+      Efa(a.J, i, h.x, h.y, h.color); if (B()) break _;
+      g = g + 1 | 0;
+      $p = 12;
+      continue _;
+    case 14:
+      DVf(); if (B()) break _;
+      return;
+    default: FT();
+  } }
+  Ds().s(a, b, c, d, e, f, g, h, i, $p);
+}
+
 if (typeof window !== "undefined" && window) {
+  try {
+    window.JasprChestSearchDiagnostics = Object.freeze({status: function () { return JasprChestSearch.status(); }});
+  } catch (error) { /* diagnostics are optional */ }
   try {
     window.JasprRecipeBookDiagnostics = Object.freeze({
       status: function () {
@@ -865,7 +1305,10 @@ if (typeof window !== "undefined" && window) {
               }, [])
             : [],
           search: book ? book.search : null,
-          scroll: book ? book.scroll : 0
+          scroll: book ? book.scroll : 0,
+          menu: !!(book && book.menu),
+          menus: JasprRecipeBook.menus | 0,
+          finds: JasprRecipeBook.finds | 0
         };
       }
     });

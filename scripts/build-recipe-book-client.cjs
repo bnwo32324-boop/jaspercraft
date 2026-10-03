@@ -154,7 +154,8 @@ function upgrade(source = SOURCE) {
 }
 
 if (require.main === module && process.argv.includes('--upgrade')) {
-  console.log(JSON.stringify(upgrade(), null, 2));
+  const at = process.argv.indexOf('--source');
+  console.log(JSON.stringify(upgrade(at > 0 ? path.resolve(process.argv[at + 1]) : SOURCE), null, 2));
 } else if (require.main === module) {
   const out = build();
   console.log('Candidate only: ' + path.join(out.dir, 'classes.js'));
