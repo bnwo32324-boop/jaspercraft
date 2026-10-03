@@ -65,7 +65,7 @@ public final class ArmoryCatalog {
     public static int weight(Type t,int theme){return t.theme==theme?6:t.theme%6==Math.floorMod(theme,6)?2:1;}
     public static Type roll(long hash,int theme,int tier,String kind){
         if("REFUGE".equals(kind)||tier<1||tier>5)return null;
-        int chance="BOSS".equals(kind)?100:"BATTLE".equals(kind)||"GAUNTLET".equals(kind)?12+tier*4:8;
+        int chance="BOSS".equals(kind)?100:"TREASURE".equals(kind)?20+tier*5:"BATTLE".equals(kind)||"GAUNTLET".equals(kind)?12+tier*4:8;
         long n=Layout.mix(hash^0x41524d4f52594cL);
         if(Math.floorMod(n,100)>=chance)return null;
         int total=0;for(Type t:Type.values())if(eligible(t,tier,kind))total+=weight(t,theme);

@@ -9,6 +9,8 @@ import org.bukkit.inventory.meta.*;
 /** Shared room loot only. No recipes, personal bonus rolls, or outside-world acquisition. */
 public final class Rewards {
     private Rewards(){}
+    /** Second lore line of dungeon gear, followed by the threat. Gear from generation 3 still carries LEGACY_GEAR_ORIGIN. */
+    public static final String GEAR_ORIGIN="The Dungeon Dimension | Threat ", LEGACY_GEAR_ORIGIN="The Penitent Below | Threat ";
     public static int budget(Layout.Room r){return LootCatalog.budget(r.kind.name(),r.tier,r.mobCount());}
     public static List<ItemStack> roll(Layout.Room r,double multiplier){
         List<ItemStack> out=new ArrayList<>();if(r.kind==Layout.Kind.REFUGE)return out;
@@ -34,7 +36,7 @@ public final class Rewards {
         ItemStack item=new ItemStack(Material.valueOf(family.material(diamond)));ItemMeta meta=item.getItemMeta();
         meta.setDisplayName(ChatColor.LIGHT_PURPLE+profile.prefix+" "+item.getType().name().toLowerCase(Locale.ROOT).replace('_',' '));
         if(family.variant())meta.setDisplayName(ChatColor.LIGHT_PURPLE+profile.prefix+" "+family.name().toLowerCase(Locale.ROOT).replace('_',' '));
-        meta.setLore(Arrays.asList(ChatColor.GRAY+"Recovered from the "+profile.theme+".",ChatColor.DARK_GRAY+"The Penitent Below | Threat "+Math.max(0,Math.min(5,tier))));item.setItemMeta(meta);
+        meta.setLore(Arrays.asList(ChatColor.GRAY+"Recovered from the "+profile.theme+".",ChatColor.DARK_GRAY+GEAR_ORIGIN+Math.max(0,Math.min(5,tier))));item.setItemMeta(meta);
         Enchantment enchantment=Enchantment.getByName(family.enchantment);
         // Never bypass Bukkit's applicability check, including axe/Sharpness differences.
         if(enchantment==null||!enchantment.canEnchantItem(item))enchantment=Enchantment.DURABILITY;
@@ -45,8 +47,8 @@ public final class Rewards {
         LootCatalog.Profile profile=LootCatalog.profile(chapter);ItemStack book=new ItemStack(Material.WRITTEN_BOOK);BookMeta meta=(BookMeta)book.getItemMeta();
         meta.setTitle("The House of Mercy");meta.setAuthor("The Last Candle");
         meta.setDisplayName("House of Mercy — "+(Math.floorMod(chapter,LootCatalog.PROFILES.size())+1)+": "+profile.theme);
-        meta.setPages("The Penitent Below\n\nChapter "+(Math.floorMod(chapter,LootCatalog.PROFILES.size())+1)+": "+profile.theme+"\n\nAn endless dungeon beneath the House of Mercy. Stone-brick gates remember the way home.",profile.passage,
-            "Pass through barred thresholds to enter the next room. Enemies cannot follow. Clear a room to unseal its reliquary. Rewards and cleared rooms persist.\n\nThe gate in the Last Candle leads home.");
+        meta.setPages("The Dungeon Dimension\n\nChapter "+(Math.floorMod(chapter,LootCatalog.PROFILES.size())+1)+": "+profile.theme+"\n\nAn endless dungeon beneath the House of Mercy. Stone-brick gates remember the way home.",profile.passage,
+            "Barred doorways lead on; enemies cannot follow. Every room keeps its own dangers, marked in its stone. Clear a room and its chest is yours to choose from; treasure guardians wake when it opens.\n\nThe gate in the Last Candle leads home.");
         book.setItemMeta(meta);return book;
     }
 }

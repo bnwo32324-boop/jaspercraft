@@ -88,12 +88,12 @@ public final class Relics implements Listener {
         List<String> lore=new ArrayList<>();lore.add(ChatColor.DARK_PURPLE+"Dungeon-exclusive bauble | Rank "+t.rank);
         for(String line:t.description)lore.add(ChatColor.GRAY+line);
         lore.add(ChatColor.DARK_GRAY+"Favored in "+LootCatalog.profile(t.spec.theme).theme+".");
-        lore.add(ChatColor.GRAY+"Equip inside a Penitent Reliquary.");
-        lore.add(ChatColor.DARK_GRAY+"Only found in The Penitent Below.");m.setLore(lore);item.setItemMeta(m);
+        lore.add(ChatColor.GRAY+"Equip inside a Dungeon Reliquary.");
+        lore.add(ChatColor.DARK_GRAY+"Only found in the Dungeon Dimension.");m.setLore(lore);item.setItemMeta(m);
         return edit(item,d->{d.setString("kind","relic");d.setString("id",t.name());d.setInt("version",1);});
     }
     public static ItemStack createPouch(){
-        ItemStack item=new ItemStack(Material.RABBIT_HIDE);ItemMeta m=item.getItemMeta();m.setDisplayName(ChatColor.GOLD+"Penitent Reliquary");
+        ItemStack item=new ItemStack(Material.RABBIT_HIDE);ItemMeta m=item.getItemMeta();m.setDisplayName(ChatColor.GOLD+"Dungeon Reliquary");
         m.setLore(Arrays.asList(ChatColor.GRAY+"Right-click to equip two distinct dungeon relics.",ChatColor.GRAY+"Carry in your main inventory to activate them.",
             ChatColor.GRAY+"Only your first pouch is active. Effects work in all worlds.",ChatColor.DARK_GRAY+"Contents travel with this pouch, including on death."));
         item.setItemMeta(m);return edit(item,d->{d.setString("kind","pouch");d.setString("uuid",UUID.randomUUID().toString());d.setInt("version",1);});
@@ -110,11 +110,11 @@ public final class Relics implements Listener {
     public boolean has(Player p,Type t){return equipped(p).contains(t);}
     public void givePouch(Player p){
         if(pouchSlot(p)>=0){open(p);return;}if(p.getInventory().firstEmpty()<0){p.sendMessage("Make an inventory space for your Reliquary.");return;}
-        p.getInventory().addItem(createPouch());p.saveData();p.sendMessage(ChatColor.GOLD+"A Penitent Reliquary. Right-click it to equip two dungeon baubles.");
+        p.getInventory().addItem(createPouch());p.saveData();p.sendMessage(ChatColor.GOLD+"A Dungeon Reliquary. Right-click it to equip two dungeon baubles.");
     }
     public static final class Menu implements InventoryHolder {
         final UUID player;final String pouchId;final Inventory inv;
-        Menu(Player p,String id){player=p.getUniqueId();pouchId=id;inv=Bukkit.createInventory(this,27,"Penitent Reliquary - 2 slots");}
+        Menu(Player p,String id){player=p.getUniqueId();pouchId=id;inv=Bukkit.createInventory(this,27,"Dungeon Reliquary - 2 slots");}
         public Inventory getInventory(){return inv;}
     }
     public void open(Player p){
@@ -131,7 +131,10 @@ public final class Relics implements Listener {
     // Inert items' air use is pre-cancelled by Bukkit; still open a marked personal pouch.
     @EventHandler(priority=EventPriority.HIGH) public void use(PlayerInteractEvent e){
         if(e.getAction()!=Action.RIGHT_CLICK_AIR&&e.getAction()!=Action.RIGHT_CLICK_BLOCK)return;
-        if(!marked(e.getItem()))return;e.setCancelled(true);
+        if(!marked(e.getItem()))return;
+        // Owner 2026-10-03: every dungeon chest opens like a normal chest, relic or pouch in hand included; only the item's own use is refused.
+        if(e.getAction()==Action.RIGHT_CLICK_BLOCK&&e.getClickedBlock()!=null&&e.getClickedBlock().getType()==Material.CHEST){e.setUseItemInHand(Event.Result.DENY);return;}
+        e.setCancelled(true);
         if(e.getHand()==EquipmentSlot.HAND&&pouch(e.getItem()))open(e.getPlayer());
     }
     @EventHandler(priority=EventPriority.HIGHEST) public void click(InventoryClickEvent e){
@@ -226,7 +229,7 @@ public final class Relics implements Listener {
         ItemMeta meta=item.getItemMeta();if(meta!=null&&meta.isUnbreakable())return false;
         if(meta!=null&&meta.hasLore()){
             List<String> lore=meta.getLore();
-            if(lore.size()!=2||!lore.get(1).startsWith(ChatColor.DARK_GRAY+"The Penitent Below | Threat "))return false;
+            if(lore.size()!=2||!lore.get(1).startsWith(ChatColor.DARK_GRAY+Rewards.GEAR_ORIGIN)&&!lore.get(1).startsWith(ChatColor.DARK_GRAY+Rewards.LEGACY_GEAR_ORIGIN))return false;
         }
         // Other plugins' NBT gear is not ours to repair or intercept.
         net.minecraft.server.v1_12_R1.ItemStack n=CraftItemStack.asNMSCopy(item);

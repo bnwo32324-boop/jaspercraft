@@ -8,6 +8,7 @@ import org.bukkit.boss.*;
 import org.bukkit.entity.*;
 import org.bukkit.event.*;
 import org.bukkit.event.entity.*;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockIgniteEvent;
@@ -60,7 +61,8 @@ public final class Encounters implements Listener {
         if(ticks%10==0){
             Iterator<Run> it=active.values().iterator();while(it.hasNext()){
                 Run a=it.next();if(a.players.isEmpty()&&ticks-a.lastSeen>20*Math.max(5,plugin.getConfig().getInt("room-sleep-seconds",30))){sleep(a);it.remove();continue;}
-                if(!a.players.isEmpty()&&!a.state.cleared){if(a.state.killed==((1<<a.room.mobCount())-1))complete(a);else for(int slot=0;slot<a.room.mobCount();slot++)if((a.state.killed&(1<<slot))==0){LivingEntity e=a.mobs.get(slot);if(e==null||!e.isValid())spawn(a,slot);}}
+                // Treasure and shrine guardians stay dormant until someone opens the room chest.
+                if(!a.players.isEmpty()&&!a.state.cleared&&(!a.room.dormant()||a.state.triggered)){if(a.state.killed==((1<<a.room.mobCount())-1))complete(a);else for(int slot=0;slot<a.room.mobCount();slot++)if((a.state.killed&(1<<slot))==0){LivingEntity e=a.mobs.get(slot);if(e==null||!e.isValid())spawn(a,slot);}}
                 if(a.bar!=null){a.bar.removeAll();for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(present(p,a))a.bar.addPlayer(p);}LivingEntity boss=a.mobs.get(0);if(boss!=null&&boss.isValid()&&!boss.isDead())a.bar.setProgress(Math.max(0,Math.min(1,boss.getHealth()/a.bossMax)));}
             }
         }
@@ -74,6 +76,7 @@ public final class Encounters implements Listener {
         }
         Iterator<Shot> shotIt=shots.values().iterator();while(shotIt.hasNext()){Shot s=shotIt.next();if(!s.entity.isValid()){shotIt.remove();continue;}if(ticks-s.birth>200||!plugin.inside(s.entity.getWorld())||!s.room.equals(plugin.roomKey(s.entity.getLocation()))){s.entity.remove();shotIt.remove();}}
         if(ticks%20==0)plugin.relics.tick();
+        if(plugin.hazards!=null)plugin.hazards.tick(active);
     }
     Location safe(Layout.Room r,int slot){return safe(plugin.ensureWorld(),r,slot);}
     Location safe(World world,Layout.Room r,int slot){
@@ -110,7 +113,8 @@ public final class Encounters implements Listener {
     }
     private boolean present(Player p,Run a){return p!=null&&p.isOnline()&&!p.isDead()&&p.getWorld().equals(a.world)&&plugin.inside(p.getWorld())&&a.key.equals(plugin.roomKey(p.getLocation()));}
     private double danger(World world){return Math.max(1,Math.min(1.45,plugin.dangerMultiplier(world)));}
-    private boolean eligible(Player p,Run a){return a.room.kind!=Layout.Kind.REFUGE&&present(p,a)&&(p.getGameMode()==GameMode.SURVIVAL||p.getGameMode()==GameMode.ADVENTURE);}
+    private boolean sheltered(Location l){return plugin.sanctuary!=null&&plugin.sanctuary.contains(l);}
+    private boolean eligible(Player p,Run a){return present(p,a)&&!sheltered(p.getLocation())&&(p.getGameMode()==GameMode.SURVIVAL||p.getGameMode()==GameMode.ADVENTURE);}
     private boolean contained(Run a,LivingEntity e,Location l){return l!=null&&l.getWorld()!=null&&l.getWorld().equals(a.world)&&plugin.inside(l.getWorld())&&EncounterCatalog.bodyInside(a.room,EncounterCatalog.Species.valueOf(e.getType().name()),a.room.kind==Layout.Kind.BOSS,l.getX(),l.getY(),l.getZ());}
     void cancelWarning(Run a){a.warning=null;a.pattern=null;a.warnedPlayer=null;a.warningBoss=null;a.windup=0;a.marks=Collections.emptyList();a.nextAttack=ticks+EncounterCatalog.entry(a.room.theme).cooldown(a.room.tier,false);}
 
@@ -172,7 +176,8 @@ public final class Encounters implements Listener {
         if(plugin.inside(victim.getWorld())||plugin.inside(source.getWorld()))return !protectedMode(victim)&&source.getWorld().equals(victim.getWorld())&&plugin.roomKey(source.getLocation()).equals(plugin.roomKey(victim.getLocation()));
         return true;
     }
-    private boolean refuge(Entity entity){return plugin.inside(entity.getWorld())&&plugin.room(entity.getLocation()).kind==Layout.Kind.REFUGE;}
+    /** Only the arrival circle is damage-free; the rest of the refuge parcel has its own dangers now. */
+    private boolean refuge(Entity entity){return entity!=null&&sheltered(entity.getLocation());}
     /** Weapon preflight only: callers must still use victim.damage(amount, player) for Bukkit policy. */
     public boolean canTargetInRoom(Player player,LivingEntity victim){return player!=null&&victim!=null&&player!=victim&&player.isOnline()&&!player.isDead()&&!victim.isDead()&&victim.isValid()&&plugin.inside(player.getWorld())&&plugin.inside(victim.getWorld())&&canHarm(player,victim);}
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void natural(CreatureSpawnEvent e){if(plugin.inside(e.getLocation().getWorld())&&!spawning&&!(e.getEntity() instanceof ArmorStand))e.setCancelled(true);}
@@ -206,27 +211,108 @@ public final class Encounters implements Listener {
         if(a.state.killed==((1<<a.room.mobCount())-1))complete(a);
     }
     private void complete(Run a){cancelWarning(a);if(!a.state.cleared){a.state.cleared=true;if(!save(a)){a.state.cleared=false;return;}if(a.bar!=null){a.bar.removeAll();a.bar=null;}
-            for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(present(p,a)){p.sendTitle(ChatColor.GOLD+"Room absolved",ChatColor.GRAY+"The reliquary is unsealed",5,40,10);plugin.relics.onClear(p);p.giveExp(a.room.tier*5);}}
+            for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(present(p,a)){p.sendTitle(ChatColor.GOLD+"Room absolved",ChatColor.GRAY+"The reliquary chest is unsealed",5,40,10);plugin.relics.onClear(p);p.giveExp(a.room.tier*5);}}
             plugin.getLogger().info("DUNGEON_ROOM_CLEARED id="+a.key+" threat="+a.room.tier);
         }
     }
+    // ---------------------------------------------------------------- owner 2026-10-03: every chest opens like a normal chest
+    private static boolean reliquary(Layout.Room r,Block b){return b.getX()==r.cx()&&b.getY()==65&&b.getZ()==r.cz()+4;}
+    private static Block chestOf(Run a){return a.world.getBlockAt(a.room.cx(),65,a.room.cz()+4);}
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void chest(PlayerInteractEvent e){
-        if(e.getAction()!=Action.RIGHT_CLICK_BLOCK||e.getHand()!=EquipmentSlot.HAND||!plugin.inside(e.getPlayer().getWorld()))return;
-        Layout.Room r=plugin.room(e.getClickedBlock().getLocation());if(e.getClickedBlock().getX()!=r.cx()||e.getClickedBlock().getY()!=65||e.getClickedBlock().getZ()!=r.cz()+4)return;e.setCancelled(true);
-        if(!plugin.roomKey(e.getPlayer().getLocation()).equals(plugin.roomKey(e.getClickedBlock().getWorld(),r)))return;
-        if(r.kind==Layout.Kind.REFUGE){plugin.relics.givePouch(e.getPlayer());e.getPlayer().sendMessage(ChatColor.GOLD+"The House of Mercy grew from fear, guilt and prayers without answers. Carry its relics beyond these walls. Enemies cannot cross a threshold. The stone gate behind you leads home.");return;}
-        Run a=activate(e.getClickedBlock().getWorld(),r);if(a==null){e.getPlayer().sendMessage("The reliquary is temporarily unavailable.");return;}claim(e.getPlayer(),a);
+        Block block=e.getClickedBlock();
+        if(e.getAction()!=Action.RIGHT_CLICK_BLOCK||block==null||block.getType()!=Material.CHEST||!plugin.inside(block.getWorld()))return;
+        Layout.Room r=plugin.room(block.getLocation());if(!reliquary(r,block))return;
+        // Opening a chest never also uses the held item: an armory gun would otherwise fire as the lid opens.
+        e.setUseItemInHand(Event.Result.DENY);
+        Player p=e.getPlayer();String key=plugin.roomKey(block.getWorld(),r);
+        // Reaching across a doorway never opens, fills or wakes another room's reliquary.
+        if(!plugin.inside(p.getWorld())||!plugin.roomKey(p.getLocation()).equals(key)){e.setCancelled(true);return;}
+        Run open=active.get(key);boolean plain=r.kind!=Layout.Kind.REFUGE&&open!=null&&open.state.claimed;
+        // Off-hand repeats and spectators may only look into an already opened chest; they never fill or wake one.
+        if(e.getHand()!=EquipmentSlot.HAND||p.getGameMode()==GameMode.SPECTATOR){if(!plain)e.setCancelled(true);return;}
+        if(r.kind==Layout.Kind.REFUGE){e.setCancelled(true);candle(p,r);return;}
+        Run a=activate(block.getWorld(),r);if(a==null){e.setCancelled(true);p.sendMessage("The reliquary is temporarily unavailable.");return;}
+        if(a.state.claimed)return;
+        if(!a.state.cleared){e.setCancelled(true);
+            if(a.room.dormant()&&!a.state.triggered)wake(a,p);
+            else{p.playSound(block.getLocation(),Sound.BLOCK_CHEST_LOCKED,.8f,1);p.sendMessage(ChatColor.RED+"The reliquary is sealed until this room's enemies are defeated.");}
+            return;
+        }
+        // Filled: leave the event alone so the vanilla chest window opens with the loot inside.
+        if(!claim(p,a))e.setCancelled(true);
     }
+    /** Treasure rooms and shrines: the sealed chest is the lure. tick() spawns the guardians once this is saved. */
+    private void wake(Run a,Player opener){
+        a.state.triggered=true;if(!save(a)){a.state.triggered=false;opener.sendMessage("The reliquary is temporarily unavailable.");return;}
+        Location at=chestOf(a).getLocation().add(.5,.5,.5);a.lastSeen=ticks;
+        for(Player viewer:a.world.getPlayers())if(present(viewer,a)){
+            viewer.sendTitle(ChatColor.DARK_RED+"The guardians wake",ChatColor.GRAY+"Defeat them to open the reliquary",5,50,12);viewer.playSound(at,Sound.ENTITY_EVOCATION_ILLAGER_PREPARE_SUMMON,1,.6f);
+            viewer.sendMessage(ChatColor.RED+"The reliquary was a lure: "+a.room.mobCount()+" guardians of the "+EncounterCatalog.entry(a.room.theme).themeName+" wake. Defeat them to open it.");
+        }
+        plugin.getLogger().info("DUNGEON_ROOM_AMBUSH id="+a.key+" kind="+a.room.kind+" guardians="+a.room.mobCount());
+    }
+    /** Fills this room's chest once (the chest handler and the test probe share it); true only when this call filled it. */
     public boolean claim(Player p,Run a){
-        if(a==null||!present(p,a))return false;
-        if(!a.state.cleared){p.sendMessage(ChatColor.RED+"The reliquary is sealed. Defeat this room's remaining enemies.");return false;}if(a.state.claimed){p.sendMessage(ChatColor.GRAY+"This room's reliquary has already been claimed.");return false;}
+        if(a==null||a.world==null||!present(p,a))return false;
+        if(!a.state.cleared){p.sendMessage(ChatColor.RED+"The reliquary is sealed. Defeat this room's remaining enemies.");return false;}if(a.state.claimed){p.sendMessage(ChatColor.GRAY+"This room's reliquary has already been opened.");return false;}
+        Block block=chestOf(a);if(block.getType()!=Material.CHEST){p.sendMessage("The reliquary chest is missing; nothing was claimed.");plugin.getLogger().warning("DUNGEON_RELIQUARY_MISSING room="+a.key);return false;}
         List<ItemStack> items=Rewards.roll(a.room,plugin.rewardMultiplier(a.world));ItemStack relic=Relics.roll(a.room);if(relic!=null)items.add(relic);
-        // Reserve durably before delivery: repeated clicks, reloads and restarts never refill a reward.
+        // Reserve durably before filling: repeated clicks, reloads and restarts never refill a chest.
         a.state.claimed=true;if(!save(a)){a.state.claimed=false;p.sendMessage("Reward storage is unavailable; nothing was claimed.");return false;}
-        for(ItemStack i:items)for(ItemStack extra:p.getInventory().addItem(i).values())p.getWorld().dropItemNaturally(p.getLocation(),extra);
-        p.playSound(p.getLocation(),Sound.BLOCK_CHEST_OPEN,.6f,1);p.sendMessage(ChatColor.GOLD+"The reliquary opens. Threat "+a.room.tier+" reward claimed"+(relic!=null?" - a dungeon relic was inside!":"."));return true;
+        int stacks=items.size();
+        try{fill(block,a.room,items);}catch(RuntimeException ex){
+            // The reward is already reserved: hand over whatever did not reach the chest rather than lose it.
+            plugin.getLogger().severe("DUNGEON_RELIQUARY_FILL_FAILED room="+a.key+" undelivered="+items.size()+" "+ex.getMessage());
+            for(ItemStack i:items)for(ItemStack extra:p.getInventory().addItem(i).values())p.getWorld().dropItemNaturally(p.getLocation(),extra);
+        }
+        p.playSound(block.getLocation(),Sound.ENTITY_PLAYER_LEVELUP,.5f,1.2f);
+        p.sendMessage(ChatColor.GOLD+"The reliquary opens. Threat "+a.room.tier+" reward inside - take what you need"+(relic!=null?". A dungeon relic was among it!":"."));
+        plugin.getLogger().info("DUNGEON_RELIQUARY_FILLED id="+a.key+" stacks="+stacks+" relic="+(relic!=null));return true;
+    }
+    /** Scatters the loot over the chest's empty slots like a found chest; overflow merges, then rests on the lid. Placed items leave the list. */
+    private void fill(Block block,Layout.Room r,List<ItemStack> items){
+        Inventory inv=((org.bukkit.block.Chest)block.getState()).getBlockInventory();List<Integer> empty=new ArrayList<>();
+        for(int s=0;s<inv.getSize();s++){ItemStack i=inv.getItem(s);if(i==null||i.getType()==Material.AIR)empty.add(s);}
+        Collections.shuffle(empty,new Random(r.hash^0x52656c6971756172L));int next=0;Location lid=block.getLocation().add(.5,1.1,.5);
+        while(!items.isEmpty()){ItemStack item=items.get(0);
+            if(item!=null&&item.getType()!=Material.AIR){if(next<empty.size())inv.setItem(empty.get(next++),item);else for(ItemStack extra:inv.addItem(item).values())block.getWorld().dropItem(lid,extra);}
+            items.remove(0);
+        }
+    }
+    /** The Last Candle's chest: a fresh offering per player and per opening. It keeps nothing a player puts in. */
+    public static final class Candle implements InventoryHolder {
+        final UUID player;final Inventory inv;ItemStack pouch,book;
+        Candle(Player p){player=p.getUniqueId();inv=Bukkit.createInventory(this,27,"The Last Candle");}
+        public Inventory getInventory(){return inv;}
+    }
+    private void candle(Player p,Layout.Room r){
+        Candle c=new Candle(p);c.book=Rewards.lore(r.theme);c.inv.setItem(11,c.book.clone());
+        if(plugin.relics.pouchSlot(p)<0){c.pouch=Relics.createPouch();c.inv.setItem(13,c.pouch.clone());}
+        p.openInventory(c.inv);p.playSound(p.getLocation(),Sound.BLOCK_CHEST_OPEN,.6f,1);
+        p.sendMessage(ChatColor.GOLD+"Welcome to The Dungeon Dimension. The House of Mercy grew from fear, guilt and prayers without answers. Carry its relics beyond these walls. Enemies cannot cross a threshold. The stone gate behind you leads home.");
+        p.sendMessage(ChatColor.GRAY+"Only the candle-lit circle around the gate is safe. Every other room has its own dangers.");
+    }
+    @EventHandler(priority=EventPriority.HIGHEST) public void candleClosed(InventoryCloseEvent e){
+        if(!(e.getInventory().getHolder() instanceof Candle)||!(e.getPlayer() instanceof Player))return;
+        Candle c=(Candle)e.getInventory().getHolder();Player p=(Player)e.getPlayer();int pouches=c.pouch==null?0:1,books=1;List<ItemStack> back=new ArrayList<>();
+        for(ItemStack raw:c.inv.getContents()){
+            if(raw==null||raw.getType()==Material.AIR)continue;ItemStack item=raw.clone();
+            // Only the untaken offering stays behind; everything else goes back to the player.
+            if(pouches>0&&Relics.pouch(item)&&item.isSimilar(c.pouch)){pouches--;continue;}
+            if(books>0&&item.getType()==Material.WRITTEN_BOOK&&item.isSimilar(c.book)){int keep=Math.min(books,item.getAmount());books-=keep;if(item.getAmount()==keep)continue;item.setAmount(item.getAmount()-keep);}
+            back.add(item);
+        }
+        c.inv.clear();
+        // A dying player's inventory is about to be cleared; their items fall where they stand instead.
+        for(ItemStack item:back){if(p.isDead()){p.getWorld().dropItemNaturally(p.getLocation(),item);continue;}for(ItemStack extra:p.getInventory().addItem(item).values())p.getWorld().dropItemNaturally(p.getLocation(),extra);}
+        if(!back.isEmpty())p.sendMessage(ChatColor.GRAY+"The Last Candle keeps nothing. Your items were returned.");
     }
     @EventHandler(priority=EventPriority.MONITOR) public void chunkLoad(ChunkLoadEvent e){if(plugin.inside(e.getWorld()))for(Entity entity:e.getChunk().getEntities())if(entity.getScoreboardTags().contains(TAG)){Run a=owner(entity);if(a!=null)cancelWarning(a);entity.remove();}}
-    void sleep(Run a){cancelWarning(a);for(LivingEntity e:a.mobs.values())if(e.isValid())e.remove();a.mobs.clear();if(a.bar!=null){a.bar.removeAll();a.bar=null;}Iterator<Shot> it=shots.values().iterator();while(it.hasNext()){Shot s=it.next();if(s.room.equals(a.key)){s.entity.remove();it.remove();}}}
-    public void close(){for(Run a:active.values())sleep(a);active.clear();for(Shot s:shots.values())s.entity.remove();shots.clear();}
+    void sleep(Run a){cancelWarning(a);for(LivingEntity e:a.mobs.values())if(e.isValid())e.remove();a.mobs.clear();if(a.bar!=null){a.bar.removeAll();a.bar=null;}Iterator<Shot> it=shots.values().iterator();while(it.hasNext()){Shot s=it.next();if(s.room.equals(a.key)){s.entity.remove();it.remove();}}if(plugin.hazards!=null)plugin.hazards.sleep(a.key);}
+    public void close(){
+        // Return anything left in an open Last Candle chest before the plugin unloads. Bukkit no longer delivers events to a
+        // plugin inside onDisable, so the return runs directly; the close that follows then finds the chest already empty.
+        for(Player p:Bukkit.getOnlinePlayers())if(p.getOpenInventory().getTopInventory().getHolder() instanceof Candle){candleClosed(new InventoryCloseEvent(p.getOpenInventory()));p.closeInventory();}
+        for(Run a:active.values())sleep(a);active.clear();for(Shot s:shots.values())s.entity.remove();shots.clear();if(plugin.hazards!=null)plugin.hazards.close();
+    }
 }

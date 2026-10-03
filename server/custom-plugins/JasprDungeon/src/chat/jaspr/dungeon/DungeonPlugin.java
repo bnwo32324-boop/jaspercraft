@@ -14,23 +14,24 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
 public final class DungeonPlugin extends JavaPlugin implements Listener {
-    public static final int GENERATION_VERSION=3;
-    public String worldName;public DungeonGenerator generator;public World dungeon;public Encounters encounters;public Gates gates;public Relics relics;public Sanctuary sanctuary;
+    public static final int GENERATION_VERSION=4;
+    public String worldName;public DungeonGenerator generator;public World dungeon;public Encounters encounters;public Hazards hazards;public Gates gates;public Relics relics;public Sanctuary sanctuary;
     public Arsenal arsenal;public CreativeCatalog creative;public Rifts rifts;
     private final Map<UUID,Long> doorCooldown=new HashMap<>();private final Map<UUID,String> lastRoom=new HashMap<>();
     @Override public void onEnable(){
         saveDefaultConfig();if(!getConfig().getBoolean("enabled",true))return;
-        worldName=getConfig().getString("world-name","jaspr_penitent_below");
+        worldName=getConfig().getString("world-name","jaspr_dungeon");
         if(!worldName.matches("[a-z0-9_-]+")||Bukkit.getWorlds().isEmpty()||worldName.equals(Bukkit.getWorlds().get(0).getName()))throw new IllegalStateException("Unsafe dungeon world name");
         long seed=Bukkit.getWorlds().get(0).getSeed()^getConfig().getLong("seed-salt",709327916L);
         File manifest=new File(getDataFolder(),"dimension.yml");
         try{org.bukkit.configuration.file.YamlConfiguration meta=new org.bukkit.configuration.file.YamlConfiguration();
-            if(manifest.exists()){meta.load(manifest);if(meta.getInt("version")!=GENERATION_VERSION||!worldName.equals(meta.getString("world")))throw new IllegalStateException("Dungeon generation identity differs; preserve the old sandbox and use a fresh test environment. Never overwrite old rooms with a different layout.");Object savedSeed=meta.get("seed");if(!(savedSeed instanceof Long)&&!(savedSeed instanceof Integer)&&!(savedSeed instanceof Short)&&!(savedSeed instanceof Byte))throw new IllegalStateException("Dungeon seed missing or non-integral; preserve the manifest and restore its original seed.");seed=((Number)savedSeed).longValue();}
+            if(manifest.exists()){meta.load(manifest);if(!worldName.equals(meta.getString("world"))){archive(meta);meta=new org.bukkit.configuration.file.YamlConfiguration();}}
+            if(manifest.exists()){if(meta.getInt("version")!=GENERATION_VERSION)throw new IllegalStateException("Dungeon generation identity differs: "+worldName+" is generation "+meta.getInt("version")+", not "+GENERATION_VERSION+". Never overwrite old rooms with a different layout; set a new world-name to start a new dimension.");Object savedSeed=meta.get("seed");if(!(savedSeed instanceof Long)&&!(savedSeed instanceof Integer)&&!(savedSeed instanceof Short)&&!(savedSeed instanceof Byte))throw new IllegalStateException("Dungeon seed missing or non-integral; preserve the manifest and restore its original seed.");seed=((Number)savedSeed).longValue();}
             else{if(new File(Bukkit.getWorldContainer(),worldName).exists())throw new IllegalStateException("Refusing an existing world without this plugin's dimension manifest");meta.set("version",GENERATION_VERSION);meta.set("world",worldName);meta.set("seed",seed);RoomStore.atomic(manifest,meta.saveToString());}
         }catch(Exception ex){throw new IllegalStateException("Cannot establish dungeon identity safely",ex);}
-        generator=new DungeonGenerator(seed);encounters=new Encounters(this);gates=new Gates(this);relics=new Relics(this);sanctuary=new Sanctuary(this);
+        generator=new DungeonGenerator(seed);encounters=new Encounters(this);hazards=new Hazards(this);gates=new Gates(this);relics=new Relics(this);sanctuary=new Sanctuary(this);
         arsenal=new Arsenal(this);creative=new CreativeCatalog(this);rifts=new Rifts(this);
-        Bukkit.getPluginManager().registerEvents(this,this);Bukkit.getPluginManager().registerEvents(encounters,this);Bukkit.getPluginManager().registerEvents(gates,this);Bukkit.getPluginManager().registerEvents(relics,this);
+        Bukkit.getPluginManager().registerEvents(this,this);Bukkit.getPluginManager().registerEvents(encounters,this);Bukkit.getPluginManager().registerEvents(hazards,this);Bukkit.getPluginManager().registerEvents(gates,this);Bukkit.getPluginManager().registerEvents(relics,this);
         Bukkit.getPluginManager().registerEvents(sanctuary,this);
         Bukkit.getPluginManager().registerEvents(arsenal,this);Bukkit.getPluginManager().registerEvents(creative,this);Bukkit.getPluginManager().registerEvents(rifts,this);
         // Load an existing dimension before returning players join; create a new one on first portal use.
@@ -38,7 +39,17 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
         rifts.loadExisting();
         try{creative.export(new File(getDataFolder(),"creative-catalog.json"));}catch(Exception ex){throw new IllegalStateException("Cannot export dungeon item catalogue",ex);}
         Bukkit.getScheduler().runTaskTimer(this,()->{gates.tick();encounters.tick();sanctuary.tick();arsenal.tick();rifts.tick();},1,1);
-        getLogger().info("DUNGEON_READY world="+worldName+" generation=on-demand portal=stone-bricks deployment=sandbox-candidate");
+        getLogger().info("DUNGEON_READY world="+worldName+" generation="+GENERATION_VERSION+" hazards="+HazardCatalog.Type.values().length+" chests=normal portal=stone-bricks");
+    }
+    /** A new world-name starts a new dimension. The old one's identity and journals move intact to archive/; nothing is deleted. */
+    private void archive(org.bukkit.configuration.file.YamlConfiguration old) throws java.io.IOException {
+        String from=String.valueOf(old.getString("world"));int version=old.getInt("version");
+        if(new File(Bukkit.getWorldContainer(),worldName).exists())throw new java.io.IOException("Refusing to start "+worldName+" over an existing world folder");
+        File target=new File(getDataFolder(),"archive/"+from.replaceAll("[^a-z0-9_-]","_")+"-generation"+version+"-"+System.currentTimeMillis());
+        if(!target.mkdirs())throw new java.io.IOException("Cannot create dungeon archive "+target.getName());
+        // The manifest moves last, so an interrupted handover repeats on the next start instead of mixing generations.
+        for(String name:new String[]{"rooms","rooms-realms","rifts","dimension.yml"}){File f=new File(getDataFolder(),name);if(f.exists())java.nio.file.Files.move(f.toPath(),new File(target,name).toPath());}
+        getLogger().warning("DUNGEON_GENERATION_ARCHIVED from="+from+" version="+version+" to="+worldName+" archive=archive/"+target.getName());
     }
     @Override public void onDisable(){if(encounters!=null)encounters.close();if(gates!=null)gates.saveQuietly();if(arsenal!=null)arsenal.close();if(rifts!=null)rifts.close();}
     public boolean inside(World w){return w!=null&&(w.getName().equals(worldName)||(rifts!=null&&rifts.contains(w)));}
@@ -78,8 +89,9 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
     }
     public void announce(Player p,Layout.Room r){
         if(roomKey(p.getWorld(),r).equals(lastRoom.put(p.getUniqueId(),roomKey(p.getWorld(),r))))return;
-        p.sendTitle(ChatColor.DARK_RED+r.title(),ChatColor.GRAY+"Threat "+r.tier+" / 5  |  Room "+r.id(),5,45,12);
-        p.sendMessage(ChatColor.DARK_GRAY+"[The Penitent Below] "+r.title()+" | "+r.w+" x "+r.d+" | Threat "+r.tier+"/5. Walk into barred doorways to leave.");
+        String dangers=HazardCatalog.names(r);
+        p.sendTitle(ChatColor.DARK_RED+r.title(),ChatColor.GRAY+"Threat "+r.tier+"/5 | "+dangers,5,45,12);
+        p.sendMessage(ChatColor.DARK_GRAY+"[Dungeon Dimension] "+r.title()+" | Dangers: "+dangers+" | "+r.w+" x "+r.d+" | Threat "+r.tier+"/5. Walk into barred doorways to leave."+(r.dormant()?" Its guardians wake when the chest is opened.":""));
     }
     @EventHandler public void quit(PlayerQuitEvent e){doorCooldown.remove(e.getPlayer().getUniqueId());lastRoom.remove(e.getPlayer().getUniqueId());gates.forget(e.getPlayer());}
     @EventHandler public void changed(PlayerChangedWorldEvent e){lastRoom.remove(e.getPlayer().getUniqueId());}
@@ -97,16 +109,17 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
     @EventHandler public void joined(PlayerJoinEvent e){Player p=e.getPlayer();if(inside(p.getWorld())&&sanctuary.contains(p.getLocation())&&!Sanctuary.safeFloor(p.getLocation())){Location safe=sanctuary.arrival();if(safe==null)safe=gates.returnLocation(p);if(safe==null)p.kickPlayer("Dungeon refuge and return exit are obstructed. Ask an administrator to restore a safe landing.");else move(p,safe);}}
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args){
         if(encounters==null){sender.sendMessage("The dungeon is disabled.");return true;}
-        if(args.length>0&&args[0].equalsIgnoreCase("status")){sender.sendMessage("DUNGEON_READY world="+worldName+" loaded="+(dungeon!=null)+" activeRooms="+encounters.active.size()+" generation="+GENERATION_VERSION+" themes="+Layout.THEMES.length+" motifs="+Layout.MOTIF_COUNT+" bosses="+EncounterCatalog.COUNT+" baubles="+Relics.Type.values().length);return true;}
+        if(args.length>0&&args[0].equalsIgnoreCase("status")){sender.sendMessage("DUNGEON_READY world="+worldName+" loaded="+(dungeon!=null)+" activeRooms="+encounters.active.size()+" generation="+GENERATION_VERSION+" hazards="+HazardCatalog.Type.values().length+" themes="+Layout.THEMES.length+" motifs="+Layout.MOTIF_COUNT+" bosses="+EncounterCatalog.COUNT+" baubles="+Relics.Type.values().length);return true;}
         if(!(sender instanceof Player)){sender.sendMessage("Use dungeon status; player travel requires a player.");return true;}Player p=(Player)sender;
         if(args.length>0&&args[0].equalsIgnoreCase("baubles")){relics.open(p);return true;}
         if(args.length>0&&args[0].equalsIgnoreCase("items")){int page=0;try{if(args.length>1)page=Integer.parseInt(args[1])-1;}catch(NumberFormatException ignored){}creative.open(p,page);return true;}
         if(args.length>0&&args[0].equalsIgnoreCase("leave")){if(inside(p.getWorld())){if(!rifts.leave(p))gates.leave(p);}else p.sendMessage("You are not in the dungeon.");return true;}
-        if(args.length>0&&args[0].equalsIgnoreCase("where")){p.sendMessage(inside(p.getWorld())?(rifts.contains(p.getWorld())?rifts.displayName(p.getWorld()):"The Penitent Below")+" | "+room(p.getLocation()).title()+" | "+roomKey(p.getLocation())+" | "+Layout.MOTIFS[room(p.getLocation()).motif]+" | Threat "+room(p.getLocation()).tier+"/5":"Outside The Penitent Below.");return true;}
+        if(args.length>0&&args[0].equalsIgnoreCase("where")){if(!inside(p.getWorld())){p.sendMessage("Outside the Dungeon Dimension.");return true;}Layout.Room r=room(p.getLocation());
+            p.sendMessage((rifts.contains(p.getWorld())?rifts.displayName(p.getWorld()):"The Dungeon Dimension")+" | "+r.title()+" | "+roomKey(p.getLocation())+" | "+Layout.MOTIFS[r.motif]+" | Threat "+r.tier+"/5 | Dangers: "+HazardCatalog.names(r));return true;}
         if(args.length==3&&args[0].equalsIgnoreCase("visit")){
             if(p.getGameMode()!=GameMode.CREATIVE||!p.hasPermission("jaspr.dungeon.admin")){p.sendMessage("Inspection travel requires a Creative administrator.");return true;}
             try{int x=Integer.parseInt(args[1]),z=Integer.parseInt(args[2]);if(Math.abs((long)x)>900000||Math.abs((long)z)>900000)throw new NumberFormatException();World w=ensureWorld();Layout.Room r=generator.layout.at(x*32,z*32);if(!inside(p.getWorld()))gates.remember(p);move(p,new Location(w,r.cx()+.5,65,r.cz()+.5));}catch(Exception ex){p.sendMessage("Usage: /dungeon visit <roomX> <roomZ>");getLogger().warning("DUNGEON_VISIT_FAILED "+ex.getMessage());}return true;
         }
-        p.sendMessage(ChatColor.GOLD+"The Penitent Below: build a 4 x 5 stone-brick frame (2 x 3 opening), light it with flint and steel, and step inside. /dungeon where | /dungeon leave");return true;
+        p.sendMessage(ChatColor.GOLD+"The Dungeon Dimension: build a 4 x 5 stone-brick frame (2 x 3 opening), light it with flint and steel, and step inside. Every room has its own dangers. /dungeon where | /dungeon leave");return true;
     }
 }

@@ -1,6 +1,8 @@
-# JasprDungeon (The Penitent Below). Live on JasperCraft since 2026-10-03.
+# JasprDungeon - the Dungeon Dimension. Live JasperCraft plugin, generation 4.
+# world-name names the dimension's world. Changing it starts a new dimension: the previous one's identity and room
+# journals move intact to plugins/JasprDungeon/archive/, and its world folder is left untouched.
 enabled: true
-world-name: jaspr_penitent_below
+world-name: jaspr_dungeon
 seed-salt: 709327916
 max-active-rooms: 32
 room-sleep-seconds: 30

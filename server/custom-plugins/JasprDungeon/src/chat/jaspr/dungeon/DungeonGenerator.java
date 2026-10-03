@@ -66,29 +66,91 @@ public class DungeonGenerator extends ChunkGenerator {
         if(y==63)return 1;
         int[] palette=PALETTES[r.theme];int wall=palette[0],floor=palette[1],trim=palette[2];
         if(r.theme==0){long h=Layout.mix(r.hash^(x*73428767L)^(z*912367L));wall=floor=data(98,(int)Math.floorMod(h,3));}
-        if(y==64)return Math.floorMod(x,8)==4&&Math.floorMod(z,8)==4?89:floor;
-        if(y>=r.roof())return y==r.roof()?wall:1;
+        if(y==64)return floor(r,x,z,palette,floor);
+        if(y>=r.roof())return y==r.roof()?ceiling(r,x,z,wall,trim):1;
         boolean edge=x<r.x+2||x>=r.x+r.w-2||z<r.z+2||z>=r.z+r.d-2;
         if(edge){
             boolean opening=(Layout.Room.lane(z)&&(x<r.x+2||x>=r.x+r.w-2))||(Layout.Room.lane(x)&&(z<r.z+2||z>=r.z+r.d-2));
             // Bars physically contain mobs. Player transitions are handled by DungeonPlugin.walk.
             if(opening&&y<=68)return r.door(x,z)?101:0;
             if(opening&&y==69)return 89;
+            int face=face(r,x,y,z,palette);if(face!=0)return face;
             return y==65||y==r.roof()-1?trim:wall;
         }
         // Preserve the interaction coordinates used by Encounters.chest.
         if(x==r.cx()&&z==r.cz()+4&&y==65)return data(54,2);
-        if(r.kind==Layout.Kind.REFUGE){
-            // Only the original (0,0) refuge owns the fixed return frame installed by Gates.
-            if(r.x==0&&r.z==0){
-                if(z==8&&x>=8&&x<=11&&y>=65&&y<=69)return x==8||x==11||y==65||y==69?98:0;
-                // A half-step on both faces makes the raised portal sill reachable without jumping.
-                if((z==7||z==9)&&x>=9&&x<=10&&y==65)return data(44,5);
-                if((x==7||x==24)&&z==23){if(y==65)return 47;if(y==66)return data(50,5);}
-            }
-            return 0;
+        // Only the original (0,0) refuge owns the fixed return frame installed by Gates.
+        boolean arrival=r.kind==Layout.Kind.REFUGE&&r.x==0&&r.z==0;
+        if(arrival){
+            if(z==8&&x>=8&&x<=11&&y>=65&&y<=69)return x==8||x==11||y==65||y==69?98:0;
+            // A half-step on both faces makes the raised portal sill reachable without jumping.
+            if((z==7||z==9)&&x>=9&&x<=10&&y==65)return data(44,5);
+            if((x==7||x==24)&&z==23){if(y==65)return 47;if(y==66)return data(50,5);}
         }
-        return decoration(r,x,y,z,palette);
+        int detail=detail(r,x,y,z,palette);if(detail!=0)return detail;
+        // The arrival room keeps its open floor around the portal; every other room, the other refuges included, has its bays.
+        return arrival?0:decoration(r,x,y,z,palette);
+    }
+
+    // ---------------------------------------------------------------- generation 4: detail in every room
+    /** Patterned floors: a framed border, framed bay pads, dashed lane runners, worn stones, and the room's danger marks. */
+    private static int floor(Layout.Room r,int x,int z,int[] p,int floor){
+        if(Math.floorMod(x,8)==4&&Math.floorMod(z,8)==4)return 89;
+        int rx=x-r.x,rz=z-r.z;
+        if(rx<2||rz<2||rx>=r.w-2||rz>=r.d-2)return floor;
+        int mark=HazardCatalog.floor(r,x,z);if(mark!=0)return mark;
+        int trim=p[2];
+        if(rx==2||rz==2||rx==r.w-3||rz==r.d-3)return trim;
+        int tx=Math.floorMod(rx,32),tz=Math.floorMod(rz,32),bx=Math.abs(tx-(tx<16?7:25)),bz=Math.abs(tz-(tz<16?7:25));
+        if(bx<=3&&bz<=3&&!r.clearLane(x,z))return bx==3||bz==3?trim:floor;
+        if(tx==16&&Math.floorMod(rz,2)==0||tz==16&&Math.floorMod(rx,2)==0)return trim;
+        long h=Layout.mix(r.hash^(x*0x9e3779b1L)^(z*0x85ebca77L));
+        if(Math.floorMod(h,9)==0)return (floor&4095)==98?data(98,1+(int)Math.floorMod(h>>>9,2)):trim;
+        return floor;
+    }
+    /** Coffered ceilings: ribs every eight blocks with a lamp at each crossing, and the room's danger marks. */
+    private static int ceiling(Layout.Room r,int x,int z,int wall,int trim){
+        int mark=HazardCatalog.roof(r,x,z);if(mark!=0)return mark;
+        int mx=Math.floorMod(x,8),mz=Math.floorMod(z,8);
+        if(mx==0&&mz==0)return 89;
+        return mx==0||mz==0?trim:wall;
+    }
+    /** The inner face of the walls: pillar backs, a timber rail, lamps, and dart slits or ember sockets where the room has them. */
+    private static int face(Layout.Room r,int x,int y,int z,int[] p){
+        int along=HazardCatalog.along(r,x,z);if(along<0)return 0;
+        int mark=HazardCatalog.wall(r,x,y,z);if(mark!=0)return mark;
+        if(y==65||y==r.roof()-1)return 0;
+        int m=Math.floorMod(along,32);
+        if(HazardCatalog.pillarSlot(x-r.x>=r.w-2||z-r.z>=r.d-2,m))return p[2];
+        if(y==69)return p[3];
+        if(y==67&&Math.floorMod(along,8)==0)return 89;
+        return 0;
+    }
+    /**
+     * Furnishing between the bays and the lanes, never in either: pillars and props against the walls (no two
+     * touching, corners clear), chandeliers hanging above head height over the strips, cobwebs high in the corners.
+     */
+    private static int detail(Layout.Room r,int x,int y,int z,int[] p){
+        int rx=x-r.x,rz=z-r.z,tx=Math.floorMod(rx,32),tz=Math.floorMod(rz,32);
+        if((tx==11||tx==20)&&(tz==11||tz==20)&&y>=r.roof()-3&&!r.clearLane(x,z))return y==r.roof()-3?89:101;
+        if((rx==2||rx==r.w-3)&&(rz==2||rz==r.d-3))return y>=r.roof()-2?30:0;
+        if(HazardCatalog.pillar(r,x,z))return y==65||y==r.roof()-1?p[2]:y==68?89:p[0];
+        if(HazardCatalog.pod(r,x,z))return y==65?data(100,14):0;
+        if(HazardCatalog.prop(r,x,z))return prop(r,x,y,z,p);
+        return 0;
+    }
+    /** A small furnishing against the wall, chosen per spot: bone and book stacks with candles, crates, rubble, hay, cauldrons. */
+    private static int prop(Layout.Room r,int x,int y,int z,int[] p){
+        long h=Layout.mix(r.hash^(x*0x51ed270b27L)^(z*0x2f3c8b9e15L));int kind=(int)Math.floorMod(h,7),top=65+(int)Math.floorMod(h>>>8,2);
+        switch(kind){
+            case 0: return y<=top?216:y==top+1?data(50,5):0;
+            case 1: return y<=top?47:y==top+1?data(50,5):0;
+            case 2: return y==65?p[3]:y==66?data(44,5):0;
+            case 3: return y==65?data(44,5):0;
+            case 4: return y==65?170:0;
+            case 5: return y==65?118:0;
+            default: return y<=top?p[0]:y==top+1?data(50,5):0;
+        }
     }
 
     /** Each structure occupies one complete 7x7 bay. Lanes never shear a structure into fragments. */

@@ -8,11 +8,14 @@ import org.bukkit.event.entity.*;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.potion.*;
 
-/** Safety belongs to the refuge, not a timer that players can carry into combat. */
+/**
+ * Safety belongs to a place, not a timer that players can carry into combat. Owner 2026-10-03: every room has its
+ * own dangers, so the only refuge left is the arrival circle around the return gate in the origin room.
+ */
 public final class Sanctuary implements Listener {
     private final DungeonPlugin plugin;private int ticks;
     public Sanctuary(DungeonPlugin plugin){this.plugin=plugin;}
-    public boolean contains(Location l){return l!=null&&plugin.inside(l.getWorld())&&plugin.room(l).kind==Layout.Kind.REFUGE;}
+    public boolean contains(Location l){return l!=null&&plugin.inside(l.getWorld())&&HazardCatalog.safe(plugin.room(l),l.getX(),l.getZ());}
     public static boolean hazard(Material m){return m==Material.FIRE||m==Material.LAVA||m==Material.STATIONARY_LAVA||m==Material.CACTUS||m==Material.MAGMA||m==Material.PORTAL||m==Material.ENDER_PORTAL;}
     /** Two blocks of headroom, full support, no adjacent hazards and inside the world border. */
     public static boolean safeFloor(Location l){
@@ -26,7 +29,8 @@ public final class Sanctuary implements Listener {
         for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++)for(int dy=-1;dy<=1;dy++)if(hazard(feet.getRelative(dx,dy,dz).getType()))return false;
         return true;
     }
-    /** Never edit a damaged arrival room to force travel; choose a safe square or fail closed. */
+    /** Never edit a damaged arrival room to force travel; choose a safe square or fail closed. Every candidate
+     *  (16.5+-6, 16.5+-6) lies inside the arrival circle, and contains() still vets each one. */
     public Location arrival(){
         return arrival(plugin.ensureWorld());
     }
@@ -39,11 +43,12 @@ public final class Sanctuary implements Listener {
         return null;
     }
     public void calm(Player p){p.setFireTicks(0);p.setFallDistance(0);
-        for(PotionEffectType t:new PotionEffectType[]{PotionEffectType.POISON,PotionEffectType.WITHER,PotionEffectType.HARM,PotionEffectType.LEVITATION})p.removePotionEffect(t);
+        // Also lifts the lingering room-danger debuffs (frost, dark, miasma) once a player reaches the circle.
+        for(PotionEffectType t:new PotionEffectType[]{PotionEffectType.POISON,PotionEffectType.WITHER,PotionEffectType.HARM,PotionEffectType.LEVITATION,PotionEffectType.SLOW,PotionEffectType.BLINDNESS,PotionEffectType.CONFUSION})p.removePotionEffect(t);
     }
     public void tick(){boolean cleanup=++ticks%20==0;for(World world:plugin.dungeonWorlds()){for(Player p:world.getPlayers())if(contains(p.getLocation()))calm(p);
-        // Inspect only the already-loaded 64x64 refuge parcel; never load chunks for cleanup.
-        if(cleanup)for(int x=0;x<4;x++)for(int z=0;z<4;z++)if(world.isChunkLoaded(x,z))for(Entity e:world.getChunkAt(x,z).getEntities())
+        // The arrival circle (x 6..26, z 5..26) sits in chunks 0..1; inspect only those, and only when already loaded.
+        if(cleanup)for(int x=0;x<2;x++)for(int z=0;z<2;z++)if(world.isChunkLoaded(x,z))for(Entity e:world.getChunkAt(x,z).getEntities())
             if(contains(e.getLocation())&&(e instanceof Monster||e instanceof Slime||e instanceof Projectile||e instanceof AreaEffectCloud))e.remove();
         }
     }

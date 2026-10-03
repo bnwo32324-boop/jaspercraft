@@ -70,7 +70,9 @@ public final class Layout {
     }
     public static final class Room {
         public final int x,z,w,d,theme,motif,tier; public final Kind kind;public final long hash;
-        Room(int x,int z,int w,int d,int theme,int motif,int tier,Kind kind,long hash){this.x=x;this.z=z;this.w=w;this.d=d;this.theme=theme;this.motif=motif;this.tier=tier;this.kind=kind;this.hash=hash;}
+        /** This room's own dangers (HazardCatalog): one in ordinary rooms, two where treasure waits or the gauntlet runs. */
+        public final HazardCatalog.Type[] hazards;
+        Room(int x,int z,int w,int d,int theme,int motif,int tier,Kind kind,long hash){this.x=x;this.z=z;this.w=w;this.d=d;this.theme=theme;this.motif=motif;this.tier=tier;this.kind=kind;this.hash=hash;hazards=HazardCatalog.of(this);}
         public String id(){return x+"_"+z;}
         public int cx(){return x+w/2;} public int cz(){return z+d/2;}
         public int roof(){int area=w*d;return area>=8192?83:area>=4096?81:area>=2048?77:73;}
@@ -83,7 +85,14 @@ public final class Layout {
         private static final int[][] SPAWNS={{0,-6},{0,6},{-6,0},{6,0},{0,-10},{0,10},{-10,0},{10,0},{-4,0},{4,0},{0,-4},{0,8},{-8,0},{8,0}};
         public int spawnX(int slot){return cx()+SPAWNS[Math.floorMod(slot,SPAWNS.length)][0];}
         public int spawnZ(int slot){return cz()+SPAWNS[Math.floorMod(slot,SPAWNS.length)][1];}
-        public int mobCount(){return kind==Kind.REFUGE||kind==Kind.TREASURE||kind==Kind.SHRINE?0:kind==Kind.BOSS?1:Math.min(14,2+tier+w*d/1024+(kind==Kind.GAUNTLET?3:0));}
+        /** Treasure rooms and shrines are guarded too: their guardians wake when someone opens the chest. */
+        public int mobCount(){
+            if(kind==Kind.REFUGE)return 0;
+            if(kind==Kind.TREASURE)return Math.min(14,3+tier+(w*d>=2048?1:0));
+            if(kind==Kind.SHRINE)return Math.min(14,2+tier/2);
+            return kind==Kind.BOSS?1:Math.min(14,2+tier+w*d/1024+(kind==Kind.GAUNTLET?3:0));
+        }
+        public boolean dormant(){return kind==Kind.TREASURE||kind==Kind.SHRINE;}
         public String title(){return kind==Kind.REFUGE?"The Last Candle":THEMES[theme]+" - "+kind.name().toLowerCase(java.util.Locale.ROOT);}
     }
 }

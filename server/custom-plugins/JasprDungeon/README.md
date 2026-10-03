@@ -1,40 +1,50 @@
-# JasprDungeon — The Penitent Below
+# JasprDungeon — the Dungeon Dimension
 
-A separate dungeon dimension: an endless, connected, room-by-room dungeon with three stranger pocket realms behind
-rifts (The Ashen Fold → The Drowned Choir → The Starless Maw). Rooms are gated: enemies stay in their room, difficulty
-and loot scale with depth. 36 themes, 48 decoration modules, 36 bosses (72 phases), 72 baubles, 24 equipment
-families and 24 dungeon weapons (8 melee, 4 magic, 12 guns).
+An endless, connected, room-by-room dungeon with three stranger pocket realms behind rifts (The Ashen Fold → The
+Drowned Choir → The Starless Maw). Rooms are gated: enemies stay in their room, and difficulty and loot scale with
+depth. 36 themes, 48 decoration modules, 36 bosses (72 phases), 72 baubles, 24 equipment families and 24 dungeon
+weapons (8 melee, 4 magic, 12 guns).
 
-Live on JasperCraft since 2026-10-03, deployed from the isolated sandbox
-`C:\Users\AM\Documents\JasperCraft-Dungeon-Sandbox-20261002` (commit `e541f33`, generation 3). That sandbox holds the
-full design notes (`ADVENTURE_CHECKPOINT.md`, `README.md`), the build (`build.ps1`) and every test suite and its
-evidence. This folder is the deployed source; `server/plugins/JasprDungeon.jar` is the tested binary
-(SHA-256 `c858b9ae858c6cefdf1559950fd466a6466bf66c0b925707bb6b2260667d0553`, without probe or audit classes).
+Generation 4 (2026-10-03, owner's request): renamed from The Penitent Below, with dangers in every room, more detail
+in every room, and chests that open normally. It is a new world, `jaspr_dungeon`. The source of truth with every
+suite is the sandbox `C:\Users\AM\Documents\JasperCraft-Dungeon-Sandbox-20261002` (branch `generation4`, commit
+`90e4acc`): `README.md`, `build.ps1`, `tests/gen4-runtime.cjs`. This folder is the deployed source, and
+`server/plugins/JasprDungeon.jar` is the tested build (no probe or audit classes).
 
 ## Playing
 
-* Build a Nether-portal-shaped frame of **stone bricks** (4 wide × 5 high, 2 × 3 opening; corners optional) and light
-  it with **flint and steel**. Stand in it for a second to reach **The Last Candle**, a safe four-room refuge.
-* `/dungeon` explains the portal; `/dungeon leave` always takes you back out (from a rift: to the parent realm).
-  `/dungeon where`, `/dungeon baubles`; `/dungeon items` (Creative only) and `/dungeon visit` (admin) are guarded by
-  the plugin itself. TestServerControl lists `dungeon` among the public commands.
-* Creative: search `dungeon` or `penitent`. Survival players only get these items as dungeon rewards.
+* **Portal:** a Nether-portal-shaped frame of **stone bricks** (4 wide × 5 high, 2 × 3 opening; corners optional), lit
+  with **flint and steel**. Stand in it for a second to reach **The Last Candle**, the four-room refuge.
+* **Safety:** only the arrival circle around the return portal is safe.
+* **Dangers:** every other room, the refuges included, has dangers of its own. One or two traps from 14 kinds:
+  Flame Vents, Dart Slits, Spike Runes, Falling Masonry, Poison Miasma, Frost Gusts, Smiting Bolts, Shockwave,
+  Phantom Blades, Potion Rain, Gravity Well, Creeping Dark, Blast Spores, Ember Bolts. Each is marked in the stone of
+  its room and telegraphed by particles and a sound before it strikes.
+* **Guardians:** treasure rooms and shrines carry two dangers plus guardians that wake when the chest is opened. A
+  room's title shows its dangers.
+* **Chests:** every chest opens as a normal chest once its room is clear, so players take what they want; it is never
+  refilled. The refuge chest offers each player a Dungeon Reliquary and a lore book.
+* **Commands:** `/dungeon` (help), `/dungeon leave` (always takes you back out), `/dungeon where` (room and dangers),
+  `/dungeon baubles`; `/dungeon items` (Creative) and `/dungeon visit` (admin) are guarded by the plugin.
+  TestServerControl lists `dungeon` among the public commands.
 
 ## Worlds and files
 
-* `jaspr_penitent_below` is created at start-up; each pocket realm's world is created the first time someone enters
-  it. Progress, claims and journals are world-qualified files in the plugin folder.
-* `plugins/JasprDungeon/config.yml` (installed with the deploy, same values as the shipped default).
+* `jaspr_dungeon` is created on first portal use; each pocket realm (`jaspr_dungeon_rift_*`) on first entry.
+* Changing `world-name` starts a new dimension: the previous one's `dimension.yml`, `rooms/`, `rooms-realms/` and
+  `rifts/` move intact to `plugins/JasprDungeon/archive/` (log `DUNGEON_GENERATION_ARCHIVED`). Gates, return points and
+  the old world folder are left alone. Generation 3's world `jaspr_penitent_below` stays on disk, unloaded.
+* Log lines: `DUNGEON_READY`, `DUNGEON_HAZARDS_ARMED room= types=`, `DUNGEON_ROOM_AMBUSH`, `DUNGEON_RELIQUARY_FILLED`,
+  `DUNGEON_ROOM_CLEARED`; failures `DUNGEON_HAZARD_DISABLED` / `DUNGEON_*_FAILED`.
 
 ## Client
 
-The browser client's Creative menu gets 349 entries, appended to the native `JasprCreativeCatalog` array inside a
+The browser client's Creative menu has 349 entries, appended to `JasprCreativeCatalog` inside a
 `/*JASPR_DUNGEON_CAT_V3_BEGIN:...*/ ... /*JASPR_DUNGEON_CAT_V3_END*/` fence by the sandbox's
-`client/scripts/build-creative-client.cjs --source <live site/classes.js>` (data only, guarded by hashes of the native
-hooks, strips back byte for byte). The Mo' Bends and melee builders carry the fence through unchanged.
+`client/scripts/build-creative-client.cjs` (data only). After another stage changes `classes.js`, cut the old fence out
+and rerun the builder with `--source` set to that file and `--catalog` set to the live plugin's `creative-catalog.json`.
 
 ## Known limits
 
-Weapons use vanilla carrier models with custom names, lore and server mechanics (no dedicated meshes yet); one long
-inventory tooltip clips at the bottom left. Tested in the sandbox with real protocol clients, a browser client and
-JasprGear; not soak-tested against the full production plugin set.
+Weapons use vanilla carrier models with custom names, lore and server mechanics. Gravity wells and miasma reward
+moving away; the other dangers also catch a player who stands still.

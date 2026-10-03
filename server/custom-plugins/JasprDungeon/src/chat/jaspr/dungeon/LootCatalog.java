@@ -143,7 +143,7 @@ public final class LootCatalog {
         new Profile("Last Absolution","Candle-Kept","BLAZE_POWDER","BREAD","At the last threshold no judge remained. A candle waited beside an unlocked door. The house could offer no final permission to live; that had always belonged to those within it.",Gear.THORNS_CHESTPLATE,Gear.BLAST_LEGGINGS,Gear.MENDING_HOE)
     ));
     public static Profile profile(int theme){return PROFILES.get(Math.floorMod(theme,PROFILES.size()));}
-    public static int budget(String kind,int tier,int mobs){tier=Math.max(0,Math.min(5,tier));if("REFUGE".equals(kind))return 0;if("SHRINE".equals(kind)||"TREASURE".equals(kind))return Math.min(3,tier+1);return 3+tier*3+Math.max(0,Math.min(14,mobs))/2+("BOSS".equals(kind)?12:"GAUNTLET".equals(kind)?4:0);}
+    public static int budget(String kind,int tier,int mobs){tier=Math.max(0,Math.min(5,tier));if("REFUGE".equals(kind))return 0;if("TREASURE".equals(kind))return 6+tier*4+Math.max(0,Math.min(14,mobs))/2;if("SHRINE".equals(kind))return 4+tier*3+Math.max(0,Math.min(14,mobs))/2;return 3+tier*3+Math.max(0,Math.min(14,mobs))/2+("BOSS".equals(kind)?12:"GAUNTLET".equals(kind)?4:0);}
     public static int scaledBudget(int base,double multiplier){if(Double.isNaN(multiplier))multiplier=1;return base<=0?0:Math.max(1,(int)Math.round(base*Math.max(.1,Math.min(3,multiplier))));}
     /** Exact theme gets 6x weight; same narrative family (index modulo 6) gets 2x. */
     public static List<Bauble> pool(int theme,int tier,boolean boss){
@@ -153,7 +153,7 @@ public final class LootCatalog {
     }
     public static Bauble roll(long hash,int theme,int tier,String kind){
         if("REFUGE".equals(kind))return null;Random rng=new Random(hash^0x426175626c65L);boolean boss="BOSS".equals(kind);
-        double chance=boss?1:"TREASURE".equals(kind)||"SHRINE".equals(kind)?.04:.06+Math.max(0,Math.min(5,tier))*.03;
+        double chance=boss?1:"TREASURE".equals(kind)?.30:"SHRINE".equals(kind)?.15:.06+Math.max(0,Math.min(5,tier))*.03;
         if(rng.nextDouble()>=chance)return null;List<Bauble> choices=pool(theme,tier,boss);return choices.isEmpty()?null:choices.get(rng.nextInt(choices.size()));
     }
     public static List<String> audit(){

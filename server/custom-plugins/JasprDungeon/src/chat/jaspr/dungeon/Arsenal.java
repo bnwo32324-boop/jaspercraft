@@ -76,7 +76,7 @@ public final class Arsenal implements Listener {
     public static ItemStack roll(Layout.Room room){ArmoryCatalog.Type t=ArmoryCatalog.roll(room.hash,room.theme,room.tier,room.kind.name());return t==null?null:create(t);}
     private static ItemStack describe(ItemStack item){
         ArmoryCatalog.Type t=type(item);if(t==null)return item;NBTTagCompound d=data(item);ItemMeta meta=item.getItemMeta();
-        List<String> lore=new ArrayList<>();lore.add(ChatColor.DARK_PURPLE+"Penitent armory | "+t.kind+" | Rank "+t.rank);
+        List<String> lore=new ArrayList<>();lore.add(ChatColor.DARK_PURPLE+"Dungeon armory | "+t.kind+" | Rank "+t.rank);
         lore.add(ChatColor.GRAY+t.description);lore.add(ChatColor.GRAY+"Damage "+t.damage+" | Range "+t.range+" | "+(t.cooldownMillis/1000.0)+"s recovery");
         if(t.gun()){
             lore.add(ChatColor.YELLOW+"Rounds: "+Math.max(0,Math.min(t.magazine,d.getInt("rounds")))+" / "+t.magazine+(d.getLong("reloadAt")>0?" (reloading)":""));

@@ -55,7 +55,7 @@ public final class Rifts implements Listener {
     public boolean contains(World world){return realm(world)>0;}
     public DungeonGenerator generator(World world){int n=realm(world);return n>0?generators.get(n):null;}
     public Collection<World> worlds(){return Collections.unmodifiableList(new ArrayList<>(loaded.values()));}
-    public String displayName(World world){int n=sourceRealm(world);return n>0?RiftCatalog.get(n).title:n==0?"The Penitent Below":world==null?"Outside the dungeon":world.getName();}
+    public String displayName(World world){int n=sourceRealm(world);return n>0?RiftCatalog.get(n).title:n==0?"The Dungeon Dimension":world==null?"Outside the dungeon":world.getName();}
     public void loadExisting(){
         for(Map.Entry<String,Integer> e:identities.entrySet())if(Bukkit.getWorld(e.getKey())!=null||new File(Bukkit.getWorldContainer(),e.getKey()).isDirectory())ensureWorld(e.getValue());
     }
