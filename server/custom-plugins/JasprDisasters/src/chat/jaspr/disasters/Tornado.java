@@ -1,6 +1,9 @@
 package chat.jaspr.disasters;
 
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -10,11 +13,14 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 
 /**
@@ -24,11 +30,16 @@ import org.bukkit.util.Vector;
  * can be outrun but not ignored: anything that gets too close (players, mobs, animals, dropped items) is
  * pulled in, spun around the funnel, lifted, and flung out once it is carried high enough, which is where
  * the danger is. Loose natural ground at its foot (grass, dirt, sand, leaves, small plants) is torn up and
- * thrown out as debris, a bounded number of blocks per tornado; protected blocks, obsidian, farms and
- * buildings are never torn up, and with break-blocks off the tornado moves things but changes no terrain.
+ * thrown out as debris that bursts where it comes down, a bounded number of blocks per tornado; utility blocks,
+ * the ground holding them up, obsidian, portals and their frames, farms and buildings are never torn up, armor
+ * stands (sentry turrets' stands among them) are never moved, and with break-blocks off the tornado moves things
+ * but changes no terrain.
  * The weather turns to rain for the duration and is handed back afterwards.
  */
 final class Tornado implements Disaster {
+    static final String DEBRIS_KEY = "jaspr_tornado_debris";
+
+    private final Plugin plugin;
     private final DisasterConfig settings;
     private final Random random;
     private final String targetName;
@@ -36,6 +47,8 @@ final class Tornado implements Disaster {
     private final long startTick;
     private final long endTick;
     private final WeatherHold weather;
+    /** Debris in the air: it bursts where it comes down instead of landing on someone's roof or chest. */
+    private final Set<UUID> debris = new HashSet<UUID>();
 
     private double x;
     private double z;
@@ -46,7 +59,8 @@ final class Tornado implements Disaster {
     private long nextSoundTick;
     private boolean finished;
 
-    Tornado(DisasterConfig settings, Random random, Player target, long nowTicks) {
+    Tornado(Plugin plugin, DisasterConfig settings, Random random, Player target, long nowTicks) {
+        this.plugin = plugin;
         this.settings = settings;
         this.random = random;
         this.targetName = target.getName();
@@ -205,6 +219,7 @@ final class Tornado implements Disaster {
         int moved = 0;
         for (Entity entity : world.getNearbyEntities(centre, reach, height / 2.0d + 2.0d, reach)) {
             if (!(entity instanceof LivingEntity || entity instanceof Item || entity instanceof FallingBlock)) continue;
+            if (entity instanceof ArmorStand) continue;   // stands (and sentry turrets on them) stay put
             if (entity instanceof Player) {
                 GameMode mode = ((Player) entity).getGameMode();
                 if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) continue;
@@ -254,19 +269,23 @@ final class Tornado implements Disaster {
             if (!world.isChunkLoaded(bx >> 4, bz >> 4)) continue;
             int top = world.getHighestBlockYAt(bx, bz);
             Block plant = world.getBlockAt(bx, top, bz);
-            if (isLoosePlant(plant.getType())) plant.setType(Material.AIR, false);
             Block ground = world.getBlockAt(bx, top - 1, bz);
+            // Never the ground under a chest, bed, turret or anvil, and never anything in a portal's frame.
+            if (Impacts.offLimits(ground) || Impacts.nearPortal(world, bx, top, bz)) continue;
+            if (isLoosePlant(plant.getType())) plant.setType(Material.AIR, false);
             Material type = ground.getType();
             Material thrown = rippable(type);
-            if (thrown == null || Impacts.isProtected(type)) continue;
+            if (thrown == null) continue;
             ground.setType(Material.AIR, false);
             debrisLeft--;
             try {
-                FallingBlock debris = world.spawnFallingBlock(new Location(world, bx + 0.5d, top, bz + 0.5d), thrown, (byte) 0);
-                debris.setDropItem(false);
-                debris.setHurtEntities(true);
+                FallingBlock chunk = world.spawnFallingBlock(new Location(world, bx + 0.5d, top, bz + 0.5d), thrown, (byte) 0);
+                chunk.setDropItem(false);
+                chunk.setHurtEntities(true);
+                chunk.setMetadata(DEBRIS_KEY, new FixedMetadataValue(plugin, Boolean.TRUE));
+                debris.add(chunk.getUniqueId());
                 double ox = (bx + 0.5d - x), oz = (bz + 0.5d - z), len = Math.max(0.5d, Math.sqrt(ox * ox + oz * oz));
-                debris.setVelocity(new Vector(ox / len * 0.35d - oz / len * 0.7d, 0.75d + random.nextDouble() * 0.3d, oz / len * 0.35d + ox / len * 0.7d));
+                chunk.setVelocity(new Vector(ox / len * 0.35d - oz / len * 0.7d, 0.75d + random.nextDouble() * 0.3d, oz / len * 0.35d + ox / len * 0.7d));
             } catch (Throwable blocked) {
                 // The ground is already gone; only the flying chunk is missing.
             }
@@ -297,6 +316,21 @@ final class Tornado implements Disaster {
                 || type == Material.DOUBLE_PLANT || type == Material.DEAD_BUSH || type == Material.SNOW;
     }
 
+    boolean owns(UUID id) { return debris.contains(id); }
+
+    /** A torn-up chunk came down: it bursts into dust where it lands and leaves no block behind. */
+    void onDebrisLanded(UUID id, Location where) {
+        if (!debris.remove(id)) return;
+        World world = where.getWorld();
+        if (world == null) return;
+        world.playSound(where, Sound.BLOCK_GRAVEL_BREAK, 1.2f, 0.8f);
+        try {
+            world.spawnParticle(Particle.SMOKE_NORMAL, where, 8, 0.4d, 0.2d, 0.4d, 0.02d);
+        } catch (Throwable cosmeticOnly) {
+            // Decoration only.
+        }
+    }
+
     // ------------------------------------------------------------------ ending
 
     private void end(Player target) {
@@ -311,6 +345,13 @@ final class Tornado implements Disaster {
     @Override public void cancel() {
         if (finished) return;
         weather.restore();
+        World world = Bukkit.getWorld(worldName);
+        if (world != null) {
+            for (Entity entity : world.getEntities()) {
+                if (entity instanceof FallingBlock && debris.contains(entity.getUniqueId())) entity.remove();
+            }
+        }
+        debris.clear();
         finished = true;
     }
 }

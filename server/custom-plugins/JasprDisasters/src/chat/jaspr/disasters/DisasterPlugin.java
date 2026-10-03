@@ -14,12 +14,19 @@ import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBurnEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockIgniteEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.hanging.HangingBreakEvent;
+import org.bukkit.event.vehicle.VehicleDamageEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -76,6 +83,10 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
     private long cooldownUntil;
     private long retryAfter;
     private File stateFile;
+    /** Where and until when disaster fire is guarded: the active disaster's world, and three minutes after it. */
+    private String guardWorld;
+    private long guardUntil;
+    private static final long FIRE_GUARD_MILLIS = 180000L;
 
     @Override public void onEnable() {
         saveDefaultConfig();
@@ -163,6 +174,7 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
                 active = null;
                 activeKind = null;
                 long now = System.currentTimeMillis();
+                guardUntil = now + FIRE_GUARD_MILLIS;
                 nextAt = Schedule.next(now, settings.scheduleMinDays, settings.scheduleMaxDays, random);
                 // A quiet gap, so one disaster ending never rolls straight into the next.
                 cooldownUntil = now + settings.cooldownMillis;
@@ -191,10 +203,12 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
             case METEOR: active = new MeteorShower(this, settings, random, target, ticks); break;
             case STORM: active = new ThunderHellStorm(settings, random, target, ticks); break;
             case QUAKE: active = new Earthquake(this, settings, random, target, ticks); break;
-            case TORNADO: active = new Tornado(settings, random, target, ticks); break;
+            case TORNADO: active = new Tornado(this, settings, random, target, ticks); break;
             default: active = new Blizzard(settings, random, target, ticks); break;
         }
         activeKind = kind;
+        guardWorld = target.getWorld().getName();
+        guardUntil = Long.MAX_VALUE;
         getLogger().info("JASPR_DISASTERS event=started kind=" + kind.name().toLowerCase(Locale.ROOT)
                 + " target=" + target.getName() + " world=" + target.getWorld().getName() + " reason=" + reason);
     }
@@ -264,7 +278,78 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
             event.setCancelled(true);
             event.getEntity().remove();
             quake.onRockLanded(event.getEntity().getUniqueId(), event.getBlock().getLocation().add(0.5d, 0.5d, 0.5d));
+        } else if (active instanceof Tornado && event.getEntity().hasMetadata(Tornado.DEBRIS_KEY)) {
+            Tornado tornado = (Tornado) active;
+            if (!tornado.owns(event.getEntity().getUniqueId())) return;
+            // Debris bursts where it comes down instead of landing on a roof, a chest or a portal.
+            event.setCancelled(true);
+            event.getEntity().remove();
+            tornado.onDebrisLanded(event.getEntity().getUniqueId(), event.getBlock().getLocation().add(0.5d, 0.5d, 0.5d));
         }
+    }
+
+    // ---------------------------------------------------------------- what disasters never harm
+    //
+    // Obsidian, utility blocks (chests, furnaces, anvils, beds, crafting and enchanting tables, bookshelves, hoppers,
+    // dispensers - a sentry turret's body - and the rest of Impacts.PROTECTED), the block holding any of them up, and
+    // every portal with its frame. ObsidianProtection keeps obsidian safe from everything; these keep the rest safe
+    // from disasters.
+
+    /** A disaster explosion loses everything off limits before any other plugin (sentry turrets, realm gates) sees it. */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void spareFromDisasterBlast(BlockExplodeEvent event) {
+        if (!Impacts.inDisasterExplosion()) return;
+        int spared = Impacts.spare(event.blockList());
+        if (spared > 0) getLogger().fine("JASPR_DISASTERS spared=" + spared);
+    }
+
+    private boolean guarded(World world) {
+        return world != null && guardWorld != null && world.getName().equals(guardWorld) && System.currentTimeMillis() < guardUntil;
+    }
+
+    /** Disaster fire (from a blast, a bolt, fissure lava, or spreading from them) is never lit beside anything protected. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void guardIgnition(BlockIgniteEvent event) {
+        BlockIgniteEvent.IgniteCause cause = event.getCause();
+        boolean ours = (cause == BlockIgniteEvent.IgniteCause.EXPLOSION && Impacts.inDisasterExplosion())
+                || (cause == BlockIgniteEvent.IgniteCause.LIGHTNING && active instanceof ThunderHellStorm)
+                || ((cause == BlockIgniteEvent.IgniteCause.SPREAD || cause == BlockIgniteEvent.IgniteCause.LAVA
+                    || cause == BlockIgniteEvent.IgniteCause.LIGHTNING) && guarded(event.getBlock().getWorld()));
+        if (ours && !Impacts.mayIgnite(event.getBlock())) event.setCancelled(true);
+    }
+
+    /** While a disaster's fires can still be burning, protected blocks and portal frames never burn away. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void guardBurning(BlockBurnEvent event) {
+        if (!guarded(event.getBlock().getWorld())) return;
+        if (Impacts.offLimits(event.getBlock())) event.setCancelled(true);
+    }
+
+    /** Item frames and paintings come through a disaster blast. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void spareHangings(HangingBreakEvent event) {
+        if (event.getCause() == HangingBreakEvent.RemoveCause.EXPLOSION && Impacts.inDisasterExplosion()) event.setCancelled(true);
+    }
+
+    /** Armor stands (sentry turrets' stands among them) take no harm from a disaster. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void spareStands(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof ArmorStand)) return;
+        if (Impacts.inDisasterExplosion()) { event.setCancelled(true); return; }
+        if (!guarded(event.getEntity().getWorld())) return;
+        switch (event.getCause()) {
+            case LIGHTNING: case FIRE: case FIRE_TICK: case LAVA: case FALLING_BLOCK: case BLOCK_EXPLOSION:
+                event.setCancelled(true);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /** Minecarts and boats (storage carts among them) come through a disaster blast. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void spareVehicles(VehicleDamageEvent event) {
+        if (Impacts.inDisasterExplosion()) event.setCancelled(true);
     }
 
     // ---------------------------------------------------------------- commands
@@ -296,6 +381,7 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
                 active = null;
                 activeKind = null;
                 cooldownUntil = System.currentTimeMillis() + settings.cooldownMillis;
+                guardUntil = System.currentTimeMillis() + FIRE_GUARD_MILLIS;
                 sender.sendMessage(ChatColor.YELLOW + "Stopped the " + stopped + ".");
             }
             return true;

@@ -144,7 +144,9 @@ final class Blizzard implements Disaster {
             Block ground = spot.getRelative(0, -1, 0);
             Material type = ground.getType();
             if (spot.getType() != Material.AIR || !type.isSolid() || !type.isOccluding() && type != Material.LEAVES && type != Material.LEAVES_2) continue;
-            if (Impacts.isProtected(type) || type == Material.ICE || type == Material.PACKED_ICE || type == Material.SNOW) continue;
+            // Never on a utility block or anything in a portal's frame (snow never blocks a chest lid either).
+            if (Impacts.offLimits(ground) || type == Material.ICE || type == Material.PACKED_ICE || type == Material.SNOW) continue;
+            if (Impacts.nearPortal(world, spot.getX(), spot.getY(), spot.getZ())) continue;
             spot.setType(Material.SNOW, false);
             snow.add(spot);
             snowSet.add(spot);
@@ -188,6 +190,7 @@ final class Blizzard implements Disaster {
             Block water = world.getBlockAt(x, y, z);
             if (water.getType() != Material.STATIONARY_WATER || water.getRelative(0, 1, 0).getType() != Material.AIR) continue;
             if (playerNear(world, water.getLocation().add(0.5d, 0.5d, 0.5d), 3.0d)) continue;
+            if (Impacts.nearPortal(world, x, y, z)) continue;
             water.setType(Material.ICE, false);
             ice.add(water);
         }

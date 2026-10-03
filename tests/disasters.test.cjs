@@ -30,6 +30,30 @@ test('one shared schedule, twice as rare as the two old timers; kinds drawn at r
   assert.match(run.stdout, /DISASTER_SCHEDULE_OK/);
 });
 
+test('no disaster ever changes obsidian, utility blocks (chests, furnaces, anvils, beds, turrets...), what holds them up, or a portal', {skip: !haveJava, timeout: 300000}, () => {
+  // DisasterSafetyTest: a fake world packed with valuables and two portals; every disaster at full strength;
+  // every block change checked against the rules (and a deliberately broken rule is caught on the first quake).
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'jaspr-disasters-safety-'));
+  const sources = fs.readdirSync(src).filter(f => f.endsWith('.java')).map(f => path.join(src, f));
+  const javac = spawnSync(path.join(jdk, 'javac'), ['--release', '8', '-encoding', 'UTF-8', '-nowarn', '-Xlint:-options', '-proc:none', '-cp', paper, '-d', out,
+    ...sources, path.join(root, 'tests/java/chat/jaspr/disasters/DisasterSafetyTest.java')], {encoding: 'utf8'});
+  assert.equal(javac.status, 0, javac.stderr);
+  const run = spawnSync(path.join(jdk, 'java'), ['-cp', out + path.delimiter + paper, 'chat.jaspr.disasters.DisasterSafetyTest'], {encoding: 'utf8'});
+  fs.rmSync(out, {recursive: true, force: true});
+  assert.equal(run.status, 0, run.stderr + run.stdout);
+  assert.match(run.stdout, /DISASTER_SAFETY_OK/);
+});
+
+test('every disaster explosion is filtered before other plugins see it, and disaster fire never burns what is protected', () => {
+  const impacts = read('Impacts.java'), main = read('DisasterPlugin.java');
+  assert.equal(impacts.split('createExplosion(').length - 1, 1, 'one explosion call, inside Impacts.explode');
+  for (const f of fs.readdirSync(src).filter(f => f.endsWith('.java') && f !== 'Impacts.java')) assert.ok(!read(f).includes('createExplosion('), f + ' explodes outside Impacts.explode');
+  for (const m of ['BED_BLOCK', 'WORKBENCH', 'BOOKSHELF', 'DISPENSER', 'ANVIL', 'CHEST', 'FURNACE', 'OBSIDIAN', 'PORTAL', 'END_GATEWAY']) assert.ok(impacts.includes('Material.' + m), m + ' is protected');
+  assert.match(main, /@EventHandler\(priority = EventPriority\.LOWEST\)\s+public void spareFromDisasterBlast\(BlockExplodeEvent event\)/, 'runs before the turret and realm-gate listeners');
+  for (const guard of ['guardIgnition(BlockIgniteEvent', 'guardBurning(BlockBurnEvent', 'spareHangings(HangingBreakEvent', 'spareStands(EntityDamageEvent', 'spareVehicles(VehicleDamageEvent']) assert.ok(main.includes(guard), guard);
+  assert.ok(main.includes('registerEvents(new ObsidianProtection(), this)'), 'the world-wide obsidian rule stays');
+});
+
 test('five kinds, each with its own command, all admin-only, all run through the one shared slot', () => {
   const yml = fs.readFileSync(path.join(plugin, 'resources/plugin.yml'), 'utf8');
   for (const command of ['shower', 'lightning', 'quake', 'tornado', 'blizzard']) {
@@ -48,12 +72,12 @@ test('the new disasters respect protected blocks and obsidian, clean up after th
   assert.ok(/PROTECTED = EnumSet\.of\([\s\S]*Material\.OBSIDIAN/.test(impacts), 'obsidian is protected');
   assert.ok(impacts.includes('return material != Material.AIR && !isLiquid(material) && !isProtected(material);'));
   // fissures only split natural ground and only carve what canBreak allows
-  assert.ok(quake.includes('Impacts.naturalGround(world, x, z)') && quake.includes('if (Impacts.canBreak(block.getType())) block.setType(Material.AIR, false);'));
+  assert.ok(quake.includes('Impacts.naturalGround(world, x, z)') && quake.includes('if (Impacts.canBreak(block.getType()) && !Impacts.offLimits(block)) block.setType(Material.AIR, false);'));
   assert.ok(quake.includes('settings.quakeBreakBlocks ? settings.quakeFissures : 0'), 'break-blocks off: no fissures');
   // rocks burst instead of becoming blocks, and time out if they never land
   assert.ok(quake.includes('void onRockLanded') && quake.includes('expireOverdue'));
   // the tornado tears up only loose natural surface, a bounded number of blocks, and gives the weather back
-  assert.ok(tornado.includes('settings.tornadoBreakBlocks ? settings.tornadoMaxDebris : 0') && tornado.includes('Impacts.isProtected(type)'));
+  assert.ok(tornado.includes('settings.tornadoBreakBlocks ? settings.tornadoMaxDebris : 0') && tornado.includes('if (Impacts.offLimits(ground) || Impacts.nearPortal(world, bx, top, bz)) continue;'));
   assert.ok(/case GRASS:[\s\S]*case LEAVES_2:[\s\S]*default:\s*return null;/.test(tornado), 'only grass, dirt, sand, gravel and leaves fly');
   assert.ok((tornado.match(/weather\.restore\(\)/g) || []).length >= 2, 'weather restored on end and cancel');
   assert.ok(tornado.includes('heading += Math.PI;   // the edge of the loaded world'), 'never loads chunks');

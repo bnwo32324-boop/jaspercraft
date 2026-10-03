@@ -83,6 +83,28 @@ For ninety seconds snow drives in thick around the target.
   thaws away again, so it leaves no permanent mark.
 * Overworld skies only, and a scheduled blizzard only picks a player near the surface.
 
+## What disasters never harm
+
+Other building blocks can be blown open, split or burned. These are the exceptions, for every disaster:
+
+* **Obsidian**, always and everywhere (ObsidianProtection keeps it safe from every explosion, mob and fire,
+  disaster or not).
+* **Utility blocks**: chests, trapped and ender chests, shulker boxes, furnaces, crafting tables, anvils,
+  enchanting tables, bookshelves, beds, brewing stands, cauldrons, hoppers, droppers, dispensers (a sentry
+  turret's body), jukeboxes, note blocks, beacons, spawners, heads, command and structure blocks.
+* **The block under any of those**, so nothing is left hanging and no anvil drops and chips.
+* **Portals and their frames**: every portal block and everything within 2 blocks of it, whatever the frame is
+  made of. That covers the Nether's obsidian and the realm gates' mossy cobblestone, sandstone and the rest.
+* **Armor stands** (sentry turrets' stands among them), **item frames, paintings, minecarts and boats**: never
+  moved by a quake or tornado and never harmed by a disaster's blast, bolt or fire.
+
+Meteor and hell-bolt explosions go through one wrapper (`Impacts.explode`); while one runs, a listener at
+the lowest priority takes every off-limits block out of the explosion before any other plugin (the turrets,
+the realm gates) sees it. Disaster fire is never lit beside anything protected, fissure lava is never left
+within three blocks of it, and for three minutes after a disaster nothing protected burns in that world.
+`tests/java/chat/jaspr/disasters/DisasterSafetyTest` runs every disaster at full strength through a world packed
+with these blocks and two portals, and checks every single block change against these rules.
+
 ## Commands
 
 | Command | Effect |

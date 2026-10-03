@@ -16,6 +16,7 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.LivingEntity;
@@ -180,7 +181,8 @@ final class Earthquake implements Disaster {
         double push = settings.quakeJoltStrength * (0.35d + 0.65d * strength);
         int moved = 0;
         for (Entity entity : world.getNearbyEntities(target.getLocation(), radius, 6.0d, radius)) {
-            if (!(entity instanceof LivingEntity) || !entity.isOnGround()) continue;
+            // Armor stands (sentry turrets' stands among them) stay exactly where they were put.
+            if (!(entity instanceof LivingEntity) || entity instanceof ArmorStand || !entity.isOnGround()) continue;
             if (entity instanceof Player) {
                 GameMode mode = ((Player) entity).getGameMode();
                 if (mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR) continue;
@@ -342,18 +344,24 @@ final class Earthquake implements Disaster {
         for (int w = 0; w <= (wide ? 1 : 0); w++) {
             int cx = w == 0 ? x : x + (int) Math.round(-fissure.dz);
             int cz = w == 0 ? z : z + (int) Math.round(fissure.dx);
-            for (int y = top; y > top - depth && y > 1; y--) {
+            Block columnGround = w == 0 ? ground : Impacts.naturalGround(world, cx, cz);
+            if (columnGround == null) continue;
+            int columnTop = columnGround.getY();
+            for (int y = columnTop; y > columnTop - depth && y > 1; y--) {
                 Block block = world.getBlockAt(cx, y, cz);
+                // Never a utility block, the block holding one up, or anything in a portal's frame.
                 // No physics update: the ground is splitting open, not being mined.
-                if (Impacts.canBreak(block.getType())) block.setType(Material.AIR, false);
-                bottom = Math.min(bottom, y);
+                if (Impacts.canBreak(block.getType()) && !Impacts.offLimits(block)) block.setType(Material.AIR, false);
+                if (w == 0) bottom = Math.min(bottom, y);
             }
         }
-        // The deepest stretch of a lava fissure glows: the magma below shows through.
+        // The deepest stretch of a lava fissure glows: the magma below shows through. Never close to anything
+        // protected or to a portal, so no lava ever reaches a chest, a bed, a bookshelf or a portal frame.
         if (fissure.lava && depth >= 3 && along > 0.3d && along < 0.7d) {
             Block floor = world.getBlockAt(x, bottom, z);
             Block under = floor.getRelative(0, -1, 0);
-            if (floor.getType() == Material.AIR && under.getType().isSolid() && !Impacts.isProtected(under.getType())) {
+            if (floor.getType() == Material.AIR && under.getType().isSolid() && !Impacts.isProtected(under.getType())
+                    && Impacts.clearOfValuables(floor, 3)) {
                 floor.setType(Material.STATIONARY_LAVA, false);
             }
         }

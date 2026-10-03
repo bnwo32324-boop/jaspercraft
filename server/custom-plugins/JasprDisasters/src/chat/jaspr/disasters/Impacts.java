@@ -1,6 +1,9 @@
 package chat.jaspr.disasters;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import org.bukkit.Location;
@@ -11,18 +14,155 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 
-/** Everything that happens where a meteor lands or a hell bolt comes down. */
+/**
+ * Everything that happens where a meteor lands or a hell bolt comes down, and the rules every disaster obeys
+ * wherever it changes the world.
+ *
+ * Off limits to every disaster, always: obsidian; utility blocks (chests, furnaces, anvils, beds, crafting and
+ * enchanting tables, bookshelves, hoppers, droppers, dispensers - which is what a sentry turret's body is -
+ * brewing stands, cauldrons, jukeboxes, note blocks, beacons, spawners, shulker boxes and the like); the block
+ * directly under any of those, so nothing is left hanging or dropped (anvils fall and chip); and every portal
+ * together with everything within PORTAL_MARGIN of it, so a portal's frame survives whatever it is made of
+ * (obsidian for the Nether, mossy cobblestone, sandstone and the rest for the realm gates). Disaster explosions
+ * have these taken out of their block lists before any other plugin sees them, and disaster fire is never lit
+ * beside them. Other building blocks can still be damaged; these are the exceptions.
+ */
 final class Impacts {
-    /** Blocks a disaster will never overwrite, so a strike cannot quietly eat storage or bedrock. */
+    /** Blocks a disaster will never overwrite, so a strike cannot quietly eat storage, utility blocks or bedrock. */
     private static final Set<Material> PROTECTED = EnumSet.of(
             Material.BEDROCK, Material.OBSIDIAN, Material.BARRIER, Material.ENDER_PORTAL, Material.ENDER_PORTAL_FRAME,
-            Material.PORTAL, Material.ENDER_CHEST, Material.CHEST, Material.TRAPPED_CHEST,
+            Material.PORTAL, Material.END_GATEWAY, Material.ENDER_CHEST, Material.CHEST, Material.TRAPPED_CHEST,
             Material.HOPPER, Material.DROPPER, Material.DISPENSER, Material.FURNACE,
             Material.BURNING_FURNACE, Material.BREWING_STAND, Material.BEACON, Material.MOB_SPAWNER,
             Material.ENCHANTMENT_TABLE, Material.ANVIL, Material.COMMAND,
-            Material.COMMAND_CHAIN, Material.COMMAND_REPEATING, Material.STRUCTURE_BLOCK);
+            Material.COMMAND_CHAIN, Material.COMMAND_REPEATING, Material.STRUCTURE_BLOCK,
+            Material.BED_BLOCK, Material.WORKBENCH, Material.BOOKSHELF, Material.CAULDRON, Material.JUKEBOX,
+            Material.NOTE_BLOCK, Material.SKULL, Material.DRAGON_EGG);
+
+    /** Everything this close to a portal block counts as its frame. */
+    static final int PORTAL_MARGIN = 2;
+
+    /** Depth of disaster explosions in progress (they fire their events synchronously, inside createExplosion). */
+    private static int explosionDepth;
 
     private Impacts() {}
+
+    static boolean isPortal(Material material) {
+        return material == Material.PORTAL || material == Material.ENDER_PORTAL || material == Material.END_GATEWAY;
+    }
+
+    /** A portal block within the margin of this spot, looking only at loaded chunks (never loads one). */
+    static boolean nearPortal(World world, int x, int y, int z) {
+        int r = PORTAL_MARGIN;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                if (!world.isChunkLoaded((x + dx) >> 4, (z + dz) >> 4)) continue;
+                for (int dy = -r; dy <= r; dy++) {
+                    int yy = y + dy;
+                    if (yy < 0 || yy > 255) continue;
+                    if (isPortal(world.getBlockAt(x + dx, yy, z + dz).getType())) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True when a disaster must leave this block exactly as it is: it is protected itself, it holds up a
+     * protected block, or it is part of (or right beside) a portal's frame.
+     */
+    static boolean offLimits(Block block) {
+        if (isProtected(block.getType())) return true;
+        if (block.getY() < 255 && isProtected(block.getRelative(BlockFace.UP).getType())) return true;
+        return nearPortal(block.getWorld(), block.getX(), block.getY(), block.getZ());
+    }
+
+    /** Disaster fire may be lit in this air block: nothing protected touching it and no portal close by. */
+    static boolean mayIgnite(Block air) {
+        World world = air.getWorld();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (!world.isChunkLoaded((air.getX() + dx) >> 4, (air.getZ() + dz) >> 4)) continue;
+                for (int dy = -1; dy <= 1; dy++) {
+                    int y = air.getY() + dy;
+                    if (y < 0 || y > 255) continue;
+                    if (isProtected(world.getBlockAt(air.getX() + dx, y, air.getZ() + dz).getType())) return false;
+                }
+            }
+        }
+        return !nearPortal(world, air.getX(), air.getY(), air.getZ());
+    }
+
+    /** Nothing protected and no portal within the given distance: somewhere lava may be left behind. */
+    static boolean clearOfValuables(Block block, int distance) {
+        World world = block.getWorld();
+        for (int dx = -distance; dx <= distance; dx++) {
+            for (int dz = -distance; dz <= distance; dz++) {
+                if (!world.isChunkLoaded((block.getX() + dx) >> 4, (block.getZ() + dz) >> 4)) return false;
+                for (int dy = -distance; dy <= distance; dy++) {
+                    int y = block.getY() + dy;
+                    if (y < 0 || y > 255) continue;
+                    if (isProtected(world.getBlockAt(block.getX() + dx, y, block.getZ() + dz).getType())) return false;
+                }
+            }
+        }
+        return !nearPortal(world, block.getX(), block.getY(), block.getZ());
+    }
+
+    // ------------------------------------------------------------------ disaster explosions
+
+    /**
+     * Every disaster explosion goes through here. While it runs, the plugin's explosion listener knows the blast
+     * is ours and strips everything off limits out of it (see spare) before any other plugin reads the list.
+     */
+    static void explode(World world, double x, double y, double z, float power, boolean fire, boolean breakBlocks) {
+        explosionDepth++;
+        try {
+            world.createExplosion(x, y, z, power, fire, breakBlocks);
+        } finally {
+            explosionDepth--;
+        }
+    }
+
+    static boolean inDisasterExplosion() { return explosionDepth > 0; }
+
+    /**
+     * Takes every off-limits block out of a disaster explosion's block list. Portals are found with one scan of
+     * the blast's bounding box (plus the margin), so a large blast costs one sweep, not one per block.
+     */
+    static int spare(List<Block> blocks) {
+        if (blocks.isEmpty()) return 0;
+        World world = blocks.get(0).getWorld();
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        for (Block block : blocks) {
+            minX = Math.min(minX, block.getX()); maxX = Math.max(maxX, block.getX());
+            minY = Math.min(minY, block.getY()); maxY = Math.max(maxY, block.getY());
+            minZ = Math.min(minZ, block.getZ()); maxZ = Math.max(maxZ, block.getZ());
+        }
+        List<int[]> portals = new ArrayList<int[]>();
+        int r = PORTAL_MARGIN;
+        for (int x = minX - r; x <= maxX + r; x++) {
+            for (int z = minZ - r; z <= maxZ + r; z++) {
+                if (!world.isChunkLoaded(x >> 4, z >> 4)) continue;
+                for (int y = Math.max(0, minY - r); y <= Math.min(255, maxY + r); y++) {
+                    if (isPortal(world.getBlockAt(x, y, z).getType())) portals.add(new int[] {x, y, z});
+                }
+            }
+        }
+        int removed = 0;
+        for (Iterator<Block> it = blocks.iterator(); it.hasNext(); ) {
+            Block block = it.next();
+            boolean keep = isProtected(block.getType())
+                    || (block.getY() < 255 && isProtected(block.getRelative(BlockFace.UP).getType()));
+            for (int i = 0; !keep && i < portals.size(); i++) {
+                int[] p = portals.get(i);
+                keep = Math.abs(p[0] - block.getX()) <= r && Math.abs(p[1] - block.getY()) <= r && Math.abs(p[2] - block.getZ()) <= r;
+            }
+            if (keep) { it.remove(); removed++; }
+        }
+        return removed;
+    }
 
     /** Shulker boxes keep their contents, and 1.12.2 spells them one enum per colour. */
     static boolean isProtected(Material material) {
@@ -70,7 +210,7 @@ final class Impacts {
         World world = at.getWorld();
         if (world == null) return;
 
-        world.createExplosion(at.getX(), at.getY(), at.getZ(), settings.explosionPower, true, settings.breakBlocks);
+        explode(world, at.getX(), at.getY(), at.getZ(), settings.explosionPower, true, settings.breakBlocks);
         world.playSound(at, Sound.ENTITY_GENERIC_EXPLODE, 3.0f, 0.6f);
         try {
             world.spawnParticle(Particle.EXPLOSION_HUGE, at, 1);
@@ -94,7 +234,7 @@ final class Impacts {
         World world = at.getWorld();
         if (world == null) return;
 
-        world.createExplosion(at.getX(), at.getY(), at.getZ(), settings.stormBoltPower, true, settings.stormBreakBlocks);
+        explode(world, at.getX(), at.getY(), at.getZ(), settings.stormBoltPower, true, settings.stormBreakBlocks);
 
         int radius = settings.stormCraterRadius;
         if (settings.stormBreakBlocks) carve(world, at, radius);
@@ -129,7 +269,7 @@ final class Impacts {
                     if (y < 1 || y > 254) continue;
                     Block block = world.getBlockAt(cx + dx, y, cz + dz);
                     Material type = block.getType();
-                    if (type == Material.AIR || isLiquid(type) || isProtected(type)) continue;
+                    if (type == Material.AIR || isLiquid(type) || offLimits(block)) continue;
                     // No physics update: this is a hole being blown open, not a block being mined.
                     block.setType(Material.AIR, false);
                 }
@@ -155,8 +295,9 @@ final class Impacts {
             if (ground == null) continue;
             Block above = ground.getRelative(BlockFace.UP);
             if (above.getType() != Material.AIR || above.getY() > 254) continue;
+            if (!mayIgnite(above)) continue;
 
-            if (settings.stormNetherrackFloor && !isProtected(ground.getType()) && !isLiquid(ground.getType())) {
+            if (settings.stormNetherrackFloor && !isLiquid(ground.getType()) && !offLimits(ground)) {
                 ground.setType(Material.NETHERRACK, false);
             }
             above.setType(Material.FIRE, false);
@@ -171,7 +312,7 @@ final class Impacts {
         Block ground = surfaceNear(world, at.getBlockX(), at.getBlockY(), at.getBlockZ(), 4);
         if (ground == null) return;
         Block above = ground.getRelative(BlockFace.UP);
-        if (above.getType() != Material.AIR || above.getY() > 254) return;
+        if (above.getType() != Material.AIR || above.getY() > 254 || !mayIgnite(above)) return;
         above.setType(Material.FIRE, false);
     }
 
@@ -198,11 +339,11 @@ final class Impacts {
 
             if (what == Material.FIRE) {
                 Block above = ground.getRelative(BlockFace.UP);
-                if (above.getType() != Material.AIR || above.getY() > 254) continue;
+                if (above.getType() != Material.AIR || above.getY() > 254 || !mayIgnite(above)) continue;
                 above.setType(Material.FIRE, false);
                 placed++;
             } else {
-                if (isProtected(ground.getType())) continue;
+                if (offLimits(ground)) continue;
                 if (ground.getY() < 1 || ground.getY() > 254) continue;
                 ground.setType(what, false);
                 placed++;
