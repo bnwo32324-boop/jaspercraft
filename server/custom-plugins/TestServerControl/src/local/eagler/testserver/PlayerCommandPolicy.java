@@ -15,6 +15,8 @@ final class PlayerCommandPolicy {
 
     private static final Set<String> PUBLIC_COMMANDS = new HashSet<String>(Arrays.asList(
             "voice", "jasprvoicechat:voice",
+            // JasprDungeon: help, own pouch, location and the way home. The plugin guards inspection travel itself.
+            "dungeon", "jasprdungeon:dungeon",
             // Character progression is for everyone. These open a menu and spend the player's own
             // experience or their own item's tokens; there is nothing here an operator must gate.
             "stats", "upgrades", "perks",

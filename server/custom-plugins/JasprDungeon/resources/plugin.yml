@@ -1,0 +1,12 @@
+name: JasprDungeon
+version: 3.0.0-sandbox
+main: chat.jaspr.dungeon.DungeonPlugin
+load: POSTWORLD
+description: The Penitent Below - deterministic endless room dungeon
+commands:
+  dungeon:
+    description: Dungeon guide, location, return and creative inspection
+    usage: /dungeon [where|leave|baubles|items [page]|visit <roomX> <roomZ>|status]
+permissions:
+  jaspr.dungeon.admin:
+    default: op

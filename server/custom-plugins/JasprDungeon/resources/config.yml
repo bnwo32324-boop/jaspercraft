@@ -1,0 +1,12 @@
+# JasprDungeon (The Penitent Below). Live on JasperCraft since 2026-10-03.
+enabled: true
+world-name: jaspr_penitent_below
+seed-salt: 709327916
+max-active-rooms: 32
+room-sleep-seconds: 30
+portal-dwell-ticks: 20
+boss-health-multiplier: 1.0
+loot-multiplier: 1.0
+# Controls onward discovery only; existing pocket-world returns remain available.
+rifts-discovery-enabled: true
+rifts-particles: true
