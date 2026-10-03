@@ -210,8 +210,8 @@ public final class Encounters implements Listener {
         if(!save(a)){a.state.killed=before;return;}
         if(a.state.killed==((1<<a.room.mobCount())-1))complete(a);
     }
-    private void complete(Run a){cancelWarning(a);if(!a.state.cleared){a.state.cleared=true;if(!save(a)){a.state.cleared=false;return;}if(a.bar!=null){a.bar.removeAll();a.bar=null;}
-            for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(present(p,a)){p.sendTitle(ChatColor.GOLD+"Room absolved",ChatColor.GRAY+"The reliquary chest is unsealed",5,40,10);plugin.relics.onClear(p);p.giveExp(a.room.tier*5);}}
+    private void complete(Run a){cancelWarning(a);if(!a.state.cleared){a.state.cleared=true;if(!save(a)){a.state.cleared=false;return;}if(a.bar!=null){a.bar.removeAll();a.bar=null;}String stilled=HazardCatalog.seizingNames(a.room);
+            for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(present(p,a)){p.sendTitle(ChatColor.GOLD+"Room absolved",ChatColor.GRAY+"The reliquary chest is unsealed",5,40,10);if(!stilled.isEmpty())p.sendMessage(ChatColor.GRAY+"The room's "+stilled+" falls still.");plugin.relics.onClear(p);p.giveExp(a.room.tier*5);}}
             plugin.getLogger().info("DUNGEON_ROOM_CLEARED id="+a.key+" threat="+a.room.tier);
         }
     }

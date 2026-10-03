@@ -1,8 +1,8 @@
 name: JasprDungeon
-version: 4.0.1
+version: 5.0.0
 main: chat.jaspr.dungeon.DungeonPlugin
 load: POSTWORLD
-description: The Dungeon Dimension - endless room dungeon where every room has its own dangers
+description: The Dungeon Dimension - endless room dungeon; some rooms are trapped, seizing traps are rare and fall still once a room is cleared
 commands:
   dungeon:
     description: Dungeon guide, location, return and creative inspection

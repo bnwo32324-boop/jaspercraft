@@ -16,12 +16,15 @@ import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.Vector;
 
 /**
- * Owner 2026-10-03: every room has its own dangers, treasure rooms most of all.
+ * Generation 5 (owner 2026-10-03): some rooms are trapped, and seizing dangers (gravity well, shockwave, creeping dark,
+ * frost gusts) are rare and "disabled if you conquer the room".
  *
- * The runtime half of HazardCatalog. A room cycles through its dangers: each one picks a player who can be hurt,
- * telegraphs from the marks the generator drew near them, strikes, then rests. Traps never place, break or change a
- * block, never aim into the arrival circle, and only ever wound eligible players; whatever they spawn is tagged,
- * tracked and removed when the room sleeps. A room whose traps fail is switched off on its own and logged once.
+ * The runtime half of HazardCatalog. A trapped room cycles through its live dangers: each one picks a player who can
+ * be hurt, telegraphs from the marks the generator drew near them, strikes, then rests. Once a room is absolved (every
+ * enemy killed) its seizing dangers fall still at once -- a pending strike is dropped and a well's pull ends -- and its
+ * ordinary dangers carry on at a slower pace. Traps never place, break or change a block, never aim into the arrival
+ * circle, and only ever wound eligible players; whatever they spawn is tagged, tracked and removed when the room
+ * sleeps. A room whose traps fail is switched off on its own and logged once.
  */
 public final class Hazards implements Listener {
     static final String TAG="jpd_trap";
@@ -59,6 +62,12 @@ public final class Hazards implements Listener {
             for(Encounters.Run run:new ArrayList<>(runs.values())){
                 if(run==null||run.world==null||run.room.hazards.length==0||disabled.contains(run.key))continue;
                 Site s=sites.get(run.key);
+                // Absolved: the room's seizing dangers fall still at once, mid-telegraph or mid-pull.
+                if(run.state.cleared&&s!=null){
+                    if(s.plan!=null&&HazardCatalog.seizes(s.plan.type)){s.plan=null;s.next=Math.max(s.next,now+20);}
+                    if(s.wave!=null&&HazardCatalog.seizes(s.wave.type))s.wave=null;
+                }
+                if(HazardCatalog.live(run.room,run.state.cleared).length==0){if(s!=null){s.plan=null;s.wave=null;}continue;}
                 // An empty room forgets its pending strike, so nobody walks back into a stale telegraph.
                 if(run.players.isEmpty()){if(s!=null){s.plan=null;s.wave=null;s.next=Math.max(s.next,now+40);}continue;}
                 try{if(s==null||s.run!=run){s=new Site(run,now);sites.put(run.key,s);arm(run);}step(s);}
@@ -75,6 +84,7 @@ public final class Hazards implements Listener {
     /** Test hook for the separately packaged probe: plan a strike of this type now against an eligible player. */
     public boolean force(Encounters.Run run,HazardCatalog.Type type){
         if(run==null||run.world==null||disabled.contains(run.key))return false;
+        if(run.state.cleared&&HazardCatalog.seizes(type))return false;   // stilled in an absolved room, forced or not
         Site s=sites.get(run.key);if(s==null||s.run!=run){s=new Site(run,now-40);sites.put(run.key,s);arm(run);}
         List<Player> targets=eligible(run);if(targets.isEmpty()||s.plan!=null)return false;
         Plan p=new Plan(type,now+windup(run),targets.get(0));plan(run,p);if(p.points.isEmpty()&&p.line==null)return false;
@@ -82,6 +92,8 @@ public final class Hazards implements Listener {
     }
     public boolean disabled(String key){return disabled.contains(key);}
     public int traps(){return traps.size();}
+    /** Test and diagnostic view of a room's pending strike and lingering wave: "plan=TYPE wave=TYPE" or "-". */
+    public String pending(String key){Site s=sites.get(key);return "plan="+(s==null||s.plan==null?"-":s.plan.type.name())+" wave="+(s==null||s.wave==null?"-":s.wave.type.name());}
     private void arm(Encounters.Run run){
         if(!armed.add(run.key))return;if(armed.size()>MAX_KEYS){Iterator<String> it=armed.iterator();it.next();it.remove();}
         StringBuilder b=new StringBuilder();for(HazardCatalog.Type t:run.room.hazards){if(b.length()>0)b.append(',');b.append(t.name());}
@@ -99,7 +111,8 @@ public final class Hazards implements Listener {
         }
         if(now<s.next)return;
         List<Player> targets=eligible(run);if(targets.isEmpty()){s.next=now+20;return;}
-        HazardCatalog.Type type=run.room.hazards[Math.floorMod(s.cursor,run.room.hazards.length)];
+        HazardCatalog.Type[] live=HazardCatalog.live(run.room,run.state.cleared);if(live.length==0){s.next=now+20;return;}
+        HazardCatalog.Type type=live[Math.floorMod(s.cursor,live.length)];
         if(s.wave!=null&&(type==HazardCatalog.Type.SHOCKWAVE||type==HazardCatalog.Type.GRAVITY_WELL)){s.next=now+10;return;}
         s.cursor++;
         p=new Plan(type,Math.max(now+windup(run),s.start+40),targets.get(random.nextInt(targets.size())));

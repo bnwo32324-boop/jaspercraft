@@ -1,13 +1,20 @@
 package chat.jaspr.dungeon;
 
 /**
- * Owner 2026-10-03: every room has its own dangers, without exception, treasure rooms most of all.
+ * Generation 5 (owner 2026-10-03, after generation 4 trapped every room): "traps should not be in every room, and the
+ * gravity well should be particularly rare, as well as other traps that are similar to it" -- and those traps "should
+ * be disabled if you conquer the room".
  *
  * Pure (no Bukkit): which dangers a room has, and where their marks sit in the stone. The generator draws the
- * marks and Hazards strikes from the same cells, so what a player sees is where the danger comes from. Ordinary
- * rooms carry one danger; treasure rooms, shrines and gauntlets carry two. Each theme favours three dangers that
- * suit it and the room's hash picks among them, so neighbouring rooms rarely share the same set. Nothing is ever
- * marked or aimed inside the arrival circle of the origin refuge.
+ * marks and Hazards strikes from the same cells, so what a player sees is where the danger comes from.
+ * Whether a room is trapped depends on its kind alone: never the refuges, always the gauntlets (two dangers), and
+ * otherwise by chance -- three treasure rooms in five, two shrines in five, three ordinary rooms in ten, one boss
+ * chamber in four, one danger each. Which danger depends on theme and hash alone: one of the theme's favoured
+ * ordinary dangers, except that a favoured seizing danger turns up in 8 of 100 of the theme's trapped rooms and a
+ * favoured gravity well in 4 of 100. A gauntlet's second danger is always an ordinary one. Seizing dangers take hold
+ * of a player instead of striking at a spot: they drag (gravity well), throw (shockwave), blind (creeping dark) or
+ * freeze (frost gusts); a room's own fall still once it is absolved. Nothing is ever marked or aimed inside the
+ * arrival circle of the origin refuge.
  */
 public final class HazardCatalog {
     public enum Type {
@@ -31,22 +38,75 @@ public final class HazardCatalog {
         {FROST,WELL,DARTS},{EMBERS,DARK,RUNES},{DARTS,MASONRY,RAIN},{SMITE,WELL,BLADES},{DARK,BLADES,RUNES},{SMITE,VENTS,SHOCK}
     };
 
+    /** In a thousand: a theme's favoured gravity well, and its other favoured seizing dangers together. */
+    static final int WELL_IN_1000=40,SEIZING_IN_1000=80;
+    static final Type[] NONE={};
+    /** Per theme: its favoured ordinary dangers, its favoured seizing dangers other than the well, and whether it favours the well. */
+    private static final Type[][] ORDINARY=new Type[FAVOURED.length][],SEIZING=new Type[FAVOURED.length][];
+    private static final boolean[] WELLS=new boolean[FAVOURED.length];
+    /** The ten ordinary dangers, in enum order: a gauntlet's second danger is one of these. */
+    private static final Type[] ORDINARY_ALL;
+    static{
+        for(int theme=0;theme<FAVOURED.length;theme++){
+            java.util.List<Type> ordinary=new java.util.ArrayList<>(),seizing=new java.util.ArrayList<>();
+            for(Type t:FAVOURED[theme]){if(t==WELL)WELLS[theme]=true;else if(seizes(t))seizing.add(t);else ordinary.add(t);}
+            // Every theme favours at least one ordinary danger (audited); an all-seizing trio would fall back to all ten.
+            ORDINARY[theme]=ordinary.toArray(NONE);SEIZING[theme]=seizing.toArray(NONE);
+        }
+        java.util.List<Type> all=new java.util.ArrayList<>();for(Type t:Type.values())if(!seizes(t))all.add(t);ORDINARY_ALL=all.toArray(NONE);
+    }
+
     private HazardCatalog(){}
     private static int data(int id,int value){return id|(value<<12);}
 
+    /** Dangers that take hold of a player instead of striking at a spot: drag, throw, blind or freeze. */
+    public static boolean seizes(Type t){return t==WELL||t==SHOCK||t==DARK||t==FROST;}
+    /** In a thousand, how many rooms of this kind are trapped at all. */
+    public static int trappedIn1000(Layout.Kind kind){
+        switch(kind){
+            case REFUGE: return 0;
+            case GAUNTLET: return 1000;
+            case TREASURE: return 600;
+            case SHRINE: return 400;
+            case BOSS: return 250;
+            default: return 300;
+        }
+    }
+    /** One independent decision stream per salt, from the room's hash alone. */
+    private static long stream(Layout.Room r,long salt){return Layout.mix(r.hash^salt);}
+
     public static Type[] of(Layout.Room r){
-        long h=Layout.mix(r.hash^0x48415a4152445300L);
-        Type[] favoured=FAVOURED[r.theme];int pick=(int)Math.floorMod(h,favoured.length);Type first=favoured[pick];
-        // The arrival room's only well sigil would lie inside the arrival circle: it takes the theme's next danger instead.
-        if(first==WELL&&r.kind==Layout.Kind.REFUGE&&r.x==0&&r.z==0)first=favoured[(pick+1)%favoured.length];
-        boolean two=r.kind==Layout.Kind.TREASURE||r.kind==Layout.Kind.SHRINE||r.kind==Layout.Kind.GAUNTLET;
-        if(!two)return new Type[]{first};
-        Type[] all=Type.values();int i=(int)Math.floorMod(h>>>17,all.length-1);if(i>=first.ordinal())i++;
-        return new Type[]{first,all[i]};
+        if(Math.floorMod(stream(r,0x5452415050454453L),1000)>=trappedIn1000(r.kind))return NONE;
+        Type first=first(r.theme,stream(r,0x48415a4152445300L),stream(r,0x5049434b46495253L));
+        if(r.kind!=Layout.Kind.GAUNTLET)return new Type[]{first};
+        int n=ORDINARY_ALL.length-(seizes(first)?0:1),i=(int)Math.floorMod(stream(r,0x5345434f4e444152L),n);
+        if(!seizes(first)&&i>=java.util.Arrays.asList(ORDINARY_ALL).indexOf(first))i++;
+        return new Type[]{first,ORDINARY_ALL[i]};
+    }
+    /** The first danger of a trapped room: the theme's ordinary favourites, its seizing ones rarely, its well rarest. */
+    static Type first(int theme,long roll,long pick){
+        int r=(int)Math.floorMod(roll,1000);
+        if(WELLS[theme]){if(r<WELL_IN_1000)return WELL;r-=WELL_IN_1000;}
+        if(SEIZING[theme].length>0&&r<SEIZING_IN_1000)return SEIZING[theme][(int)Math.floorMod(pick,SEIZING[theme].length)];
+        Type[] ordinary=ORDINARY[theme].length>0?ORDINARY[theme]:ORDINARY_ALL;
+        return ordinary[(int)Math.floorMod(pick,ordinary.length)];
+    }
+    /** The dangers still live in a room: once it is absolved (every enemy killed), its seizing dangers fall still. */
+    public static Type[] live(Layout.Room r,boolean absolved){
+        if(!absolved)return r.hazards;
+        int n=0;for(Type t:r.hazards)if(!seizes(t))n++;
+        if(n==r.hazards.length)return r.hazards;
+        Type[] out=new Type[n];int i=0;for(Type t:r.hazards)if(!seizes(t))out[i++]=t;return out;
     }
     public static boolean has(Layout.Room r,Type t){for(Type x:r.hazards)if(x==t)return true;return false;}
     public static String names(Layout.Room r){
         StringBuilder b=new StringBuilder();for(Type t:r.hazards){if(b.length()>0)b.append(", ");b.append(t.title);}return b.toString();
+    }
+    /** For room titles and /dungeon where: the dangers, or that the room has none. */
+    public static String summary(Layout.Room r){return r.hazards.length==0?"No traps":"Dangers: "+names(r);}
+    /** The room's seizing dangers by name, or "" when it has none. */
+    public static String seizingNames(Layout.Room r){
+        StringBuilder b=new StringBuilder();for(Type t:r.hazards)if(seizes(t)){if(b.length()>0)b.append(", ");b.append(t.title);}return b.toString();
     }
 
     /** The arrival circle in the origin refuge: return portal, landing squares and rift cracks. */

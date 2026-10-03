@@ -70,7 +70,7 @@ public final class Layout {
     }
     public static final class Room {
         public final int x,z,w,d,theme,motif,tier; public final Kind kind;public final long hash;
-        /** This room's own dangers (HazardCatalog): one in ordinary rooms, two where treasure waits or the gauntlet runs. */
+        /** This room's own dangers (HazardCatalog): none in many rooms, one where a room is trapped, two where the gauntlet runs. */
         public final HazardCatalog.Type[] hazards;
         Room(int x,int z,int w,int d,int theme,int motif,int tier,Kind kind,long hash){this.x=x;this.z=z;this.w=w;this.d=d;this.theme=theme;this.motif=motif;this.tier=tier;this.kind=kind;this.hash=hash;hazards=HazardCatalog.of(this);}
         public String id(){return x+"_"+z;}
