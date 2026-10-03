@@ -26,9 +26,17 @@ public final class Gates implements Listener {
         boolean valid(World w){for(int a=0;a<4;a++)for(int h=0;h<5;h++){boolean edge=a==0||a==3||h==0||h==4;boolean corner=(a==0||a==3)&&(h==0||h==4);Material m=b(w,a,h).getType();if(edge&&!corner&&m!=Material.SMOOTH_BRICK)return false;if(!edge&&m!=Material.AIR&&m!=Material.FIRE&&m!=Material.PORTAL)return false;}return true;}
         void fill(World w){for(int a=1;a<=2;a++)for(int h=1;h<=3;h++)b(w,a,h).setTypeIdAndData(90,(byte)(axisX?1:2),false);}
         Location safe(World w){return new Location(w,x+(axisX?1.5:2.5),y+1,z+(axisX?2.5:1.5));}
+        /** A box (feet at l, half-width, height) overlapping the 2x3 opening: the same contact vanilla needs to start portal travel. */
+        boolean touches(Location l,double half,double height){
+            if(l==null||l.getWorld()==null||!world.equals(l.getWorld().getUID()))return false;
+            double along=axisX?l.getX():l.getZ(),across=axisX?l.getZ():l.getX(),from=(axisX?x:z)+1,plane=axisX?z:x;
+            return along+half>from&&along-half<from+2&&across+half>plane&&across-half<plane+1&&l.getY()+height>y+1&&l.getY()<y+4;
+        }
     }
     public Gates(DungeonPlugin plugin){this.plugin=plugin;file=new File(plugin.getDataFolder(),"gates.yml");if(file.exists())try{YamlConfiguration y=new YamlConfiguration();y.load(file);for(Map<?,?> m:y.getMapList("gates"))all.add(new Gate(UUID.fromString((String)m.get("world")),((Number)m.get("x")).intValue(),((Number)m.get("y")).intValue(),((Number)m.get("z")).intValue(),Boolean.TRUE.equals(m.get("axisX"))));}catch(Exception e){throw new IllegalStateException("Cannot read portal registry; preserve file and repair it",e);}}
     public Gate at(Location l){if(l==null||l.getWorld()==null)return null;for(Gate g:all)if(g.hit(l))return g;return null;}
+    /** The gate whose opening a body touches, even when its centre stands just outside the portal's plane. */
+    public Gate touching(Location l,double half,double height){if(l==null||l.getWorld()==null)return null;for(Gate g:all)if(g.touches(l,half,height))return g;return null;}
     public void save() throws IOException {YamlConfiguration y=new YamlConfiguration();List<Map<String,Object>> list=new ArrayList<>();for(Gate g:all){Map<String,Object> m=new LinkedHashMap<>();m.put("world",g.world.toString());m.put("x",g.x);m.put("y",g.y);m.put("z",g.z);m.put("axisX",g.axisX);list.add(m);}y.set("gates",list);RoomStore.atomic(file,y.saveToString());}
     public void saveQuietly(){try{save();}catch(Exception e){plugin.getLogger().severe("DUNGEON_GATES_SAVE_FAILED "+e.getMessage());}}
     public void installReturnGate(){World w=plugin.dungeon;Gate g=new Gate(w.getUID(),8,65,8,true);for(Gate old:all)if(old.world.equals(g.world)&&old.x==8&&old.z==8){if(old.valid(w))old.fill(w);return;}all.add(g);saveQuietly();g.fill(w);}
@@ -43,7 +51,7 @@ public final class Gates implements Listener {
         e.getPlayer().sendMessage(ChatColor.DARK_PURPLE+"The stone remembers a cellar beneath the world. Step into the gate.");b.getWorld().playSound(b.getLocation(),Sound.BLOCK_PORTAL_TRIGGER,.6f,.6f);
     }
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void physics(BlockPhysicsEvent e){if(e.getBlock().getType()==Material.PORTAL&&at(e.getBlock().getLocation())!=null)e.setCancelled(true);}
-    @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void entityPortal(EntityPortalEvent e){if(plugin.inside(e.getFrom().getWorld())||at(e.getFrom())!=null)e.setCancelled(true);}
+    @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void entityPortal(EntityPortalEvent e){if(plugin.inside(e.getFrom().getWorld())||at(e.getFrom())!=null||touching(e.getFrom(),.8,2)!=null)e.setCancelled(true);}
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void broken(BlockBreakEvent e){
         List<Gate> remove=new ArrayList<>();for(Gate g:all)if(g.frame(e.getBlock())||g.hit(e.getBlock().getLocation()))remove.add(g);
         for(Gate g:remove){all.remove(g);World w=e.getBlock().getWorld();for(int a=1;a<=2;a++)for(int h=1;h<=3;h++)if(g.b(w,a,h).getType()==Material.PORTAL)g.b(w,a,h).setType(Material.AIR,false);}if(!remove.isEmpty())saveQuietly();
@@ -52,7 +60,7 @@ public final class Gates implements Listener {
     @EventHandler(ignoreCancelled=true) public void piston(BlockPistonExtendEvent e){for(Block b:e.getBlocks())for(Gate g:all)if(g.frame(b)||g.hit(b.getLocation())){e.setCancelled(true);return;}}
     @EventHandler(ignoreCancelled=true) public void pistonBack(BlockPistonRetractEvent e){for(Block b:e.getBlocks())for(Gate g:all)if(g.frame(b)||g.hit(b.getLocation())){e.setCancelled(true);return;}}
     public void remember(Player p) throws IOException {
-        Location l=p.getLocation();Gate g=at(l);if(g!=null)l=g.safe(p.getWorld());YamlConfiguration y=new YamlConfiguration();y.set("world",l.getWorld().getUID().toString());y.set("worldName",l.getWorld().getName());y.set("x",l.getX());y.set("y",l.getY());y.set("z",l.getZ());y.set("yaw",l.getYaw());y.set("pitch",l.getPitch());RoomStore.atomic(new File(plugin.getDataFolder(),"returns/"+p.getUniqueId()+".yml"),y.saveToString());
+        Location l=p.getLocation();Gate g=at(l);if(g==null)g=touching(l,.3,1.8);if(g!=null)l=g.safe(p.getWorld());YamlConfiguration y=new YamlConfiguration();y.set("world",l.getWorld().getUID().toString());y.set("worldName",l.getWorld().getName());y.set("x",l.getX());y.set("y",l.getY());y.set("z",l.getZ());y.set("yaw",l.getYaw());y.set("pitch",l.getPitch());RoomStore.atomic(new File(plugin.getDataFolder(),"returns/"+p.getUniqueId()+".yml"),y.saveToString());
     }
     public Location returnLocation(Player p){
         File f=new File(plugin.getDataFolder(),"returns/"+p.getUniqueId()+".yml");try{if(f.isFile()){YamlConfiguration y=new YamlConfiguration();y.load(f);World w=Bukkit.getWorld(UUID.fromString(y.getString("world")));if(w!=null&&!plugin.inside(w)){Location l=new Location(w,y.getDouble("x"),y.getDouble("y"),y.getDouble("z"),(float)y.getDouble("yaw"),(float)y.getDouble("pitch"));Location safe=findSafe(l);if(safe!=null)return safe;}}}catch(Exception ex){plugin.getLogger().warning("DUNGEON_RETURN_FALLBACK "+p.getUniqueId());}
@@ -64,7 +72,8 @@ public final class Gates implements Listener {
     public void leave(Player p){if(plugin.rifts!=null&&plugin.rifts.contains(p.getWorld())){plugin.rifts.leave(p);return;}Location safe=returnLocation(p);if(safe==null){p.sendMessage(ChatColor.YELLOW+"The way home is obstructed or unsafe. Stay in the refuge and ask an administrator to clear the exit.");return;}if(plugin.move(p,safe)){cooldown.put(p.getUniqueId(),System.currentTimeMillis()+3500);p.sendMessage(ChatColor.GRAY+"The Last Candle remembers your way home.");}}
     public void tick(){for(Player p:Bukkit.getOnlinePlayers()){
         if(p.isDead()||System.currentTimeMillis()<cooldown.getOrDefault(p.getUniqueId(),0L)){dwell.remove(p.getUniqueId());continue;}
-        Gate g=at(p.getLocation());if(g==null||p.getLocation().getBlock().getType()!=Material.PORTAL){dwell.remove(p.getUniqueId());continue;}
+        // Any contact with the opening counts, as it does for vanilla travel: a body half inside the portal still enters the dungeon.
+        Gate g=touching(p.getLocation(),.3,1.8);if(g==null||g.b(p.getWorld(),1,1).getType()!=Material.PORTAL){dwell.remove(p.getUniqueId());continue;}
         if(!g.valid(p.getWorld())){dwell.remove(p.getUniqueId());continue;}int n=dwell.getOrDefault(p.getUniqueId(),0)+1;dwell.put(p.getUniqueId(),n);if(n<Math.max(10,plugin.getConfig().getInt("portal-dwell-ticks",20)))continue;
         dwell.remove(p.getUniqueId());cooldown.put(p.getUniqueId(),System.currentTimeMillis()+3500);
         if(plugin.inside(p.getWorld()))leave(p);else try{Location arrival=plugin.sanctuary.arrival();if(arrival==null){p.sendMessage("The refuge arrival area is obstructed. The gate will not send you into danger.");continue;}remember(p);plugin.move(p,arrival);}catch(Exception ex){p.sendMessage("The gate cannot open safely right now.");plugin.getLogger().severe("DUNGEON_PORTAL_FAILED "+ex.getMessage());}

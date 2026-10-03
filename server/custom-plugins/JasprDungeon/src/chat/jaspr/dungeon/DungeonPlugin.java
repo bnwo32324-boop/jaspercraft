@@ -103,7 +103,16 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
     @EventHandler(ignoreCancelled=true) public void liquid(BlockFromToEvent e){if(inside(e.getBlock().getWorld()))e.setCancelled(true);}
     @EventHandler(ignoreCancelled=true) public void bucket(PlayerBucketEmptyEvent e){if(inside(e.getBlockClicked().getWorld()))e.setCancelled(true);}
     @EventHandler(ignoreCancelled=true) public void fill(PlayerBucketFillEvent e){if(inside(e.getBlockClicked().getWorld()))e.setCancelled(true);}
-    @EventHandler(priority=EventPriority.HIGHEST) public void vanillaPortal(PlayerPortalEvent e){if(inside(e.getFrom().getWorld())||gates.at(e.getFrom())!=null)e.setCancelled(true);}
+    /**
+     * A stone-brick gate is made of portal blocks, so vanilla would send anyone touching it to the Nether (instantly in
+     * Creative, after four seconds in Survival). Blocked on any contact, first thing and again last thing, so no other
+     * plugin can route the trip either (owner 2026-10-03: a half-entered gate sent a player to the Nether).
+     */
+    @EventHandler(priority=EventPriority.LOWEST) public void vanillaPortalFirst(PlayerPortalEvent e){vanillaPortal(e);}
+    @EventHandler(priority=EventPriority.HIGHEST) public void vanillaPortal(PlayerPortalEvent e){
+        if(e.isCancelled())return;
+        if(inside(e.getFrom().getWorld())||gates.at(e.getFrom())!=null||gates.touching(e.getFrom(),.8,2)!=null){e.setCancelled(true);getLogger().info("DUNGEON_VANILLA_PORTAL_BLOCKED player="+e.getPlayer().getName()+" world="+e.getFrom().getWorld().getName());}
+    }
     @EventHandler public void respawn(PlayerRespawnEvent e){if(inside(e.getRespawnLocation().getWorld())){Location safe=gates.returnLocation(e.getPlayer());if(safe==null)safe=sanctuary.arrival();if(safe!=null)e.setRespawnLocation(safe);else e.getPlayer().kickPlayer("No safe dungeon recovery position exists. Ask an administrator to clear the refuge or your return portal.");}}
     // If an administrator has obstructed every recovery square, never reconnect into the same trap.
     @EventHandler public void joined(PlayerJoinEvent e){Player p=e.getPlayer();if(inside(p.getWorld())&&sanctuary.contains(p.getLocation())&&!Sanctuary.safeFloor(p.getLocation())){Location safe=sanctuary.arrival();if(safe==null)safe=gates.returnLocation(p);if(safe==null)p.kickPlayer("Dungeon refuge and return exit are obstructed. Ask an administrator to restore a safe landing.");else move(p,safe);}}
