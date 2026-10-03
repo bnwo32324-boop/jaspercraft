@@ -281,8 +281,11 @@ public final class Arsenal implements Listener {
     }
 
     /** Shared equipment eligibility; does not enable siege or terrain generation in liminal worlds. */
+    /** Guns, expedition supplies and turrets work in the overworld, the Nether, the End and every Jaspr realm
+     * (jaspr_*: Backrooms, Atlas, Drownhollow, the Dungeon Dimension ...). Owner, 2026-10-03: Sanitized Flesh could not
+     * be eaten in the Dungeon Dimension. */
     static boolean equipmentWorld(ApocalypsePlugin plugin, World world) {
-        return world != null && (plugin.enabledWorld(world) || "jaspr_backrooms".equals(world.getName())
+        return world != null && (plugin.enabledWorld(world) || world.getName().startsWith("jaspr_")
                 || world.getEnvironment() == World.Environment.NETHER || world.getEnvironment() == World.Environment.THE_END);
     }
 
