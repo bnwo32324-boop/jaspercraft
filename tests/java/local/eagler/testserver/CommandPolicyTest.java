@@ -8,7 +8,8 @@ public final class CommandPolicyTest {
 
     public static void main(String[] args) {
         for (String command : new String[] {"/tank", "/tank mobile", "/TANK off", "/tanks status", "/jasprtanks:tank on",
-                "/tp friend", "/tpaccept", "/jasprapocalypse:tpa friend", "/waypoints", "/gear"})
+                "/tp friend", "/tpaccept", "/jasprapocalypse:tpa friend", "/waypoints", "/gear", "/gear sets void",
+                "/bounty", "/bounty claim", "/bounties", "/contracts", "/jasprbounties:bounty reroll 2"})
             expect(command, PlayerCommandPolicy.Decision.PUBLIC_COMMAND);
         for (String command : new String[] {"/login secret", "/register secret", "/authme:login secret"})
             expect(command, PlayerCommandPolicy.Decision.BLOCK_AUTH_COMMAND);

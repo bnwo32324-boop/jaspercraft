@@ -36,6 +36,9 @@ final class PlayerCommandPolicy {
             "giveup", "jasprrevive:giveup",
             // Survivor Gear: the player's own trinket slots, menu, XP bank and ability fallbacks.
             "gear", "trinkets", "kit", "jasprgear:gear", "jasprgear:trinkets", "jasprgear:kit",
+            // The bounty board (JasprBounties): the player's own dailies and weeklies. Its admin subcommand checks its own
+            // permission, and the clickable chat reminders run /bounty, so every player needs these.
+            "bounty", "bounties", "contracts", "jasprbounties:bounty", "jasprbounties:bounties", "jasprbounties:contracts",
             // Touch players' own tank (JasprTanks): hop in or out, and the touch controls' claim.
             "tank", "tanks", "jasprtanks:tank", "jasprtanks:tanks",
             "jasprapocalypse:waypoints", "jasprapocalypse:wp",
