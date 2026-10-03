@@ -1,8 +1,9 @@
-# Chest Finder and chest search (2026-10-03, sandbox: not live yet)
+# Chest Finder, chest search and Sort (2026-10-03, sandbox: not live yet)
 
 Owner, 2026-10-03: "With the easier crafting UI, you can search any item. I think you should be able to right-click, and
 then it comes up with a UI element that says "Find". If you click "Find", it should show particle effects on the chest that
-has that particular item. Chests themselves should also have search boxes UI where you can search any item."
+has that particular item. Chests themselves should also have search boxes UI where you can search any item." Then:
+"There also should be a sorting button for chests that auto-organizes everything."
 
 ## What players get
 - **Find (crafting panel).** Right-click any item in the EasierCrafting panel (the craftable list or the search results,
@@ -15,8 +16,24 @@ has that particular item. Chests themselves should also have search boxes UI whe
   long chest name would run into it, the box moves above the window. Click it and type: every chest slot whose item
   name does not contain each typed word is dimmed, matches get a gold frame, and the box shows how many matched.
   A right click on the box clears it. Escape or Enter leaves the box, keeping the search.
+- **Sort button.** Beside the search box. One click sorts the whole container:
+  - Partial stacks of the same item are merged.
+  - Items are ordered the way the creative screen groups them: building blocks, decorations, redstone, transportation,
+    miscellaneous (in 1.12 that includes ingots, diamonds and other materials), food, tools, combat, brewing.
+  - Within a group, items go by kind. Vanilla comes before a JasperCraft item made on the same base, the freshest tool
+    first, then by name.
+  - Empty slots go to the end. The chest stays open, and it works on double chests too.
 
 ## Rules (server, JasprFinder 1.0.0)
+- **Sort.** The plugin channel `jaspr:sort` carries `sort <window id>`. The server sorts the container the player has
+  open, and only when that window is still the one open, so a late click never sorts the next screen.
+  - **What can be sorted.** A chest, trapped chest, double chest, chest minecart, shulker box, or the player's own ender
+    chest. Never a plugin's chest menu (bounty board, gear menus): those get "Only chests and shulker boxes can be
+    sorted." on the action bar.
+  - **Safety.** Stacks are only merged, never split; a stack above its normal size stays whole. The result is checked to
+    hold exactly the same items before it is written, and otherwise the chest is left alone (`FINDER_SORT_FAILED`).
+  - **Rate limit.** At most two sorts a second per player.
+  - **Logs.** `FINDER_SORT player= container= slots= stacks=<before>-><after> ms=` and `FINDER_SORT_REFUSED`.
 - **Which chests.** Only containers the player has opened themselves are searched (`search: opened`), plus their own
   ender chest: if the item is in it, every ender chest nearby lights up. Find can't show what someone else keeps in a
   chest the player never saw, and it can't be used to sniff out unopened dungeon loot chests. Chests count once they are
@@ -49,12 +66,14 @@ has that particular item. Chests themselves should also have search boxes UI whe
   - Find sends the request the way the gear module sends its own (`AKy`, `Iu`, `FuF`, `BgN`, `wd`). It then closes the
     screen the way Escape does (`Cpd`).
   - The chest search's clicks and keys come through the module's existing GuiContainer hooks.
+  - The Sort button sends `sort <gui.h2.iu>` (the window id, as handleMouseClick uses it) through the same sender, at
+    most once every 0.6 s, and leaves the screen open. The server's slot updates redraw the chest.
 - **Chest screen hooks.** `node scripts/build-chest-search-client.cjs --source candidate/recipe-book-client/classes.js`
   adds one guarded first state to GuiChest (`DUK`) and GuiShulkerBox (`D2Q`) foreground draws, marked
   `/*JASPR_CHESTSEARCH_V1*/`. The hooks are exact and reversible byte for byte.
 - **Diagnostics.**
-  - `JasprRecipeBookDiagnostics.status()` now reports `menu`, `menus` and `finds`.
-  - `JasprChestSearchDiagnostics.status()` reports `open`, `search`, `found`, `scans`, `names`, `keys` and `clears`.
+  - `JasprRecipeBookDiagnostics.status()` now reports `menu`, `menus`, `finds` and `sorts`.
+  - `JasprChestSearchDiagnostics.status()` reports `open`, `search`, `found`, `scans`, `names`, `keys`, `clears` and `sorts`.
 
 ## Tests
 - `tests/chest-finder.test.cjs` (set `CHEST_SEARCH_SOURCE` to a client with the module) covers:
@@ -62,10 +81,14 @@ has that particular item. Chests themselves should also have search boxes UI whe
   - the Find text for every recipe;
   - the Click state machine sending exactly one `jaspr:find` packet and closing the screen;
   - the chest search: dims, frames, count, cached names, keys, right-click clear, layout above long titles;
+  - the Sort button: layout, hover, one `jaspr:sort` packet with the window id, screen stays open, rate limit, no sort on
+    a right click or without a window;
   - the screen hooks;
   - the plugin wiring;
   - `tests/java/chat/jaspr/finder/FinderCheck.java`: parsing, matching incl. shulker boxes, decode, directions, and
-    every request the panel can send, run against the real item registry.
+    every request the panel can send, run against the real item registry. It also checks the sorter: the creative tab of
+    each group, a mixed chest's exact sorted order, merging, an over-full stack left whole, a full chest of mixed wool, and
+    named items never merged.
 - The existing `tests/recipe-book-engine.test.cjs`, `tests/gun-recipe-blueprints.test.cjs` and
   `tests/armor-bar-client.test.cjs` still pass.
 

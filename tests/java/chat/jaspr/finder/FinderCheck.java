@@ -121,6 +121,56 @@ public final class FinderCheck {
         check(FinderPlugin.storage(Material.CHEST) && FinderPlugin.storage(Material.TRAPPED_CHEST) && FinderPlugin.storage(Material.RED_SHULKER_BOX)
             && FinderPlugin.storage(Material.HOPPER) && !FinderPlugin.storage(Material.FURNACE) && !FinderPlugin.storage(Material.ENDER_CHEST), "storage kinds");
 
+        // Sort: the creative screen's tab order (building, decorations, redstone, transportation, miscellaneous with the
+        // materials, food, tools, combat, brewing; no tab last)
+        check(ChestSorter.tab(Material.STONE) == 0 && ChestSorter.tab(Material.COBBLESTONE) == 0, "stone: building blocks");
+        check(ChestSorter.tab(Material.FLOWER_POT_ITEM) == 1, "flower pot: decorations " + ChestSorter.tab(Material.FLOWER_POT_ITEM));
+        check(ChestSorter.tab(Material.REDSTONE) == 2, "redstone: redstone");
+        check(ChestSorter.tab(Material.MINECART) == 3, "minecart: transportation");
+        check(ChestSorter.tab(Material.DIAMOND) == 4 && ChestSorter.tab(Material.IRON_INGOT) == 4 && ChestSorter.tab(Material.BUCKET) == 4, "diamond, bucket: miscellaneous");
+        check(ChestSorter.tab(Material.BREAD) == 5, "bread: food");
+        check(ChestSorter.tab(Material.IRON_PICKAXE) == 6, "pickaxe: tools");
+        check(ChestSorter.tab(Material.DIAMOND_SWORD) == 7, "sword: combat");
+        check(ChestSorter.tab(Material.POTION) == 8, "potion: brewing");
+        check(ChestSorter.tab(Material.FIREWORK) == 10, "firework rocket: no tab in 1.12, last");
+        ItemStack[] chest = new ItemStack[27];
+        chest[0] = new ItemStack(Material.BREAD, 5);
+        chest[2] = stack(Material.DIAMOND_PICKAXE, 106, true);
+        chest[3] = new ItemStack(Material.COBBLESTONE, 10);
+        chest[5] = stack(Material.DIAMOND_PICKAXE, 300, false);
+        chest[6] = new ItemStack(Material.STONE, 3);
+        chest[8] = new ItemStack(Material.COBBLESTONE, 60);
+        chest[9] = stack(Material.WOOL, 14, false);
+        chest[10] = stack(Material.WOOL, 0, false);
+        chest[11] = new ItemStack(Material.DIAMOND, 2);
+        chest[12] = stack(Material.DIAMOND_PICKAXE, 5, false);
+        chest[20] = new ItemStack(Material.COBBLESTONE, 64);
+        ItemStack[] sorted = ChestSorter.sorted(chest);
+        check(sorted != null && sorted.length == 27, "sorted, same size");
+        String got = "";
+        for (ItemStack it : sorted) got += it == null ? "." : it.getType().name() + ":" + it.getDurability() + "x" + it.getAmount() + (ChestSorter.custom(it) ? "*" : "") + " ";
+        String want = "STONE:0x3 COBBLESTONE:0x64 COBBLESTONE:0x64 COBBLESTONE:0x6 WOOL:0x1 WOOL:14x1 DIAMOND:0x2 BREAD:0x5 "
+            + "DIAMOND_PICKAXE:5x1 DIAMOND_PICKAXE:300x1 DIAMOND_PICKAXE:106x1* ";
+        check(got.startsWith(want), "sorted order: " + got);
+        check(got.substring(want.length()).replace(".", "").trim().isEmpty(), "empty slots last: " + got);
+        check(ChestSorter.same(chest, sorted), "nothing gained or lost");
+        // a stack above its normal size stays whole (so the result always fits); a full chest stays full
+        ItemStack[] big = new ItemStack[3];
+        big[0] = new ItemStack(Material.ENDER_PEARL, 40);
+        big[1] = new ItemStack(Material.ENDER_PEARL, 16);
+        big[2] = new ItemStack(Material.DIRT, 64);
+        ItemStack[] bigSorted = ChestSorter.sorted(big);
+        check(bigSorted != null && bigSorted[0].getType() == Material.DIRT && bigSorted[1].getAmount() == 40 && bigSorted[2].getAmount() == 16
+            && ChestSorter.same(big, bigSorted), "an over-full pearl stack is left whole");
+        ItemStack[] full = new ItemStack[27];
+        for (int i = 0; i < 27; i++) full[i] = stack(Material.WOOL, i % 16, false);
+        check(ChestSorter.same(full, ChestSorter.sorted(full)), "a full chest of mixed wool");
+        ItemStack named = new ItemStack(Material.DIAMOND_SWORD);
+        ItemMeta nm = named.getItemMeta(); nm.setDisplayName("Aardvark"); named.setItemMeta(nm);
+        ItemStack[] swords = {new ItemStack(Material.DIAMOND_SWORD), named};
+        ItemStack[] swordsSorted = ChestSorter.sorted(swords);
+        check(swordsSorted[0].hasItemMeta() == false && "Aardvark".equals(swordsSorted[1].getItemMeta().getDisplayName()), "unnamed first, then by name; never merged");
+
         // every request the crafting panel can send (written by tests/chest-finder.test.cjs) names a real item
         if (args.length > 0) {
             int panel = 0;

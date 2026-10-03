@@ -457,9 +457,10 @@ var JasprRecipeBook = (function () {
     var title = String(recipe.title || "").replace(/\u00a7./g, "").replace(/[\x00-\x1f\x7f]/g, "").slice(0, 48);
     return "find " + id[1] + " " + (damage ? (+damage[1] | 0) : 0) + " " + (/Unbreakable:1b/.test(snbt) ? 1 : 0) + " " + title;
   };
-  RB.findChannel = function () {
-    if (!RB.findChannelString) RB.findChannelString = $rt_str("jaspr:find");
-    return RB.findChannelString;
+  RB.channels = {};
+  RB.channel = function (name) {
+    if (!RB.channels[name]) RB.channels[name] = $rt_str(name);
+    return RB.channels[name];
   };
   /* The connection to send on: mc.v player, player.d_ handler, handler.qf NetworkManager. */
   RB.findNet = function (gui) {
@@ -468,7 +469,10 @@ var JasprRecipeBook = (function () {
       return net && !net.bkf ? net : null;
     } catch (error) { return null; }
   };
-  RB.findSent = function () { RB.finds = (RB.finds | 0) + 1; RB.lastFindAt = Date.now(); };
+  RB.sent = function (name) {
+    if (name === "jaspr:find") { RB.finds = (RB.finds | 0) + 1; RB.lastFindAt = Date.now(); }
+    else RB.sorts = (RB.sorts | 0) + 1;
+  };
 
   /* The fixed recipe section (see layout): the recipe as it goes into a crafting table -- every
    * ingredient in its own cell of the 3x3 grid (a 2x2 recipe in the top-left, as in the table),
@@ -901,32 +905,33 @@ function JasprRecipeBookDraw(a, b, c) {
   Ds().s(a,b,c,d,e,f,g,h,$p);
 }
 
-/* Find: the request over the jaspr:find plugin channel, exactly as the gear module sends its own
- * (CPacketCustomPayload AKy, a PacketBuffer Iu over a fresh ByteBuf, writeString, sendPacket). */
-function JasprRecipeBookSendFind(a, b) {
-  var c, d, e, f, $p = 0, $z;
-  if (FX()) { var $T = Ds(); $p = $T.l(); f = $T.l(); e = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); a = $T.l(); }
+/* Find and Sort: text b over the plugin channel named c (jaspr:find, jaspr:sort), exactly as the gear
+ * module sends its own (CPacketCustomPayload AKy, a PacketBuffer Iu over a fresh ByteBuf, writeString,
+ * sendPacket). */
+function JasprRecipeBookSend(a, b, c) {
+  var d, e, f, g, $p = 0, $z;
+  if (FX()) { var $T = Ds(); $p = $T.l(); g = $T.l(); f = $T.l(); e = $T.l(); d = $T.l(); c = $T.l(); b = $T.l(); a = $T.l(); }
   _:while (true) { switch ($p) {
     case 0:
-      f = JasprRecipeBook.findNet(a);
-      if (f === null || b === null) return;
-      c = new AKy; d = new Iu;
+      g = JasprRecipeBook.findNet(a);
+      if (g === null || b === null) return;
+      d = new AKy; e = new Iu;
       $p = 1;
     case 1:
       $z = Fru(); if (B()) break _;
-      Lg(d, $z); e = $rt_str(b);
+      Lg(e, $z); f = $rt_str(b);
       $p = 2;
     case 2:
-      $z = FuF(d, e); if (B()) break _;
-      BgN(c, JasprRecipeBook.findChannel(), $z);
+      $z = FuF(e, f); if (B()) break _;
+      BgN(d, JasprRecipeBook.channel(c), $z);
       $p = 3;
     case 3:
-      f.wd(c); if (B()) break _;
-      JasprRecipeBook.findSent();
+      g.wd(d); if (B()) break _;
+      JasprRecipeBook.sent(c);
       return;
     default: FT();
   } }
-  Ds().s(a, b, c, d, e, f, $p);
+  Ds().s(a, b, c, d, e, f, g, $p);
 }
 
 /* Sends the click script the plain JavaScript worked out. handleMouseClick is the same
@@ -937,7 +942,12 @@ function JasprRecipeBookClick(a, b, c, d) {
   _:while (true) { switch ($p) {
     case 0:
       // A chest screen's search box (JasprChestSearch below) takes its own clicks.
-      if (JasprChestSearch.click(a, b | 0, c | 0, d | 0)) { JasprRecipeBookHandled = true; return; }
+      if (JasprChestSearch.click(a, b | 0, c | 0, d | 0)) {
+        JasprRecipeBookHandled = true;
+        g = JasprChestSearch.takeSort(a);   // the Sort button: ask the server, the screen stays open
+        if (g === null) return;
+        $p = 6; continue _;
+      }
       if (JasprRecipeBook.disabled()) return;
       e = JasprRecipeBook.of(a);
       if (e === null || e.inventory === null) return;
@@ -962,11 +972,14 @@ function JasprRecipeBookClick(a, b, c, d) {
       continue _;
     case 4:
       // Find: send it, then close the screen (as Escape does) so the sparks can be seen.
-      JasprRecipeBookSendFind(a, g); if (B()) break _;
+      JasprRecipeBookSend(a, g, "jaspr:find"); if (B()) break _;
       if (a.j === null || a.j.v === null) return;
       $p = 5;
     case 5:
       Cpd(a.j.v); if (B()) break _;
+      return;
+    case 6:
+      JasprRecipeBookSend(a, g, "jaspr:sort"); if (B()) break _;
       return;
     default: FT();
   } }
@@ -1032,13 +1045,17 @@ function JasprRecipeBookKeyTyped(a, ch, code) {
  * box shows how many. Only the container's own slots are searched, not the player's inventory.
  * A right click on the box clears it, as in the creative search. Names come from the game's own
  * getDisplayName (EJv), asked once per stack and remembered.
+ * Sort (owner, 2026-10-03: "a sorting button for chests that auto-organizes everything"): the Sort
+ * button beside the box sends "sort <window id>" on jaspr:sort; the server (JasprFinder) merges the
+ * stacks and orders them by creative tab, and the slots update as for any server change. It only sorts
+ * real chests, shulker boxes and the player's own ender chest, never a plugin's chest menu.
  * Hooked from the chest and shulker box foreground draws (scripts/build-chest-search-client.cjs);
  * clicks and keys come through the recipe book's existing GuiContainer hooks above. */
 var JasprChestSearch = (function () {
   "use strict";
-  var BOX_W = 80, BOX_H = 12, MAX_LEN = 24, SCAN_MS = 250;
+  var BOX_W = 64, SORT_W = 26, BOX_H = 12, MAX_LEN = 24, SCAN_MS = 250, SORT_GAP_MS = 600;
   var states = [], disabled = false, failure = null;
-  var stats = {opened: 0, keys: 0, scans: 0, names: 0, clears: 0};
+  var stats = {opened: 0, keys: 0, scans: 0, names: 0, clears: 0, sorts: 0};
   var cache = typeof WeakMap === "function" ? new WeakMap() : null;
 
   function die(where, error) {
@@ -1058,7 +1075,8 @@ var JasprChestSearch = (function () {
       if (disabled) return null;
       var st = of(gui);
       if (!st) {
-        st = {gui: gui, search: "", focused: false, titleW: -1, box: null, stacks: [], names: [], matches: null, found: 0, scanAt: 0};
+        st = {gui: gui, search: "", focused: false, titleW: -1, box: null, sort: null, stacks: [], names: [], matches: null, found: 0, scanAt: 0,
+              sortAt: 0, sortRequest: null};
         states.push(st);
         if (states.length > 4) states.shift();   // only the open screen matters
         stats.opened++;
@@ -1116,14 +1134,17 @@ var JasprChestSearch = (function () {
       st.matches = out; st.found = found;
     } catch (error) { die("match", error); }
   }
+  /* The box and the Sort button at the right of the title row, or both above the window. */
   function layout(st) {
-    var gui = st.gui, xs = gui.gv | 0, x = xs - 7 - BOX_W, y = 4;
-    if (st.titleW >= 0 && 8 + st.titleW + 4 > x && (gui.l7 | 0) >= BOX_H + 3) { x = xs - BOX_W; y = -BOX_H - 2; }
-    st.box = {x: x, y: y, w: BOX_W, h: BOX_H};
+    var gui = st.gui, xs = gui.gv | 0, sx = xs - 7 - SORT_W, y = 4;
+    if (st.titleW >= 0 && 8 + st.titleW + 3 > sx - 3 - BOX_W && (gui.l7 | 0) >= BOX_H + 3) { sx = xs - SORT_W; y = -BOX_H - 2; }
+    st.box = {x: sx - 3 - BOX_W, y: y, w: BOX_W, h: BOX_H};
+    st.sort = {x: sx, y: y, w: SORT_W, h: BOX_H};
     return st.box;
   }
+  function inside(r, x, y) { return !!r && x >= r.x - 1 && x < r.x + r.w + 1 && y >= r.y - 1 && y < r.y + r.h + 1; }
   /* Rectangles and text, all drawn over the slots' items (depth test off). */
-  function plan(st) {
+  function plan(st, mouseX, mouseY) {
     try {
       var b = layout(st), rects = [], texts = [], active = st.search.length > 0 && st.matches !== null;
       if (active) {
@@ -1150,6 +1171,10 @@ var JasprChestSearch = (function () {
       if (st.focused && ((Date.now() / 500) | 0) % 2 === 0) shown += "_";
       texts.push({s: shown, x: b.x + 2, y: b.y + 2, color: st.search ? 0xFFFFFF : 0x808080});
       if (count) texts.push({s: count, x: b.x + b.w - 2 - 6 * count.length, y: b.y + 2, color: st.found ? 0xFFC000 : 0xFF5555});
+      var sb = st.sort, hot = inside(sb, mouseX, mouseY), pressed = Date.now() - st.sortAt < 400;
+      rects.push({x: sb.x - 1, y: sb.y - 1, w: sb.w + 2, h: sb.h + 2, color: hot ? 0xFFFFFFFF : 0xFF8B8B8B});
+      rects.push({x: sb.x, y: sb.y, w: sb.w, h: sb.h, color: pressed ? 0xFF2E5A2E : hot ? 0xFF4A4A6A : 0xFF373737});
+      texts.push({s: "Sort", x: sb.x + 2, y: sb.y + 2, color: pressed ? 0x55FF55 : 0xFFFFFF});
       return {rects: rects, texts: texts};
     } catch (error) { return die("plan", error); }
   }
@@ -1158,12 +1183,20 @@ var JasprChestSearch = (function () {
     st.scanAt = 0;
     if (!search) { st.matches = null; st.found = 0; }
   }
-  /* A click on the box focuses it (right click: clears it) and is ours; anywhere else it unfocuses. */
+  /* A click on the box focuses it (right click: clears it) and is ours; anywhere else it unfocuses.
+   * mouseX and mouseY are screen coordinates; gui.h2.iu is the open window's id. */
   function click(gui, mouseX, mouseY, button) {
     try {
       var st = disabled ? null : of(gui);
       if (!st || !st.box) return false;
       var x = mouseX - (gui.is | 0), y = mouseY - (gui.l7 | 0), b = st.box;
+      // Sort: a left click asks the server (at most once every 0.6 s); the click is ours either way.
+      if (inside(st.sort, x, y)) {
+        st.focused = false;
+        var now = Date.now(), win = gui.h2 ? gui.h2.iu | 0 : 0;
+        if (button === 0 && win > 0 && now - st.sortAt >= SORT_GAP_MS) { st.sortRequest = "sort " + win; st.sortAt = now; stats.sorts++; }
+        return true;
+      }
       if (x >= b.x - 1 && x < b.x + b.w + 1 && y >= b.y - 1 && y < b.y + b.h + 1) {
         if (button === 1 && st.search) { set(st, ""); stats.clears++; }
         st.focused = true;
@@ -1186,17 +1219,26 @@ var JasprChestSearch = (function () {
       return 1;   // while the box has focus it eats every key rather than closing the screen
     } catch (error) { die("key", error); return 0; }
   }
+  /* The sort request a click left for the click state machine to send, once. */
+  function takeSort(gui) {
+    var st = of(gui);
+    if (!st || !st.sortRequest) return null;
+    var request = st.sortRequest;
+    st.sortRequest = null;
+    st.scanAt = 0;   // read the slots again once the server has sorted them
+    return request;
+  }
   return {
-    ensure: ensure, of: of, containerSlots: containerSlots, slotAt: slotAt, width: width, due: due, match: match,
+    takeSort: takeSort, ensure: ensure, of: of, containerSlots: containerSlots, slotAt: slotAt, width: width, due: due, match: match,
     cachedName: cachedName, remember: remember, plan: plan, click: click, key: key, words: words, layout: layout,
-    BOX_W: BOX_W, BOX_H: BOX_H,
+    BOX_W: BOX_W, BOX_H: BOX_H, SORT_W: SORT_W,
     disabled: function () { return disabled; },
     failure: function () { return failure; },
     status: function () {
       var st = states.length ? states[states.length - 1] : null;
       return {disabled: disabled, failure: failure, open: !!st, search: st ? st.search : null, focused: st ? st.focused : false,
         slots: st ? st.names.length : 0, found: st ? st.found : 0, opened: stats.opened, keys: stats.keys, scans: stats.scans,
-        names: stats.names, clears: stats.clears};
+        names: stats.names, clears: stats.clears, sorts: stats.sorts};
     }
   };
 }());
@@ -1246,7 +1288,7 @@ function JasprChestSearchDraw(a, b, c, d) {
       $p = 4;
       continue _;
     case 8:
-      f = JasprChestSearch.plan(e);
+      f = JasprChestSearch.plan(e, (b | 0) - (a.is | 0), (c | 0) - (a.l7 | 0));
       if (f === null) return;
       g = 0;
       $p = 9;
@@ -1308,7 +1350,8 @@ if (typeof window !== "undefined" && window) {
           scroll: book ? book.scroll : 0,
           menu: !!(book && book.menu),
           menus: JasprRecipeBook.menus | 0,
-          finds: JasprRecipeBook.finds | 0
+          finds: JasprRecipeBook.finds | 0,
+          sorts: JasprRecipeBook.sorts | 0
         };
       }
     });

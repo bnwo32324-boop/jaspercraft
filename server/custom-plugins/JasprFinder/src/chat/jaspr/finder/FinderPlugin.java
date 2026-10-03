@@ -30,10 +30,12 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -54,21 +56,27 @@ import org.bukkit.scheduler.BukkitTask;
  *
  * Bounded: one request per player every two seconds, a 48-block radius (config), loaded chunks only, at most 600
  * containers looked at and 16 highlighted per request, one highlight per player at a time.
- * Logs FINDER_READY, FINDER_FIND (player id, item, found, scanned, ms), FINDER_METRICS.
+ * Sort (owner, 2026-10-03: "a sorting button for chests that auto-organizes everything"): the chest screen's Sort button
+ * sends "sort &lt;window id&gt;" on jaspr:sort. The server sorts the container the player has open (ChestSorter: merged stacks,
+ * creative-tab order) -- only a real chest, trapped chest, chest minecart, shulker box or the player's own ender chest,
+ * never a plugin's menu, and only when the window id is the one open right now. At most two sorts a second per player.
+ *
+ * Logs FINDER_READY, FINDER_FIND (player id, item, found, scanned, ms), FINDER_SORT (player id, container, stacks before
+ * and after), FINDER_SORT_REFUSED, FINDER_METRICS.
  */
 public final class FinderPlugin extends JavaPlugin implements Listener, PluginMessageListener {
-    static final String CHANNEL = "jaspr:find";
+    static final String CHANNEL = "jaspr:find", SORT_CHANNEL = "jaspr:sort";
     static final int MAX_REMEMBERED = 4096, MAX_SCAN = 600, MAX_SHOWN = 16, HIGHLIGHT_TICKS = 300, PULSE = 10;
-    static final long COOLDOWN_MS = 2000;
+    static final long COOLDOWN_MS = 2000, SORT_COOLDOWN_MS = 500;
 
     private final Map<UUID, LinkedHashSet<String>> opened = new HashMap<UUID, LinkedHashSet<String>>();
-    private final Map<UUID, Long> lastFind = new HashMap<UUID, Long>();
+    private final Map<UUID, Long> lastFind = new HashMap<UUID, Long>(), lastSort = new HashMap<UUID, Long>();
     private final Map<UUID, BukkitTask> highlights = new HashMap<UUID, BukkitTask>();
     private final java.util.Set<UUID> dirty = new java.util.HashSet<UUID>();
     private File folder;
     private int radius;
     private boolean searchAll;
-    long requests, found, misses, rejected, limited, remembered;
+    long requests, found, misses, rejected, limited, remembered, sorts, sortRefused, sortStale, sortFailed;
 
     @Override
     public void onEnable() {
@@ -79,9 +87,10 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
         if (!folder.isDirectory() && !folder.mkdirs()) getLogger().warning("FINDER_STORE_UNAVAILABLE");
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
+        getServer().getMessenger().registerIncomingPluginChannel(this, SORT_CHANNEL, this);
         for (Player p : getServer().getOnlinePlayers()) load(p.getUniqueId());
         getServer().getScheduler().runTaskTimer(this, this::saveDirty, 6000L, 6000L);
-        getLogger().info("FINDER_READY channel=" + CHANNEL + " radius=" + radius + " search=" + (searchAll ? "all" : "opened")
+        getLogger().info("FINDER_READY channel=" + CHANNEL + " sort=" + SORT_CHANNEL + " radius=" + radius + " search=" + (searchAll ? "all" : "opened")
             + " maxShown=" + MAX_SHOWN + " seconds=" + HIGHLIGHT_TICKS / 20);
     }
 
@@ -92,7 +101,8 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
         dirty.addAll(opened.keySet());
         saveDirty();
         getLogger().info("FINDER_METRICS requests=" + requests + " found=" + found + " misses=" + misses + " rejected=" + rejected
-            + " limited=" + limited + " remembered=" + remembered);
+            + " limited=" + limited + " remembered=" + remembered + " sorts=" + sorts + " sortRefused=" + sortRefused
+            + " sortStale=" + sortStale + " sortFailed=" + sortFailed);
     }
 
     // ------------------------------------------------------------------ remembering what a player opened
@@ -143,6 +153,7 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
         if (dirty.contains(id)) saveDirty();
         opened.remove(id);
         lastFind.remove(id);
+        lastSort.remove(id);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -180,7 +191,9 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
 
     @Override
     public void onPluginMessageReceived(String channel, Player p, byte[] data) {
-        if (!CHANNEL.equals(channel) || p == null || !p.isOnline()) return;
+        if (p == null || !p.isOnline()) return;
+        if (SORT_CHANNEL.equals(channel)) { sort(p, decode(data)); return; }
+        if (!CHANNEL.equals(channel)) return;
         long now = System.currentTimeMillis();
         Long last = lastFind.get(p.getUniqueId());
         if (last != null && now - last < COOLDOWN_MS) { limited++; return; }
@@ -189,6 +202,67 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
         if (request == null || p.isDead() || p.getGameMode() == GameMode.SPECTATOR) { rejected++; return; }
         requests++;
         find(p, request, now);
+    }
+
+    /** "sort <window id>": sorts the container this player has open, if it is one that may be sorted. */
+    void sort(Player p, String text) {
+        UUID id = p.getUniqueId();
+        long now = System.currentTimeMillis();
+        Long last = lastSort.get(id);
+        if (last != null && now - last < SORT_COOLDOWN_MS) { limited++; return; }
+        lastSort.put(id, now);
+        int window;
+        try {
+            if (text == null || !text.startsWith("sort ") || text.length() > 16) throw new NumberFormatException();
+            window = Integer.parseInt(text.substring(5));
+        } catch (NumberFormatException bad) { rejected++; return; }
+        if (p.isDead() || p.getGameMode() == GameMode.SPECTATOR) { rejected++; return; }
+        // The window the button was on must still be the one open (a late click never sorts the next screen).
+        if (((org.bukkit.craftbukkit.v1_12_R1.entity.CraftPlayer) p).getHandle().activeContainer.windowId != window || window <= 0) { sortStale++; return; }
+        InventoryView view = p.getOpenInventory();
+        Inventory top = view == null ? null : view.getTopInventory();
+        String kind = top == null ? null : sortable(p, top);
+        if (kind == null) {
+            sortRefused++;
+            getLogger().info("FINDER_SORT_REFUSED player=" + id + " type=" + (top == null ? "none" : top.getType().name()));
+            p.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                new net.md_5.bungee.api.chat.TextComponent(ChatColor.GRAY + "Only chests and shulker boxes can be sorted."));
+            return;
+        }
+        ItemStack[] before = top.getContents();
+        ItemStack[] after = ChestSorter.sorted(before);
+        if (after == null) {
+            sortFailed++;
+            getLogger().warning("FINDER_SORT_FAILED player=" + id + " container=" + kind + " slots=" + before.length);
+            return;
+        }
+        top.setContents(after);
+        sorts++;
+        int stacksBefore = 0, stacksAfter = 0;
+        for (ItemStack s : before) if (!ChestSorter.empty(s)) stacksBefore++;
+        for (ItemStack s : after) if (!ChestSorter.empty(s)) stacksAfter++;
+        p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.35f, 1.5f);
+        getLogger().info("FINDER_SORT player=" + id + " container=" + kind + " slots=" + before.length + " stacks=" + stacksBefore
+            + "->" + stacksAfter + " ms=" + (System.currentTimeMillis() - now));
+    }
+
+    /** What the open container is, when it may be sorted: a chest, trapped chest, chest minecart, shulker box or this
+     * player's own ender chest. Null for anything else, a plugin's chest menu above all. */
+    static String sortable(Player p, Inventory top) {
+        InventoryHolder holder = top.getHolder();
+        if (holder instanceof DoubleChest) return "double_chest";
+        if (holder instanceof org.bukkit.entity.minecart.StorageMinecart) return "chest_minecart";
+        if (holder instanceof BlockState) {
+            Material m = ((BlockState) holder).getType();
+            if (m == Material.CHEST || m == Material.TRAPPED_CHEST || m.name().endsWith("SHULKER_BOX")) return m.name().toLowerCase(java.util.Locale.ROOT);
+            return null;
+        }
+        if (top.getType() == InventoryType.ENDER_CHEST && top instanceof org.bukkit.craftbukkit.v1_12_R1.inventory.CraftInventory
+                && p.getEnderChest() instanceof org.bukkit.craftbukkit.v1_12_R1.inventory.CraftInventory
+                && ((org.bukkit.craftbukkit.v1_12_R1.inventory.CraftInventory) top).getInventory()
+                    == ((org.bukkit.craftbukkit.v1_12_R1.inventory.CraftInventory) p.getEnderChest()).getInventory())
+            return "ender_chest";
+        return null;
     }
 
     /** PacketBuffer.writeString: a VarInt byte length, then UTF-8. Null for anything else. */

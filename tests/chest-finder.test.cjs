@@ -1,7 +1,8 @@
 'use strict';
 // Chest Finder (owner, 2026-10-03: "With the easier crafting UI ... you should be able to right-click, and then it comes up with
 // a UI element that says Find. If you click Find, it should show particle effects on the chest that has that particular item.
-// Chests themselves should also have search boxes UI where you can search any item").
+// Chests themselves should also have search boxes UI where you can search any item"; "There also should be a sorting button
+// for chests that auto-organizes everything").
 // The crafting panel's right-click menu and the Find message (client-mods/recipe-book-teavm.js), the chest search box, the
 // chest screen hooks (scripts/build-chest-search-client.cjs) and the server plugin (server/custom-plugins/JasprFinder, with
 // the offline check tests/java/chat/jaspr/finder/FinderCheck.java, fed every request the panel can send).
@@ -163,7 +164,8 @@ function chestScreen(names, title = 'Chest', top = 40) {
     stacks.push(name ? {rA: item('x' + k), bK: 0, PD: 1, bV: null, name} : EMPTY);
     slots.push({Lr: 8 + (k % 9) * 18, Fg: k < 27 ? 18 + ((k / 9) | 0) * 18 : 84 + (((k - 27) / 9) | 0) * 18, eew: () => stacks[k]});
   }
-  const gui = {is: 200, l7: top, gv: 176, gx: 166, q: 640, L: 300, J: 'font', h2: {cn: {g: 63, qN: {data: slots}}}};
+  const gui = {is: 200, l7: top, gv: 176, gx: 166, q: 640, L: 300, J: 'font', h2: {iu: 7, cn: {g: 63, qN: {data: slots}}},
+    j: {v: {name: 'player', d_: {qf: {bkf: false, wd: packet => sent.push(packet)}}}}};
   const inv = {iG: () => jstr(title)};
   return {gui, inv, stacks, draw() { log.length = 0; const st = CS.of(gui); if (st) st.scanAt = 0; ctx.JasprChestSearchDraw(gui, 0, 0, inv); return log.slice(); }};
 }
@@ -174,7 +176,8 @@ test('chest search box: in the title row, focus on click, typing dims what does 
   const chest = chestScreen(names);
   let ops = chest.draw();
   const box = CS.of(chest.gui).box;
-  same(box, {x: 176 - 7 - 80, y: 4, w: 80, h: 12});
+  same(box, {x: 176 - 7 - 26 - 3 - 64, y: 4, w: 64, h: 12});
+  same(CS.of(chest.gui).sort, {x: 176 - 7 - 26, y: 4, w: 26, h: 12});
   assert.equal(ops[0].op, 'depthOff');
   assert.equal(ops[ops.length - 1].op, 'depthOn');
   assert.ok(ops.some(o => o.op === 'text' && o.s === 'Search\u2026'));
@@ -234,13 +237,54 @@ test('chest search box: a long chest name moves the box above the window when th
   const long = 'A very long custom chest name';
   const above = chestScreen([], long, 40);
   above.draw();
-  same(CS.of(above.gui).box, {x: 176 - 80, y: -14, w: 80, h: 12});
+  same(CS.of(above.gui).box, {x: 176 - 26 - 3 - 64, y: -14, w: 64, h: 12});
+  same(CS.of(above.gui).sort, {x: 176 - 26, y: -14, w: 26, h: 12});
   const cramped = chestScreen([], long, 6);
   cramped.draw();
   assert.equal(CS.of(cramped.gui).box.y, 4, 'no room above: stays in the title row');
-  const short = chestScreen([], 'Large Chest', 40);
+  const short = chestScreen([], 'Chest', 40);
   short.draw();
   assert.equal(CS.of(short.gui).box.y, 4);
+});
+
+test('Sort button: beside the box, sends "sort <window id>" on jaspr:sort, keeps the screen open, at most every 0.6 s', () => {
+  const chest = chestScreen(['Dirt', 'Stone', 'Dirt']);
+  chest.gui.h2.iu = 12;
+  let ops = chest.draw();
+  const button = CS.of(chest.gui).sort;
+  assert.ok(ops.some(o => o.op === 'text' && o.s === 'Sort'), 'labelled');
+  const at = {x: chest.gui.is + button.x + 5, y: chest.gui.l7 + button.y + 5};
+  // hovered: white border
+  log.length = 0; CS.of(chest.gui).scanAt = 0;
+  ctx.JasprChestSearchDraw(chest.gui, at.x, at.y, chest.inv);
+  assert.ok(log.some(o => o.op === 'rect' && o.color === 0xFFFFFFFF && o.w === button.w + 2), 'hover');
+  sent.length = 0; log.length = 0;
+  const before = RB.sorts | 0;
+  ctx.JasprRecipeBookClick(chest.gui, at.x, at.y, 0);
+  assert.equal(ctx.JasprRecipeBookConsumedClick(), 1, 'the screen never sees the click');
+  assert.equal(sent.length, 1);
+  same({channel: sent[0].channel, text: sent[0].text}, {channel: 'jaspr:sort', text: 'sort 12'});
+  assert.equal(RB.sorts, before + 1);
+  assert.equal(log.filter(o => o.op === 'close').length, 0, 'the chest stays open');
+  ops = chest.draw();
+  assert.ok(ops.some(o => o.op === 'text' && o.s === 'Sort' && o.color === 0x55FF55), 'pressed');
+  // a second click right away, a right click, and a click without a window id send nothing (but are still ours)
+  ctx.JasprRecipeBookClick(chest.gui, at.x, at.y, 0);
+  assert.equal(ctx.JasprRecipeBookConsumedClick(), 1);
+  assert.equal(sent.length, 1, 'once every 0.6 s');
+  CS.of(chest.gui).sortAt = 0;
+  ctx.JasprRecipeBookClick(chest.gui, at.x, at.y, 1);
+  assert.equal(sent.length, 1, 'right click does not sort');
+  chest.gui.h2.iu = 0;
+  ctx.JasprRecipeBookClick(chest.gui, at.x, at.y, 0);
+  assert.equal(sent.length, 1, 'no window, no sort');
+  assert.equal(CS.status().sorts >= 1, true);
+  // the search box keeps working beside it
+  const box = CS.of(chest.gui).box;
+  assert.equal(CS.click(chest.gui, chest.gui.is + box.x + 3, chest.gui.l7 + box.y + 3, 0), true);
+  assert.equal(CS.of(chest.gui).focused, true);
+  assert.equal(CS.click(chest.gui, at.x, at.y, 0), true);
+  assert.equal(CS.of(chest.gui).focused, false, 'Sort takes the focus off the box');
 });
 
 test('chest screen hooks: GuiChest and GuiShulkerBox, exact, reversible, stable, parses', () => {
@@ -280,7 +324,7 @@ test('JasprFinder wiring: the channel, privacy default, bounds, sparks for the r
   const config = fs.readFileSync(path.join(plugin, 'resources/config.yml'), 'utf8');
   assert.match(yml, /main: chat\.jaspr\.finder\.FinderPlugin/);
   assert.doesNotMatch(yml, /commands:/, 'a plugin channel, not a command: nothing for the command gate to block');
-  assert.match(main, /static final String CHANNEL = "jaspr:find";/);
+  assert.match(main, /static final String CHANNEL = "jaspr:find", SORT_CHANNEL = "jaspr:sort";/);
   assert.match(main, /registerIncomingPluginChannel\(this, CHANNEL, this\)/);
   assert.match(config, /^search: opened$/m, 'by default only containers this player opened are searched');
   assert.match(main, /searchAll = "all"\.equalsIgnoreCase\(getConfig\(\)\.getString\("search", "opened"\)\);/);
@@ -294,4 +338,17 @@ test('JasprFinder wiring: the channel, privacy default, bounds, sparks for the r
   for (const token of ['FINDER_READY', 'FINDER_FIND', 'FINDER_METRICS', 'FINDER_SAVE_FAILED', 'FINDER_LOAD_FAILED'])
     assert.ok(main.includes(token), token);
   assert.doesNotMatch(main, /getAddress\(\)/, 'no IP addresses in the logs');
+  // Sort: its own channel, only the window that is open, only real containers, never a plugin's menu
+  const sorter = java('ChestSorter');
+  assert.match(main, /SORT_CHANNEL = "jaspr:sort"/);
+  assert.match(main, /registerIncomingPluginChannel\(this, SORT_CHANNEL, this\)/);
+  assert.match(main, /getHandle\(\)\.activeContainer\.windowId != window \|\| window <= 0\) \{ sortStale\+\+; return; \}/);
+  assert.match(main, /if \(holder instanceof DoubleChest\) return "double_chest";/);
+  assert.match(main, /m == Material\.CHEST \|\| m == Material\.TRAPPED_CHEST \|\| m\.name\(\)\.endsWith\("SHULKER_BOX"\)/);
+  assert.match(main, /top\.getType\(\) == InventoryType\.ENDER_CHEST/);
+  assert.match(main, /SORT_COOLDOWN_MS = 500/);
+  assert.match(main, /ItemStack\[\] after = ChestSorter\.sorted\(before\);\s*if \(after == null\)/, 'never writes an unsafe result');
+  assert.match(sorter, /return same\(contents, out\) \? out : null;/, 'checked to hold exactly the same items');
+  assert.doesNotMatch(main + sorter, /\.update\(/, 'never BlockState.update() after changing a live inventory');
+  for (const token of ['FINDER_SORT player=', 'FINDER_SORT_REFUSED', 'FINDER_SORT_FAILED', 'sorts=']) assert.ok(main.includes(token), token);
 });
