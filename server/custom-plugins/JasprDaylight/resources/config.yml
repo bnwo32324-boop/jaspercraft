@@ -15,3 +15,17 @@ daylight:
   exempt-tamed: false
   # Apply in the Nether and the End as well, driven by the overworld clock.
   all-worlds: true
+  # Dungeon and structure enemies keep their full speed at every hour; only the ordinary
+  # night creatures that spawn in the open feel the sun.
+  # Anything from a mob spawner, including spawners other plugins run in daylight: a hostile
+  # mob that appears within a few blocks of a spawner block counts as that spawner's.
+  exempt-spawners: true
+  # Hostile mobs that appear inside these structures of a world's own generator.
+  exempt-structures: [Fortress, Monument, Mansion, Temple, Stronghold, EndCity]
+  # Mobs other plugins mark as dungeon, structure or boss enemies: exact scoreboard tags...
+  exempt-tags: [jaspr_daylight_exempt, jaspr_penitent, jaspr_boss, jaspr_horror, jaspr_muse, jaspr_muse_boss,
+    jn_garrison, jn_glm, jn_lord, jn_minion, atlas_minion, atlas_raised, atlas_remnant]
+  # ...and tag prefixes.
+  exempt-tag-prefixes: ['jaspr_encounter_v1:', 'jaspr_boss:', 'jaspr_muse_site:']
+  # Every mob in a world whose name starts with one of these is a dungeon enemy.
+  exempt-world-prefixes: [jaspr_dungeon]

@@ -1,8 +1,8 @@
 name: JasprDaylight
-version: 1.0.0
+version: 1.1.0
 main: chat.jaspr.daylight.DaylightPlugin
 author: Jaspr
-description: While the sun is up, every mob walks at half speed. Above ground and below.
+description: While the sun is up, mobs walk at half speed - except dungeon, spawner and structure enemies.
 commands:
   daylight:
     description: Show whether daylight torpor is in force and what it is doing.
