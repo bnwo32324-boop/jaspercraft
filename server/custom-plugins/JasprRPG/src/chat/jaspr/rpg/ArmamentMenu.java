@@ -33,6 +33,7 @@ final class ArmamentMenu implements Listener {
     /** The roster for what is in hand, in display order. */
     static List<AbilityType> rosterFor(ItemStack held) {
         if (Armament.isGun(held)) return AbilityType.forGuns();
+        if (Armament.isTool(held)) return AbilityType.forTools();
         return Armament.isWeapon(held) ? AbilityType.forWeapons() : AbilityType.forArmour();
     }
 
@@ -53,7 +54,7 @@ final class ArmamentMenu implements Listener {
     boolean open(Player player) {
         ItemStack held = player.getInventory().getItemInMainHand();
         if (!Armament.isEligible(held)) {
-            player.sendMessage(ChatColor.RED + "Hold a weapon or a piece of armour to inspect it.");
+            player.sendMessage(ChatColor.RED + "Hold a weapon, a piece of armour or a realm tool to inspect it.");
             return false;
         }
         Inventory inventory = Bukkit.createInventory(null, 36, Armament.isGun(held) ? GUN_TITLE : TITLE);
@@ -82,7 +83,7 @@ final class ArmamentMenu implements Listener {
             inventory.setItem(slotOf(gun, i), icon(roster.get(i), held, itemLevel, tokens, rarity, used));
         }
 
-        ItemStack summary = gun ? plain(held) : new ItemStack(held.getType());
+        ItemStack summary = gun || Armament.isArmory(held) ? plain(held) : new ItemStack(held.getType());
         ItemMeta meta = summary.getItemMeta();
         meta.setDisplayName(rarity.coloured() + ChatColor.GRAY + "  Level " + ChatColor.WHITE + itemLevel);
         List<String> lore = new ArrayList<String>();
@@ -96,7 +97,8 @@ final class ArmamentMenu implements Listener {
             lore.add(ChatColor.GOLD + "Fully levelled.");
         }
         lore.add("");
-        lore.add(ChatColor.DARK_GRAY + (gun ? "Guns level by landing shots." : Armament.isWeapon(held) ? "Weapons level by dealing damage." : "Armour levels by taking it."));
+        lore.add(ChatColor.DARK_GRAY + (gun ? "Guns level by landing shots." : Armament.isWeapon(held) ? "Weapons level by dealing damage."
+            : Armament.isTool(held) ? "Tools level by digging, harvesting and tilling." : "Armour levels by taking it."));
         if (gun) lore.add(ChatColor.DARK_GRAY + "Part upgrades show in the gun's stats after its next shot or reload.");
         meta.setLore(lore);
         summary.setItemMeta(meta);
@@ -121,7 +123,8 @@ final class ArmamentMenu implements Listener {
 
         List<String> lore = new ArrayList<String>();
         lore.add(ChatColor.GRAY + ability.description);
-        lore.add(ChatColor.DARK_GRAY + (ability.kind == AbilityType.Kind.GUN_PART ? "Gun part" : ability.kind == AbilityType.Kind.GUN_ROUND ? "Rounds" : ability.active ? "Active" : "Passive"));
+        lore.add(ChatColor.DARK_GRAY + (ability.kind == AbilityType.Kind.GUN_PART ? "Gun part" : ability.kind == AbilityType.Kind.GUN_ROUND ? "Rounds"
+            : ability.kind == AbilityType.Kind.TOOL ? "Tool" : ability.active ? "Active" : "Passive"));
         lore.add("");
         if (maxed) {
             lore.add(ChatColor.GOLD + "Mastered.");
@@ -170,9 +173,9 @@ final class ArmamentMenu implements Listener {
             inventory.setItem(slotOf(gun, i), item);
         }
 
-        ItemStack summary = gun ? plain(held) : new ItemStack(held.getType());
+        ItemStack summary = gun || Armament.isArmory(held) ? plain(held) : new ItemStack(held.getType());
         ItemMeta meta = summary.getItemMeta();
-        meta.setDisplayName(ChatColor.GRAY + "Ordinary " + (gun ? "gun" : Armament.isWeapon(held) ? "weapon" : "armour"));
+        meta.setDisplayName(ChatColor.GRAY + "Ordinary " + (gun ? "gun" : Armament.isWeapon(held) ? "weapon" : Armament.isTool(held) ? "tool" : "armour"));
         List<String> lore = new ArrayList<String>();
         lore.add(ChatColor.GRAY + "This one has no spark in it yet.");
         lore.add("");

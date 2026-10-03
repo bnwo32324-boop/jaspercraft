@@ -11,6 +11,19 @@ drops:
   realm-chance: 0.004
   realm-elite-chance: 0.03
   realm-boss-chance: 0.35
+# 5.0.0: the realm armouries (Emerald, Blazeforged, Abyssal, Titan, Liminal, Void). Creatures slain in a realm may drop a
+# piece of that realm's set; in Drownhollow, Atlas and the Backrooms also its forging material. Spawner-bred creatures
+# never drop either (bosses always may). The Ender Dragon always leaves one Void piece. Chances are capped at 100%.
+armory:
+  drops:
+    # an ordinary hostile in a realm (0.12%) and in the Overworld (0.05%: the hordes are many)
+    realm-piece: 0.0012
+    overworld-piece: 0.0005
+    elite-piece: 0.015
+    boss-piece: 0.20
+    # Abyssal Pearls, Titan Shards, Liminal Fragments: 5% from an ordinary hostile, 35% (1-2) from an elite, 3-6 from a boss
+    material: 0.05
+    elite-material: 0.35
 status:
   # Phase 2: chance that a hostile melee hit opens a wound (Bleeding, 1 damage/s for 5 s). Capped at 25%.
   mob-bleed-chance: 0.04

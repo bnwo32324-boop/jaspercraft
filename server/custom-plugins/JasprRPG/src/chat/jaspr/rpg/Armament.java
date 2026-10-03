@@ -27,6 +27,10 @@ final class Armament {
 
     /** First line of the armament block under a gun's Arsenal lore (see decorate). */
     static final String GUN_HEADER = ChatColor.DARK_GRAY + "- Gunsmith -";
+    /** First line of the armament block under a realm armoury item's own lore (JasprGear writes the same string). */
+    static final String ARMORY_HEADER = ChatColor.DARK_GRAY + "- Armament -";
+    /** armaments.tools: "realm" (default: realm armoury tools only), "all" (every pickaxe, shovel and hoe) or "off". */
+    static volatile String toolsMode = "realm";
 
     private Armament() {}
 
@@ -60,8 +64,32 @@ final class Armament {
         }
     }
 
+    /**
+     * A JasprGear realm armoury piece (JasprArmory:{set, piece} on an unbreakable diamond item). Checked on the NBT only,
+     * with no compile-time dependency on that plugin.
+     */
+    static boolean isArmory(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR || item.getAmount() != 1) return false;
+        try {
+            net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(item);
+            if (nms == null || !nms.hasTag() || !nms.getTag().hasKeyOfType("JasprArmory", 10)) return false;
+            return !nms.getTag().getCompound("JasprArmory").getString("set").isEmpty();
+        } catch (Throwable unsupported) {
+            return false;
+        }
+    }
+
+    /** Pickaxes, shovels and hoes that can be armaments: realm armoury tools by default (armaments.tools). */
+    static boolean isTool(ItemStack item) {
+        if (item == null) return false;
+        String name = item.getType().name();
+        if (!(name.endsWith("_PICKAXE") || name.endsWith("_SPADE") || name.endsWith("_HOE")) || isGun(item)) return false;
+        String mode = toolsMode;
+        return "all".equals(mode) || ("realm".equals(mode) && isArmory(item));
+    }
+
     static boolean isEligible(ItemStack item) {
-        return item != null && item.getType() != Material.AIR && (isWeapon(item) || isArmour(item) || isGun(item));
+        return item != null && item.getType() != Material.AIR && (isWeapon(item) || isArmour(item) || isGun(item) || isTool(item));
     }
 
     static boolean isEnhanced(ItemStack item) {
@@ -227,18 +255,24 @@ final class Armament {
         List<String> lore = new ArrayList<String>();
         // A gun's own lines (magazine, damage, range...) belong to the Arsenal and are rewritten on every shot;
         // it keeps whatever follows them, so the armament block goes underneath instead of replacing them.
+        // A realm armoury piece's own lines (its set, its powers) belong to JasprGear the same way.
         boolean gun = isGun(item);
-        if (gun && meta.hasLore()) {
-            for (String line : meta.getLore()) {
-                if (GUN_HEADER.equals(line)) break;
-                lore.add(line);
+        boolean armory = !gun && isArmory(item);
+        String header = gun ? GUN_HEADER : armory ? ARMORY_HEADER : null;
+        if (header != null && (armory || meta.hasLore())) {
+            if (meta.hasLore()) {
+                for (String line : meta.getLore()) {
+                    if (header.equals(line)) break;
+                    lore.add(line);
+                }
             }
-            lore.add(GUN_HEADER);
+            lore.add(header);
         }
         lore.add(rarity.coloured() + ChatColor.GRAY + "  Level " + ChatColor.WHITE + level);
         if (rarity.bonus > 0.0d) {
             int percent = (int) Math.round(rarity.bonus * 100.0d);
-            lore.add(ChatColor.GRAY + (isWeapon(item) || gun ? "+" + percent + "% damage" : "+" + percent + "% protection"));
+            lore.add(ChatColor.GRAY + (isWeapon(item) || gun ? "+" + percent + "% damage"
+                : isTool(item) ? "+" + (int) Math.round(rarity.bonus * 50.0d) + "% ore yield" : "+" + percent + "% protection"));
         }
         if (tokens > 0) {
             lore.add(ChatColor.AQUA + "" + tokens + ChatColor.GRAY + " ability token(s) unspent");
@@ -274,12 +308,16 @@ final class Armament {
         return maybeEnhance(item, settings, random, settings.enchantChance);
     }
 
-    /** As above, but with the roll chance supplied - creative uses its own. */
+    /**
+     * As above, but with the roll chance supplied - creative uses its own. Realm armoury pieces always become armaments
+     * (owner, 2026-10-02: they "should also work with the upgrade system"), and never below Uncommon.
+     */
     static ItemStack maybeEnhance(ItemStack item, RpgConfig settings, Random random, double chance) {
         if (!isEligible(item) || isEnhanced(item)) return item;
         if (isArmour(item) && !settings.armorEnabled) return item;
-        if (chance < 1.0d && random.nextDouble() > chance) return item;
-        Rarity rarity = Rarity.roll(random);
+        boolean armory = isArmory(item);
+        if (!armory && chance < 1.0d && random.nextDouble() > chance) return item;
+        Rarity rarity = armory ? Rarity.rollAtLeast(random, Rarity.UNCOMMON) : Rarity.roll(random);
         if (rarity == Rarity.DEFAULT) return item;
         return enhance(item, rarity);
     }

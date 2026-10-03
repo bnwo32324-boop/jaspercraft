@@ -49,3 +49,8 @@ armaments:
 
   # Whether armour can be enhanced as well as weapons.
   armor: true
+
+  # Which pickaxes, shovels and hoes can be armaments (they level by digging, harvesting and tilling, and unlock the tool
+  # abilities: Excavation, Prospecting, Experienced, Replanting, Treasure Hunter). "realm": the realm armouries' tools
+  # only (JasprGear 5.0.0; they are always enhanced, never below Uncommon); "all": every tool; "off": none.
+  tools: realm

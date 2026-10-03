@@ -81,4 +81,4 @@ if(require.main===module){
     sha256:crypto.createHash('sha256').update(result.output).digest('hex')};
   fs.writeFileSync(path.join(target,'asset-merge-report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
 }
-module.exports={decode,merge};
+module.exports={decode,merge,fileEntry};

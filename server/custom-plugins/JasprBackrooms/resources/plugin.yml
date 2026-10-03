@@ -1,5 +1,6 @@
 name: JasprBackrooms
-version: 1.0.1
+version: 1.0.2
+softdepend: [JasprGear]
 main: chat.jaspr.backrooms.BackroomsPlugin
 author: Jaspr
 description: The Backrooms, seven liminal spaces (Yellow Rooms, Warehouse, Maintenance Tunnels, Electrical Corridors, Abandoned Office, Endless City, Poolrooms), reached through a yellow glazed terracotta portal only a conqueror can light.

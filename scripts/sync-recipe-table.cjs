@@ -35,6 +35,7 @@ function describe(recipe, byId) {
   if (ns === 'minecraft') return {title: recipe.title, category: TABS[recipe.tab] || 'Miscellaneous'};
   if (ns === 'jasprgear') {
     const e = byId.get('gear_' + name);
+    if (/^armory_/.test(name)) return {title: e ? e.title : recipe.title, category: 'Realm Armoury'};
     const search = e ? e.search || '' : '';
     return {title: e ? e.title : recipe.title,
       category: /backpack/.test(search) ? 'Backpacks' : /supply|consumable/.test(search) ? 'Supplies' : 'Survivor Gear'};

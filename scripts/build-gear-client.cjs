@@ -83,12 +83,23 @@ function catalogEntries(catalog) {
       model: item.model, color: color, snbt: item.snbt,
       search: ['gear backpack bag pack storage survivor', item.id.replace(/_/g, ' '), item.title, item.slots + ' slots'].join(' ').toLowerCase()}));
   });
+  // 5.0.0 realm armouries: armour in the Combat tab with the exoskeletons, swords and axes with the melee weapons, the
+  // other tools and the three realm materials beside the gear.
+  const armory = (catalog.armory || []).map(item => ascii(JSON.stringify({id: 'gear_armory_' + item.id, title: item.title,
+    category: item.armour ? 'armor' : /^(sword|axe)$/.test(item.piece) ? 'melee' : 'gear', material: item.material, model: item.model,
+    color: '§' + item.color, snbt: item.snbt,
+    search: ['realm armoury armory', item.set, item.piece, item.title, item.realmTitle, item.armour ? 'armor armour' : 'tool weapon']
+      .join(' ').toLowerCase()})));
+  const forge = (catalog.armoryMaterials || []).map(item => ascii(JSON.stringify({id: 'gear_armory_' + item.id, title: item.title,
+    category: 'material', material: 'minecraft:' + (/id:"minecraft:([a-z_]+)"/.exec(item.snbt) || [0, 'stone'])[1], model: 0,
+    color: '§' + ({abyssal: '3', titan: 'e', liminal: 'f'})[item.set], snbt: item.snbt,
+    search: ['realm armoury forging material', item.id.replace(/_/g, ' '), item.title, item.set].join(' ').toLowerCase()})));
   return catalog.items.map(item => {
     const color = '§' + ({1: 'a', 2: 'a', 3: 'b', 4: 'd', 5: '6'})[item.rank || 1];
     return ascii(JSON.stringify({id: 'gear_' + item.id, title: item.title, category: 'gear', material: 'minecraft:stone_hoe',
       model: item.model, color: color, snbt: item.snbt,
       search: ['gear trinket bauble survivor', item.id.replace(/_/g, ' '), item.title, item.type.toLowerCase(), item.inspiredBy].join(' ').toLowerCase()}));
-  }).concat(supplies, packs);
+  }).concat(supplies, packs, armory, forge);
 }
 
 function moduleBlock(catalog) {

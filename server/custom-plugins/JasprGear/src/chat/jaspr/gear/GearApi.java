@@ -29,6 +29,11 @@ public final class GearApi {
      * picked by GearBackpack.lootWeight (satchel 50%, rucksack 25%, field pack 14%, expedition 8%, frame 3%).
      */
     static final double[] BACKPACK_CHANCE = {0.030, 0.034, 0.038, 0.042, 0.046, 0.050};
+    /**
+     * 5.0.0: extra chance, above the backpack band, that an overworld structure chest receives one piece of the Emerald
+     * armoury (every caller of rollLoot fills overworld chests; the realms call rollRealmLoot instead).
+     */
+    static final double[] ARMORY_CHANCE = {0.004, 0.006, 0.009, 0.013, 0.018, 0.025};
 
     private GearApi() {}
 
@@ -50,16 +55,20 @@ public final class GearApi {
      *
      * 3.2.0: a roll that misses both may land in the backpack band just above them (3-5% by tier) and
      * return one backpack; the two lower bands are untouched.
+     *
+     * 5.0.0: a roll that misses all three may land in the armoury band just above them (0.4-2.5% by tier) and return
+     * one Emerald armoury piece; the three lower bands are untouched.
      */
     public static ItemStack rollLoot(Random random, int tier) {
         Object pick = pickAny(random, tier);
         if (pick instanceof GearItem) return GearItems.create((GearItem) pick);
         if (pick instanceof GearConsumable) return GearItems.create((GearConsumable) pick);
         if (pick instanceof GearBackpack) return GearItems.create((GearBackpack) pick);
+        if (pick instanceof ArmoryPiece) { countChest(1, 0); return ArmoryItems.create(ArmorySet.EMERALD, (ArmoryPiece) pick); }
         return null;
     }
 
-    /** GearItem, GearConsumable, GearBackpack or null. */
+    /** GearItem, GearConsumable, GearBackpack, ArmoryPiece (an Emerald piece) or null. */
     static Object pickAny(Random random, int tier) {
         if (random == null) return null;
         int t = Math.max(0, Math.min(5, tier));
@@ -67,7 +76,46 @@ public final class GearApi {
         if (roll < CHANCE[t]) return pickGear(random, t);
         if (roll < CHANCE[t] + SUPPLY_CHANCE[t]) return pickSupply(random, t);
         if (roll < CHANCE[t] + SUPPLY_CHANCE[t] + BACKPACK_CHANCE[t]) return pickBackpack(random);
+        if (roll < CHANCE[t] + SUPPLY_CHANCE[t] + BACKPACK_CHANCE[t] + ARMORY_CHANCE[t]) return Armory.randomPiece(random);
         return null;
+    }
+
+    /**
+     * 5.0.0: the realm armoury's share of one realm chest (JasprNether, JasprRuins, JasprAtlas and JasprBackrooms call it
+     * after filling a chest): a piece of the realm's own set 1.5-7.5% of the time by tier 0..5, and in Drownhollow, Atlas
+     * and the Backrooms that realm's forging material 12-32% of the time. Empty outside the realms. Uses ONLY the passed
+     * Random, in a fixed order, so a seeded chest always rolls the same; never throws.
+     */
+    public static List<ItemStack> rollRealmLoot(Random random, String world, int tier) {
+        try {
+            List<ItemStack> out = Armory.roll(random, world, tier);
+            int pieces = 0, materials = 0;
+            for (ItemStack s : out) if (ArmoryItems.identify(s) != null) pieces++; else materials += s.getAmount();
+            countChest(pieces, materials);
+            return out;
+        } catch (RuntimeException error) {
+            return new ArrayList<ItemStack>();
+        }
+    }
+
+    private static void countChest(int pieces, int materials) {
+        GearPlugin p = GearPlugin.instance;
+        if (p == null || p.armory == null) return;
+        p.armory.chestPieces += pieces;
+        p.armory.chestMaterials += materials;
+    }
+
+    /** 5.0.0: a fresh armoury piece ("emerald", "helmet"), or null when either id is unknown. */
+    public static ItemStack armoryPiece(String set, String piece) {
+        ArmorySet s = ArmorySet.byId(set);
+        ArmoryPiece p = ArmoryPiece.byId(piece);
+        return s == null || p == null ? null : ArmoryItems.create(s, p);
+    }
+
+    /** 5.0.0: the armoury set id of a stack ("void"), or null. Identity is the NBT, never the name. */
+    public static String armorySet(ItemStack stack) {
+        ArmoryItems.Id id = ArmoryItems.identify(stack);
+        return id == null ? null : id.set.id;
     }
 
     /** The trinket part of a roll (null when the roll gave a consumable or nothing). */
@@ -99,7 +147,7 @@ public final class GearApi {
         return GearBackpack.SATCHEL;
     }
 
-    private static GearItem pickGear(Random random, int t) {
+    static GearItem pickGear(Random random, int t) {
         List<GearItem> pool = new ArrayList<GearItem>();
         List<Integer> weights = new ArrayList<Integer>();
         int total = 0;

@@ -51,6 +51,7 @@ final class GearSelfTest {
             mutations();
             bosses();
             backpacks();
+            armory();
         } catch (Throwable t) {
             failures.add("exception " + t);
         }
@@ -737,5 +738,29 @@ final class GearSelfTest {
         Inventory full = Bukkit.createInventory(null, 9);
         for (int i = 0; i < 9; i++) full.setItem(i, new ItemStack(org.bukkit.Material.DIRT));
         check(packs.vanillaFill(full, forced) == null, "full vanilla chest left alone");
+    }
+
+    /** 5.0.0 realm armouries: identity, recipes registered, forging rules, realm-bound deterministic loot. */
+    private void armory() {
+        int recipes = 0;
+        for (ArmorySet set : ArmorySet.values()) for (ArmoryPiece piece : ArmoryPiece.values()) {
+            ItemStack item = ArmoryItems.create(set, piece);
+            ArmoryItems.Id id = ArmoryItems.identify(item);
+            check(id != null && id.set == set && id.piece == piece, "armory identity " + set.id + "_" + piece.id);
+        }
+        recipes = plugin.armory == null ? 0 : plugin.armory.recipes;
+        check(recipes == ArmorySet.values().length * ArmoryPiece.values().length, "armory recipes registered: " + recipes);
+        check(!Armory.plainDiamond(ArmoryItems.create(ArmorySet.VOID, ArmoryPiece.SWORD)), "armory piece is no diamond piece");
+        check(Armory.plainDiamond(new ItemStack(org.bukkit.Material.DIAMOND_SWORD)), "plain diamond sword forges");
+        java.util.Random a = new java.util.Random(77), b = new java.util.Random(77);
+        int pieces = 0;
+        for (int i = 0; i < 2000; i++) {
+            java.util.List<ItemStack> x = Armory.roll(a, "jaspr_atlas", 5), y = Armory.roll(b, "jaspr_atlas", 5);
+            check(x.size() == y.size(), "armory roll determinism");
+            for (ItemStack s : x) if (ArmoryItems.identify(s) != null) { pieces++; check(ArmoryItems.identify(s).set == ArmorySet.TITAN, "atlas rolls titan"); }
+        }
+        check(pieces > 50 && Armory.roll(new java.util.Random(1), "lobby", 5).isEmpty(), "armory realm loot " + pieces);
+        check(Armory.vanillaChance("minecraft:chests/end_city_treasure") > Armory.vanillaChance("minecraft:chests/simple_dungeon")
+            && Armory.vanillaChance("minecraft:chests/spawn_bonus_chest") == 0, "vanilla chest chances");
     }
 }

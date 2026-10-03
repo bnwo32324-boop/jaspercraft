@@ -373,6 +373,17 @@ final class Loot {
             if (n >= empty.size()) break;
             inv.setItem(empty.get(n++), s);
         }
+        ArmoryLoot.add(inv, r, "world_nether", armoryTier(table));
         return n;
+    }
+
+    /** How deep in the Nether's progression a table sits, for the realm armoury's roll (0..5). */
+    static int armoryTier(String table) {
+        String t = table == null ? "" : table;
+        if (t.contains("vault")) return 5;
+        if (t.contains("rich") || t.contains("colossus") || t.contains("citadel") || t.contains("cathedral")) return 4;
+        if (t.contains("mega") || t.contains("depths") || t.contains("pyramid") || t.contains("forge")) return 3;
+        if (t.contains("glm") || t.contains("bridge") || t.contains("wonder") || t.contains("temple")) return 2;
+        return 1;
     }
 }

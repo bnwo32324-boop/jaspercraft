@@ -135,6 +135,37 @@ public final class GearExport {
             muts.add(o);
         }
         root.add("mutations", muts);
+        JsonArray armory = new JsonArray(); // 5.0.0 realm armouries
+        for (ArmorySet set : ArmorySet.values()) for (ArmoryPiece piece : ArmoryPiece.values()) {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", set.id + "_" + piece.id);
+            o.addProperty("set", set.id);
+            o.addProperty("piece", piece.id);
+            o.addProperty("title", ArmoryItems.name(set, piece));
+            o.addProperty("material", "minecraft:" + ArmoryItems.itemKey(piece.base));
+            o.addProperty("model", set.model());
+            o.addProperty("durability", (int) piece.baseDurability());
+            o.addProperty("realm", set.world);
+            o.addProperty("realmTitle", set.realmTitle);
+            o.addProperty("color", String.valueOf(set.color.getChar()));
+            o.addProperty("armour", piece.armour());
+            o.addProperty("recipe", Armory.recipeText(set, piece));
+            o.addProperty("snbt", ArmoryItems.canonicalTag(set, piece).toString());
+            armory.add(o);
+        }
+        root.add("armory", armory);
+        JsonArray forge = new JsonArray();
+        for (String id : ArmoryItems.MATERIALS) {
+            JsonObject o = new JsonObject();
+            ArmorySet set = ArmoryItems.setOfMaterial(id);
+            o.addProperty("id", id);
+            o.addProperty("title", ArmoryItems.materialTitle(id));
+            o.addProperty("set", set.id);
+            o.addProperty("realm", set.world);
+            o.addProperty("snbt", ArmoryItems.materialTag(id, 1).toString());
+            forge.add(o);
+        }
+        root.add("armoryMaterials", forge);
         root.add("recipes", recipes());
         byte[] bytes = root.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
         if (args.length > 0) java.nio.file.Files.write(java.nio.file.Paths.get(args[0]), bytes);

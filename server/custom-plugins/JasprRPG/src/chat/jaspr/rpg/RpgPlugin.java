@@ -29,6 +29,7 @@ public final class RpgPlugin extends JavaPlugin {
     private StatsMenu statsMenu;
     private ArmamentMenu armamentMenu;
     private ArmamentListener armaments;
+    private ToolArmaments tools;
     private BukkitTask loop;
     private BukkitTask saver;
     private final Set<UUID> airborne = new HashSet<UUID>();
@@ -45,12 +46,15 @@ public final class RpgPlugin extends JavaPlugin {
         statsMenu = new StatsMenu(this);
         armamentMenu = new ArmamentMenu(this);
         armaments = new ArmamentListener(this);
+        tools = new ToolArmaments(armaments);
+        Armament.toolsMode = settings.toolsMode;
 
         getServer().getPluginManager().registerEvents(effects, this);
         getServer().getPluginManager().registerEvents(statsMenu, this);
         if (settings.armamentsEnabled) {
             getServer().getPluginManager().registerEvents(armamentMenu, this);
             getServer().getPluginManager().registerEvents(armaments, this);
+            if (!"off".equals(settings.toolsMode)) getServer().getPluginManager().registerEvents(tools, this);
         }
 
         loop = getServer().getScheduler().runTaskTimer(this, new Runnable() {
@@ -66,14 +70,14 @@ public final class RpgPlugin extends JavaPlugin {
 
         getLogger().info("JASPR_RPG enabled stats=" + settings.statsEnabled
                 + " statCount=" + StatType.values().length + " masteryCap=15 categories=" + StatType.Category.values().length
-                + " armaments=" + settings.armamentsEnabled
+                + " armaments=" + settings.armamentsEnabled + " armamentTools=" + settings.toolsMode
                 + " costMultiplier=" + settings.costMultiplier
                 + " resetOnDeath=" + settings.resetOnDeath);
     }
 
     @Override public void onDisable() {
         RpgApi.bind(null);
-        if (effects != null) getLogger().info("RPG_METRICS " + effects.metrics());
+        if (effects != null) getLogger().info("RPG_METRICS " + effects.metrics() + (tools != null ? " " + tools.metrics() : ""));
         if (loop != null) loop.cancel();
         if (saver != null) saver.cancel();
         if (store != null) store.save();

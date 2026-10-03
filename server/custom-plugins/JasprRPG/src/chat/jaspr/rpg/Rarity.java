@@ -54,6 +54,19 @@ enum Rarity {
         return BASIC;
     }
 
+    /** Weighted roll across everything at or above {@code floor} (realm armoury pieces start at Uncommon). */
+    static Rarity rollAtLeast(Random random, Rarity floor) {
+        int total = 0;
+        for (Rarity rarity : values()) if (rarity.ordinal() >= floor.ordinal()) total += rarity.weight;
+        int pick = random.nextInt(Math.max(1, total));
+        for (Rarity rarity : values()) {
+            if (rarity.ordinal() < floor.ordinal()) continue;
+            pick -= rarity.weight;
+            if (pick < 0) return rarity;
+        }
+        return floor;
+    }
+
     static Rarity byName(String name) {
         if (name == null) return DEFAULT;
         for (Rarity rarity : values()) if (rarity.name().equalsIgnoreCase(name)) return rarity;

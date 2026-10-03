@@ -21,6 +21,8 @@ final class RpgConfig {
     final double enchantChance;
     final double creativeChance;
     final boolean armorEnabled;
+    /** Which tools can be armaments: "realm" (realm armoury tools, the default), "all" or "off". */
+    final String toolsMode;
 
     RpgConfig(FileConfiguration config) {
         this.statsEnabled = config.getBoolean("stats.enabled", true);
@@ -40,6 +42,8 @@ final class RpgConfig {
         // the creative menu is enhanced rather than rolled.
         this.creativeChance = ratio(config.getDouble("armaments.enhance-chance-creative", 1.0d), 0.0d, 1.0d, 1.0d);
         this.armorEnabled = config.getBoolean("armaments.armor", true);
+        String tools = String.valueOf(config.getString("armaments.tools", "realm")).toLowerCase(java.util.Locale.ROOT);
+        this.toolsMode = tools.equals("all") || tools.equals("off") ? tools : "realm";
     }
 
     /** Effective cap for a stat once the server-wide cap multiplier is applied. */

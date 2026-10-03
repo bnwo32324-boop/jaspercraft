@@ -45,6 +45,7 @@ final class Loot {
             case "stilling": case "priest_cache": potion(inv, r, PotionType.REGEN, 0, 1); add(inv, r, Material.GLASS_BOTTLE, 1, 4); add(inv, r, Material.BLAZE_POWDER, 0, 2); trophies(inv, r, 0, 2); break;
             default: add(inv, r, Material.BREAD, 1, 3); add(inv, r, Material.PAPER, 0, 3);
         }
+        ArmoryLoot.add(inv, r, "jaspr_atlas", armoryTier(k));
         if (extras == null) return;
         for (String part : extras.split(";")) {
             if (!part.startsWith("book:")) continue;
@@ -57,6 +58,21 @@ final class Loot {
                 LoreBooks.Book b = LoreBooks.pick(coll, r);
                 if (b != null) put(inv, r, b.item());
             }
+        }
+    }
+
+    /**
+     * The Titan armoury's tier for a chest kind (0..5), or -1 for the free cities' own chests: realm gear lies in the
+     * Dominion's strongholds and stores, the orcs' stashes and the ruins, never in a household larder.
+     */
+    static int armoryTier(String k) {
+        switch (k) {
+            case "fort_hoard": return 5;
+            case "forge": case "engine": case "forge_of_crowns": case "armoury": case "black_guard": return 3;
+            case "dominion_supplies": case "wagon": case "orc_stash": case "sworn_desk": case "ledgers": case "edicts": case "orders":
+            case "marshal": case "rider": case "stilling": case "priest_cache": return 2;
+            case "ruin_house": case "burnt_farm": case "outpost_ruin": case "pharos_ruin": case "ash_library": case "library_of_ash": return 1;
+            default: return -1;
         }
     }
 

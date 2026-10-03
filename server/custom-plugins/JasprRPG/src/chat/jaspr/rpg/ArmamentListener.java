@@ -34,6 +34,8 @@ final class ArmamentListener implements Listener {
 
     private RpgConfig settings() { return plugin.settings(); }
 
+    RpgPlugin plugin() { return plugin; }
+
     // ------------------------------------------------------------------ dealing damage
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -297,6 +299,22 @@ final class ArmamentListener implements Listener {
         if (rolled != item) event.setCursor(rolled);
     }
 
+    /**
+     * Realm armoury pieces are always armaments (JasprGear 5.0.0); the ones found in a chest become enhanced the moment
+     * the chest is opened, so loot reaches the player already levelling, like a piece that was picked up or crafted.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onOpenContainer(org.bukkit.event.inventory.InventoryOpenEvent event) {
+        org.bukkit.inventory.Inventory top = event.getInventory();
+        if (top == null || top.getType() == org.bukkit.event.inventory.InventoryType.PLAYER || top.getType() == org.bukkit.event.inventory.InventoryType.CRAFTING) return;
+        for (int slot = 0; slot < top.getSize(); slot++) {
+            ItemStack item = top.getItem(slot);
+            if (item == null || !Armament.isEligible(item) || Armament.isEnhanced(item) || !Armament.isArmory(item)) continue;
+            ItemStack rolled = Armament.maybeEnhance(item, settings(), random);
+            if (rolled != item) top.setItem(slot, rolled);
+        }
+    }
+
     /** Results taken out of a furnace, an anvil or any other output slot count as created too. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onTakeResult(org.bukkit.event.inventory.InventoryClickEvent event) {
@@ -319,7 +337,7 @@ final class ArmamentListener implements Listener {
     // ------------------------------------------------------------------ levelling
 
     /** Adds experience to an item, announcing and granting tokens on each level gained. */
-    private ItemStack award(Player owner, ItemStack item, int amount) {
+    ItemStack award(Player owner, ItemStack item, int amount) {
         RpgConfig config = settings();
         int[] out = new int[2];
         int gained = Armament.addExperience(item, amount, config, out);

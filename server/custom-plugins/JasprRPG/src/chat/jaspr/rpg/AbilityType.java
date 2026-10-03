@@ -48,9 +48,15 @@ enum AbilityType {
     CRYO          ("Cryo Rounds",       Kind.GUN_ROUND, true, ChatColor.AQUA,    1, 3, "Hits slow the target", Material.PACKED_ICE),
     ARMOR_PIERCING("Armor-Piercing",    Kind.GUN_ROUND, true, ChatColor.GRAY,    2, 3, "Bonus damage against armoured targets", Material.FLINT),
     DEADEYE       ("Deadeye",           Kind.GUN_ROUND, true, ChatColor.DARK_AQUA, 3, 3, "Long shots (20m+) hit harder and can double", Material.EYE_OF_ENDER),
-    SCAVENGER     ("Scavenger",         Kind.GUN_ROUND, false, ChatColor.GREEN,  3, 2, "Kills recover iron-nugget ammunition", Material.IRON_NUGGET);
+    SCAVENGER     ("Scavenger",         Kind.GUN_ROUND, false, ChatColor.GREEN,  3, 2, "Kills recover iron-nugget ammunition", Material.IRON_NUGGET),
+    // ---- tools (2026-10-02: realm armoury pickaxes, shovels and hoes) -------------------------------- tier  max
+    EXCAVATION    ("Excavation",        Kind.TOOL, true,  ChatColor.GOLD,        1, 3, "Chance to dig a matching neighbouring block too", Material.IRON_SPADE),
+    PROSPECTING   ("Prospecting",       Kind.TOOL, true,  ChatColor.YELLOW,      1, 3, "Chance of an extra drop from ores", Material.GOLD_NUGGET),
+    EXPERIENCED   ("Experienced",       Kind.TOOL, false, ChatColor.GREEN,       2, 2, "+30% experience from what you dig", Material.EXP_BOTTLE),
+    REPLANTING    ("Replanting",        Kind.TOOL, false, ChatColor.DARK_GREEN,  2, 1, "Crops you harvest plant themselves again", Material.SEEDS),
+    TREASURE_HUNTER("Treasure Hunter",  Kind.TOOL, true,  ChatColor.AQUA,        3, 2, "Rare finds while digging: gold, emeralds, diamonds", Material.EMERALD);
 
-    enum Kind { WEAPON, ARMOUR, GUN_PART, GUN_ROUND }
+    enum Kind { WEAPON, ARMOUR, GUN_PART, GUN_ROUND, TOOL }
 
     final String display;
     final Kind kind;
@@ -90,6 +96,7 @@ enum AbilityType {
     static List<AbilityType> forWeapons() { return of(Kind.WEAPON, Kind.WEAPON); }
 
     static List<AbilityType> forArmour() { return of(Kind.ARMOUR, Kind.ARMOUR); }
+    static List<AbilityType> forTools() { return of(Kind.TOOL, Kind.TOOL); }
 
     /** Parts first, then rounds - the order the Gunsmith sheet lays them out in. */
     static List<AbilityType> forGuns() { return of(Kind.GUN_PART, Kind.GUN_ROUND); }

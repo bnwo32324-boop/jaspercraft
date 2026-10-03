@@ -85,6 +85,8 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
     private int supplyRecipes, packRecipes;
     GearBackpacks backpacks;
     GearExtras extras;
+    /** 5.0.0: the realm armouries (ArmorySet x ArmoryPiece). */
+    Armory armory;
     /** The running plugin, for the static API (GearApi.wearing). */
     static volatile GearPlugin instance;
     private int realmDrops;
@@ -100,14 +102,17 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         mutations = new GearMutations(this);
         backpacks = new GearBackpacks(this);
         extras = new GearExtras(this);
+        armory = new Armory(this);
         instance = this;
         registerRecipes();
+        armory.registerRecipes();
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(abilities, this);
         getServer().getPluginManager().registerEvents(vitals, this);
         getServer().getPluginManager().registerEvents(mutations, this);
         getServer().getPluginManager().registerEvents(backpacks, this);
         getServer().getPluginManager().registerEvents(extras, this);
+        getServer().getPluginManager().registerEvents(armory, this);
         getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
         getCommand("gear").setExecutor(this);
         getCommand("gear").setTabCompleter(this);
@@ -119,6 +124,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             for (Player p : getServer().getOnlinePlayers()) {
                 GearProfile prof = profiles.get(p.getUniqueId());
                 if (prof != null) { abilities.fastTick(p, prof, now, tick); extras.fast(p, prof); vitals.fast(p, prof, now); mutations.fast(p, prof, now, tick); }
+                if (tick % 6 == 0) armory.fast(p, now);
             }
             if (tick % 20 == 0) {
                 for (Player p : getServer().getOnlinePlayers()) {
@@ -127,6 +133,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
                         abilities.apply(p, prof); abilities.slowTick(p, prof, now); extras.second(p, prof, now); vitals.second(p, prof, now);
                         mutations.apply(p, prof); mutations.second(p, prof, now);
                     }
+                    armory.second(p);
                 }
                 vitals.mobSecond(now);
             }
@@ -135,7 +142,9 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         getLogger().info("GEAR_READY items=" + GearItem.values().length + " consumables=" + GearConsumable.values().length
             + " statuses=" + GearStatus.values().length + " mutations=" + GearMutation.values().length + " slots=" + GearType.SLOT_COUNT
             + " recipes=" + recipes + " supplyRecipes=" + supplyRecipes + " backpacks=" + GearBackpack.values().length
-            + " packRecipes=" + packRecipes + " realmItems=" + (GearItem.values().length - GearItem.craftableCount()) + " channel=" + CHANNEL + " protocol=" + PROTOCOL);
+            + " packRecipes=" + packRecipes + " realmItems=" + (GearItem.values().length - GearItem.craftableCount())
+            + " armorySets=" + ArmorySet.values().length + " armoryPieces=" + ArmorySet.values().length * ArmoryPiece.values().length
+            + " armoryRecipes=" + armory.recipes + " channel=" + CHANNEL + " protocol=" + PROTOCOL);
         if (Boolean.getBoolean("jaspr.gear.selftest")) getServer().getScheduler().runTask(this, () -> new GearSelfTest(this).run(getServer().getConsoleSender()));
     }
 
@@ -143,6 +152,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
     public void onDisable() {
         instance = null;
         if (extras != null) getLogger().info("GEAR_EXTRAS_METRICS " + extras.metrics() + " realmDrops=" + realmDrops);
+        if (armory != null) getLogger().info("ARMORY_METRICS " + armory.metrics());
         if (backpacks != null) backpacks.closeAll(); // queued before the flush below
         for (Player p : getServer().getOnlinePlayers()) {
             GearProfile prof = profiles.get(p.getUniqueId());
@@ -956,7 +966,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
                 + " unequips=" + unequips + " mobDrops=" + mobDrops + " bossDrops=" + bossDrops + " supplyDrops=" + supplyDrops + " deathDrops=" + deathDropCount
                 + " hellos=" + hellos + " rejected=" + rejected + " wornSent=" + wornSent + " creativeMoves=" + creativeMoves
                 + " writes=" + store.writes + " saveFailures=" + store.failures
-                + " " + abilities.metrics() + " " + vitals.metrics() + " " + mutations.metrics() + " " + backpacks.metrics());
+                + " " + abilities.metrics() + " " + vitals.metrics() + " " + mutations.metrics() + " " + backpacks.metrics() + " " + armory.metrics());
             return true;
         }
         if (sub.equals("open") && p == null && args.length > 1) {
@@ -1012,6 +1022,27 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             boolean ok = m == tp.mutation || mutations.inject(target, tp, m);
             vitals.pushHud(target, tp);
             sender.sendMessage("GEAR_MUTATE player=" + target.getUniqueId() + " mutation=" + tp.mutation.id + " ok=" + ok);
+            return true;
+        }
+        if (sub.equals("armorygive") || (sub.equals("armory") && args.length >= 3)) {
+            if (p != null && !p.hasPermission("jasprgear.admin")) { sender.sendMessage(ChatColor.RED + "Not allowed."); return true; }
+            if (args.length < 3) {
+                sender.sendMessage("Usage: /gear armory <player|*> <set|all|abyssal_pearl|titan_shard|liminal_fragment> [piece|all]");
+                sender.sendMessage("Sets: emerald blazeforged abyssal titan liminal void. Pieces: helmet chestplate leggings boots sword axe pickaxe shovel hoe.");
+                return true;
+            }
+            List<Player> targets = new ArrayList<Player>();
+            if (args[1].equals("*")) targets.addAll(getServer().getOnlinePlayers());
+            else if (getServer().getPlayerExact(args[1]) != null) targets.add(getServer().getPlayerExact(args[1]));
+            if (targets.isEmpty()) { sender.sendMessage("No such player."); return true; }
+            List<ItemStack> kit = Armory.kit(args[2].toLowerCase(Locale.ROOT), args.length > 3 ? args[3] : null);
+            if (kit.isEmpty()) { sender.sendMessage("Nothing matches " + args[2] + (args.length > 3 ? " " + args[3] : "") + "."); return true; }
+            for (Player target : targets) {
+                for (ItemStack item : kit) for (ItemStack left : target.getInventory().addItem(item.clone()).values())
+                    target.getWorld().dropItem(target.getLocation(), left);
+                getLogger().info("ARMORY_GIVE by=" + sender.getName() + " to=" + target.getUniqueId() + " what=" + args[2] + (args.length > 3 ? ":" + args[3] : "") + " items=" + kit.size());
+            }
+            sender.sendMessage(ChatColor.GREEN + "Gave " + kit.size() + " armoury item(s) to " + targets.size() + " player(s).");
             return true;
         }
         if (sub.equals("give")) {
@@ -1091,6 +1122,27 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
                 p.sendMessage(mutations.describe(prof));
                 for (String line : prof.mutation.effects) p.sendMessage(ChatColor.GRAY + " " + line);
                 return true;
+            case "sets":
+            case "armory":
+            case "armoury": {
+                ArmorySet only = args.length > 1 ? ArmorySet.byId(args[1]) : null;
+                if (only == null) {
+                    p.sendMessage(ChatColor.GOLD + "Realm armouries" + ChatColor.GRAY + " - stronger than diamond, never break; /gear sets <set> for recipes:");
+                    for (ArmorySet set : ArmorySet.values())
+                        p.sendMessage(set.color + " " + set.title + ChatColor.GRAY + " (" + set.realmTitle + "): "
+                            + (set == ArmorySet.EMERALD ? "emerald blocks" : set.customMaterial() ? ArmoryItems.materialTitle(set.materialId) + " x8 + a diamond piece"
+                            : GearAbilities.pretty(set.corner.name()) + " x4, " + GearAbilities.pretty(set.edge.name()) + " x4 + a diamond piece"));
+                    p.sendMessage(ChatColor.GRAY + "Also found in each realm's chests and on its creatures. At home in its realm a set is stronger.");
+                    return true;
+                }
+                p.sendMessage(only.color + only.title + " armoury" + ChatColor.GRAY + " of " + only.realmTitle);
+                p.sendMessage(ChatColor.GRAY + " " + only.setBonus);
+                p.sendMessage(ChatColor.GRAY + " Weapons - " + only.weaponPower);
+                p.sendMessage(ChatColor.GRAY + " Tools - " + only.toolPower);
+                for (ArmoryPiece piece : ArmoryPiece.values())
+                    p.sendMessage(ChatColor.WHITE + " " + piece.title + ChatColor.GRAY + ": " + Armory.recipeText(only, piece));
+                return true;
+            }
             case "vitals":
             case "effects":
             case "adrenaline":
@@ -1148,8 +1200,10 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> out = new ArrayList<String>();
         if (args.length == 1) {
-            for (String s : Arrays.asList("help", "list", "vitals", "mutation", "ability", "show", "recipes", "bank", "scan", "arc", "dodge", "magnet"))
+            for (String s : Arrays.asList("help", "list", "vitals", "mutation", "ability", "show", "recipes", "bank", "scan", "arc", "dodge", "magnet", "sets"))
                 if (s.startsWith(args[0].toLowerCase(Locale.ROOT))) out.add(s);
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("sets") || args[0].equalsIgnoreCase("armory"))) {
+            for (ArmorySet set : ArmorySet.values()) if (set.id.startsWith(args[1].toLowerCase(Locale.ROOT))) out.add(set.id);
         } else if (args.length == 2 && args[0].equalsIgnoreCase("recipes")) {
             for (GearItem item : GearItem.values()) if (item.id.startsWith(args[1].toLowerCase(Locale.ROOT))) out.add(item.id);
             for (GearBackpack item : GearBackpack.values()) if (item.id.startsWith(args[1].toLowerCase(Locale.ROOT))) out.add(item.id);

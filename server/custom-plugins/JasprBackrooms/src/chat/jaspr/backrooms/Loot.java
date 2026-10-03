@@ -29,6 +29,7 @@ final class Loot {
                 if (inv.getItem(slot) == null) { inv.setItem(slot, s); break; }
             }
         }
+        ArmoryLoot.add(inv, r, "jaspr_levels", (int) Math.round(Math.max(0.0, Math.min(1.0, danger)) * 5));
     }
 
     /** A chest's contents (pure: the same danger and random give the same items). */
