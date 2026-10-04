@@ -58,6 +58,16 @@ public class WideProbe extends JavaPlugin implements Listener {
                     }
                     case "save": p.saveData(); break;
                     case "chest": p.openInventory(Bukkit.createInventory(null, 27, "Wide test chest")); break;
+                    case "lore": {   // wprobe lore <player> <index> <MATERIAL> <name>|<lore line>|<lore line>... ('&' colours, '_' spaces)
+                        ItemStack it = new ItemStack(Material.valueOf(a[3]));
+                        org.bukkit.inventory.meta.ItemMeta meta = it.getItemMeta();
+                        String[] parts = org.bukkit.ChatColor.translateAlternateColorCodes('&', a[4].replace('_', ' ')).split("\\|");
+                        meta.setDisplayName(parts[0]);
+                        meta.setLore(java.util.Arrays.asList(parts).subList(1, parts.length));
+                        it.setItemMeta(meta);
+                        inv.setItem(Integer.parseInt(a[2]), it);
+                        break;
+                    }
                     case "furnace": p.openInventory(Bukkit.createInventory(null, org.bukkit.event.inventory.InventoryType.FURNACE)); break;
                     default: break Player;
                 }
