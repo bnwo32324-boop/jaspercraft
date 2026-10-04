@@ -3,7 +3,7 @@
  'use strict';
  var mobile=!!(navigator.maxTouchPoints&&(/Android|iPhone|iPad|iPod/.test(navigator.userAgent)||matchMedia('(pointer: coarse)').matches));
  if(!mobile)return;
- var host=null,canvas=null,slotBar=null,lastMode='',lastEnabled='',held=new Set(),pointers=new Map(),rightClick=false,shiftClick=false,sheet=null;
+ var host=null,canvas=null,slotBar=null,wideButton=null,wideLabel='',lastMode='',lastEnabled='',held=new Set(),pointers=new Map(),rightClick=false,shiftClick=false,sheet=null;
  // Tank mode (JasprTanks): the server advertises tanks; these controls claim one and drive it.
  var tank={state:'none',view:'first',vehicle:'',pickup:null,follow:false,unlockAt:0,claimed:false,polled:0,cooldownMs:1500,coolUntil:0},fireButton=null,tankButton=null,viewButton=null,modeButton=null,pickupButton=null,jumpButton=null,sneakButton=null,stickLabel=null,stickSprint=false;
  function bridge(){return window.JasprVideoMobileBridge;}
@@ -76,6 +76,8 @@
   // Vanilla draws no crosshair in third person; the camera sits on the aim line, so the screen centre is the aim.
   var reticle=document.createElement('i');reticle.className='jaspr-touch-reticle';reticle.setAttribute('aria-hidden','true');host.append(reticle);
   button('Back','back',function(){press('Escape','Escape',27);});button('Keyboard','keyboard',function(){textSheet(false);});
+  // Wide inventory (owner, 2026-10-04): expand or contract the inventory windows; only while one is open (JasprWideBridge).
+  wideButton=button('Contract','wideview',function(){var w=window.JasprWideBridge;if(w&&w.toggle){w.toggle();syncWide();}});
   var right=button('Right: OFF','right',function(){rightClick=!rightClick;right.textContent='Right: '+(rightClick?'ON':'OFF');});
   var shift=button('Shift: OFF','shift',function(){shiftClick=!shiftClick;shift.textContent='Shift: '+(shiftClick?'ON':'OFF');window.dispatchEvent(new KeyboardEvent(shiftClick?'keydown':'keyup',{bubbles:true,cancelable:true,code:'ShiftLeft',key:'Shift',keyCode:16,which:16}));});
   // Wide inventory: a 14-slot hotbar once the server agreed (JasprWideBridge in classes.js); slots 10-14 stay hidden until then.
@@ -109,13 +111,17 @@
  window.JasprMobile={sync:function(){if(!canvas||!canvas.isConnected){var c=document.querySelector('#game_frame canvas');if(!c)return;release();attach();attachCanvas(c);}var s=state(),mode=s.playing&&!sheet?'play':s.menu?'menu':'hidden',enabled=s.enabled?'true':'false';
    if(enabled!==lastEnabled){host.dataset.enabled=enabled;lastEnabled=enabled;}
    if(mode!==lastMode){release();host.dataset.mode=mode;document.documentElement.classList.toggle('jaspr-touch-menu',mode==='menu');lastMode=mode;}
-   syncSlots();syncTank(s);watchdog();
+   syncSlots();syncWide();syncTank(s);watchdog();
   },release:release,status:function(){return {mobile:mobile,mode:lastMode,held:Array.from(held),pointers:pointers.size,tank:tank.state,view:tank.view,vehicle:tank.vehicle,pickup:tank.pickup,follow:tank.follow,claimed:tank.claimed,cooldownMs:tank.cooldownMs};},
   // Control counters since the last reset, held keys by name, and control anomalies newer than `after`.
   stats:function(reset,after){var out=stats,now=performance.now();out.activeTouches=activeTouches;out.heldNow=Array.from(held).map(name);out.last=last;out.sinceLastMs=lastAt?Math.round(now-lastAt):null;
    out.anomalies=anomalies.filter(function(a){return a.id>(after|0);});if(reset){stats=counters();}return out;}};
  // 9 or 14 hotbar buttons, as many as the game's hotbar has.
  function syncSlots(){if(!slotBar)return;var w=window.JasprWideBridge,n=w?w.slots():9;n=n===14?'14':'9';if(slotBar.dataset.slots!==n)slotBar.dataset.slots=n;}
+ // The Expand / Contract button: shown in a menu over an inventory window; Expand counts the stacks the compact view hides.
+ function syncWide(){if(!host||!wideButton)return;var w=window.JasprWideBridge,v=w&&w.view?w.view():null,can=v&&v.can?'1':'0';
+  if(host.dataset.wideview!==can)host.dataset.wideview=can;if(!v)return;
+  var label=v.expanded?'Contract':'Expand'+(v.hidden?' (+'+v.hidden+')':'');if(label!==wideLabel){wideLabel=label;wideButton.textContent=label;wideButton.setAttribute('aria-label',v.expanded?'Contract the inventory':'Expand the inventory');}}
  // A key still held 2 s after the last finger left the screen is stuck (a touch end the controls never got): release it.
  function watchdog(){if(!touchSeen||!held.size||fingers>0){stuckSince=0;return;}var now=performance.now();if(!stuckSince){stuckSince=now;return;}
   if(now-stuckSince<2000)return;var keys=Array.from(held).map(name);stats.stuckReleases++;anomaly('stuck-release',{keys:keys.slice(0,6)});release();}

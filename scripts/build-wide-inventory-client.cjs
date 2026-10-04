@@ -86,7 +86,7 @@ const marked = code => code.replace(/^(\s*)/, '$1' + JW);
 /** States a patched function gains; the vanilla function must not use them already. */
 const NEW_STATES = {DCu: [290, 291], Ckt: [291], BON: [290], FH2: [290], B0Z: [290], C6T: [290], E8R: [291], Cyr: [2990]};
 /** TeaVM names the module and hooks call; all must be declared in the client. */
-const NATIVE = ['Biv', 'YD', 'ID', 'HEH', 'Dk', 'DE9', 'FYu', 'D49', 'DNC', 'CFh', 'DA', 'CCH', 'AKy', 'Iu', 'Fru', 'Lg', 'FuF', 'BgN', 'Bm',
+const NATIVE = ['Biv', 'YD', 'ID', 'ABp', 'HEH', 'Dk', 'DE9', 'FYu', 'D49', 'DNC', 'CFh', 'DA', 'CCH', 'C9y', 'AKy', 'Iu', 'Fru', 'Lg', 'FuF', 'BgN', 'Bm',
   'FX', 'Ds', 'B', 'FT', 'Cj', 'Ktg', 'B_G', 'FH2'];
 
 function fnRange(text, name) {

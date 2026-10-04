@@ -58,9 +58,12 @@ function stopAll() {
   check(!/VerifyError|NoSuchFieldError|NoSuchMethodError/.test(fxOut), 'patched server classes load');
   const cmd = async c => { const t = await getText(webPort, '/console?c=' + encodeURIComponent(c)); await sleep(200); return t; };
   const inv = async () => {
-    await cmd('wprobe inv ' + NAME); await sleep(300);
-    const t = await getText(webPort, '/log'), lines = t.match(/WPROBE_INV[^\n]*/g) || [];
-    const line = lines[lines.length - 1] || '', items = {};
+    const lines = async () => ((await getText(webPort, '/log')).match(/WPROBE_INV[^\n]*/g) || []);
+    const before = (await lines()).length;
+    await cmd('wprobe inv ' + NAME);
+    let all = await lines();
+    for (let i = 0; i < 30 && all.length <= before; i++) { await sleep(200); all = await lines(); }
+    const line = all[all.length - 1] || '', items = {};
     for (const part of ((line.match(/items=(\S*)/) || [])[1] || '').split(',').filter(Boolean)) { const [i, r] = part.split(':'); items[+i] = r; }
     return {line, items, held: +((line.match(/held=(-?\d+)/) || [])[1]), window: +((line.match(/window=(\d+)/) || [])[1]), open: +((line.match(/open=(\d+)/) || [])[1])};
   };
@@ -133,7 +136,8 @@ function stopAll() {
     const inWorld = async ms => { const end = Date.now() + ms; while (Date.now() < end) { if (await evaluate('(function(){try{return !!(window.__wideMc&&__wideMc()&&__wideMc().v);}catch(e){return false;}})()')) return true; await sleep(1000); } return false; };
     check(await inWorld(150000), 'client joins the fixture server');
     await sleep(3000);
-    check(await evaluate('window.JasprWideBridge.slots()') === 14, 'server answered: 14 hotbar slots');
+    // Phones and tablets keep the vanilla 9-slot hotbar but get the larger inventory (owner, 2026-10-04).
+    check(await evaluate('window.JasprWideBridge.slots()') === (mobile ? 9 : 14), 'server answered: ' + (mobile ? 9 : 14) + ' hotbar slots');
     let p = await inv();
     check(p.window === 66, 'server: inventory window widened to 66 slots', p.line);
     await cmd('gamemode 0 ' + NAME);
@@ -144,27 +148,38 @@ function stopAll() {
     const clientItems = () => evaluate('(function(){var e=__wideMc().v.bx.eL,o={};for(var i=0;i<56;i++){var s=e.byz.c4(i);if(s&&s.rA&&s.PD>0)o[i]=s.PD;}return o;})()');
     const ci = await clientItems();
     check(ci && ci[36] === 1 && ci[40] === 1 && ci[9] === 1, 'client inventory holds items 36-40 and row 1', ci);
-    await evaluate('window.JasprWideBridge.select(11)');
-    await sleep(1200);
-    p = await inv();
-    check(p.held === 38, 'hotbar position 12 selected in the client -> server holds item 38', p.line);
-    await shot('hud-14-slots');
-    if (mobile) {
+    if (!mobile) {
+      await evaluate('window.JasprWideBridge.select(11)');
+      await sleep(1200);
+      p = await inv();
+      check(p.held === 38, 'hotbar position 12 selected in the client -> server holds item 38', p.line);
+      await shot('hud-14-slots');
+    } else {
+      await shot('hud-9-slots');
       const bar = await evaluate(`(function(){var b=document.querySelector('.jaspr-touch-slots');if(!b)return null;var v=[].slice.call(b.children).filter(function(x){return getComputedStyle(x).display!=='none';});var r=b.getBoundingClientRect();return {n:v.length,slots:b.dataset.slots,left:r.left,right:r.right,w:innerWidth};})()`);
-      check(bar && bar.n === 14 && bar.slots === '14' && bar.left >= 0 && bar.right <= bar.w, 'touch hotbar: 14 buttons on screen', bar);
-      const btn = await evaluate(`(function(){var b=document.querySelectorAll('.jaspr-touch-slots button')[12].getBoundingClientRect();return [b.left+b.width/2,b.top+b.height/2];})()`);
+      check(bar && bar.n === 9 && bar.slots === '9' && bar.left >= 0 && bar.right <= bar.w, 'touch hotbar: the vanilla 9 buttons', bar);
+      const btn = await evaluate(`(function(){var b=document.querySelectorAll('.jaspr-touch-slots button')[7].getBoundingClientRect();return [b.left+b.width/2,b.top+b.height/2];})()`);
       await send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: btn[0], y: btn[1], id: 1}]}); await sleep(90);
       await send('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []}); await sleep(1200);
-      check(await evaluate('window.JasprWideBridge.selected()') === 12, 'touch button 13 selects hotbar position 13 (item 39)');
       p = await inv();
-      check(p.held === 39, 'server holds item 39', p.line);
+      check(p.held === 7, 'touch button 8 selects hotbar slot 8', p.line);
+      // A held slot from the 14-slot hotbar (saved on a computer) comes back to slot 1 on a phone.
+      await cmd('wprobe held ' + NAME + ' 38');
+      await sleep(1500);
+      p = await inv();
+      check(p.held === 0 && await evaluate('__wideMc().v.bx.gP') === 0, 'held item 38 from a computer goes back to slot 1 on a phone', p.line);
     }
     // ---- inventory screen ----
     await key('KeyE', 69, 'e');
     await sleep(1500);
     let sc = await screen();
     check(sc && sc.slots && sc.slots.length === 66 && sc.slots.filter(s => s.jw === 1).length === 20, 'inventory screen: 66 slots, 20 in the pocket', sc && (sc.error || sc.slots.length));
-    check(sc && sc.slots.filter(s => s.jw === 1).every(s => s.x >= sc.gv), 'pocket slots right of the window', sc && sc.slots.filter(s => s.jw).map(s => s.x));
+    // One grid: hotbar 10 (item 36) one slot pitch after hotbar 9 (item 8), row 1's extension after its 9th slot (item 17).
+    const by = i => sc && sc.slots.find(s => s.i === i && (i < 36 ? !s.jw : s.jw === 1));
+    check(sc && by(36).x === by(8).x + 18 && by(36).y === by(8).y && by(41).x === by(17).x + 18 && by(41).y === by(17).y && by(55).x === by(8).x + 90,
+      'extension columns continue the rows and the hotbar', sc && [by(8), by(36), by(17), by(41), by(55)].map(s => s && [s.x, s.y]));
+    const realW = sc.q + sc.cut;
+    check(Math.abs((sc.is + (sc.gv + 90) / 2) - realW / 2) <= 1, 'the 266px window is centred on the screen', [sc.is, sc.gv, realW]);
     await shot('inventory');
     // A click on hotbar 10 (window 46) picks the brick up; a click on row 2 slot 3 (window 20) puts it down.
     await press(...at(sc, 46));
@@ -183,12 +198,29 @@ function stopAll() {
     check(c2 && c2[36] === 3 && !c2[41], 'client agrees after shift-click', c2);
     // Carrying a stack, a click on the pocket frame keeps it (no drop); it goes back to its slot.
     await click(...at(sc, 36));
-    const sc2 = await screen(), first = sc2.slots.find(s => s.n === 51);
-    await click(Math.round((sc2.is + first.x - 3) * sc2.k), Math.round((sc2.l7 + first.y - 3) * sc2.k));
+    const sc2 = await screen();
+    await click(Math.round((sc2.is + 250) * sc2.k), Math.round((sc2.l7 + 30) * sc2.k));   // the widened window's empty top-right
     await click(...at(sc2, 36));
     await sleep(800);
     p = await inv();
-    check(p.items[0] === 'STONEx1', 'a click on the pocket frame does not drop the carried stack', p.line);
+    check(p.items[0] === 'STONEx1', 'a click on the widened part of the window does not drop the carried stack', p.line);
+    if (mobile) {
+      // Expand / Contract in the touch menu bar (phones and tablets only).
+      const wideButton = () => evaluate(`(function(){var b=document.querySelector('[data-zone="wideview"]');if(!b)return null;var r=b.getBoundingClientRect();return {shown:getComputedStyle(b).display!=='none',text:b.textContent,x:r.left+r.width/2,y:r.top+r.height/2};})()`);
+      const tapAt = async (x, y) => { await send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x, y, id: 3}]}); await sleep(90); await send('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []}); await sleep(1200); };
+      let b = await wideButton();
+      check(b && b.shown && b.text === 'Contract', 'menu bar shows Contract over the inventory', b);
+      await tapAt(b.x, b.y);
+      const small = await screen();
+      b = await wideButton();
+      check(small && small.cut === 0 && small.slots.filter(x => x.jw).every(x => x.x === -2000) && /^Expand \(\+\d+\)$/.test(b.text),
+        'Contract: the vanilla window, the extension slots hidden, Expand counts what they hold', [small && small.cut, b && b.text]);
+      await shot('inventory-contracted');
+      await tapAt(b.x, b.y);
+      const big = await screen();
+      b = await wideButton();
+      check(big && big.cut === 90 && big.slots.filter(x => x.jw === 1).every(x => x.x >= 170) && b.text === 'Contract', 'Expand: the 266px window again', [big && big.cut, b && b.text]);
+    }
     await key('Escape', 27, 'Escape');
     // ---- chest window ----
     await cmd('wprobe chest ' + NAME);
@@ -206,13 +238,20 @@ function stopAll() {
     p = await inv();
     check(!p.items[40], 'clay left the pocket for the chest', p.line);
     await key('Escape', 27, 'Escape');
+    await cmd('wprobe furnace ' + NAME);
+    await sleep(1500);
+    sc = await screen();
+    check(sc && sc.slots && sc.slots.length === 3 + 36 + 20, 'furnace screen: 3 + 36 + 20 slots', sc && (sc.error || sc.slots.length));
+    await shot('furnace');
+    await key('Escape', 27, 'Escape');
     // ---- Creative ----
     await cmd('gamemode 1 ' + NAME);
     await sleep(800);
     await key('KeyE', 69, 'e');
     await sleep(1500);
     sc = await screen();
-    check(sc && sc.slots && sc.slots.filter(s => s.jw === 1).length === 5, 'Creative item tab: the hotbar extension (5 slots)', sc && (sc.error || sc.slots.length));
+    check(sc && sc.slots && sc.slots.filter(s => s.jw === 1).length === 5 && sc.slots.filter(s => s.jw === 1).every(s => s.x >= 193 && s.y === 112),
+      'Creative item tab: the hotbar extension (5 slots) right of the scrollbar', sc && (sc.error || sc.slots.filter(s => s.jw).map(s => [s.x, s.y])));
     await shot('creative');
     await key('Escape', 27, 'Escape');
     const errors = consoleLog.filter(l => /EXCEPTION|wide inventory\]/.test(l));

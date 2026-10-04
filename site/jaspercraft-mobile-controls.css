@@ -29,6 +29,8 @@
 #jaspr-touch [data-zone="keyboard"]{left:49px}
 #jaspr-touch [data-zone="right"]{right:74px}
 #jaspr-touch [data-zone="shift"]{right:3px}
+#jaspr-touch [data-zone="wideview"]{display:none}
+#jaspr-touch[data-mode="menu"][data-wideview="1"] [data-zone="wideview"]{display:block;bottom:var(--safe-bottom);min-height:32px;font-size:11px;background:#111e;left:50%;transform:translateX(-50%);min-width:84px}
 .jaspr-touch-text{position:fixed;z-index:110;bottom:env(safe-area-inset-bottom);left:0;right:0;background:#171920f5;display:flex;gap:6px;padding:10px;box-sizing:border-box}
 .jaspr-touch-text input{font:16px system-ui;min-width:0;flex:1;padding:10px;border:1px solid #abb6ce;background:#fff;color:#111}
 .jaspr-touch-text button{font:14px system-ui;min-height:44px;border:1px solid #abb6ce;background:#303744;color:#fff}

@@ -1151,9 +1151,11 @@ var JasprChestSearch = (function () {
       st.matches = out; st.found = found;
     } catch (error) { die("match", error); }
   }
-  /* The box and the Sort button at the right of the title row, or both above the window. */
+  /* The box and the Sort button at the right of the title row, or both above the window. A window widened for the
+   * wide inventory (client-mods/wide-inventory-teavm.js) is pocketWidth wider: its title row reaches that far. */
   function layout(st) {
-    var gui = st.gui, xs = gui.gv | 0, sx = xs - 7 - SORT_W, y = 4;
+    var gui = st.gui, wide = typeof JasprWide !== "undefined" && JasprWide ? JasprWide.pocketWidth(gui) | 0 : 0;
+    var xs = (gui.gv | 0) + wide, sx = xs - 7 - SORT_W, y = 4;
     if (st.titleW >= 0 && 8 + st.titleW + 3 > sx - 3 - BOX_W && (gui.l7 | 0) >= BOX_H + 3) { sx = xs - SORT_W; y = -BOX_H - 2; }
     st.box = {x: sx - 3 - BOX_W, y: y, w: BOX_W, h: BOX_H};
     st.sort = {x: sx, y: y, w: SORT_W, h: BOX_H};

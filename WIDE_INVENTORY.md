@@ -12,12 +12,25 @@ present, and future. This change should affect the hotbar as well."
 - Existing players keep every item where it was. The 20 new slots start empty.
 - **The 5 extra hotbar slots** are drawn on the HUD and can be selected:
   - by mouse wheel;
-  - by the phone touch hotbar, which now has 14 buttons (5 extra once the server agrees);
   - by clicking in the inventory.
   Number keys 1-9 still pick slots 1-9.
-- **The new slots in windows** sit in a *pocket* beside every window that shows your inventory (inventory, chests,
-  furnaces, crafting tables, Creative and so on). Each row of the pocket is level with the row it extends, and the
-  window and pocket are centred together.
+- **The new slots in windows** (owner, 2026-10-04: "It needs to be naturally integrated and centered"):
+  - every window that shows your inventory (inventory, chests, furnaces, crafting tables, Creative and so on) is drawn
+    90 px wider, with the vanilla frame carried to the new edge;
+  - the 5 extra columns continue every inventory row and the hotbar as one 14-column grid;
+  - the whole window is centred;
+  - in Creative the extra columns sit right of its scrollbar;
+  - the chest Search box and Sort button sit in the wider title row.
+- **Phones and tablets** (owner, 2026-10-04: "Mobile users should get a vanilla hotbar and, however, have the larger
+  inventory" and "a toggle to expand and contract"):
+  - the HUD and touch hotbar keep the vanilla 9 slots;
+  - windows still show all 56 slots, with items 36-40 as plain storage at the end of the hotbar row;
+  - a held slot 10-14 restored from a computer goes back to slot 1;
+  - over an inventory window, the touch menu bar has an **Expand / Contract** button. Contract draws the vanilla
+    36-slot window and hides the extra slots (their items stay there and the server keeps them), and the button then
+    reads "Expand (+N)", with N the stacks the hidden slots hold;
+  - the choice is kept per device (localStorage `jaspr.wideinv.view.v1`);
+  - computers never get the button.
 - **Pickups** fill the 14-slot hotbar first, then each row left to right.
 - **Shift-click** moves between the rows and the whole 14-slot hotbar.
 - **Plugins:** Survivor Gear, the EasierCrafting panel, chest search, Apocalypse guns and Dungeon guns/relic pouch all use
@@ -52,9 +65,9 @@ present, and future. This change should affect the hotbar as well."
 
 ## Tests
 
-- `tests/wide-inventory-client.test.cjs`: offline. Module logic, the builder on the live client, and the touch hotbar.
+- `tests/wide-inventory-client.test.cjs`: offline. Module logic, the integrated layout, phones (9-slot hotbar, Expand / Contract), the builder on the live client, and the touch controls.
 - `tests/wide-inventory-bot.cjs`: 41 checks on one low-priority Paper test server with two bots (vanilla and wide).
   Covers the wire, fill order, held slot, Bukkit API slot numbers, click events, shift-click, Creative, a chest window
   and save/rejoin.
 - `tests/wide-inventory-browser.cjs [--mobile]`: the real TeaVM client in one headless Chrome against the loopback
-  fixture. 19 checks on desktop and 22 on mobile: HUD, pocket clicks, shift-click, chest, Creative and the touch hotbar.
+  fixture. 21 checks on desktop and 26 on a phone: HUD, the integrated grid and centring, clicks into the extra columns, shift-click, chest, furnace, Creative, the 9-slot touch hotbar and Expand / Contract.

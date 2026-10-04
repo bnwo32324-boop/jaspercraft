@@ -9,10 +9,10 @@ const ROOT = path.join(__dirname, '..');
 const MODULE = fs.readFileSync(path.join(ROOT, 'client-mods', 'wide-inventory-teavm.js'), 'utf8');
 const LIVE = 'C:/Users/AM/Documents/Eaglercraft-1.12.2-Tailscale/site/classes.js';
 
-function sandbox() {
-  const ctx = {$rt_globals: {location: {pathname: '/test/'}, console: {warn() {}}}, $rt_str: s => s, HEH: null};
+function sandbox(globals) {
+  const ctx = {$rt_globals: Object.assign({location: {pathname: '/test/'}, console: {warn() {}}}, globals || {}), $rt_str: s => s, HEH: null};
   vm.createContext(ctx);
-  vm.runInContext('function Biv(){} function YD(){} function ID(){} function Other(){}\n' + MODULE, ctx);
+  vm.runInContext('function Biv(){} function YD(){} function ID(){} function ABp(){} function Other(){}\n' + MODULE, ctx);
   return ctx;
 }
 /** A window: `own` container slots, then the player's 27 + 9 (at the y rows given), like every vanilla container. */
@@ -71,7 +71,7 @@ test('shift-click orders match the server (JasprWide.java)', () => {
   assert.match(java, /RESULT_ORDER\[k\] = ALL_ORDER\[55 - k\]/);
 });
 
-test('windows: the 20 extension slots in item order, only once the server agreed, laid out in the pocket', () => {
+test('windows: the 20 extension slots in item order, only once the server agreed, continuing each row as one grid', () => {
   const ctx = sandbox(), W = ctx.JasprWide;
   const chest = window(ctx, 27, [140, 158, 176], 198);
   assert.equal(W.adoptPlan(chest.container), null, 'vanilla until the answer');
@@ -83,22 +83,23 @@ test('windows: the 20 extension slots in item order, only once the server agreed
   assert.deepEqual(Array.from(W.extraSlots(chest.container)), Array.from({length: 20}, (_, k) => 63 + k));
   W.layout({h2: chest.container, gv: 176});
   const at = i => chest.slots.find(s => s.$jw && s.bQx === i);
-  assert.deepEqual([at(36).Lr, at(36).Fg], [183, 198], 'hotbar 10 beside the hotbar row');
-  assert.deepEqual([at(40).Lr, at(40).Fg], [255, 198]);
-  assert.deepEqual([at(41).Lr, at(41).Fg], [183, 140], 'row 1 extension beside row 1');
-  assert.deepEqual([at(55).Lr, at(55).Fg], [255, 176]);
-  // Creative's ContainerCreative shows only the hotbar: only the hotbar extension.
+  // The vanilla hotbar's last slot is at x 152: hotbar 10 follows at 170, one slot pitch on, in the same row.
+  assert.deepEqual([at(36).Lr, at(36).Fg], [170, 198], 'hotbar 10 right after hotbar 9');
+  assert.deepEqual([at(40).Lr, at(40).Fg], [242, 198]);
+  assert.deepEqual([at(41).Lr, at(41).Fg], [170, 140], 'row 1 continues after its 9th slot');
+  assert.deepEqual([at(55).Lr, at(55).Fg], [242, 176]);
+  // Creative's ContainerCreative shows only the hotbar: only the hotbar extension, right of its scrollbar.
   const creative = window(ctx, 45, null, 112);
   assert.deepEqual(adopt(ctx, creative), [36, 37, 38, 39, 40]);
-  W.layout({h2: creative.container, gv: 195});
-  assert.deepEqual([creative.slots[54].Lr, creative.slots[54].Fg], [202, 112]);
+  W.layout(Object.assign(new ctx.ABp(), {h2: creative.container, gv: 195}));
+  assert.deepEqual([creative.slots[54].Lr, creative.slots[54].Fg], [193, 112]);
   // Creative inventory tab: CreativeSlots for window slots 46..65.
   const slot = {};
-  W.creativeSlot(slot, 46); assert.deepEqual([slot.Lr, slot.Fg, slot.$jw], [202, 112, 2]);
-  W.creativeSlot(slot, 65); assert.deepEqual([slot.Lr, slot.Fg], [274, 90]);
+  W.creativeSlot(slot, 46); assert.deepEqual([slot.Lr, slot.Fg, slot.$jw], [193, 112, 2]);
+  W.creativeSlot(slot, 65); assert.deepEqual([slot.Lr, slot.Fg], [265, 90]);
 });
 
-test('screen: window and pocket centred together; the pocket is inside for clicks; frame and cells drawn', () => {
+test('screen: one 266px window centred; the widened part is inside for clicks; frame and cells drawn', () => {
   const ctx = sandbox(), W = ctx.JasprWide;
   W.answered(null);
   const inv = window(ctx, 5, [84, 102, 120], 142);
@@ -107,20 +108,31 @@ test('screen: window and pocket centred together; the pocket is inside for click
   Object.assign(gui, {h2: inv.container, gv: 176, gx: 166, is: 0, l7: 0, q: 0, L: 300});
   assert.equal(W.width(new ctx.Other(), 480), 480, 'other screens keep their width');
   W.layout(gui);
-  assert.equal(W.width(gui, 480), 380);
-  assert.equal(gui.$jwCut, 100);
-  gui.q = 380;
+  // 14 columns end at 242 + 16 = 258; vanilla margin 4 and frame 3 make the window 266 wide, 90 more than vanilla.
+  assert.equal(W.width(gui, 480), 390);
+  assert.equal(gui.$jwCut, 90);
+  gui.q = 390;
   assert.equal(W.realWidth(gui), 480);
-  assert.equal(W.pocketWidth(gui), 100);
+  assert.equal(W.pocketWidth(gui), 90);
   assert.equal(W.width(gui, 250), 200, 'never squeezes the window area below 200px');
-  gui.q = 380; gui.$jwCut = 100; gui.is = (380 - 176) / 2; gui.l7 = 67;
+  gui.q = 390; gui.$jwCut = 90; gui.is = (390 - 176) / 2; gui.l7 = 67;
+  assert.equal(gui.is + 266 / 2, 480 / 2, 'the 266px window is centred on the real screen');
   assert.equal(W.inPocket(gui, gui.is + 190, gui.l7 + 90), true);
   assert.equal(W.inPocket(gui, gui.is + 290, gui.l7 + 90), false);
-  assert.equal(W.inPocket(gui, gui.is + 100, gui.l7 + 90), false, 'the window itself is not the pocket');
+  assert.equal(W.inPocket(gui, gui.is + 100, gui.l7 + 90), false, 'the vanilla part answers for itself');
   const plan = W.pocketPlan(gui);
-  assert.equal(plan.rects.length, 5 + 3 * 20);
-  assert.deepEqual(Array.from(plan.strip), [380, 0, 480, 300], 'dark backdrop over the strip right of gui.q');
-  assert.ok(plan.rects.every(r => r[0] >= gui.is + 176 && r[2] <= gui.is + 276), 'pocket stays in the 100px beside the window');
+  assert.equal(plan.rects.length, 5 + 13 + 5 * 20, 'band, new right edge (vanilla corner pattern), 20 vanilla cells');
+  assert.deepEqual(Array.from(plan.strip), [390, 0, 480, 300], 'dark backdrop over the strip right of gui.q');
+  assert.ok(plan.rects.every(r => r[0] >= gui.is + 169 && r[2] <= gui.is + 266), 'drawing stays between the vanilla grid (cells from 169) and the new edge');
+  // The frame carries the vanilla colours to the new edge: outline, highlight, body, shadow.
+  const at = (x, y) => { let c = null; for (const r of plan.rects) if (x >= r[0] && x < r[2] && y >= r[1] && y < r[3]) c = (r[4] >>> 0).toString(16); return c; };
+  const L = gui.is, T = gui.l7;
+  assert.deepEqual([at(L + 200, T), at(L + 200, T + 1), at(L + 200, T + 50), at(L + 200, T + 164), at(L + 200, T + 165)],
+    ['ff000000', 'ffffffff', 'ffc6c6c6', 'ff555555', 'ff000000']);
+  assert.deepEqual([at(L + 262, T + 50), at(L + 263, T + 50), at(L + 264, T + 50), at(L + 265, T + 50), at(L + 265, T + 1)],
+    ['ffc6c6c6', 'ff555555', 'ff555555', 'ff000000', null], 'right edge as vanilla columns 172-175');
+  assert.deepEqual([at(L + 169, T + 141), at(L + 170, T + 145), at(L + 186, T + 145), at(L + 187, T + 141)],
+    ['ff373737', 'ff8b8b8b', 'ffffffff', 'ff373737'], 'hotbar 10 cell continues the vanilla grid');
 });
 
 test('builder: every hook on the live client, reversible byte for byte, stable, parses', {skip: !fs.existsSync(LIVE)}, () => {
@@ -134,7 +146,50 @@ test('builder: every hook on the live client, reversible byte for byte, stable, 
   assert.ok(result.indexOf('/* JASPR_WIDEINV_BEGIN */') > result.indexOf('/* JASPR_MOBENDS_END */'), 'after the Mo\' Bends block');
 });
 
-test('touch hotbar: 14 buttons, the last 5 only with the wide hotbar, selection through JasprWideBridge', () => {
+test('phones and tablets: vanilla 9-slot hotbar, the larger inventory, and Expand / Contract (kept per device)', () => {
+  const store = {};
+  const ctx = sandbox({navigator: {maxTouchPoints: 5, userAgent: 'Mozilla/5.0 (Linux; Android 14) Mobile'},
+    localStorage: {getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }}});
+  const W = ctx.JasprWide;
+  W.answered(null);
+  assert.equal(W.compact(), true);
+  assert.equal(W.slots(), 9, 'the HUD and touch hotbar keep 9 slots');
+  assert.equal(W.on(), false, 'renderHotbar draws no extension cells');
+  assert.equal(W.span(), 182);
+  ctx.HEH = {v: {bx: {gP: 38}}};
+  assert.equal(W.hotbarLeft(240, 480), 149);
+  assert.equal(ctx.HEH.v.bx.gP, 0, 'a held item 36-40 (saved on a computer) goes back to slot 1');
+  const inv = window(ctx, 5, [84, 102, 120], 142);
+  assert.equal(adopt(ctx, inv).length, 20, 'the larger inventory: all 20 extension slots');
+  const gui = Object.assign(new ctx.ID(), {h2: inv.container, gv: 176, gx: 166, is: 0, l7: 0, q: 480, L: 300});
+  ctx.HEH.cj = gui;
+  W.layout(gui);
+  assert.equal(W.pocketWidth(gui), 90, 'expanded by default');
+  const bridge = ctx.$rt_globals.JasprWideBridge;
+  assert.deepEqual(JSON.parse(JSON.stringify(bridge.view())), {can: true, expanded: true, hidden: 0});
+  bridge.toggle();
+  assert.equal(store['jaspr.wideinv.view.v1'], 'contracted');
+  assert.ok(inv.slots.filter(s => s.$jw).every(s => s.Lr === -2000), 'contracted: the extension slots are hidden');
+  assert.equal(W.pocketWidth(gui), 0);
+  assert.equal(W.width(gui, 480), 480, 'contracted: the vanilla window, no widening');
+  assert.deepEqual(Array.from(Object.keys(W.takeReinit(gui) || {})).sort(), ['gui', 'h', 'w'], 'the screen lays itself out again');
+  assert.equal(W.takeReinit(gui), null, 'once');
+  bridge.toggle();
+  assert.equal(store['jaspr.wideinv.view.v1'], 'expanded');
+  assert.equal(inv.slots.find(s => s.$jw && s.bQx === 36).Lr, 170, 'expanded again');
+  // The next page load on this device remembers Contract.
+  store['jaspr.wideinv.view.v1'] = 'contracted';
+  const again = sandbox({navigator: {maxTouchPoints: 5, userAgent: 'iPhone'}, localStorage: {getItem: k => store[k] || null, setItem() {}}});
+  again.JasprWide.answered(null);
+  assert.equal(again.JasprWide.status().contracted, true);
+  // A computer never gets the button and keeps the 14-slot hotbar.
+  const pc = sandbox();
+  pc.JasprWide.answered(null);
+  assert.equal(pc.JasprWide.slots(), 14);
+  assert.equal(pc.$rt_globals.JasprWideBridge.view().can, false);
+});
+
+test('touch controls: hotbar buttons from JasprWideBridge, and the Expand / Contract button in the menu bar', () => {
   const js = fs.readFileSync(path.join(ROOT, 'site', 'jaspercraft-mobile-controls.js'), 'utf8');
   const css = fs.readFileSync(path.join(ROOT, 'site', 'jaspercraft-mobile-controls.css'), 'utf8');
   assert.match(js, /for\(var i=0;i<14;i\+\+\)/);
@@ -144,4 +199,9 @@ test('touch hotbar: 14 buttons, the last 5 only with the wide hotbar, selection 
   assert.match(css, /button\.jaspr-wide\{display:none\}/);
   assert.match(css, /\[data-slots="14"\] button\.jaspr-wide\{display:block\}/);
   assert.match(css, /\[data-slots="14"\] button\{width:min\(34px,calc\(\(100vw - 24px\) \/ 14 - 2px\)\)\}/, '14 buttons fit a 320px phone');
+  assert.match(js, /wideButton=button\('Contract','wideview',function\(\)\{var w=window\.JasprWideBridge;if\(w&&w\.toggle\)\{w\.toggle\(\);syncWide\(\);\}\}\);/);
+  assert.match(js, /syncSlots\(\);syncWide\(\);syncTank\(s\);watchdog\(\);/);
+  assert.match(js, /var label=v\.expanded\?'Contract':'Expand'\+\(v\.hidden\?' \(\+'\+v\.hidden\+'\)':''\);/);
+  assert.match(css, /#jaspr-touch \[data-zone="wideview"\]\{display:none\}/);
+  assert.match(css, /#jaspr-touch\[data-mode="menu"\]\[data-wideview="1"\] \[data-zone="wideview"\]\{display:block;/, 'only in a menu over an inventory window');
 });
