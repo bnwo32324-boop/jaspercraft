@@ -34,6 +34,11 @@ public final class StructureRatesProbe {
         long seed = args.length > 0 ? Long.parseLong(args[0]) : 3127727864271777472L;
         int x0 = args.length > 1 ? Integer.parseInt(args[1]) : 400, z0 = args.length > 2 ? Integer.parseInt(args[2]) : 400;
         int n = args.length > 3 ? Integer.parseInt(args[3]) : 1000;
+        // 3.29.0: tier-2 sites are recognised only once built (Tier2 receipts); offline, every planned one counts as built.
+        if (java.util.Arrays.asList(args).contains("--assume-built")) {
+            try { Class.forName("chat.jaspr.biomes.Tier2").getMethod("assumeBuilt", long.class).invoke(null, seed); }
+            catch (ClassNotFoundException absent) { /* a jar from before 3.29.0 */ }
+        }
         Terrain t = new Terrain(seed);
         Map<String, List<String>> layers = new TreeMap<>();
         Map<String, Integer> counts = new TreeMap<>();
@@ -121,18 +126,20 @@ public final class StructureRatesProbe {
                         .add(site.key + "/" + site.x + "/" + site.y + "/" + site.z);
                 }
         }
-        // 3.28.0 tier-2 grids (absent from older jars).
+        // 3.28.0 tier-2 grids (absent from older jars); 3.29.0 adds two more expansion grids (tier2Grid 3 and 4: v11, v12).
         Method tier2 = method(StructurePlanner.class, "tier2Region", long.class, int.class, int.class, boolean.class);
         Method tier2Legacy = method(StructurePlanner.class, "tier2Legacy", long.class, int.class, int.class, int.class);
-        for (int grid = 0; grid < 3 && tier2 != null; grid++) {
+        Method tier2Grid = method(StructurePlanner.class, "tier2Grid", long.class, int.class, int.class, int.class);
+        for (int grid = 0; grid < 5 && tier2 != null; grid++) {
             if (grid == 2 && tier2Legacy == null) break;
-            int region = grid == 1 ? StructurePlanner.EXPANSION_REGION : StructurePlanner.REGION;
+            if (grid >= 3 && tier2Grid == null) break;
+            int region = grid == 1 || grid >= 3 ? StructurePlanner.EXPANSION_REGION : StructurePlanner.REGION;
             for (int rx = Math.floorDiv(bx0, region); rx < Math.floorDiv(bx1, region); rx++)
                 for (int rz = Math.floorDiv(bz0, region); rz < Math.floorDiv(bz1, region); rz++) {
-                    StructurePlanner.Site site = (StructurePlanner.Site) (grid == 2 ? tier2Legacy.invoke(null, seed, rx, rz, 1)
-                        : tier2.invoke(null, seed, rx, rz, grid == 1));
+                    StructurePlanner.Site site = (StructurePlanner.Site) (grid >= 3 ? tier2Grid.invoke(null, seed, rx, rz, grid)
+                        : grid == 2 ? tier2Legacy.invoke(null, seed, rx, rz, 1) : tier2.invoke(null, seed, rx, rz, grid == 1));
                     if (site == null) continue;
-                    layers.computeIfAbsent("catalogue.tier2." + (grid == 0 ? "legacy" : grid == 1 ? "expansion" : "legacy2"), q -> new ArrayList<>())
+                    layers.computeIfAbsent("catalogue.tier2." + (grid == 0 ? "legacy" : grid == 1 ? "expansion" : grid == 2 ? "legacy2" : grid == 3 ? "expansion2" : "expansion3"), q -> new ArrayList<>())
                         .add(site.key + "/" + site.x + "/" + site.y + "/" + site.z);
                     boolean named = false;
                     for (StructurePlanner.Site id : StructurePlanner.identify(seed, (site.x + site.width / 2) >> 4, (site.z + 8) >> 4))
@@ -162,7 +169,7 @@ public final class StructureRatesProbe {
             StringBuilder hex = new StringBuilder();
             for (byte b : hash.digest()) hex.append(String.format("%02x", b & 255));
             System.out.println("LAYER " + e.getKey() + " count=" + rows.size() + " sha256=" + hex.substring(0, 16));
-            if (args.length > 4 && args[4].equals("--rows")) for (String r : rows) System.out.println("ROW " + e.getKey() + " " + r);
+            if (java.util.Arrays.asList(args).contains("--rows")) for (String r : rows) System.out.println("ROW " + e.getKey() + " " + r);
         }
         for (Map.Entry<String, Integer> e : counts.entrySet()) System.out.println(e.getKey() + "=" + e.getValue());
         // Per kind, for calibration: KIND <generator> <index> <per-layer counts>.

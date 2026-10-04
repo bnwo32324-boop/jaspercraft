@@ -42,10 +42,16 @@ public final class StructureRates {
      *   - vanilla-style rooms: attempts 39 -> 59 (the first 39 draw exactly as before);
      *   - catalogue: RELATIVE_STRUCTURE_DENSITY 0.46 -> DENSITY_V2, the cells from 0.46 up being tier 2;
      *   - portal sanctuaries: the edge midpoints between the old ones (sanctuary2()).
-     * Every tier-2 site stays out of every chunk that existed when 3.28.0 first started (the v2 boundary, with a
-     * ring of one chunk), so the whole world generated so far is untouched and every site already built is
-     * placed and recognised exactly as before: no older admission rule ever asks about a tier-2 site.
-     * Precedence among tier 2: sanctuaries, set pieces, catalogue, lattice rooms, vanilla rooms.
+     * No older admission rule ever asks about a tier-2 site, so every site already built is placed and recognised exactly
+     * as before. Precedence among tier 2: set pieces, catalogue, lattice rooms, vanilla rooms.
+     *
+     * 3.29.0 (owner 2026-10-04: "Make structures in the overworld 2x common ... Don't regenerate the overworld, but do
+     * retrofit structures that would normally spawn if it was regenerated"): tier 2 is retuned to a second full 1x, and
+     * its plan no longer stops at the v2 boundary -- it is the plan a regenerated world would have. The boundary (made
+     * when 3.29.0 first starts) now only tells ground that existed then (old2), whose tier-2 sites are decided and built
+     * by Tier2Retrofit where that is safe, from ground generated since, whose sites build as it populates (Tier2). The
+     * tier-2 portal sanctuaries are dropped (SELECT_2 = 0): portals are not structures, and a sanctuary is a whole-chunk
+     * stamp a retrofit could not lay into explored land.
      */
     public static final String BOUNDARY_FILE_V2 = "jaspr-rates-v2.boundary";
     private static final int BOUNDARY_MAGIC_V2 = 0x4a525232;
@@ -74,22 +80,24 @@ public final class StructureRates {
 
     public static boolean failedV2(long seed) { return FAILED_V2.containsKey(seed); }
 
-    /** True when no chunk of this box, nor the ring round it, existed before 3.28.0 (and the v1 test passes). */
+    /**
+     * The tier-2 plan's ground test (3.29.0: pure, as a regenerated world would have it): the v1 test only. Off
+     * everywhere when the v2 boundary could not be opened (fail closed: no tier-2 site anywhere).
+     */
     static boolean permits2(long seed, int x, int z, int sizeX, int sizeZ) {
-        if (FAILED_V2.containsKey(seed) || !permits(seed, x, z, sizeX, sizeZ)) return false;
-        WorldgenExpansion.Boundary b = BOUNDARIES_V2.get(seed);
-        if (b == null || b.protectedChunks() == 0) return true;
-        for (int cx = Math.floorDiv(x - 16, 16); cx <= Math.floorDiv(x + sizeX + 15, 16); cx++)
-            for (int cz = Math.floorDiv(z - 16, 16); cz <= Math.floorDiv(z + sizeZ + 15, 16); cz++)
-                if (b.contains(cx, cz)) return false;
-        return true;
+        return !FAILED_V2.containsKey(seed) && permits(seed, x, z, sizeX, sizeZ);
     }
 
-    /** True when this chunk did not exist before 3.28.0. */
-    static boolean fresh2(long seed, int cx, int cz) {
-        if (FAILED_V2.containsKey(seed) || !fresh(seed, cx, cz)) return false;
+    /** True when this chunk existed when 3.29.0 first started: its tier-2 sites are the retrofit's (Tier2Retrofit). */
+    static boolean old2(long seed, int cx, int cz) {
         WorldgenExpansion.Boundary b = BOUNDARIES_V2.get(seed);
-        return b == null || !b.contains(cx, cz);
+        return b != null && b.contains(cx, cz);
+    }
+
+    /** The chunks that existed when 3.29.0 first started, {cx, cz} each (the retrofit's work list). */
+    static java.util.List<int[]> oldChunks2(long seed) {
+        WorldgenExpansion.Boundary b = BOUNDARIES_V2.get(seed);
+        return b == null ? java.util.Collections.<int[]>emptyList() : b.chunks();
     }
 
     /** What RELATIVE_STRUCTURE_DENSITY was before 3.25.0: a catalogue cell below it is tier 0 (old rules). */
@@ -235,7 +243,7 @@ public final class StructureRates {
      * stands in the chunk (with its cordon) and only in chunks that did not exist before 3.28.0.
      */
     static final int EDGE_A_X = 136, EDGE_A_Z = 0, EDGE_B_X = 8, EDGE_B_Z = 128;
-    static final double SELECT_2 = 0.46;
+    static final double SELECT_2 = 0.0;   // 3.29.0: no tier-2 sanctuaries (see the tier-2 note above)
 
     static boolean candidate2(long seed, int cx, int cz) {
         boolean a = Math.floorMod(cx - EDGE_A_X, 256) == 0 && Math.floorMod(cz - EDGE_A_Z, 256) == 0;

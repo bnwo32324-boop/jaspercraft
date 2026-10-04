@@ -22,6 +22,8 @@ public final class WorldgenExpansion {
         private Boundary(long seed,Map<Long,BitSet> occupied,int chunks){this.seed=seed;this.occupied=occupied;this.chunks=chunks;}
         public int protectedChunks(){return chunks;}
         public boolean contains(int cx,int cz){BitSet bits=occupied.get(key(Math.floorDiv(cx,32),Math.floorDiv(cz,32)));return bits!=null&&bits.get(Math.floorMod(cz,32)*32+Math.floorMod(cx,32));}
+        /** Every chunk in the snapshot as {cx, cz} (3.29.0: the tier-2 retrofit's work list). */
+        public List<int[]> chunks(){List<int[]> out=new ArrayList<>(chunks);for(Map.Entry<Long,BitSet> e:occupied.entrySet()){int rx=(int)(e.getKey()>>32),rz=(int)(long)e.getKey();BitSet bits=e.getValue();for(int i=bits.nextSetBit(0);i>=0;i=bits.nextSetBit(i+1))out.add(new int[]{rx*32+i%32,rz*32+i/32});}return out;}
         public boolean permits(StructurePlanner.Site site){
             if(!site.expansion())return true;
             if(site.seed!=seed)throw new IllegalArgumentException("Expansion boundary seed mismatch");
@@ -39,9 +41,17 @@ public final class WorldgenExpansion {
             return boundary;
         }catch(IOException e){throw new IllegalStateException("EXPANSION_BOUNDARY_FAILED: refusing unprotected world generation",e);}
     }
-    public static List<StructurePlanner.Site> sites(World world,int cx,int cz){
+    /** What the generator stamps (3.29.0): the 3.27 grids only; tier 2 is drawn as it is decided (StructurePlanner.stampTier2). */
+    public static List<StructurePlanner.Site> generated(World world,int cx,int cz){
         Boundary boundary=initialize(world);List<StructurePlanner.Site> result=new ArrayList<>();
-        for(StructurePlanner.Site site:StructurePlanner.sites(world.getSeed(),cx,cz))if(boundary.permits(site))result.add(site);
+        for(StructurePlanner.Site site:StructurePlanner.sitesTier01(world.getSeed(),cx,cz))if(boundary.permits(site))result.add(site);
+        return result;
+    }
+    /** Every catalogue site standing in this chunk under today's rules: the 3.27 grids, and (3.29.0) the tier-2 sites
+     * that are really built (Tier2 receipt). Recognition: encounters, loot, /where. */
+    public static List<StructurePlanner.Site> sites(World world,int cx,int cz){
+        List<StructurePlanner.Site> result=generated(world,cx,cz);
+        result.addAll(StructurePlanner.builtTier2(world.getSeed(),cx,cz));
         return result;
     }
     /** Every site this chunk could hold, including ones placed under older, denser admission rules

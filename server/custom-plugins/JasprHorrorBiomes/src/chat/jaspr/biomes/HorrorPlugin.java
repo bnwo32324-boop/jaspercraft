@@ -42,7 +42,7 @@ public final class HorrorPlugin extends JavaPlugin implements Listener {
         }catch(Exception e){return false;}
     }
     private DiamondRetrofit diamondRetrofit;
-    private DungeonRetrofit dungeonRetrofit;
+    private Tier2Retrofit tier2Retrofit;
     private EntityVisibility visibility;
     private WaterRepair water;
     private Discovery discovery;
@@ -86,11 +86,14 @@ public final class HorrorPlugin extends JavaPlugin implements Listener {
             World ore=Bukkit.getWorld("world");
             if(ore!=null){diamondRetrofit=new DiamondRetrofit(this,ore);diamondRetrofit.start();}
         });
-        // The dungeon lattice was tightened and six sites added; ground explored before that
-        // would keep the old, sparser layout forever. Runs once per world, after the ore pass.
+        // 3.29.0: the old dungeon retrofit (v8) is retired. This world was generated whole by a generator that already
+        // lays everything it would add, and it re-ran its builders over any region file it had not listed -- new ground,
+        // where it would have rebuilt standing rooms and refilled their chests. The tier-2 retrofit replaces it: it walks
+        // the chunks that existed when 3.29.0 first started and adds only tier-2 sites, each decided once (Tier2).
+        getLogger().info("DUNGEON_RETROFIT retired=v8 replacedBy=tier2");
         Bukkit.getScheduler().runTaskLater(this,()->{
             World rooms=Bukkit.getWorld("world");
-            if(rooms!=null){dungeonRetrofit=new DungeonRetrofit(this,rooms);dungeonRetrofit.start();}
+            if(rooms!=null){tier2Retrofit=new Tier2Retrofit(this,rooms);tier2Retrofit.start();}
         },400L);
         // Naming the place you have walked into is what turns a list of structures into
         // somewhere to go. Started with the rest of the runtime services, after the world.
@@ -102,7 +105,7 @@ public final class HorrorPlugin extends JavaPlugin implements Listener {
         Bukkit.getScheduler().runTask(this,()->{encounters.start();loot.start();liminal.start();getLogger().info("STRUCTURES_READY version=7 biomeSpecific=true surfaceReservedCells=75% relativeStructureDensity="+Math.round(StructurePlanner.RELATIVE_STRUCTURE_DENSITY*100)+"% spawnExclusion="+StructurePlanner.SPAWN_EXCLUSION_RADIUS+" valuableConstructionBlocks=false loot=journaled designs="+StructureCatalog.ALL.size()+" terrainEpoch="+terrainEpoch);});
         getLogger().info("HORROR_BIOMES_READY version="+getDescription().getVersion()+" replacements="+count+" artificialClutter=false naturalTerrain=true naturalRivers=true naturalTrees=true naturalFoliage=true circles=9 structureDensity=10% spawnExclusion="+StructurePlanner.SPAWN_EXCLUSION_RADIUS+" generator="+terrainEpoch+" caveRegions=5 caveRegionSize="+Caves.REGION+" oreMode=veins dungeonAttempts="+Dungeons.ATTEMPTS+"/chunk surfaceOpenings=10");
     }
-    @Override public void onDisable(){regions.clear();moving.clear();arrivalGuard.clear();safeSpawn=null;spawnReadyLogged=false;if(diamondRetrofit!=null)diamondRetrofit.stop();if(dungeonRetrofit!=null)dungeonRetrofit.stop();if(water!=null)water.stop();if(lighting!=null)lighting.stop();if(loot!=null)loot.stop();if(encounters!=null)encounters.stop();if(spawnBalance!=null)spawnBalance.stop();if(spawnerDrive!=null)spawnerDrive.stop();if(liminal!=null)liminal.stop();if(discovery!=null)discovery.stop();if(containment!=null)containment.stop();WorldgenExpansion.clear();authInstance=null;authCheck=null;}
+    @Override public void onDisable(){regions.clear();moving.clear();arrivalGuard.clear();safeSpawn=null;spawnReadyLogged=false;if(diamondRetrofit!=null)diamondRetrofit.stop();if(tier2Retrofit!=null)tier2Retrofit.stop();Tier2.close();if(water!=null)water.stop();if(lighting!=null)lighting.stop();if(loot!=null)loot.stop();if(encounters!=null)encounters.stop();if(spawnBalance!=null)spawnBalance.stop();if(spawnerDrive!=null)spawnerDrive.stop();if(liminal!=null)liminal.stop();if(discovery!=null)discovery.stop();if(containment!=null)containment.stop();WorldgenExpansion.clear();authInstance=null;authCheck=null;}
     @EventHandler(priority=EventPriority.HIGHEST) public void safeArrival(PlayerSpawnLocationEvent e){
         World w=Bukkit.getWorld("world");if(w==null)return;
         UUID id=e.getPlayer().getUniqueId();boolean relocation=!relocated.getBoolean(id.toString(),false);
@@ -147,8 +150,12 @@ public final class HorrorPlugin extends JavaPlugin implements Listener {
             else getLogger().info("RATES_BOUNDARY_READY protectedChunks="+n+" catalogueDensity="+Math.round(StructurePlanner.RELATIVE_STRUCTURE_DENSITY*100)+"% setPieceLattices=2 roomLattices=+1 vanillaRoomAttempts="+Dungeons.ATTEMPTS+" sanctuaries=+50%");
             // 3.28.0: the second 1.5x (tier 2). Fails closed like the first: without it no tier-2 site is placed.
             int n2=StructureRates.initializeV2(w);
-            if(n2<0)getLogger().severe("RATES_V2_BOUNDARY_FAILED file="+StructureRates.BOUNDARY_FILE_V2+" -- the 3.28.0 extra structures are disabled; older placement is unaffected");
-            else getLogger().info("RATES_V2_BOUNDARY_READY protectedChunks="+n2+" tier2=set-pieces,rooms-D,catalogue,sanctuaries vanillaRoomAttempts="+Dungeons.ATTEMPTS_V2);}
+            if(n2<0)getLogger().severe("RATES_V2_BOUNDARY_FAILED file="+StructureRates.BOUNDARY_FILE_V2+" -- the tier-2 structures are disabled; older placement is unaffected");
+            else getLogger().info("RATES_V2_BOUNDARY_READY oldChunks="+n2+" tier2=set-pieces,rooms-D,catalogue vanillaRoomAttempts="+Dungeons.ATTEMPTS_V2);
+            // 3.29.0: tier 2 is decided site by site (Tier2); without its receipts no tier-2 site is built anywhere.
+            Tier2.log=getLogger();
+            try{int r=Tier2.open(w,getDataFolder());getLogger().info("TIER2_READY receipts="+r+" oldChunks="+Math.max(0,n2)+" inhabitedLimit="+Tier2Retrofit.INHABITED_LIMIT+" playerMargin="+Tier2Retrofit.PLAYER_MARGIN);}
+            catch(java.io.IOException|RuntimeException ex){getLogger().severe("TIER2_LEDGER_FAILED "+ex.getClass().getSimpleName()+": "+ex.getMessage()+" -- no tier-2 structure is built; older placement is unaffected");}}
         // JasprNether (2026-09-26): BetterNether + NetherEx own the Nether; Outer Realms stays in the End only.
         if(w.getEnvironment()!=World.Environment.NORMAL&&!netherOwned(w)&&!w.getPopulators().stream().anyMatch(p->p instanceof OuterRealms))w.getPopulators().add(new OuterRealms());
     }

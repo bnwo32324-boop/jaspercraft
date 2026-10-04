@@ -113,7 +113,8 @@ public final class HorrorGenerator extends ChunkGenerator {
             if(Boolean.getBoolean("jaspr.audit")){int a=Floaters.audit(d);if(a>0)Bukkit.getLogger().info("[AUDIT] afterTrees="+a+" chunk="+cx+","+cz);}
             BiomeDetails.decorate(CaptureHook.tap(d,null,cx,cz,"detail"),t,cx,cz,heights);
             if(Boolean.getBoolean("jaspr.audit")){int a=Floaters.audit(d);if(a>0)Bukkit.getLogger().info("[AUDIT] afterDetails="+a+" chunk="+cx+","+cz);}
-            if(!Boolean.getBoolean("jaspr.nosites"))for(StructurePlanner.Site site:WorldgenExpansion.sites(w,cx,cz))site.stamp(d,cx,cz);
+            // 3.29.0: the 3.27 grids only; a tier-2 site is drawn as its chunks populate, once decided (RuinSupplies, Tier2).
+            if(!Boolean.getBoolean("jaspr.nosites"))for(StructurePlanner.Site site:WorldgenExpansion.generated(w,cx,cz))site.stamp(d,cx,cz);
         }
         return d;
     }

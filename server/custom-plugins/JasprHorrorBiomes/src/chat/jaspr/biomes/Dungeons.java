@@ -46,9 +46,11 @@ public final class Dungeons {
      */
     public static final double VANILLA_RATE = 0.0077;
     public static final int ATTEMPTS = 39;
-    /** 3.28.0 (second 1.5x, StructureRates): attempts from ATTEMPTS up draw after all of those, only in chunks new in
-     * 3.28.0, so the first 39 rooms of every chunk are drawn exactly as before. */
-    public static final int ATTEMPTS_V2 = 59;
+    /** Tier 2 (3.28.0; 3.29.0: a second full 1x, StructureRates): attempts from ATTEMPTS up draw after all of those, so
+     * the first 39 rooms of every chunk are drawn exactly as before; twice the attempts, about twice the rooms (the
+     * 3.28.0 test world measured 40 -> 62 rooms for 39 -> 59). Chunks populated before 3.29.0 get theirs from the
+     * retrofit (plainExtras). */
+    public static final int ATTEMPTS_V2 = 78;
     /** What ATTEMPTS was until 3.25.0 (1.5x, StructureRates): attempts from here on draw after all of those, so
      * the first twenty-six rooms of every chunk are drawn exactly as before, and none is laid by a retrofit
      * into a chunk that predates 3.25.0. */
@@ -99,15 +101,18 @@ public final class Dungeons {
         Random r = new Random(Terrain.mix(terrain.seed + cx * 0x9E3779B97F4A7C15L + cz * 0xC2B2AE3D27D4EB4FL + 77L));
         int first = retrofit ? PREVIOUS_ATTEMPTS : 0;
         boolean fresh = StructureRates.fresh(terrain.seed, cx, cz);
-        boolean fresh2 = StructureRates.fresh2(terrain.seed, cx, cz);
-        for (int attempt = 0; attempt < ATTEMPTS_V2; attempt++) {
+        // 3.29.0: the tier-2 attempts run as a chunk populates (Tier2.extras); chunks populated before 3.29.0 get theirs
+        // from the retrofit (plainExtras). A probe or single-site retrofit pass lays no vanilla room at all.
+        boolean restricted = Tier2.restricted();
+        boolean extra = !restricted && Tier2.extras(terrain.seed, cx, cz);
+        for (int attempt = 0; !restricted && attempt < ATTEMPTS_V2; attempt++) {
             // Footprint kept inside the chunk so no neighbour is ever read.
             int x = 4 + r.nextInt(8);
             int y = r.nextInt(256);
             int z = 4 + r.nextInt(8);
             // The draws still happen for the earlier attempts, because skipping them would
             // shift every attempt after and put the new rooms somewhere else entirely.
-            if (attempt >= first && (attempt < ATTEMPTS_324 || fresh) && (attempt < ATTEMPTS || fresh2))
+            if (attempt >= first && (attempt < ATTEMPTS_324 || fresh) && (attempt < ATTEMPTS || extra))
                 plain(chunk, terrain, r, x, y, z, caves.region(cx * 16 + x, cz * 16 + z));
         }
         // First lattice: what a chunk generated before this change already contains.
@@ -220,6 +225,26 @@ public final class Dungeons {
         written.chunk = null;
     }
 
+    /**
+     * Tier 2 (3.29.0) retrofit: the extra vanilla-room attempts (ATTEMPTS..ATTEMPTS_V2) for a chunk populated before
+     * 3.29.0. Its first attempts drew their numbers when it populated, and how many each used depended on what was there
+     * then, so these draw from a stream of their own: the rooms land where a regeneration would put rooms, at its rate.
+     */
+    static void plainExtras(Chunk chunk, Terrain terrain, Caves caves) {
+        Written written = WRITTEN.get();
+        written.begin(chunk);
+        int cx = chunk.getX(), cz = chunk.getZ();
+        Random r = new Random(Terrain.mix(terrain.seed + cx * 0x9E3779B97F4A7C15L + cz * 0xC2B2AE3D27D4EB4FL + 0x5432455854524153L));
+        for (int attempt = ATTEMPTS; attempt < ATTEMPTS_V2; attempt++) {
+            int x = 4 + r.nextInt(8);
+            int y = r.nextInt(256);
+            int z = 4 + r.nextInt(8);
+            plain(chunk, terrain, r, x, y, z, caves.region(cx * 16 + x, cz * 16 + z));
+        }
+        settle(chunk, written.bits);
+        written.chunk = null;
+    }
+
     // -- the vanilla room -------------------------------------------------------
 
     private static boolean plain(Chunk c, Terrain t, Random r, int x, int y, int z, int style) {
@@ -299,7 +324,7 @@ public final class Dungeons {
     // -- Quarantine Ward --------------------------------------------------------
 
     private static void ward(World w, Chunk c, Terrain t, Caves caves, long salt) {
-        Anchor a = anchor(t, c.getX(), c.getZ(), cellFor(0, salt), salt, 13, 9);
+        Anchor a = gate(c, t, anchor(t, c.getX(), c.getZ(), cellFor(0, salt), salt, 13, 9), 0, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         int style = caves.region(a.x + 6, a.z + 4);
@@ -365,7 +390,7 @@ public final class Dungeons {
     // -- Ossuary ----------------------------------------------------------------
 
     private static void ossuary(World w, Chunk c, Terrain t, Caves caves, long salt) {
-        Anchor a = anchor(t, c.getX(), c.getZ(), cellFor(1, salt), salt, 11, 11);
+        Anchor a = gate(c, t, anchor(t, c.getX(), c.getZ(), cellFor(1, salt), salt, 11, 11), 1, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         int style = caves.region(a.x + 5, a.z + 5);
@@ -414,7 +439,7 @@ public final class Dungeons {
 
     /** A sunken reservoir: standing water, pillared bays and a dry ledge with the loot. */
     private static void cistern(World w, Chunk c, Terrain t, Caves caves, long salt) {
-        Anchor a = anchor(t, c.getX(), c.getZ(), cellFor(2, salt), salt, 13, 13);
+        Anchor a = gate(c, t, anchor(t, c.getX(), c.getZ(), cellFor(2, salt), salt, 13, 13), 2, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         int style = caves.region(a.x + 6, a.z + 6);
@@ -453,7 +478,7 @@ public final class Dungeons {
 
     /** A small strongroom: the loot is caged behind bars and watched from outside. */
     private static void vault(World w, Chunk c, Terrain t, Caves caves, long salt) {
-        Anchor a = anchor(t, c.getX(), c.getZ(), cellFor(3, salt), salt, 11, 11);
+        Anchor a = gate(c, t, anchor(t, c.getX(), c.getZ(), cellFor(3, salt), salt, 11, 11), 3, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         int style = caves.region(a.x + 5, a.z + 5);
@@ -506,7 +531,7 @@ public final class Dungeons {
 
     /** An overgrown hollow: fungal caps, heavy webbing and things that live in it. */
     private static void warren(World w, Chunk c, Terrain t, Caves caves, long salt) {
-        Anchor a = anchor(t, c.getX(), c.getZ(), cellFor(4, salt), salt, 15, 11);
+        Anchor a = gate(c, t, anchor(t, c.getX(), c.getZ(), cellFor(4, salt), salt, 15, 11), 4, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         int style = caves.region(a.x + 7, a.z + 5);
@@ -536,7 +561,7 @@ public final class Dungeons {
 
     /** A watchtower: a climbable shaft with a lookout room and its keeper at the top. */
     private static void spire(World w, Chunk c, Terrain t, long salt) {
-        Anchor a = surfaceAnchor(t, c.getX(), c.getZ(), cellFor(5, salt), salt, 7, 7);
+        Anchor a = gate(c, t, surfaceAnchor(t, c.getX(), c.getZ(), cellFor(5, salt), salt, 7, 7), 5, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         int height = 15 + r.nextInt(5);
@@ -584,7 +609,7 @@ public final class Dungeons {
 
     /** A burnt-out chapel: a nave with broken windows and whatever the altar kept. */
     private static void chapel(World w, Chunk c, Terrain t, long salt) {
-        Anchor a = surfaceAnchor(t, c.getX(), c.getZ(), cellFor(6, salt), salt, 11, 15);
+        Anchor a = gate(c, t, surfaceAnchor(t, c.getX(), c.getZ(), cellFor(6, salt), salt, 11, 15), 6, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         for (int dx = 0; dx < 11; dx++) for (int dz = 0; dz < 15; dz++) for (int dy = -3; dy < 9; dy++) {
@@ -675,7 +700,7 @@ public final class Dungeons {
 
     /** A quarantine post: a barred blockhouse behind a broken barricade. */
     private static void checkpoint(World w, Chunk c, Terrain t, long salt) {
-        Anchor a = surfaceAnchor(t, c.getX(), c.getZ(), cellFor(7, salt), salt, 13, 9);
+        Anchor a = gate(c, t, surfaceAnchor(t, c.getX(), c.getZ(), cellFor(7, salt), salt, 13, 9), 7, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         for (int dx = 0; dx < 13; dx++) for (int dz = 0; dz < 9; dz++) for (int dy = -3; dy < 7; dy++) {
@@ -743,7 +768,7 @@ public final class Dungeons {
      * nobody stripped. Lit badly and on purpose: one red torch a room.
      */
     private static void sanatorium(World w, Chunk c, Terrain t, int cell, long salt) {
-        Anchor a = surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 15, 13);
+        Anchor a = gate(c, t, surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 15, 13), 8, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         for (int dx = 0; dx < 15; dx++) for (int dz = 0; dz < 13; dz++) for (int dy = -4; dy < 9; dy++) {
@@ -836,7 +861,7 @@ public final class Dungeons {
      * shack over a cellar with more hooks in it than the work would ever need.
      */
     private static void trial(World w, Chunk c, Terrain t, int cell, long salt) {
-        Anchor a = surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 13, 13);
+        Anchor a = gate(c, t, surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 13, 13), 9, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         for (int dx = 0; dx < 13; dx++) for (int dz = 0; dz < 13; dz++) for (int dy = -4; dy < 7; dy++) {
@@ -908,7 +933,7 @@ public final class Dungeons {
 
     /** A one-room cabin with a trapdoor in the floor, and a cellar that explains the stains. */
     private static void cabin(World w, Chunk c, Terrain t, int cell, long salt) {
-        Anchor a = surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 11, 9);
+        Anchor a = gate(c, t, surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 11, 9), 10, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         for (int dx = 0; dx < 11; dx++) for (int dz = 0; dz < 9; dz++) for (int dy = -6; dy < 8; dy++) {
@@ -985,7 +1010,7 @@ public final class Dungeons {
      * the walls, a blade stood upright in the coals, and the dead waiting where the roof was.
      */
     private static void shrine(World w, Chunk c, Terrain t, int cell, long salt) {
-        Anchor a = surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 11, 11);
+        Anchor a = gate(c, t, surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 11, 11), 11, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         for (int dx = 0; dx < 11; dx++) for (int dz = 0; dz < 11; dz++) for (int dy = -3; dy < 8; dy++) {
@@ -1066,7 +1091,7 @@ public final class Dungeons {
      * still on them, a tower at the corner, and whatever they were keeping out now inside.
      */
     private static void blockhouse(World w, Chunk c, Terrain t, int cell, long salt) {
-        Anchor a = surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 15, 13);
+        Anchor a = gate(c, t, surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 15, 13), 12, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         /* Structure audit 2026-09-23. The compound had no gate, the blockhouse door opened straight onto a
@@ -1178,7 +1203,7 @@ public final class Dungeons {
      * shoulder with what is left of their supplies.
      */
     private static void highway(World w, Chunk c, Terrain t, int cell, long salt) {
-        Anchor a = surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 15, 9);
+        Anchor a = gate(c, t, surfaceAnchor(t, c.getX(), c.getZ(), cell, salt, 15, 9), 13, salt);
         if (a == null) return;
         Random r = new Random(a.seed);
         for (int dx = 0; dx < 15; dx++) for (int dz = 0; dz < 9; dz++) for (int dy = -2; dy < 6; dy++) {
@@ -1266,9 +1291,11 @@ public final class Dungeons {
      * SA/work/r-rates). Separate arrays: D_CELL and D_SALT_A/B keep their shape (the importer reads them). */
     private static final int[] D_CELL_C = { 22, 29, 26, 30, 23, 33, 36, 27, 44, 41, 34, 37, 44, 42 };
     private static final long[] D_SALT_C = { 0x5741524402L, 0x424F4E4502L, 0x4349535402L, 0x5641554C5402L, 0x574152524E02L, 0x5350495247L, 0x434841504EL, 0x43484B5056L, 0x53414E4156L, 0x54524941544EL, 0x4341424950L, 0x5348524950L, 0x424C4F434DL, 0x524F414402L };
-    /** 3.28.0 (the second 1.5x, StructureRates): lattice D for all fourteen rooms, half the 3.27 count again after
-     * everything older has its ground (rates probe, tests/java/chat/jaspr/biomes/StructureRatesProbe.java). */
-    private static final int[] D_CELL_D = { 18, 23, 21, 24, 18, 26, 28, 21, 34, 31, 27, 30, 35, 33 };
+    /** Tier 2 (StructureRates): lattice D for all fourteen rooms. 3.29.0 (owner: overworld structures 2x): each cell is
+     * sized, room by room in index order, for as many lattice-D rooms again as the 3.27 lattices A + B + C hold after
+     * everything older has its ground: 33,068 against 33,328 over 1,000 x 1,000 chunks (rates probe,
+     * tests/java/chat/jaspr/biomes/StructureRatesProbe.java). (3.28.0 sized them for half again.) */
+    private static final int[] D_CELL_D = { 13, 16, 14, 17, 13, 18, 20, 15, 23, 22, 19, 20, 24, 22 };
     private static final long[] D_SALT_D = { 0x5741524403L, 0x424F4E4503L, 0x4349535403L, 0x5641554C5403L, 0x574152524E03L, 0x5350495248L, 0x434841504FL, 0x43484B5057L, 0x53414E4157L, 0x54524941544FL, 0x4341424951L, 0x5348524951L, 0x424C4F434EL, 0x524F414403L };
     private static final int[] D_SX = { 13, 11, 13, 11, 15, 7, 11, 13, 15, 13, 11, 11, 15, 15 };
     private static final int[] D_SZ = { 9, 11, 13, 11, 11, 7, 15, 9, 13, 13, 9, 11, 13, 9 };
@@ -1299,6 +1326,8 @@ public final class Dungeons {
             if (wx < a.x || wx >= a.x + D_SX[i]) continue;
             if (wz < a.z || wz >= a.z + D_SZ[i]) continue;
             if (wy < a.y - 2 || wy > a.y + D_SY[i] + 2) continue;
+            // 3.29.0: and only once it is really built (Tier2 receipt).
+            if (!Tier2.built(t.seed, Tier2.roomKey(i, Math.floorDiv(a.x - 2, 16), Math.floorDiv(a.z - 2, 16)))) continue;
             return D_NAME[i] + "\u0000" + D_METHOD[i] + "\u0000" + a.x + "\u0000" + a.y + "\u0000" + a.z;
         }
         // 3.25.0 lattice: named only where a room was really admitted. Such a room keeps two blocks clear of
@@ -1463,6 +1492,17 @@ public final class Dungeons {
             || catalogued(t, x, z, sizeX, sizeZ, top, 2)
             || roomNearABC(t, x, z, sizeX, sizeZ)
             || roomNearD(t, x, z, sizeX, sizeZ, index);
+    }
+
+    /**
+     * Tier 2 (3.29.0): a lattice-D room is built only once decided (Tier2), its clearing included; in a probe or
+     * single-site retrofit pass no room of the older lattices is built at all.
+     */
+    private static Anchor gate(Chunk c, Terrain t, Anchor a, int i, long salt) {
+        if (a == null) return null;
+        if (latticeD(salt) < 0) return Tier2.restricted() ? null : a;
+        int acx = Math.floorDiv(a.x - 2, 16), acz = Math.floorDiv(a.z - 2, 16);
+        return Tier2.allow(t.seed, Tier2.roomKey(i, acx, acz), a.x - 7, a.z - 7, a.x + D_SX[i] + 6, a.z + D_SZ[i] + 6) ? a : null;
     }
 
     /** The lattice-D index of this salt, or -1. */
@@ -1665,7 +1705,7 @@ public final class Dungeons {
     };
 
     private static void entrance(Chunk c, Terrain t, int i, long salt) {
-        Anchor a = anchor(t, c.getX(), c.getZ(), cellFor(i, salt), salt, D_SX[i], D_SZ[i]);
+        Anchor a = gate(c, t, anchor(t, c.getX(), c.getZ(), cellFor(i, salt), salt, D_SX[i], D_SZ[i]), i, salt);
         if (a == null) return;
         int wx = a.x + ENTRY[i][0], wz = a.z + ENTRY[i][1];
         if (taken(t, wx - 1, wz - 1, 3, 3, 255, salt)) return;
@@ -1693,7 +1733,7 @@ public final class Dungeons {
         // (surfaceAnchor reads only the terrain function, so every chunk gets the same answer).
         long done = Long.MIN_VALUE;
         for (int ox = -1; ox <= 1; ox++) for (int oz = -1; oz <= 1; oz++) {
-            Anchor a = surfaceAnchor(t, c.getX() + ox, c.getZ() + oz, cellFor(i, salt), salt, D_SX[i], D_SZ[i]);
+            Anchor a = gate(c, t, surfaceAnchor(t, c.getX() + ox, c.getZ() + oz, cellFor(i, salt), salt, D_SX[i], D_SZ[i]), i, salt);
             if (a == null || (((long) a.x << 32) ^ (a.z & 0xffffffffL)) == done) continue;
             done = ((long) a.x << 32) ^ (a.z & 0xffffffffL);      // one lattice point per salt reaches here
             clearing(c, a, i);
@@ -2045,6 +2085,7 @@ public final class Dungeons {
 
     static void set(Chunk c, int x, int y, int z, int id, int data) {
         if (x < 0 || x > 15 || z < 0 || z > 15 || y < 1 || y > 254) return;
+        if (!Tier2.writable(c, x, z)) return;        // 3.29.0: a retrofit pass writes only inside the one site it builds
         Written w = WRITTEN.get();
         String as = null;
         if (w.chunk == c) {

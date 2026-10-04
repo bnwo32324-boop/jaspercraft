@@ -507,7 +507,14 @@ public final class StructurePlanner {
      */
     static final int TIER2_SALT=50000;
     /** Share of tier-2 cells planned (then admitted as above); rates probe, tests/java/.../StructureRatesProbe.java. */
-    public static final double TIER2_LEGACY_DENSITY=0.80,TIER2_EXPANSION_DENSITY=1.0;
+    public static final double TIER2_LEGACY_DENSITY=1.0,TIER2_EXPANSION_DENSITY=1.0;
+    /** 3.29.0: three tier-2 expansion grids (v9, v11, v12), each offset from the others and yielding to the ones before;
+     * with the two legacy grids (v8, v10) they give as many catalogue sites again as the 3.27 grids (rates probe). */
+    static final int EXPANSION_GRIDS=3;
+    private static final int[] EXP_SHIFT_X={0,EXPANSION_REGION/2,EXPANSION_REGION/2},EXP_SHIFT_Z={0,EXPANSION_REGION/2,0};
+    private static final String[] EXP_KEY={"structures:v9:","structures:v11:","structures:v12:"};
+    /** Share of each tier-2 expansion grid's cells planned (rates probe: v12 at full density would give 1.21x). */
+    private static final double[] EXP_DENSITY={TIER2_EXPANSION_DENSITY,TIER2_EXPANSION_DENSITY,0.55};
     private static final Map<RegionKey,Optional<Site>> TIER2_CACHE=new LinkedHashMap<RegionKey,Optional<Site>>(256,.75f,true) {
         protected boolean removeEldestEntry(Map.Entry<RegionKey,Optional<Site>> e) { return size()>CACHE_LIMIT*2; }
     };
@@ -523,23 +530,59 @@ public final class StructurePlanner {
         for(int a=ex-1;a<=ex+1;a++)for(int b=ez-1;b<=ez+1;b++) {
             Site site=tier2Region(seed,a,b,true);if(site!=null&&site.intersects(cx,cz))result.add(site);
         }
+        for(int g2=1;g2<EXPANSION_GRIDS;g2++) {
+            int fx=(int)Math.floorDiv((long)cx*16-EXP_SHIFT_X[g2],EXPANSION_REGION),fz=(int)Math.floorDiv((long)cz*16-EXP_SHIFT_Z[g2],EXPANSION_REGION);
+            for(int a=fx-1;a<=fx+1;a++)for(int b=fz-1;b<=fz+1;b++) {
+                Site site=tier2Cached(seed,a,b,2+g2);if(site!=null&&site.intersects(cx,cz))result.add(site);
+            }
+        }
         return result;
     }
     /** Recognition of tier-2 sites: the same plan without the disabled-design list (a site built before its design
-     * was disabled is still named). Every other gate is a pure function of the seed and the immutable v2 boundary. */
+     * was disabled is still named), and (3.29.0) only sites really built (Tier2 receipt). */
     static List<Site> identifyTier2(long seed,int cx,int cz) {
         List<Site> result=new ArrayList<>(0);
+        if(!Tier2.active(seed))return result;
         int rx=(int)Math.floorDiv((long)cx*16,REGION),rz=(int)Math.floorDiv((long)cz*16,REGION);
         for(int a=rx-1;a<=rx+1;a++) for(int b=rz-1;b<=rz+1;b++) for(int g=0;g<2;g++) {
-            Site site;try{site=planTier2Legacy(seed,a,b,g,false);}catch(RuntimeException error){site=null;}
-            if(site!=null&&site.intersects(cx,cz)) result.add(site);
+            Site site;try{site=cityless(seed,planTier2Legacy(seed,a,b,g,false));}catch(RuntimeException error){site=null;}
+            if(site!=null&&site.intersects(cx,cz)&&Tier2.built(seed,site.key)) result.add(site);
         }
         int ex=(int)Math.floorDiv((long)cx*16,EXPANSION_REGION),ez=(int)Math.floorDiv((long)cz*16,EXPANSION_REGION);
         for(int a=ex-1;a<=ex+1;a++)for(int b=ez-1;b<=ez+1;b++) {
-            Site site;try{site=planTier2Expansion(seed,a,b,false);}catch(RuntimeException error){site=null;}
-            if(site!=null&&site.intersects(cx,cz))result.add(site);
+            Site site;try{site=cityless(seed,planTier2Expansion(seed,a,b,0,false));}catch(RuntimeException error){site=null;}
+            if(site!=null&&site.intersects(cx,cz)&&Tier2.built(seed,site.key))result.add(site);
+        }
+        for(int g2=1;g2<EXPANSION_GRIDS;g2++) {
+            int fx=(int)Math.floorDiv((long)cx*16-EXP_SHIFT_X[g2],EXPANSION_REGION),fz=(int)Math.floorDiv((long)cz*16-EXP_SHIFT_Z[g2],EXPANSION_REGION);
+            for(int a=fx-1;a<=fx+1;a++)for(int b=fz-1;b<=fz+1;b++) {
+                Site site;try{site=cityless(seed,planTier2Expansion(seed,a,b,g2,false));}catch(RuntimeException error){site=null;}
+                if(site!=null&&site.intersects(cx,cz)&&Tier2.built(seed,site.key))result.add(site);
+            }
         }
         return result;
+    }
+    /** Tier-2 catalogue sites admitted for generation that are built (3.29.0: Tier2 receipt) and touch this chunk. */
+    static List<Site> builtTier2(long seed,int cx,int cz) {
+        List<Site> result=new ArrayList<>(0);
+        if(!Tier2.active(seed))return result;
+        for(Site site:sitesTier2(seed,cx,cz))if(Tier2.built(seed,site.key))result.add(site);
+        return result;
+    }
+    /**
+     * Draws this chunk's share of every tier-2 catalogue site (3.29.0). A tier-2 site is drawn when its chunks populate,
+     * not by the generator, because it is drawn only once decided (Tier2.allow), and deciding can mean asking the other
+     * packs; the retrofit runs this in its probe and single-site passes too. Same brush, same blocks.
+     */
+    static void stampTier2(org.bukkit.World world,org.bukkit.Chunk chunk) {
+        long seed=world.getSeed();int cx=chunk.getX(),cz=chunk.getZ();
+        if(StructureRates.failedV2(seed))return;
+        LiveChunkData data=null;
+        for(Site site:sitesTier2(seed,cx,cz)) {
+            if(!Tier2.allow(seed,site.key,site.x-8,site.z-8,site.x+site.width+7,site.z+site.depth+7))continue;
+            if(data==null)data=new LiveChunkData(chunk);
+            site.stamp(data,cx,cz);
+        }
     }
     /** The admitted tier-2 site of this cell on the expansion grid (expansion) or the first legacy grid, cached. */
     static Site tier2Region(long seed,int rx,int rz,boolean expansion) {
@@ -547,10 +590,13 @@ public final class StructurePlanner {
     }
     /** The admitted tier-2 site of this cell on legacy grid g (0: v8, 1: v10). */
     static Site tier2Legacy(long seed,int rx,int rz,int g) { return tier2Cached(seed,rx,rz,g); }
+    /** The admitted tier-2 site of this cell on grid g: 0 v8, 1 v10 (legacy regions), 2 v9, 3 v11, 4 v12 (expansion regions). */
+    static Site tier2Grid(long seed,int rx,int rz,int g) { return tier2Cached(seed,rx,rz,g); }
     private static Site tier2Cached(long seed,int rx,int rz,int grid) {
         RegionKey key=new RegionKey(seed^(0x544945524CL+grid*0x1000193L),rx,rz);Optional<Site> known;
         synchronized(TIER2_CACHE) {known=TIER2_CACHE.get(key);}if(known!=null)return known.orElse(null);
-        Site made=grid==2?planTier2Expansion(seed,rx,rz,true):planTier2Legacy(seed,rx,rz,grid,true);
+        // 3.29.0: tier 2 keeps out of the Lost Cities too (it predates them).
+        Site made=cityless(seed,grid>=2?planTier2Expansion(seed,rx,rz,grid-2,true):planTier2Legacy(seed,rx,rz,grid,true));
         synchronized(TIER2_CACHE) {
             known=TIER2_CACHE.get(key);if(known!=null)return known.orElse(null);
             TIER2_CACHE.put(key,Optional.ofNullable(made));
@@ -595,14 +641,15 @@ public final class StructurePlanner {
         site.tier=2;
         return tier2Clear(terrain,site,g)?site:null;
     }
-    /** planExpansion(), on the tier-2 expansion grid. checkDisabled=false is recognition (identifyTier2). */
-    private static Site planTier2Expansion(long seed,int rx,int rz,boolean checkDisabled) {
-        Terrain terrain=new Terrain(seed);int salt=1909+TIER2_SALT;
-        if(terrain.random(rx,rz,salt)>=TIER2_EXPANSION_DENSITY)return null;
+    /** planExpansion(), on tier-2 expansion grid g2 (0: v9; 3.29.0: 1: v11, half a region along each axis from the first,
+     * and 2: v12, half a region along x; salts of their own). checkDisabled=false is recognition (identifyTier2). */
+    private static Site planTier2Expansion(long seed,int rx,int rz,int g2,boolean checkDisabled) {
+        Terrain terrain=new Terrain(seed);int salt=1909+TIER2_SALT+g2*2000,shiftX=EXP_SHIFT_X[g2],shiftZ=EXP_SHIFT_Z[g2];
+        if(terrain.random(rx,rz,salt)>=EXP_DENSITY[g2])return null;
         boolean surfaceLandmark=Math.floorMod(rx+2*rz,4)!=0;
         if(!surfaceLandmark&&terrain.random(rx,rz,salt+1)>=.94)return null;
-        long ax=(long)rx*EXPANSION_REGION+176+(int)(terrain.random(rx,rz,salt+2)*33);
-        long az=(long)rz*EXPANSION_REGION+176+(int)(terrain.random(rx,rz,salt+3)*33);
+        long ax=(long)rx*EXPANSION_REGION+shiftX+176+(int)(terrain.random(rx,rz,salt+2)*33);
+        long az=(long)rz*EXPANSION_REGION+shiftZ+176+(int)(terrain.random(rx,rz,salt+3)*33);
         if(ax<Integer.MIN_VALUE+512L||ax>Integer.MAX_VALUE-512L||az<Integer.MIN_VALUE+512L||az>Integer.MAX_VALUE-512L)return null;
         int biome=terrain.sample((int)ax,(int)az).profile.index;
         List<StructureCatalog.Design> choices=StructureCatalog.expansionChoices(biome),pool=new ArrayList<>();
@@ -631,9 +678,9 @@ public final class StructurePlanner {
                     samples++;if(design.accepts(sample.profile.index))suitable++;if(sample.y<62)wet++;
                 }
             if(suitable*3<samples*2||design.mode.equals("underwater")&&wet*10<samples*9)continue;
-            try{Site site=new Site(seed,design,x,z,"structures:v9:"+seed+":"+rx+":"+rz+":"+design.id,(int)ax,(int)az);
+            try{Site site=new Site(seed,design,x,z,EXP_KEY[g2]+seed+":"+rx+":"+rz+":"+design.id,(int)ax,(int)az);
                 site.tier=2;
-                if(!tier2Clear(terrain,site,2))continue;
+                if(!tier2Clear(terrain,site,2+g2))continue;
                 return site;}
             catch(IllegalStateException ex){if(ex.getMessage()==null||!ex.getMessage().startsWith("Approach cannot reach surface"))throw ex;}
         }
@@ -649,7 +696,7 @@ public final class StructurePlanner {
         return !StructureRates.nearSanctuaryAll(terrain,x,z,width,depth);
     }
     /** True when nothing older has any ground this tier-2 site builds on: set pieces of every layer, lattice A/B/C
-     * rooms, 3.27 catalogue sites and the tier-2 grids ranked before this one (grid 0: v8, 1: v10, 2: v9), with their
+     * rooms, 3.27 catalogue sites and the tier-2 grids ranked before this one (grid 0: v8, 1: v10, 2: v9, 3: v11, 4: v12), with their
      * sixteen-block reserve gap. */
     private static boolean tier2Clear(Terrain terrain,Site site,int grid) {
         for(int[] e:site.envelope())if(Megaliths.occupiedAll3(terrain,e[0],e[1],e[2],e[3],255))return false;
@@ -664,6 +711,13 @@ public final class StructurePlanner {
         int e0=Math.floorDiv(site.x-400,EXPANSION_REGION),e1=Math.floorDiv(site.x+site.width+16,EXPANSION_REGION);
         int f0=Math.floorDiv(site.z-400,EXPANSION_REGION),f1=Math.floorDiv(site.z+site.depth+16,EXPANSION_REGION);
         for(int a=e0;a<=e1;a++)for(int b=f0;b<=f1;b++)if(near(site,expansionRegion(seed,a,b)))return false;
+        // 3.29.0: a later tier-2 expansion grid yields to every earlier one (v11 to v9, v12 to v9 and v11).
+        for(int g=2;g<grid;g++) {
+            int sx=EXP_SHIFT_X[g-2],sz=EXP_SHIFT_Z[g-2];
+            for(int a=Math.floorDiv(site.x-400-sx,EXPANSION_REGION);a<=Math.floorDiv(site.x+site.width+16-sx,EXPANSION_REGION);a++)
+                for(int b=Math.floorDiv(site.z-400-sz,EXPANSION_REGION);b<=Math.floorDiv(site.z+site.depth+16-sz,EXPANSION_REGION);b++)
+                    if(near(site,tier2Cached(seed,a,b,g)))return false;
+        }
         return true;
     }
     private static boolean near(Site site,Site other) {

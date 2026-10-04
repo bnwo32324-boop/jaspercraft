@@ -120,19 +120,19 @@ public final class Megaliths {
     };
     private static final long[] C_SALT2 = new long[C_SALT.length];
     /*
-     * 3.28.0 tertiary lattices (tier 2, the second 1.5x; StructureRates), one per register entry, each with a salt of
-     * its own. A tertiary site yields to everything older -- every primary and secondary site, tier-0/1 catalogue
-     * sites, lattice A/B/C rooms, every sanctuary, chunks that predate 3.28.0 -- so each cell is sized, per set
-     * piece, for half the 3.27 count (primary + secondary) again after those yields (rates probe,
-     * tests/java/chat/jaspr/biomes/StructureRatesProbe.java), searched per set piece in rank order for the cell whose
-     * measured count lands nearest that target -- which also steers clear of cells that alias another lattice (a
-     * tertiary cell equal to another set piece's cell sits at one fixed offset from it and is blocked everywhere).
+     * Tertiary lattices (tier 2; StructureRates), one per register entry, each with a salt of its own. A tertiary site
+     * yields to everything older -- every primary and secondary site, tier-0/1 catalogue sites, lattice A/B/C rooms,
+     * every sanctuary -- and to higher-ranked tertiaries. 3.29.0 (owner: overworld structures 2x): each cell is sized,
+     * per set piece and in rank order, for as many tertiary sites again as the 3.27 count (primary + secondary) after
+     * those yields: measured over 1,500 x 1,500 chunks (seed 3127727864271777472, the rates probe), 16,401 tertiary
+     * sites against 16,423 older ones. A cell that aliases another lattice is blocked everywhere, so the search by
+     * measured count steers clear of those by itself. (3.28.0 sized them for half again, 1.5x.)
      */
     private static final int[] C_CELL3 = {
-        93, 127, 98, 86, 118, 97, 86, 94, 84, 105, 97, 94, 101, 101, 79, 97, 97,
-        81, 86, 94, 86, 88, 79, 94, 68, 33, 43, 46, 46, 53, 31, 89, 86, 79,
-        86, 89, 59, 84, 86, 79, 83, 86, 73, 74, 79, 82, 79, 80, 79, 79, 73,
-        73, 72, 76, 71, 73, 71, 75, 67, 68, 67, 61,
+        69, 112, 68, 57, 101, 72, 64, 65, 59, 78, 67, 69, 59, 68, 54, 67, 68,
+        58, 55, 64, 57, 66, 56, 68, 46, 26, 34, 36, 32, 41, 21, 66, 60, 58,
+        58, 64, 37, 52, 60, 56, 55, 60, 49, 56, 55, 54, 55, 57, 55, 54, 51,
+        51, 52, 52, 51, 52, 47, 52, 47, 45, 47, 41,
     };
     private static final long[] C_SALT3 = new long[C_SALT.length];
     static {
@@ -426,7 +426,7 @@ public final class Megaliths {
         return -1;
     }
 
-    /** {acx, acz, floorY} of the built tertiary (3.28.0) site of kind k covering this column, or null. */
+    /** {acx, acz, floorY} of the built tertiary (3.28.0) site of kind k covering this column, or null (3.29.0: decided "built"). */
     private static int[] tertiaryAt(Terrain t, int k, int wx, int wz) {
         int cell = C_CELL3[k];
         int ax = (int) Math.floorMod(Terrain.mix(t.seed + C_SALT3[k]) >>> 3, (long) cell);
@@ -438,7 +438,8 @@ public final class Megaliths {
                 int x = acx * 16 + 1, z = acz * 16 + 1;
                 if (wx < x || wx >= x + C_SX[k] || wz < z || wz >= z + C_SZ[k]) continue;
                 int base = tertiaryBase(t, k, acx, acz);
-                if (base >= 0) return new int[]{acx, acz, base};
+                // 3.29.0: named only once it is really built (Tier2 receipt): a planned site the retrofit refused is not there.
+                if (base >= 0 && Tier2.built(t.seed, Tier2.setPieceKey(C_SALT3[k], acx, acz))) return new int[]{acx, acz, base};
             }
         }
         return null;
@@ -838,7 +839,8 @@ public final class Megaliths {
     /** Surface anchor: tolerant of slope, reports the range so a builder can pack its own footing. */
     static Site ground(Terrain t, Chunk c, int cell, long salt, int sizeX, int sizeZ, int maxSlope, int rank) {
         int span = (Math.max(sizeX, sizeZ) >> 4) + 1;
-        for (int ox = -span; ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
+        boolean older = !Tier2.restricted();      // 3.29.0: a retrofit or probe pass touches tier 2 only (Tier2)
+        for (int ox = -span; older && ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
             int acx = c.getX() + ox, acz = c.getZ() + oz;
             if (!anchored(t, c, cell, salt, sizeX, sizeZ, acx, acz)) continue;
             int x = acx * 16 + 1, z = acz * 16 + 1, lo = 999, hi = -999;
@@ -857,7 +859,7 @@ public final class Megaliths {
         // 3.25.0: nothing on the primary lattice reaches this chunk -- the secondary one (StructureRates).
         int cell2 = cell2(rank, cell);
         long salt2 = salt2(rank, salt);
-        for (int ox = -span; ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
+        for (int ox = -span; older && ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
             int acx = c.getX() + ox, acz = c.getZ() + oz;
             if (!anchored(t, c, cell2, salt2, sizeX, sizeZ, acx, acz)) continue;
             int x = acx * 16 + 1, z = acz * 16 + 1, lo = 999, hi = -999;
@@ -888,6 +890,7 @@ public final class Megaliths {
             if (!weather(t, rank, x, z)) continue;
             if (hi - lo > maxSlope || lo < 64 || hi > 136) continue;
             if (!tertiaryFree(t, x, z, sizeX, sizeZ, rank)) continue;
+            if (!Tier2.allow(t.seed, Tier2.setPieceKey(salt3, acx, acz), x - 8, z - 8, x + sizeX + 7, z + sizeZ + 7)) continue;   // 3.29.0: decided once
             Site site = new Site(x, lo + 1, z, lo, hi, siteSeed(t, acx, acz, salt3), sizeX, sizeZ);
             excavate(c, site, rank);
             return site;
@@ -1050,7 +1053,8 @@ public final class Megaliths {
      */
     static Site deep(Terrain t, Chunk c, int cell, long salt, int sizeX, int sizeZ, int height, int rank) {
         int span = (Math.max(sizeX, sizeZ) >> 4) + 1;
-        for (int ox = -span; ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
+        boolean older = !Tier2.restricted();      // 3.29.0: a retrofit or probe pass touches tier 2 only (Tier2)
+        for (int ox = -span; older && ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
             int acx = c.getX() + ox, acz = c.getZ() + oz;
             if (!anchored(t, c, cell, salt, sizeX, sizeZ, acx, acz)) continue;
             int x = acx * 16 + 1, z = acz * 16 + 1, lo = 999;
@@ -1071,7 +1075,7 @@ public final class Megaliths {
         // 3.25.0: nothing on the primary lattice reaches this chunk -- the secondary one (StructureRates).
         int cell2 = cell2(rank, cell);
         long salt2 = salt2(rank, salt);
-        for (int ox = -span; ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
+        for (int ox = -span; older && ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
             int acx = c.getX() + ox, acz = c.getZ() + oz;
             if (!anchored(t, c, cell2, salt2, sizeX, sizeZ, acx, acz)) continue;
             int x = acx * 16 + 1, z = acz * 16 + 1, lo = 999;
@@ -1104,6 +1108,7 @@ public final class Megaliths {
             int ceiling = lo - 10 - height;
             if (ceiling < 5) continue;
             if (!tertiaryFree(t, x, z, sizeX, sizeZ, rank)) continue;
+            if (!Tier2.allow(t.seed, Tier2.setPieceKey(salt3, acx, acz), x - 8, z - 8, x + sizeX + 7, z + sizeZ + 7)) continue;   // 3.29.0: decided once
             long seed = siteSeed(t, acx, acz, salt3);
             int y = 5 + (int) Math.floorMod(seed >>> 19, (long) (ceiling - 4));
             Site site = new Site(x, y, z, y, y + height, seed, sizeX, sizeZ);
@@ -1140,7 +1145,8 @@ public final class Megaliths {
      */
     static Site sunken(Terrain t, Chunk c, int cell, long salt, int sizeX, int sizeZ, int maxSlope, int rank) {
         int span = (Math.max(sizeX, sizeZ) >> 4) + 1;
-        for (int ox = -span; ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
+        boolean older = !Tier2.restricted();      // 3.29.0: a retrofit or probe pass touches tier 2 only (Tier2)
+        for (int ox = -span; older && ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
             int acx = c.getX() + ox, acz = c.getZ() + oz;
             if (!anchored(t, c, cell, salt, sizeX, sizeZ, acx, acz)) continue;
             int x = acx * 16 + 1, z = acz * 16 + 1, lo = 999, hi = -999;
@@ -1157,7 +1163,7 @@ public final class Megaliths {
         // 3.25.0: nothing on the primary lattice reaches this chunk -- the secondary one (StructureRates).
         int cell2 = cell2(rank, cell);
         long salt2 = salt2(rank, salt);
-        for (int ox = -span; ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
+        for (int ox = -span; older && ox <= span; ox++) for (int oz = -span; oz <= span; oz++) {
             int acx = c.getX() + ox, acz = c.getZ() + oz;
             if (!anchored(t, c, cell2, salt2, sizeX, sizeZ, acx, acz)) continue;
             int x = acx * 16 + 1, z = acz * 16 + 1, lo = 999, hi = -999;
@@ -1186,6 +1192,7 @@ public final class Megaliths {
             if (!weather(t, rank, x, z)) continue;
             if (!drowned(t, x, z, sizeX, sizeZ)) continue;
             if (!tertiaryFree(t, x, z, sizeX, sizeZ, rank)) continue;
+            if (!Tier2.allow(t.seed, Tier2.setPieceKey(salt3, acx, acz), x - 8, z - 8, x + sizeX + 7, z + sizeZ + 7)) continue;   // 3.29.0: decided once
             return new Site(x, lo + 1, z, lo, hi, siteSeed(t, acx, acz, salt3), sizeX, sizeZ);
         }
         return null;

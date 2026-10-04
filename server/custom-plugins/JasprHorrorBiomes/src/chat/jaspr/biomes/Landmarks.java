@@ -1924,7 +1924,8 @@ public final class Landmarks {
     static Site site(Terrain t, Chunk c, int cell, long salt, int sizeX, int sizeZ, int maxSlope, int rank) {
         int cx = c.getX(), cz = c.getZ();
         int span = (Math.max(sizeX, sizeZ) >> 4) + 1;
-        for (int ox = -span; ox <= span; ox++) {
+        boolean older = !Tier2.restricted();      // 3.29.0: a retrofit or probe pass touches tier 2 only (Tier2)
+        for (int ox = -span; older && ox <= span; ox++) {
             for (int oz = -span; oz <= span; oz++) {
                 int acx = cx + ox, acz = cz + oz;
                 if (Math.floorMod(acx, cell) != Math.floorMod(Terrain.mix(t.seed + salt) >>> 3, cell)) continue;
@@ -1948,7 +1949,7 @@ public final class Landmarks {
                 return new Site(x, lo + 1, z, lo, hi, seed, sizeX, sizeZ);
             }
         }
-        Site second = secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, 0, false);
+        Site second = older ? secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, 0, false) : null;
         return second != null ? second : secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, 0, true);
     }
 
@@ -1983,6 +1984,9 @@ public final class Landmarks {
                 if (lo < 64 || hi > 136) continue;
                 if (!(tertiary ? Megaliths.tertiaryFree(t, x, z, sizeX, sizeZ, rank)
                                : Megaliths.secondaryFree(t, x, z, sizeX, sizeZ, rank))) continue;
+                // 3.29.0: a tertiary (tier-2) site is built only once decided (Tier2), its dressing margin included.
+                if (tertiary && !Tier2.allow(t.seed, Tier2.setPieceKey(salt2, acx, acz), x - margin - 8, z - margin - 8,
+                        x + sizeX + margin + 7, z + sizeZ + margin + 7)) continue;
                 long seed = Terrain.mix(t.seed + acx * 6364136223846793005L + acz * 1442695040888963407L + salt2);
                 return new Site(x, lo + 1, z, lo, hi, seed, sizeX, sizeZ);
             }
@@ -2116,7 +2120,8 @@ public final class Landmarks {
     static Site siteNear(Terrain t, Chunk c, int cell, long salt, int sizeX, int sizeZ, int maxSlope, int rank, int margin) {
         int cx = c.getX(), cz = c.getZ();
         int span = ((Math.max(sizeX, sizeZ) + margin) >> 4) + 1;
-        for (int ox = -span; ox <= span; ox++) {
+        boolean older = !Tier2.restricted();
+        for (int ox = -span; older && ox <= span; ox++) {
             for (int oz = -span; oz <= span; oz++) {
                 int acx = cx + ox, acz = cz + oz;
                 if (Math.floorMod(acx, cell) != Math.floorMod(Terrain.mix(t.seed + salt) >>> 3, cell)) continue;
@@ -2139,7 +2144,7 @@ public final class Landmarks {
                 return new Site(x, lo + 1, z, lo, hi, seed, sizeX, sizeZ);
             }
         }
-        Site second = secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, margin, false);
+        Site second = older ? secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, margin, false) : null;
         return second != null ? second : secondary(t, cx, cz, cell, salt, sizeX, sizeZ, maxSlope, rank, margin, true);
     }
 

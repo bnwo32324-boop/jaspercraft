@@ -10,7 +10,11 @@ public final class RuinSupplies extends BlockPopulator {
         try {
             Terrain t=new Terrain(w.getSeed());
             // Lost Cities (2026-09-26): a city chunk gets no rooms, set pieces or spawner rooms; the city fills it.
-            if(!Cities.reserved(w.getSeed(),c.getX()*16,c.getZ()*16,16,16))Dungeons.populate(w,c,t,new Caves(t));
+            if(!Cities.reserved(w.getSeed(),c.getX()*16,c.getZ()*16,16,16)){
+                // 3.29.0: tier-2 catalogue sites first, where the generator would have drawn them (Tier2 decides them).
+                if(!Boolean.getBoolean("jaspr.nosites"))StructurePlanner.stampTier2(w,c);
+                Dungeons.populate(w,c,t,new Caves(t));
+            }
         } catch(RuntimeException e){
             Bukkit.getLogger().warning("[JasprHorrorBiomes] DUNGEON_FAILED chunk="+c.getX()+","+c.getZ()+" "+e);
         }
