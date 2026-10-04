@@ -100,9 +100,9 @@ final class BnGen {
         for (int[] p : clear) a.set(p[0], p[1], p[2], 0, 0);
     }
 
-    // ---- random structures (1/16 per chunk, jar default) -----------------------------------------------------------
+    // ---- random structures (3/16 per chunk: 3x the jar default 1/16; owner 2026-10-04 "structures in the Nether 3x") -----
     private void structures(Area a, Random r, Gen.Post post, boolean[] hell) {
-        if (r.nextFloat() >= 0.0625f) return;
+        if (r.nextFloat() >= 0.1875f) return;
         int x = a.ox + 8 + r.nextInt(8), y = 32 + r.nextInt(88), z = a.oz + 8 + r.nextInt(8);
         while (!a.air(x, y, z) && y > 32) y--;
         int gy = -1;

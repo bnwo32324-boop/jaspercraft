@@ -5,8 +5,9 @@ import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Where the original ruins go: one possible old city per 320-block cell and one possible wilderness site per 96-block
- * cell, each a pure function of the seed and the terrain. Anything that would touch land the Lost Cities build (their
+ * Where the original ruins go: one possible old city per 320-block cell and one possible wilderness site per 56-block
+ * cell (epoch 4, owner 2026-10-04: "structures in Drownhollow 2x as common": 0.83 per 56-block cell is 1.99x the 0.85 per
+ * 80-block cell of epoch 3), each a pure function of the seed and the terrain. Anything that would touch land the Lost Cities build (their
  * cities, highways and the ring around them) or stand in water is left out, so the two kinds of ruins never overlap.
  */
 final class Plans {
@@ -16,8 +17,8 @@ final class Plans {
     static final int SEA = 62;
     static final int CITY_GRID = 320, CITY_MARGIN = 112, BLEND = 20;
     static final double CITY_CHANCE = 0.45;
-    static final int SITE_GRID = 80, SITE_MARGIN = 23;
-    static final double SITE_CHANCE = 0.85;
+    static final int SITE_GRID = 56, SITE_MARGIN = 23;
+    static final double SITE_CHANCE = 0.83;
     static final int CELL = 24, DOOR_RADIUS = 48, DISTRICT = 128;
     private static final long CITY_SALT = 0x43697479L, SITE_SALT = 0x53697465L;
     private static final int CACHE = 8192;
@@ -115,6 +116,17 @@ final class Plans {
     }
 
     private static long key(int i, int j) { return (long) i << 32 ^ (j & 0xffffffffL); }
+
+    /**
+     * Forgets every cached answer. Creating the world asks for its spawn (and so for the cities, sites and the Door) before
+     * the Lost Cities attach to it, when nothing is reserved yet; the plugin calls this once the world is open so every
+     * plan from then on keeps out of the Lost Cities (the epoch-3 world's first session put the Door at 704,-704 and every
+     * later one at 896,-896).
+     */
+    void forget() {
+        cities.clear(); sites.clear(); cells.clear(); reservedChunks.clear();
+        synchronized (this) { door = null; }
+    }
 
     // ------------------------------------------------------------------ cities
 

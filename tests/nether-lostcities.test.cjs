@@ -65,7 +65,7 @@ test('JasprNether: owns world_nether, loads at startup, and logs its readiness',
   // one-shot per epoch, before worlds load, and a move (never a delete).
   assert.match(read(nether + '/resources/config.yml'), /^regenerate-once: true$/m);
   assert.match(plugin, /@Override public void onLoad\(\)/);
-  assert.match(plugin, /static final int REGEN_EPOCH = 5;/);   // (the owner's regenerations: epochs 4 and 5 on 2026-10-01)
+  assert.match(plugin, /static final int REGEN_EPOCH = 6;/);   // (the owner's regenerations: epochs 4 and 5 on 2026-10-01, 6 on 2026-10-04)
   assert.match(plugin, /"regenerated-v" \+ REGEN_EPOCH \+ "\.txt"/);
   assert.match(plugin, /new File\(getDataFolder\(\), "nether-before-v" \+ REGEN_EPOCH\)/);
   assert.match(plugin, /java\.nio\.file\.Files\.move\(region\.toPath\(\), new File\(backup, "region"\)\.toPath\(\)\)/);

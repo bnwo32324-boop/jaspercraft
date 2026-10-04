@@ -160,7 +160,8 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
   - shrine temples, catacomb gates, faceless watchers, obelisk groves and rows of gibbets (new in epoch 3);
   - two or three lesser remnants in its corners;
   - cracked paving strewn with rubble, bones and skulls. Pillars rise from the water too.
-- **Greater ruins (sites, one per 80-block grid square at 85%):**
+- **Greater ruins (sites, one per 56-block grid square at 83%; epoch 4, owner 2026-10-04: "2x as common", 2.06x the
+  epoch-3 density of one per 80-block square at 85%):**
   - **Bastion of the Choir:** walls, four towers and a two-floor keep with spawners, prison cells, a dart trap and
     offerings.
   - **Labyrinth of Angles:** a 9×9 maze of 4-block corridors. Its dead ends hold spawners; its heart holds a relic
@@ -187,8 +188,9 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
   - grass on 2.4% of columns;
   - at least 64% of columns clearly built on (plain gravel and cobble paving not counted);
   - all 21 site kinds appear;
-  - 505 catacomb rooms in 25×25 chunks, 93% of them hollow at depth; 11 gates in the field; 300 dart traps, each with
-    its plate;
+  - 143.5 sites per km² (epoch 3: 69.5) over a 2048-block square;
+  - 505 catacomb rooms in 25×25 chunks, 93% of them hollow at depth; 6 gates in the field (11 before the denser sites
+    took their cells); 310 dart traps, each with its plate;
   - every chest, spawner, sign and dispenser the populator recomputes matches the generated block;
   - 0.46 ms per chunk.
 
@@ -215,8 +217,12 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
   20 ms). Its horror, dread and boss tasks then return immediately. The Lost Cities detach and re-attach cleanly.
 - **Browser:** all visuals are vanilla blocks and mobs, so there is nothing extra to download. Relics are vanilla items
   with names, so they display fine to players who have never visited. The sky is a few kilobytes inside the client.
-- **Regeneration:** this update (epoch 3) renames the old world folder to `jaspr_ruins-retired-epoch2-<time>` (nothing
-  is deleted) and forgets its portals. Players who logged out inside it wake at the overworld spawn.
+- **Regeneration:** each epoch renames the old world folder to `jaspr_ruins-retired-epoch<N>-<time>` (nothing is
+  deleted) and forgets its portals. Players who logged out inside it wake at the overworld spawn. Epoch 4 (2026-10-04,
+  JasprRuins 1.2.0) regenerated Drownhollow for the doubled sites; the same seed keeps the terrain, the Door search and
+  the catacombs, and graves stand back up with their items as their chunks load. Plans made while the world is still
+  being created (before the Lost Cities attach) are forgotten once it is open (`Plans.forget`), so the Door no longer
+  moves between the first and later sessions.
 - **Epoch 3 fixture** (lean headless browser, seed 305441741): about 3 minutes in survival rose 10 horrors, including
   4 Elders. It also produced 2 chest ambushes, 2 shadows, 1 masonry fall and 6 traps populated, with no generation
   failures.

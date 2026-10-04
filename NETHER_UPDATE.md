@@ -95,3 +95,22 @@ The Nether then generates afresh as players explore. Undo: stop the server and m
 back to `world_nether/DIM-1/region`. `regenerate-once: false` in the config skips it. Epoch 1 (2026-09-26) was the
 port; epoch 2 (2026-09-28) regenerates it for the mega structures and wonders. No player was saved in the Nether on
 either date; a player who logs in inside rock or lava in the Nether is moved to the nearest safe floor.
+
+## Structures 3x as common (1.4.0, epoch 6, 2026-10-04)
+
+Owner, 2026-10-04: "make structures in the Nether 3x common", then "regenerate the Nether after applying the change".
+
+- **Tripled, in every newly generated chunk:**
+  - BetterNether structures (the Hell templates, the altar and the blaze cave rooms): 3 chunks in 16 instead of 1.
+  - NetherEx soul sandstone arches (9% of Ruthless Sands chunks), Ghast Queen shrines (3.75% of Fungi Forest chunks),
+    spoul shrooms (45%) and Pigtificate villages (75% of Hell chunks, at least 74 blocks apart instead of 128).
+  - Every wonder: camps 3/40 everywhere; geodes, cages, fossils, graveyards, basalt groves, fairy rings and obelisks
+    each three times as likely in their regions.
+- **Unchanged: the GLM builds, mega structures, colossi, cities and the Endless Catacombs.** Their layout already
+  covers about 41% of the land (about 4,060 GLM builds and 120 megas in a 12,000-block square). Packing the GLM grid
+  as tightly as every build still fits added only 7% more builds and lost half the megas, so it was left as it was
+  (doubled on 2026-10-01).
+- **Regenerated:** epoch 6 moves the old region files and registry to `plugins/JasprNether/nether-before-v6/` (nothing
+  is deleted) and the Nether generates afresh. Graves stand back up with their items as their chunks load.
+- **Tests:** `tests/nether-mega.test.cjs` pins every tripled chance; the epoch is pinned in the colossi, GLM and Lost
+  Cities tests.

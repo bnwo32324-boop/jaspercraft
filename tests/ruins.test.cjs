@@ -29,6 +29,12 @@ test('ruins generator: sites, old city, determinism, tiles, weathering, portal f
   fs.rmSync(out, {recursive: true, force: true});
   assert.equal(run.status, 0, run.stderr + run.stdout);
   assert.match(run.stdout, /RUINS_OK/);
+  // Epoch 4 (owner 2026-10-04): Drownhollow structures 2x as common. 0.83 per 56-block cell against epoch 3's 0.85 per 80.
+  const plans = fs.readFileSync(path.join(plugins, 'JasprRuins/src/chat/jaspr/ruins/Plans.java'), 'utf8');
+  const grid = Number(/SITE_GRID = (\d+)/.exec(plans)[1]), chance = Number(/SITE_CHANCE = ([\d.]+)/.exec(plans)[1]);
+  const ratio = (chance / (grid * grid)) / (0.85 / (80 * 80));
+  assert.ok(ratio > 1.95 && ratio < 2.05, 'site candidates per area about 2x epoch 3: ' + ratio);
+  assert.match(run.stdout, /SITE_DENSITY grid=56 /);
   for (const kind of ['TEMPLE', 'COLONNADE', 'ZIGGURAT', 'WATCHTOWER', 'AQUEDUCT', 'AMPHITHEATER', 'STONES', 'CRYPT', 'GATEHOUSE', 'COLOSSUS'])
     assert.match(run.stdout, new RegExp('site ' + kind + ' '), kind);
 });
@@ -49,7 +55,8 @@ test('ruins plugin wiring: Lost Cities registration, mossy portals, client-green
   assert.match(api, /public static void registerWorld\(String worldName, String titleFormat, PrimerHook hook\)/);
   assert.match(read('scripts/deploy/DeployLogic.ps1'), /'JasprRuins'\s+= @\('RUINS_READY'\)/);
   // The dimension lives on disk while empty and is regenerated for this design (the old world is renamed, not deleted).
-  assert.match(plugin, /static final int EPOCH = 3;/);
+  assert.match(plugin, /static final int EPOCH = 4;/);
+  assert.ok(plugin.includes('plans().forget();'), 'plans made before the Lost Cities attached are forgotten once the world is open');
   assert.ok(plugin.includes('Bukkit.unloadWorld(w, true)'), 'saved and unloaded after its last player leaves');
   assert.ok(plugin.includes('public void login(PlayerLoginEvent e)'), 'loaded for a player who logged out inside it');
   assert.ok(plugin.includes('folder.renameTo(retired)'), 'an older world is renamed aside, never deleted');

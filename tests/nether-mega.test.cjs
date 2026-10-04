@@ -73,7 +73,16 @@ test('nether mega wiring: loot, tables, quiet mods, peace, skulls, history, lava
   assert.match(gen, /Mega\.draw\(s, new Draw\(a, a\.ox, a\.oz, a\.ox \+ 31, a\.oz \+ 31, bx0, bz0, bx1, bz1, tiles\)\);/);
   assert.match(java('Draw'), /if \(!inTiles\(x, z\) && Blocks\.isTileEntity\(c\.get\(x, y, z\) >> 4\)\) return;/);
   assert.match(gen, /bn\.populate\(a, rand, post, quiet\);/);
-  assert.match(gen, /if \(r\.nextDouble\(\) < 0\.25 && !quiet\) village\(a, r, post\);/);
+  // Owner 2026-10-04: Nether structures 3x as common (epoch 6). Villages 3x, with a 74-block spacing (128 / sqrt 3).
+  assert.match(gen, /if \(r\.nextDouble\(\) < 0\.75 && !quiet\) village\(a, r, post\);/);
+  assert.match(gen, /static final int VILLAGE_SPACING = 74;/);
+  assert.match(gen, /if \(r\.nextInt\(100\) < 9 && !quiet\) extra\(a, r, "nex_soul_sandstone_arch_01"/, 'arches 3x');
+  assert.match(gen, /if \(r\.nextDouble\(\) < 0\.0375 && !quiet\) shrine\(a, r, post\);/, 'Ghast Queen shrines 3x');
+  assert.match(gen, /if \(r\.nextInt\(100\) < 45 && !quiet\) extra\(a, r, "nex_spoul_shroom_"/, 'spoul shrooms 3x');
+  assert.match(java('BnGen'), /if \(r\.nextFloat\(\) >= 0\.1875f\) return;/, 'BetterNether structures in 3 of 16 chunks');
+  const wonders = java('Wonders');
+  for (const t of ['q < 3 / 40.0', 'q < 3 / 20.0 + 3 / 25.0 + 3 / 40.0', 'q < 3 / 20.0 + 3 / 16.0 + 3 / 40.0', 'q < 3 / 6.0 + 3 / 45.0', 'q < 3 / 12.0', 'q < 3 / 10.0'])
+    assert.ok(wonders.includes(t), 'wonders 3x: ' + t);
   assert.match(gen, /registry\.setMegaDecision\(s\.cellX, s\.cellZ, on\);/);
   assert.match(gen, /on = megaComplete \|\| centreHere \|\| !world\.isChunkGenerated\(ccx, ccz\);/);
   assert.match(gen, /if \(!quiet\) wonders\.populate\(/);

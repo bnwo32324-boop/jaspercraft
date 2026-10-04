@@ -31,15 +31,19 @@ import org.bukkit.plugin.java.JavaPlugin;
  * Everything the browser client sees is vanilla.
  */
 public final class NetherPlugin extends JavaPlugin implements Listener {
-    static final String VERSION = "1.3.0";
+    static final String VERSION = "1.4.0";
     /**
      * Regeneration epoch. Raising it regenerates the Nether once more on the next start (v1 2026-09-26: the port;
      * v2 2026-09-28: the owner asked for a fresh Nether with the mega structures and wonders; v3 2026-09-29: the owner
      * asked for the GLM structures, their creatures and the Nether Lords, "and then, once you're done, regenerate the Nether";
      * v4 2026-10-01: the owner removed N094, The Sulphur Sewers, and requested a fresh Nether;
-     * v5 2026-10-01: the owner requested a fresh Nether with the audited crops, corrected stairs and doubled GLM density).
+     * v5 2026-10-01: the owner requested a fresh Nether with the audited crops, corrected stairs and doubled GLM density;
+     * v6 2026-10-04: the owner asked for Nether structures "3x common" and "regenerate the Nether after applying the change":
+     * the per-chunk structures, villages and wonders are three times as frequent; the GLM builds, megas and colossi keep
+     * their layout, which already covers about 41% of the land - packing the GLM grid to its fitting limit added only 7%
+     * more builds and lost half the megas).
      */
-    static final int REGEN_EPOCH = 5;
+    static final int REGEN_EPOCH = 6;
     static final String OUTER_REALMS = "chat.jaspr.biomes.OuterRealms";
 
     String worldName = "world_nether";
@@ -163,7 +167,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
         getLogger().info("NETHER_READY version=" + VERSION + " biomes=" + Biomes.BIOME_COUNT + " mobs=" + mobKinds + " fiends=" + Mobs.fiendKinds()
             + " lords=" + Lords.DEFS.size() + " glm=" + (gen == null ? 0 : gen.glm.activeSize())
             + " glmCatalog=" + (gen == null ? 0 : gen.glm.size())
-            + " glmDensity=2.0 glmLayout=2 tpd=creative"
+            + " glmDensity=2.0 glmLayout=2 smallStructures=3x tpd=creative"
             + " structures=" + (Gen.TEMPLATE_NAMES.length + 1) + " mega=" + Mega.Kind.values().length + " wonders=8 items=" + Items.DEFS.size()
             + " blocks=" + BlockMap.rows + " world=" + worldName + " attached=" + (gen != null) + " disabled=" + genDisabled
             + " megaComplete=" + (gen != null && gen.megaComplete)

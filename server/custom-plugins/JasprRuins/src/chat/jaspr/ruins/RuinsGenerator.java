@@ -19,6 +19,8 @@ import org.bukkit.generator.ChunkGenerator;
  */
 public final class RuinsGenerator extends ChunkGenerator {
     static final int SEA = Plans.SEA;
+    /** How far past its own cell a site may draw: radius 25 plus its 1-block frame, against the 23-block margin (3), with room to spare. */
+    static final int SITE_REACH = 8;
 
     final long seed;
     final Plans plans;
@@ -69,7 +71,11 @@ public final class RuinsGenerator extends ChunkGenerator {
         chunks++;
     }
 
-    /** Draws every original ruin touching the canvas' chunk (a chunk lies in exactly one city cell and one site cell). */
+    /**
+     * Draws every original ruin touching the canvas' chunk. A chunk lies in exactly one city cell; the 56-block site grid
+     * is not a multiple of 16, so a chunk may touch two site cells each way, and a site may reach a few blocks past its
+     * own cell (radius 25 against a 23-block margin): every site cell within reach is drawn (Sites.draw clips to the chunk).
+     */
     void stamp(Canvas c) {
         Plans.Door door = plans.door();
         if (door.near(c.x0 + 8, c.z0 + 8, 16)) Cult.door(door, c);
@@ -77,8 +83,11 @@ public final class RuinsGenerator extends ChunkGenerator {
         Field.draw(plans, c);
         Plans.City city = plans.city(Math.floorDiv(c.x0, Plans.CITY_GRID), Math.floorDiv(c.z0, Plans.CITY_GRID));
         if (city != null) OldCity.draw(city, c);
-        Plans.Site site = plans.site(Math.floorDiv(c.x0, Plans.SITE_GRID), Math.floorDiv(c.z0, Plans.SITE_GRID));
-        if (site != null) Sites.draw(site, c);
+        for (int i = Math.floorDiv(c.x0 - SITE_REACH, Plans.SITE_GRID); i <= Math.floorDiv(c.x0 + 15 + SITE_REACH, Plans.SITE_GRID); i++)
+            for (int j = Math.floorDiv(c.z0 - SITE_REACH, Plans.SITE_GRID); j <= Math.floorDiv(c.z0 + 15 + SITE_REACH, Plans.SITE_GRID); j++) {
+                Plans.Site site = plans.site(i, j);
+                if (site != null) Sites.draw(site, c);
+            }
     }
 
     // Biome slots the browser client styles green and snow-free (JasprBiomeStyles restyles every slot for the horror

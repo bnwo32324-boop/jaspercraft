@@ -47,29 +47,30 @@ final class Wonders {
         Draw d = new Draw(a, bx, bz, bx + 15, bz + 15, tiles);
         double q = r.nextDouble();
         String made = null;
-        if (q < 1 / 40.0) made = camp(d, r);
+        // Every chance 3x (owner 2026-10-04: "structures in the Nether 3x as common"); each region's total stays below 1.
+        if (q < 3 / 40.0) made = camp(d, r);
         else {
             q = r.nextDouble();
             switch (region) {
                 case HELL:
-                    if (q < 1 / 20.0) made = geode(d, r);
-                    else if (q < 1 / 20.0 + 1 / 25.0) made = cage(d, r);
-                    else if (q < 1 / 20.0 + 1 / 25.0 + 1 / 40.0) made = fossil(d, r);
+                    if (q < 3 / 20.0) made = geode(d, r);
+                    else if (q < 3 / 20.0 + 3 / 25.0) made = cage(d, r);
+                    else if (q < 3 / 20.0 + 3 / 25.0 + 3 / 40.0) made = fossil(d, r);
                     break;
                 case RUTHLESS_SANDS:
-                    if (q < 1 / 20.0) made = graveyard(d, r);
-                    else if (q < 1 / 20.0 + 1 / 16.0) made = fossil(d, r);
-                    else if (q < 1 / 20.0 + 1 / 16.0 + 1 / 40.0) made = cage(d, r);
+                    if (q < 3 / 20.0) made = graveyard(d, r);
+                    else if (q < 3 / 20.0 + 3 / 16.0) made = fossil(d, r);
+                    else if (q < 3 / 20.0 + 3 / 16.0 + 3 / 40.0) made = cage(d, r);
                     break;
                 case TORRID_WASTELAND:
-                    if (q < 1 / 6.0) made = columns(d, r);
-                    else if (q < 1 / 6.0 + 1 / 45.0) made = fossil(d, r);
+                    if (q < 3 / 6.0) made = columns(d, r);
+                    else if (q < 3 / 6.0 + 3 / 45.0) made = fossil(d, r);
                     break;
                 case FUNGI_FOREST:
-                    if (q < 1 / 12.0) made = ring(d, r);
+                    if (q < 3 / 12.0) made = ring(d, r);
                     break;
                 default:
-                    if (q < 1 / 10.0) made = obelisk(d, r);
+                    if (q < 3 / 10.0) made = obelisk(d, r);
             }
         }
         if (made == null) return;

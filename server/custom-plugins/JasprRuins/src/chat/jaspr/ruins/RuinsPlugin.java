@@ -61,7 +61,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     static final String WORLD = "jaspr_ruins";
     static final long SALT = 0x5275696E73L;   // "Ruins"
     /** Bumped when the dimension is redesigned: an older saved world is retired (renamed, not deleted) and regenerated. */
-    static final int EPOCH = 3;
+    static final int EPOCH = 4;
     /**
      * The owner asked for Drownhollow at half the difficulty and half the spawns (2026-09-28): everything hostile deals
      * this share of its damage to players, horrors and Wardens have this share of their health, and the hazards and
@@ -170,6 +170,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
             return null;
         }
         ruins = w;
+        // The world is open and the Lost Cities are attached: drop anything planned before they were (see Plans.forget).
+        plans().forget();
         lightBeforeSending(w);
         w.setKeepSpawnInMemory(false);
         w.setDifficulty(main.getDifficulty());

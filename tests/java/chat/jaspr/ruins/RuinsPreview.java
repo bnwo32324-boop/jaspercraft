@@ -126,6 +126,17 @@ public final class RuinsPreview {
                     if (s != null) sites.putIfAbsent(s.kind, s);
                 }
         check(sites.size() == Plans.Kind.values().length, "every kind of site appears: " + sites.keySet());
+        // Epoch 4 (owner 2026-10-04: Drownhollow structures 2x as common): sites accepted over a 2048 x 2048 block square.
+        int accepted = 0, candidates = 0;
+        for (int i = Math.floorDiv(-1024, Plans.SITE_GRID); i < Math.floorDiv(1024, Plans.SITE_GRID); i++)
+            for (int j = Math.floorDiv(-1024, Plans.SITE_GRID); j < Math.floorDiv(1024, Plans.SITE_GRID); j++) {
+                candidates++;
+                if (gen.plans.site(i, j) != null) accepted++;
+            }
+        double area = candidates * (double) Plans.SITE_GRID * Plans.SITE_GRID / 1e6;
+        System.out.println(String.format("SITE_DENSITY grid=%d chance=%.2f cells=%d accepted=%d perKm2=%.1f", Plans.SITE_GRID, Plans.SITE_CHANCE, candidates, accepted, accepted / area));
+        // Epoch 3 (80-block cells at 0.85) measured 69.5 accepted sites per km2 on this seed and square; epoch 4 measured 143.5 (2.06x).
+        check(accepted / area > 1.9 * 69.5, "sites at about twice the epoch-3 density (69.5 per km2): " + accepted / area + " per km2");
 
         // 2. Render and verify the city.
         int reach = city.half + 24;

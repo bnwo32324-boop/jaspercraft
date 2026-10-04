@@ -126,5 +126,5 @@ test('GLM wiring: creatures, spawners, Lords, loot, relics, quest', () => {
   // chests of the builds are placed with their tile entities (after the flush), loot never followed by update()
   assert.match(ops, /Loot\.fill\(\(\(Chest\) s\)\.getBlockInventory\(\), p\.table, r\); glmLoot\+\+; \} \/\/ live inventory; never update\(\) afterwards/);
   // the regenerated Nether
-  assert.match(java('NetherPlugin'), /static final int REGEN_EPOCH = 5;/);
+  assert.match(java('NetherPlugin'), /static final int REGEN_EPOCH = 6;/);
 });

@@ -61,7 +61,7 @@ test('colossal wiring: placement, history, bosses, champions, keys, creatures, l
   assert.match(gen, /on = !history\.anyOld\(s\.minX, s\.minZ, s\.maxX, s\.maxZ\) && !registry\.structureReach\(s\.minX, s\.minZ, s\.maxX, s\.maxZ\);/);
   assert.match(gen, /registry\.setColossusDecision\(s\.cellX, s\.cellZ, on\);/);
   assert.equal((gen.match(/if \(on && colossusClaims\(s\.minX, s\.minZ, s\.maxX, s\.maxZ\)\) on = false;/g) || []).length, 2, 'mega and GLM give way');
-  assert.match(plugin, /static final int REGEN_EPOCH = 5;/);
+  assert.match(plugin, /static final int REGEN_EPOCH = 6;/);
   // the history is taken once and kept with the world's records; the Heart's place is chosen once and kept
   assert.match(java('History'), /"colossi-history\.txt"/);
   assert.match(plugin, /gen\.history = History\.of\(w, data, getLogger\(\)\);/);

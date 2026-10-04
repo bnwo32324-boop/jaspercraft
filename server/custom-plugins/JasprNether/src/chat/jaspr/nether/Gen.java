@@ -421,7 +421,7 @@ final class Gen {
                 fluids(a, r, 16, 10, 118, v, true);
                 for (int i = 0; i < 16; i++) thornstalk(a, r, a.ox + 8 + r.nextInt(16), 32 + r.nextInt(76), a.oz + 8 + r.nextInt(16));
                 ores(a, r, 16, 10, 108, Blocks.NEX_QUARTZ_ORE, v, 14);
-                if (r.nextInt(100) < 3 && !quiet) extra(a, r, "nex_soul_sandstone_arch_01", Blocks.SOUL_SAND, post, "arch");
+                if (r.nextInt(100) < 9 && !quiet) extra(a, r, "nex_soul_sandstone_arch_01", Blocks.SOUL_SAND, post, "arch");   // 3x (2026-10-04)
                 break;
             case TORRID_WASTELAND:
                 for (int i = 0; i < 8; i++) pool(a, r, 10, 108, Blocks.LAVA << 4, v);
@@ -441,8 +441,8 @@ final class Gen {
                 for (int i = 0; i < 256; i++) bigMushroom(a, r, a.ox + 8 + r.nextInt(16), 32 + r.nextInt(76), a.oz + 8 + r.nextInt(16), false);
                 for (int i = 0; i < 32; i++) enoki(a, r, a.ox + 8 + r.nextInt(16), 48 + r.nextInt(70), a.oz + 8 + r.nextInt(16));
                 ores(a, r, 16, 10, 108, Blocks.NEX_QUARTZ_ORE, v, 14);
-                if (r.nextDouble() < 0.0125 && !quiet) shrine(a, r, post);
-                if (r.nextInt(100) < 15 && !quiet) extra(a, r, "nex_spoul_shroom_" + String.format("%02d", 1 + r.nextInt(12)), Blocks.HYPHAE >> 4, post, null);
+                if (r.nextDouble() < 0.0375 && !quiet) shrine(a, r, post);   // 3x (2026-10-04)
+                if (r.nextInt(100) < 45 && !quiet) extra(a, r, "nex_spoul_shroom_" + String.format("%02d", 1 + r.nextInt(12)), Blocks.HYPHAE >> 4, post, null);
                 break;
             case ARCTIC_ABYSS:
                 for (int i = 0; i < 2; i++) if (r.nextDouble() < 0.125) pool(a, r, 36, 108, Blocks.ICHOR, Blocks.FROSTBURN_ICE);
@@ -454,7 +454,7 @@ final class Gen {
                 break;
             default: // Hell: vanilla features already exist; NetherEx adds amethyst ore and Pigtificate villages.
                 ores(a, r, 8, 10, 108, Blocks.AMETHYST_ORE, Blocks.NETHERRACK << 4, 7);
-                if (r.nextDouble() < 0.25 && !quiet) village(a, r, post);
+                if (r.nextDouble() < 0.75 && !quiet) village(a, r, post);   // 3x (2026-10-04)
         }
     }
 
@@ -719,10 +719,13 @@ final class Gen {
         }
     }
 
-    /** Tiny Pigtificate village on the ground of a Hell region (NetherEx p = 0.25, with an 8-chunk spacing added). */
+    static final int VILLAGE_SPACING = 74;
+
+    /** Tiny Pigtificate village on the ground of a Hell region (3x NetherEx's p = 0.25 since 2026-10-04, with a
+     *  74-block spacing: 128 / sqrt(3), so three times as many fit where the spacing is what limits them). */
     private void village(Area a, Random r, Post post) {
         int cx = a.ox + 16, cz = a.oz + 16;
-        if (!registry.near(cx, cz, 128, "village").isEmpty()) return;
+        if (!registry.near(cx, cz, VILLAGE_SPACING, "village").isEmpty()) return;
         Template t = t("nex_tiny_pigtificate_village");
         int rot = r.nextInt(4);
         int w = t.width(rot), d = t.depth(rot);
