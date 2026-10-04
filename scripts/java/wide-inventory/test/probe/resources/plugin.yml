@@ -1,0 +1,7 @@
+name: WideProbe
+version: 1.0.0
+main: wideprobe.WideProbe
+description: Test-only probe for the wide inventory server patch (tests/wide-inventory-bot.cjs). Never deploy.
+commands:
+  wprobe:
+    description: wide inventory test probe

@@ -101,7 +101,7 @@ public final class Relics implements Listener {
     public static ItemStack roll(Layout.Room r){
         LootCatalog.Bauble b=LootCatalog.roll(r.hash,r.theme,r.tier,r.kind.name());return b==null?null:create(Type.valueOf(b.name()));
     }
-    public int pouchSlot(Player p){for(int s=0;s<36;s++)if(pouch(p.getInventory().getItem(s)))return s;return -1;}
+    public int pouchSlot(Player p){int n=p.getInventory().getStorageContents().length;for(int s=0;s<n;s++)if(pouch(p.getInventory().getItem(s)))return s;return -1;}
     public Set<Type> equipped(Player p){
         int slot=pouchSlot(p);Set<Type> out=EnumSet.noneOf(Type.class);
         if(slot>=0){NBTTagCompound d=data(p.getInventory().getItem(slot));for(int s=0;s<2;s++)try{out.add(Type.valueOf(d.getString("slot"+s)));}catch(IllegalArgumentException ignored){}}

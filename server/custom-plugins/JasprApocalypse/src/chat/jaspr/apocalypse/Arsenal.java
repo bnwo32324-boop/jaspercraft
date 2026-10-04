@@ -555,8 +555,10 @@ public final class Arsenal implements Listener {
 
     private static void consumeAmmo(Player player, int needed) {
         PlayerInventory inventory = player.getInventory();
-        // Main storage only: never treat a vanilla lookalike, armor, or the offhand as ammunition.
-        for (int slot = 0; slot < 36 && needed > 0; slot++) {
+        // Main storage only (all 56 slots of the wide inventory, as availableAmmo counts them): never treat a
+        // vanilla lookalike, armor, or the offhand as ammunition.
+        int storage = inventory.getStorageContents().length;
+        for (int slot = 0; slot < storage && needed > 0; slot++) {
             ItemStack item = inventory.getItem(slot);
             if (!bullet(item)) continue;
             int taken = Math.min(needed, item.getAmount());

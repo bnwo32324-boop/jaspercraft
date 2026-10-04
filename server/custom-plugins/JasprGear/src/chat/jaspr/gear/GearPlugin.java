@@ -392,7 +392,9 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
         Inventory top = e.getView().getTopInventory();
         if (top.getHolder() instanceof MenuHolder) { menuClick(e, p, (MenuHolder) top.getHolder()); return; }
         if (e.isCancelled() || e.getView().getType() != InventoryType.CRAFTING || !e.isShiftClick()) return;
-        if (!(e.getClickedInventory() instanceof PlayerInventory) || e.getSlot() >= 36) return;
+        // Storage slots only (56 with the wide inventory; armour and off hand come after them).
+        if (!(e.getClickedInventory() instanceof PlayerInventory)
+            || e.getSlot() >= ((PlayerInventory) e.getClickedInventory()).getStorageContents().length) return;
         GearProfile prof = profile(p);
         if (!prof.capable || p.getGameMode() == GameMode.CREATIVE) return;
         final ItemStack snapshot = e.getCurrentItem();

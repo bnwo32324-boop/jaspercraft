@@ -19,6 +19,9 @@
 .jaspr-touch-stick{width:122px;height:122px;border-radius:50%;left:max(10px,env(safe-area-inset-left));bottom:calc(var(--safe-bottom) + 40px);display:grid;place-items:center;background:radial-gradient(circle,#62697799 0 23%,#24283088 25%)}
 .jaspr-touch-slots{position:absolute;left:50%;bottom:var(--safe-bottom);transform:translateX(-50%);display:flex;gap:2px;pointer-events:auto}
 #jaspr-touch .jaspr-touch-slots button{position:static;width:34px;min-height:34px;padding:0;border-radius:3px;font-size:11px}
+#jaspr-touch .jaspr-touch-slots button.jaspr-wide{display:none}
+#jaspr-touch .jaspr-touch-slots[data-slots="14"] button.jaspr-wide{display:block}
+#jaspr-touch .jaspr-touch-slots[data-slots="14"] button{width:min(34px,calc((100vw - 24px) / 14 - 2px))}
 #jaspr-touch[data-mode="play"] [data-zone="back"],#jaspr-touch[data-mode="play"] [data-zone="keyboard"],#jaspr-touch[data-mode="play"] [data-zone="right"],#jaspr-touch[data-mode="play"] [data-zone="shift"]{display:none}
 #jaspr-touch[data-mode="menu"]>*{display:none}
 #jaspr-touch[data-mode="menu"] [data-zone="back"],#jaspr-touch[data-mode="menu"] [data-zone="keyboard"],#jaspr-touch[data-mode="menu"] [data-zone="right"],#jaspr-touch[data-mode="menu"] [data-zone="shift"]{display:block;bottom:var(--safe-bottom);min-height:32px;font-size:11px;background:#111e}

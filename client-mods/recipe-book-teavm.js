@@ -122,10 +122,13 @@ var JasprRecipeBook = (function () {
     // (gui.q screen width, gui.gv window width, gui.is window left); otherwise carved out of the right
     // of this panel, between the list and the window. Same place and same grid for every recipe.
     var cardW = 3 * ITEM_SIZE + 2 * CARD_PAD;
-    var right = (gui.q | 0) - (gui.is | 0) - (gui.gv | 0) - GEAR_COLUMN;
+    // Wide inventory: the window's pocket sits between the window and the gear column, and the screen is
+    // really pocket-wider than gui.q (client-mods/wide-inventory-teavm.js).
+    var pocket = pocketWidth(gui);
+    var right = realWidth(gui) - (gui.is | 0) - (gui.gv | 0) - pocket - GEAR_COLUMN;
     var listCols = perRow;
     if (right >= cardW + 4) {
-      book.card = {x: (gui.gv | 0) + GEAR_COLUMN + 2, w: Math.min(right - 4, 120)};
+      book.card = {x: (gui.gv | 0) + pocket + GEAR_COLUMN + 2, w: Math.min(right - 4, 120)};
     } else {
       listCols = Math.max(1, perRow - Math.ceil((cardW + 6) / ITEM_SIZE));
       var cx = offset + listCols * ITEM_SIZE + 4;
@@ -138,6 +141,13 @@ var JasprRecipeBook = (function () {
     book.textBoxSize = listCols * ITEM_SIZE - 5;
   }
   var CARD_PAD = 4, CARD_TITLE_LINES = 3, GEAR_COLUMN = 28;
+  function wide() { return typeof JasprWide !== "undefined" && JasprWide ? JasprWide : null; }
+  function realWidth(gui) { var w = wide(); return w ? w.realWidth(gui) | 0 : gui.q | 0; }
+  function pocketWidth(gui) { var w = wide(); return w ? w.pocketWidth(gui) | 0 : 0; }
+  /* The wide inventory's extra slots in this window (window slot numbers, items 36..55), after the vanilla 36. */
+  function extraSlots(book) { var w = wide(); try { return w ? w.extraSlots(book.gui.h2) : []; } catch (error) { return []; } }
+  /* Window slot of the book's inventory entry i: the vanilla 36 from firstInv, then the extra slots. */
+  function invSlot(book, i) { return i < 36 ? book.firstInv + i : (book.extra || [])[i - 36]; }
 
   function slots(book) { return book.gui.h2.cn; }
   function slotAt(book, index) {
@@ -152,7 +162,7 @@ var JasprRecipeBook = (function () {
     ITEM_SIZE: ITEM_SIZE, ITEM_LIFT: ITEM_LIFT, HEADER_GAP: HEADER_GAP,
     of: of, attach: attach, layout: layout, die: die,
     empty: empty, count: count, tagged: tagged, same: same,
-    slotAt: slotAt,
+    slotAt: slotAt, extraSlots: extraSlots, invSlot: invSlot, realWidth: realWidth,
     books: function () { return books; },
     disabled: function () { return disabled; },
     failure: function () { return failure; },
@@ -419,7 +429,7 @@ var JasprRecipeBook = (function () {
     entries.push({label: "Cancel", act: "close"});
     var gui = book.gui, h = MENU_ROW * (entries.length + 1) + 4;
     // Kept on screen: x and y are relative to the window, the screen runs from -guiLeft to width - guiLeft.
-    var minX = -(gui.is | 0), maxX = (gui.q | 0) - (gui.is | 0) - MENU_W - 1;
+    var minX = -(gui.is | 0), maxX = RB.realWidth(gui) - (gui.is | 0) - MENU_W - 1;
     var minY = -(gui.l7 | 0), maxY = (gui.L | 0) - (gui.l7 | 0) - h - 1;
     x = Math.max(minX + 1, Math.min(x + 2, maxX));
     y = Math.max(minY + 1, Math.min(y + 2, maxY));
@@ -574,7 +584,7 @@ var JasprRecipeBook = (function () {
       for (var i = 0; i < inv.length && have < amount; i++) {
         var slot = inv[i];
         if (slot.n <= 0 || !RB.accepts(cells[c][1], slot.stack) || !RB.same(kind, slot.stack)) continue;
-        var want = amount - have, from = book.firstInv + i;
+        var want = amount - have, from = RB.invSlot(book, i);
         if (want >= slot.n) {
           clicks.push([from, 0, "pickup"], [target, 0, "pickup"]);
           have += slot.n; slot.n = 0;
@@ -614,7 +624,7 @@ var JasprRecipeBook = (function () {
     var recipe = RB.recipe(p.index);
     if (!recipe.single) return [[book.resultSlot, 0, "quick"]];
     for (var f = 0; f < book.inventory.length; f++)
-      if (RB.empty(book.inventory[f])) return [[book.resultSlot, 0, "pickup"], [book.firstInv + f, 0, "pickup"]];
+      if (RB.empty(book.inventory[f])) return [[book.resultSlot, 0, "pickup"], [RB.invSlot(book, f), 0, "pickup"]];
     return null;
   };
 
@@ -749,7 +759,8 @@ function JasprRecipeBookPrepare(a) {
   Ds().s(a,b,c,d,e,f,$p);
 }
 
-/* The 36 inventory slots, the crafting grid and the output slot, copied into plain arrays. */
+/* The 36 inventory slots (and the wide inventory's extra slots after them), the crafting grid and the output slot,
+ * copied into plain arrays. */
 function JasprRecipeBookScan(a, b) {
   var c,d,e,$p=0,$z;
   if (FX()) { var $T=Ds(); $p=$T.l(); e=$T.l(); d=$T.l(); c=$T.l(); b=$T.l(); a=$T.l(); }
@@ -757,11 +768,12 @@ function JasprRecipeBookScan(a, b) {
     case 0:
       b.inventory = [];
       b.craftStacks = [];
+      b.extra = JasprRecipeBook.extraSlots(b);
       c = 0;
       $p = 1;
     case 1:
-      if (c >= 36) { c = 0; $p = 3; continue _; }
-      d = JasprRecipeBook.slotAt(b, c + b.firstInv);
+      if (c >= 36 + b.extra.length) { c = 0; $p = 3; continue _; }
+      d = JasprRecipeBook.slotAt(b, JasprRecipeBook.invSlot(b, c));
       if (d === null) { b.inventory.push(null); c = c + 1 | 0; $p = 1; continue _; }
       $p = 2;
     case 2:
@@ -1085,9 +1097,14 @@ var JasprChestSearch = (function () {
     } catch (error) { return die("ensure", error); }
   }
   function slotList(st) { var list = st.gui.h2 ? st.gui.h2.cn : null; return list && list.qN ? list : null; }
-  /* The container's own slots come first; the player's 36 follow. */
+  /* The container's own slots come first; the player's 36 follow, then the wide inventory's extra slots. */
   function containerSlots(st) {
-    try { var list = slotList(st); return list ? Math.max(0, (list.g | 0) - 36) : 0; } catch (error) { die("slots", error); return 0; }
+    try {
+      var list = slotList(st);
+      if (!list) return 0;
+      var extra = typeof JasprWide !== "undefined" && JasprWide ? JasprWide.extraSlots(st.gui.h2).length : 0;
+      return Math.max(0, (list.g | 0) - 36 - extra);
+    } catch (error) { die("slots", error); return 0; }
   }
   function slotAt(st, k) {
     try { var list = slotList(st); return list && k >= 0 && k < (list.g | 0) ? list.qN.data[k] : null; } catch (error) { return null; }

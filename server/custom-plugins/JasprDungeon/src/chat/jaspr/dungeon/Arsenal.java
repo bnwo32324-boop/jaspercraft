@@ -127,11 +127,12 @@ public final class Arsenal implements Listener {
     }
     private void reload(Player p,ItemStack item,ArmoryCatalog.Type t){
         if(!t.gun()||data(item).getLong("reloadAt")>0||rounds(item,t)>=t.magazine||cooling(p,item,"readyAt"))return;
-        int need=t.magazine-rounds(item,t),available=0;
-        for(int slot=0;slot<36;slot++){ItemStack stack=p.getInventory().getItem(slot);if(ammo(stack))available+=stack.getAmount();}
+        // Every storage slot: 56 with the wide inventory (armour and off hand come after them).
+        int need=t.magazine-rounds(item,t),available=0,storage=p.getInventory().getStorageContents().length;
+        for(int slot=0;slot<storage;slot++){ItemStack stack=p.getInventory().getItem(slot);if(ammo(stack))available+=stack.getAmount();}
         int load=Math.min(need,available);if(load==0){p.sendMessage(ChatColor.GRAY+"Reload requires plain iron nuggets.");return;}
         long due=clock.getAsLong()+t.reloadMillis;if(!reserve(p,item,due,0))return;
-        int remaining=load;for(int slot=0;slot<36&&remaining>0;slot++){
+        int remaining=load;for(int slot=0;slot<storage&&remaining>0;slot++){
             ItemStack stack=p.getInventory().getItem(slot);if(!ammo(stack))continue;int take=Math.min(remaining,stack.getAmount());remaining-=take;
             ItemStack next=stack.clone();next.setAmount(stack.getAmount()-take);p.getInventory().setItem(slot,next.getAmount()==0?null:next);
         }
@@ -325,7 +326,7 @@ public final class Arsenal implements Listener {
             if(job.victim!=null){if(allowed(p,job.victim,job.key))damage(p,job.victim,job.damage,job.key,p.getEyeLocation());}
             else shoot(p,job.type,job.id,job.key,job.origin,job.direction);
         }
-        if(ticks%10==0)for(Player p:Bukkit.getOnlinePlayers())for(int slot=0;slot<36;slot++){
+        if(ticks%10==0)for(Player p:Bukkit.getOnlinePlayers())for(int slot=0,storage=p.getInventory().getStorageContents().length;slot<storage;slot++){
             ItemStack item=p.getInventory().getItem(slot);if(type(item)!=null){ItemStack next=settled(item);if(next!=item)p.getInventory().setItem(slot,next);}
         }
     }

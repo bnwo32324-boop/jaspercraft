@@ -79,9 +79,12 @@ var JasprGear = (function () {
   }
   function inventory(gui) { return !!gui && (gui instanceof APz || creative(gui)); }
 
-  // Right of the window (176px survival, 195px Creative); left of it when the screen is too narrow.
+  // Right of the window (176px survival, 195px Creative) and of the wide inventory's pocket; left of the window
+  // when the screen is too narrow. The screen is pocket-wider than gui.q (client-mods/wide-inventory-teavm.js).
   function layout(gui) {
-    var left = gui.is | 0, width = gui.q | 0, x0 = (gui instanceof APz ? 176 : 195) + 3;
+    var wide = typeof JasprWide !== "undefined" && JasprWide ? JasprWide : null;
+    var left = gui.is | 0, width = wide ? wide.realWidth(gui) | 0 : gui.q | 0;
+    var x0 = (gui instanceof APz ? 176 : 195) + 3 + (wide ? wide.pocketWidth(gui) | 0 : 0);
     if (left + x0 + PANEL_W > width) {
       if (gui.clo === 0) return null;
       x0 = -PANEL_W - 3;
@@ -303,14 +306,16 @@ var JasprGear = (function () {
     return text.length * 6;
   }
 
-  // Adrenaline bar + status tags, right of the hotbar (x from centre+122: clear of the 182px hotbar,
-  // a right-side offhand slot (29px) and the hotbar attack indicator). Nothing when too narrow.
+  // Adrenaline bar + status tags, right of the hotbar (x from its right edge + 31: clear of the hotbar (182px, or
+  // 282px with the wide inventory), a right-side offhand slot (29px) and the hotbar attack indicator). Nothing when too narrow.
   function hudPlan(gui, width, height, font) {
     try {
       if (hudOff || disabled || !hud || !hud.on || !gui || !font) return null;
       var mc = gui.ds;
       if (!mc || mc.cj !== null) return null; // any open screen (chat, inventory, menus): hidden
-      var w = width | 0, h = height | 0, x0 = (w / 2 | 0) + 91 + 31, room = w - x0 - 3;
+      var w = width | 0, h = height | 0, room;
+      var x0 = (typeof JasprWide !== "undefined" && JasprWide ? JasprWide.hotbarRight(w) | 0 : (w / 2 | 0) + 91) + 31;
+      room = w - x0 - 3;
       if (room < 34 || h < 60) return null;
       var W = Math.min(64, room), rects = [], texts = [], frac = hud.m > 0 ? Math.max(0, Math.min(1, hud.a / hud.m)) : 0;
       var fill = frac >= 0.5 ? 0xFFFF9A2E : frac >= 0.25 ? 0xFFFFC23D : 0xFFE0402E;
