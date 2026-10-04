@@ -30,11 +30,10 @@ public final class Sanctuary implements Listener {
         return true;
     }
     /** Never edit a damaged arrival room to force travel; choose a safe square or fail closed. Every candidate
-     *  (16.5+-6, 16.5+-6) lies inside the arrival circle, and contains() still vets each one. */
-    public Location arrival(){
-        return arrival(plugin.ensureWorld());
-    }
+     *  (16.5+-6, 16.5+-6) lies inside the arrival circle, and contains() still vets each one. Generation 6: always the
+     *  arrival of a given run world; there is no shared world any more. */
     public Location arrival(World w){
+        if(w==null)return null;
         for(int r=0;r<=6;r++)for(int dx=-r;dx<=r;dx++)for(int dz=-r;dz<=r;dz++){
             if(Math.max(Math.abs(dx),Math.abs(dz))!=r)continue;
             Location l=new Location(w,16.5+dx,65,16.5+dz,180,0);

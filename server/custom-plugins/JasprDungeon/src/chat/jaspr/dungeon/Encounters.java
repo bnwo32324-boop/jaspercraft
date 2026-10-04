@@ -20,8 +20,9 @@ import org.bukkit.util.Vector;
 
 /** The room, not a player's presence or the chunk cache, owns encounter completion. */
 public final class Encounters implements Listener {
-    final DungeonPlugin plugin;final RoomStore store;public final Map<String,Run> active=new LinkedHashMap<>();
-    private final Map<String,RoomStore> realmStores=new HashMap<>();
+    final DungeonPlugin plugin;public final Map<String,Run> active=new LinkedHashMap<>();
+    /** Generation 6: room journals per run world, kept with the run and deleted with it. */
+    private final Map<String,RoomStore> stores=new HashMap<>();
     private final Map<UUID,Shot> shots=new HashMap<>();private boolean spawning,restoring;private long ticks;
     private Player impactPlayer;private boolean impactAccepted;
     static final String TAG="jaspr_penitent";
@@ -36,14 +37,21 @@ public final class Encounters implements Listener {
         public Run(World world,Layout.Room r,RoomStore.State s,String key){this.world=world;room=r;state=s;this.key=key;}
     }
     static final class Shot {final Projectile entity;final String room;final long birth;Shot(Projectile e,String r,long t){entity=e;room=r;birth=t;}}
-    Encounters(DungeonPlugin plugin){this.plugin=plugin;store=new RoomStore(new java.io.File(plugin.getDataFolder(),"rooms"));}
+    Encounters(DungeonPlugin plugin){this.plugin=plugin;}
+    /** A run world's journals: plugins/JasprDungeon/sessions/<run>/rooms/<world>, deleted with the run. */
     private RoomStore store(World world){
-        if(world.getName().equals(plugin.worldName))return store;
+        Sessions.Session run=plugin.sessions==null?null:plugin.sessions.of(world);if(run==null)throw new IllegalArgumentException("Not a dungeon run world");
         String name=world.getName();if(!name.matches("[a-zA-Z0-9_-]+"))throw new IllegalArgumentException("Unsafe realm journal name");
-        return realmStores.computeIfAbsent(name,n->new RoomStore(new java.io.File(plugin.getDataFolder(),"rooms-realms/"+n)));
+        return stores.computeIfAbsent(name,n->new RoomStore(new java.io.File(run.data,"rooms/"+n)));
     }
     private boolean save(Run run){try{store(run.world).save(run.room,run.state);return true;}catch(Exception ex){plugin.getLogger().severe("DUNGEON_ROOM_SAVE_FAILED room="+run.key+" "+ex.getMessage());return false;}}
-    public Run activate(Layout.Room r){return activate(plugin.ensureWorld(),r);}
+    /** A closing run's world: every active room in it sleeps (its traps with it), its shots go, and its journal store is dropped. */
+    public void forget(World world){
+        if(world==null)return;String name=world.getName();
+        Iterator<Run> it=active.values().iterator();while(it.hasNext()){Run a=it.next();if(a.world!=null&&a.world.getName().equals(name)){sleep(a);it.remove();}}
+        Iterator<Shot> shot=shots.values().iterator();while(shot.hasNext()){Shot s=shot.next();if(s.entity.getWorld().getName().equals(name)){s.entity.remove();shot.remove();}}
+        stores.remove(name);
+    }
     public Run activate(World world,Layout.Room r){
         if(world==null||!plugin.inside(world))return null;
         String key=plugin.roomKey(world,r);Run a=active.get(key);if(a!=null)return a;
@@ -78,7 +86,6 @@ public final class Encounters implements Listener {
         if(ticks%20==0)plugin.relics.tick();
         if(plugin.hazards!=null)plugin.hazards.tick(active);
     }
-    Location safe(Layout.Room r,int slot){return safe(plugin.ensureWorld(),r,slot);}
     Location safe(World world,Layout.Room r,int slot){
         if(world==null||!plugin.inside(world)||r.kind==Layout.Kind.REFUGE)return null;
         EncounterCatalog.Species species=EncounterCatalog.entry(r.theme).species(slot,r.motif,r.kind==Layout.Kind.BOSS);
@@ -303,8 +310,10 @@ public final class Encounters implements Listener {
             back.add(item);
         }
         c.inv.clear();
-        // A dying player's inventory is about to be cleared; their items fall where they stand instead.
-        for(ItemStack item:back){if(p.isDead()){p.getWorld().dropItemNaturally(p.getLocation(),item);continue;}for(ItemStack extra:p.getInventory().addItem(item).values())p.getWorld().dropItemNaturally(p.getLocation(),extra);}
+        // A dying player's inventory is about to be cleared; their items fall where they stand instead. Run worlds keep
+        // inventories (keepInventory) and are deleted with the run, so there the items go back into the kept inventory.
+        boolean kept="true".equals(p.getWorld().getGameRuleValue("keepInventory"));
+        for(ItemStack item:back){if(p.isDead()&&!kept){p.getWorld().dropItemNaturally(p.getLocation(),item);continue;}for(ItemStack extra:p.getInventory().addItem(item).values())p.getWorld().dropItemNaturally(p.getLocation(),extra);}
         if(!back.isEmpty())p.sendMessage(ChatColor.GRAY+"The Last Candle keeps nothing. Your items were returned.");
     }
     @EventHandler(priority=EventPriority.MONITOR) public void chunkLoad(ChunkLoadEvent e){if(plugin.inside(e.getWorld()))for(Entity entity:e.getChunk().getEntities())if(entity.getScoreboardTags().contains(TAG)){Run a=owner(entity);if(a!=null)cancelWarning(a);entity.remove();}}

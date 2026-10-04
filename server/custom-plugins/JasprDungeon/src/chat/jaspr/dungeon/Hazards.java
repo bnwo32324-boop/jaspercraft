@@ -81,6 +81,11 @@ public final class Hazards implements Listener {
         Iterator<Trap> it=traps.values().iterator();while(it.hasNext()){Trap t=it.next();if(t.room.equals(roomKey)){t.done=true;t.entity.remove();it.remove();}}
     }
     public void close(){sites.clear();for(Trap t:traps.values()){t.done=true;t.entity.remove();}traps.clear();runs=Collections.emptyMap();blasting=null;}
+    /** Generation 6: a closed run's world never comes back, so its room keys leave the armed and disabled records too. */
+    public void forget(String world){
+        if(world==null)return;String prefix=world+"/";sites.keySet().removeIf(k->k.startsWith(prefix));armed.removeIf(k->k.startsWith(prefix));disabled.removeIf(k->k.startsWith(prefix));
+        Iterator<Trap> it=traps.values().iterator();while(it.hasNext()){Trap t=it.next();if(t.room.startsWith(prefix)){t.done=true;t.entity.remove();it.remove();}}
+    }
     /** Test hook for the separately packaged probe: plan a strike of this type now against an eligible player. */
     public boolean force(Encounters.Run run,HazardCatalog.Type type){
         if(run==null||run.world==null||disabled.contains(run.key))return false;

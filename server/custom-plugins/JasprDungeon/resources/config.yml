@@ -1,9 +1,23 @@
-# JasprDungeon - the Dungeon Dimension. Live JasperCraft plugin, generation 5.
-# world-name names the dimension's world. Changing it starts a new dimension: the previous one's identity and room
-# journals move intact to plugins/JasprDungeon/archive/, and its world folder is left untouched.
+# JasprDungeon - the Dungeon Dimension. Live JasperCraft plugin, generation 6.
+# Generation 6 (owner 2026-10-04): every entry through a stone-brick gate is a fresh run. A run is its own world,
+# <world-name>_s<n> (its rifts <world-name>_s<n>_rift_<realm>), with a new random seed, so no run repeats the rooms
+# of another. Nothing survives a restart: leftover run worlds are deleted at start and returning players are sent home.
+# world-name is the base name of every run world and must start with jaspr_dungeon. Changing it starts a new dimension:
+# the previous one's identity and room journals move intact to plugins/JasprDungeon/archive/, and its world folder is
+# left untouched.
 enabled: true
-world-name: jaspr_dungeon5
+world-name: jaspr_dungeon6
+# Identity only since generation 6; every run draws its own random seed.
 seed-salt: 709327916
+# Friends who step through the same gate within this many seconds of a run's start share that run. Whoever has left a
+# run (gate, /dungeon leave or death) never rejoins it; entering again always starts a new run.
+session-join-seconds: 30
+# A run with nobody inside closes after this many seconds: its worlds are unloaded and deleted with their journals.
+# A member who disconnected inside comes back into the run until then. A run that everyone has left closes as soon as
+# its join window is over.
+session-grace-seconds: 300
+# At most this many runs exist at once; the gate politely refuses a new run until one closes.
+max-sessions: 16
 max-active-rooms: 32
 room-sleep-seconds: 30
 portal-dwell-ticks: 20
