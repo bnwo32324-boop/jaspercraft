@@ -120,6 +120,12 @@ final class Field {
             case WATCHER_STATUE: watcher(f, h); break;
             case OBELISK_GROVE: grove(f, h); break;
             case GIBBETS: gibbets(f, h); break;
+            case CELLAR: Lesser.cellar(f, h); break;
+            case TOMB: Lesser.tomb(f, h); break;
+            case WELL: Lesser.well(f, h); break;
+            case HUT: Lesser.hut(f, h); break;
+            case SPIDER_DEN: Lesser.spiderDen(f, h); break;
+            case OFFERING_STONE: Lesser.offeringStone(f, h); break;
             default: break;
         }
     }

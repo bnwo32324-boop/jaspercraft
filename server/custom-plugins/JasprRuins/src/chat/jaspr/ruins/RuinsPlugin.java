@@ -61,7 +61,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     static final String WORLD = "jaspr_ruins";
     static final long SALT = 0x5275696E73L;   // "Ruins"
     /** Bumped when the dimension is redesigned: an older saved world is retired (renamed, not deleted) and regenerated. */
-    static final int EPOCH = 4;
+    static final int EPOCH = 5;
     /**
      * The owner asked for Drownhollow at half the difficulty and half the spawns (2026-09-28): everything hostile deals
      * this share of its damage to players, horrors and Wardens have this share of their health, and the hazards and
@@ -127,7 +127,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         Bukkit.getScheduler().runTaskTimer(this, sky::tick, 60L, 40L);
         Bukkit.getScheduler().runTaskTimer(this, this::lifecycle, 100L, 40L);
         getLogger().info("RUINS_READY world=" + WORLD + " epoch=" + EPOCH + " loaded=false lostCities=registered portals=" + portals.count()
-            + " cityGrid=" + Plans.CITY_GRID + " siteGrid=" + Plans.SITE_GRID + " cell=" + Plans.CELL);
+            + " cityGrid=" + Plans.CITY_GRID + " siteGrid=" + Plans.SITE_GRID + " cell=" + Plans.CELL + " siteKinds=" + Plans.Kind.values().length
+            + " lesserRuins=" + java.util.Arrays.stream(Plans.Filler.values()).filter(Plans.Filler::lesser).count() + " deepCatacombs=" + Catacombs.DEEP_DROP);
     }
 
     @Override

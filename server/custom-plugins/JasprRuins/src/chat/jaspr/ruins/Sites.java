@@ -31,6 +31,9 @@ final class Sites {
             case COLOSSUS: colossus(f, s.hash); break;
             case SANCTUM: case MONOLITHS: case PIT: case POOL: case CHAPEL: Cult.draw(s, c); break;
             case FORTRESS: case LABYRINTH: case OSSUARY: case DEEP_TEMPLE: case OBSERVATORY: case GREAT_IDOL: Dungeons.draw(s, c); break;
+            case BELFRY: case CLOISTER: case SCRIPTORIUM: Remnants.draw(s, c); break;
+            case NECROPOLIS: case UNDERCROFT: case OUBLIETTE: case KINGS_HALL: Undercrofts.draw(s, c); break;
+            case SUNKEN_TEMPLE: case WRECK: case LIGHTHOUSE: case TIDE_SHRINE: Shallows.draw(s, c); break;
             default: break;
         }
     }

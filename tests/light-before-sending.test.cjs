@@ -71,9 +71,17 @@ test('the shipped jars switch the flag on', {skip: !haveJavap}, () => {
   }
 });
 
+// At least the versions this change shipped in (later releases carry it too).
+const atLeast = (text, re, min) => {
+  const m = re.exec(text);
+  assert.ok(m, 'version found: ' + re);
+  const a = m[1].split('.').map(Number), b = min.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return assert.ok(a[i] > b[i], m[1] + ' >= ' + min);
+};
+
 test('the plugin versions say this change is in', () => {
-  assert.match(read('server/custom-plugins/JasprNether/resources/plugin.yml'), /^version: 1\.2\.1$/m);
-  assert.match(read('server/custom-plugins/JasprAtlas/resources/plugin.yml'), /^version: 1\.0\.1$/m);
-  assert.match(read('server/custom-plugins/JasprRuins/resources/plugin.yml'), /^version: 1\.1\.2$/m);
-  assert.match(read('server/custom-plugins/JasprNether/src/chat/jaspr/nether/NetherPlugin.java'), /static final String VERSION = "1\.2\.1";/);
+  atLeast(read('server/custom-plugins/JasprNether/resources/plugin.yml'), /^version: (\d+\.\d+\.\d+)$/m, '1.2.1');
+  atLeast(read('server/custom-plugins/JasprAtlas/resources/plugin.yml'), /^version: (\d+\.\d+\.\d+)$/m, '1.0.1');
+  atLeast(read('server/custom-plugins/JasprRuins/resources/plugin.yml'), /^version: (\d+\.\d+\.\d+)$/m, '1.1.2');
+  atLeast(read('server/custom-plugins/JasprNether/src/chat/jaspr/nether/NetherPlugin.java'), /static final String VERSION = "(\d+\.\d+\.\d+)";/, '1.2.1');
 });

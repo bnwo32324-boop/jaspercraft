@@ -1,4 +1,4 @@
-# Drownhollow, the drowned city (JasprRuins, epoch 3)
+# Drownhollow, the drowned city (JasprRuins, epoch 5)
 
 > 2026-09-29: the Drownhollow Guide at every mossy gate hands out a compass, a checklist and a map that lead through
 > the three Seals, the Great Door and the Herald (they replace the Pilgrim's Primer and the Drowned Star Compass). See
@@ -8,6 +8,37 @@
 plains, just a little grass and ivy. Endless night, Lovecraftian horrors everywhere, five Warden bosses, and a final
 boss, the Dreamer's Herald, behind the Great Door. Everyone who enters gets a guide book and a compass. Beating the
 Herald pays out a hoard of unique items. The world loads only while someone is in it.
+
+**2026-10-04 (owner): twice the dungeons and structures, eleven new ones** ("regenerate drowned hollow, no need to
+retrofit. but it needs to be more dense with dungeons and structures. make new ones. 2x it"). JasprRuins 1.3.0, epoch 5
+(Drownhollow regenerated). Measured offline against epoch 4 on the same seed and 2048-block square (`RuinsPreview`):
+
+| | Epoch 4 | Epoch 5 |
+| --- | --- | --- |
+| Ruins (sites) per km² | 137.3 | 210.0 (1.53x) |
+| Ruins plus lesser ruins per km² | 137.3 | 288.5 (**2.10x**) |
+| Dungeons per km² (dungeon ruins plus lesser dungeons) | 70.6 | 168.6 (**2.39x**) |
+| Catacomb rooms per km² | 1712.8 | 1712.8 + 2100.0 deep (**2.23x**) |
+
+- **Placement:** a candidate ruin in every 40-block cell (was 56 at 83%); dry land takes a land ruin, a sea floor 3 to 24
+  blocks down a drowned one. Where two footprints (plus a 2-block gap) would meet, the Warden arena wins, then the
+  wider ruin, so ruins never overlap (0 clashes). The great ruins cannot pack much closer than 1.5x on this land (a
+  quarter of it is Lost Cities, a twentieth shallow sea); the lesser ruins make up the rest.
+- **Seven new land ruins:** the Belfry (bell tower, black bell, three floors), the Cloister (arcaded walk round a
+  drowned well, monks' cells), the Scriptorium (two-storey library, gallery, lore chests), the Necropolis (a walled
+  street of barred tombs, some guarded), and three dungeons: the **Undercroft of the Choir** (a pillared crypt hall
+  under a fallen chapel: two spawners, a dart trap, a hoard), the **Oubliette of the Choir** (a prison tower over a pit to
+  a drowned cell and its keeper) and the **Hall of the Drowned Kings** (a buried gallery of statues, four side chambers
+  - crypt, treasury, library, spider pit - and a throne room with the hoard).
+- **Four drowned ruins** in the shallows: the Sea Temple (a flooded hall of pillars under a dry gallery above the
+  waterline), the wreck of a Choir barge, a drowned Lighthouse with its keeper's chest, and a Tide Shrine on its islet
+  with a drowned offering pit.
+- **Six lesser ruins** in the field (about a third of its cells, each with a chest or a spawner, most with both): a hut's
+  cellar, a barred tomb, a well down to a half-drowned room, a fallen hut, a spider den, an offering stone.
+- **The deep catacombs:** a second network 14 blocks under the first (wherever the rock is deep enough), with more rooms
+  to its nodes; a third of the upper rooms over a deep room have a ladder down in a corner. Both levels gain armouries,
+  libraries and spider nests; the deep one also the Choir's altars. Catacomb gates are twice as common in the field.
+- Nothing else changed: the Door, the Wardens and Seals, the danger ramp, the guides and the Lost Cities are as before.
 
 **2026-09-29 (owner): safe gates, the danger in the dungeons** ("make the spawn point ... virtually safe, and as you
 venture out, it gets more and more dangerous. Most of the dangers should come from dungeons and not from random spawns
@@ -160,8 +191,7 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
   - shrine temples, catacomb gates, faceless watchers, obelisk groves and rows of gibbets (new in epoch 3);
   - two or three lesser remnants in its corners;
   - cracked paving strewn with rubble, bones and skulls. Pillars rise from the water too.
-- **Greater ruins (sites, one per 56-block grid square at 83%; epoch 4, owner 2026-10-04: "2x as common", 2.06x the
-  epoch-3 density of one per 80-block square at 85%):**
+- **Greater ruins (sites; epoch 5: a candidate in every 40-block cell, no two overlapping, see the top of this file):**
   - **Bastion of the Choir:** walls, four towers and a two-floor keep with spawners, prison cells, a dart trap and
     offerings.
   - **Labyrinth of Angles:** a 9×9 maze of 4-block corridors. Its dead ends hold spawners; its heart holds a relic
@@ -187,12 +217,12 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
   - no trees, leaves, flowers or mushrooms;
   - grass on 2.4% of columns;
   - at least 64% of columns clearly built on (plain gravel and cobble paving not counted);
-  - all 21 site kinds appear;
-  - 143.5 sites per km² (epoch 3: 69.5) over a 2048-block square;
-  - 505 catacomb rooms in 25×25 chunks, 93% of them hollow at depth; 6 gates in the field (11 before the denser sites
-    took their cells); 310 dart traps, each with its plate;
+  - all 32 site kinds and all six lesser ruins appear; no two sites overlap;
+  - epoch 5 against epoch 4 per km²: structures 2.10x, dungeons 2.39x, catacomb rooms 2.23x (table at the top);
+  - 505 catacomb rooms in 25×25 chunks, 92% of them hollow at depth, and 551 deep rooms (95%); every one of the 100
+    shafts runs from an upper floor to a deep room; 4 gates in the field near the origin; dart traps each with its plate;
   - every chest, spawner, sign and dispenser the populator recomputes matches the generated block;
-  - 0.46 ms per chunk.
+  - about 1 ms per chunk (0.46 ms in epoch 4).
 
 ## The sky
 - **Server side** (`Sky.java`):
@@ -218,7 +248,8 @@ JasprDaylight skips mobs tagged `jaspr_daylight_exempt`.
 - **Browser:** all visuals are vanilla blocks and mobs, so there is nothing extra to download. Relics are vanilla items
   with names, so they display fine to players who have never visited. The sky is a few kilobytes inside the client.
 - **Regeneration:** each epoch renames the old world folder to `jaspr_ruins-retired-epoch<N>-<time>` (nothing is
-  deleted) and forgets its portals. Players who logged out inside it wake at the overworld spawn. Epoch 4 (2026-10-04,
+  deleted) and forgets its portals. Players who logged out inside it wake at the overworld spawn. Epoch 5 (2026-10-04,
+  JasprRuins 1.3.0) regenerated it again for the new ruins and the deep catacombs. Epoch 4 (2026-10-04,
   JasprRuins 1.2.0) regenerated Drownhollow for the doubled sites; the same seed keeps the terrain, the Door search and
   the catacombs, and graves stand back up with their items as their chunks load. Plans made while the world is still
   being created (before the Lost Cities attach) are forgotten once it is open (`Plans.forget`), so the Door no longer

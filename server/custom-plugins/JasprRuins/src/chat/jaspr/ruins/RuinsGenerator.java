@@ -19,8 +19,8 @@ import org.bukkit.generator.ChunkGenerator;
  */
 public final class RuinsGenerator extends ChunkGenerator {
     static final int SEA = Plans.SEA;
-    /** How far past its own cell a site may draw: radius 25 plus its 1-block frame, against the 23-block margin (3), with room to spare. */
-    static final int SITE_REACH = 8;
+    /** How far past its own cell a site may draw: the widest radius plus its 1-block frame, past the cell margin (epoch 5: 18). */
+    static final int SITE_REACH = Plans.MAX_RADIUS + 1 - Plans.SITE_MARGIN;
 
     final long seed;
     final Plans plans;
@@ -72,9 +72,9 @@ public final class RuinsGenerator extends ChunkGenerator {
     }
 
     /**
-     * Draws every original ruin touching the canvas' chunk. A chunk lies in exactly one city cell; the 56-block site grid
-     * is not a multiple of 16, so a chunk may touch two site cells each way, and a site may reach a few blocks past its
-     * own cell (radius 25 against a 23-block margin): every site cell within reach is drawn (Sites.draw clips to the chunk).
+     * Draws every original ruin touching the canvas' chunk. A chunk lies in exactly one city cell; the 40-block site grid
+     * is not a multiple of 16, so a chunk may touch two or three site cells each way, and a site may reach past its own
+     * cell (radius 25 against an 8-block margin): every site cell within reach is drawn (Sites.draw clips to the chunk).
      */
     void stamp(Canvas c) {
         Plans.Door door = plans.door();

@@ -126,17 +126,51 @@ public final class RuinsPreview {
                     if (s != null) sites.putIfAbsent(s.kind, s);
                 }
         check(sites.size() == Plans.Kind.values().length, "every kind of site appears: " + sites.keySet());
-        // Epoch 4 (owner 2026-10-04: Drownhollow structures 2x as common): sites accepted over a 2048 x 2048 block square.
-        int accepted = 0, candidates = 0;
-        for (int i = Math.floorDiv(-1024, Plans.SITE_GRID); i < Math.floorDiv(1024, Plans.SITE_GRID); i++)
-            for (int j = Math.floorDiv(-1024, Plans.SITE_GRID); j < Math.floorDiv(1024, Plans.SITE_GRID); j++) {
-                candidates++;
-                if (gen.plans.site(i, j) != null) accepted++;
+        // Epoch 5 (owner 2026-10-04: "more dense with dungeons and structures. make new ones. 2x it"): everything in a
+        // 2048 x 2048 block square. Epoch 4 measured, with exactly these definitions, 137.3 ruins per km2 (70.6 of them
+        // dungeons: the five Warden arenas, Ziggurat, Crypt, Bastion, Labyrinth, Ossuary Temple, Temple of the Deep) and
+        // 1712.8 catacomb rooms; no lesser ruins. The great ruins can only pack about 1.5x as close on this land; the lesser
+        // ruins of the field make up the rest.
+        int R = 1024, ruins = 0, dungeonRuins = 0, wetRuins = 0, lesser = 0, lesserDungeons = 0, rooms1 = 0, rooms2 = 0, shafts = 0;
+        java.util.List<Plans.Site> square = new java.util.ArrayList<>();
+        for (int i = Math.floorDiv(-R, Plans.SITE_GRID); i < Math.floorDiv(R, Plans.SITE_GRID); i++)
+            for (int j = Math.floorDiv(-R, Plans.SITE_GRID); j < Math.floorDiv(R, Plans.SITE_GRID); j++) {
+                Plans.Site s = gen.plans.site(i, j);
+                if (s == null || s.x < -R || s.x >= R || s.z < -R || s.z >= R) continue;
+                square.add(s);
+                ruins++;
+                if (s.kind.dungeon) dungeonRuins++;
+                if (s.kind.wet) wetRuins++;
             }
-        double area = candidates * (double) Plans.SITE_GRID * Plans.SITE_GRID / 1e6;
-        System.out.println(String.format("SITE_DENSITY grid=%d chance=%.2f cells=%d accepted=%d perKm2=%.1f", Plans.SITE_GRID, Plans.SITE_CHANCE, candidates, accepted, accepted / area));
-        // Epoch 3 (80-block cells at 0.85) measured 69.5 accepted sites per km2 on this seed and square; epoch 4 measured 143.5 (2.06x).
-        check(accepted / area > 1.9 * 69.5, "sites at about twice the epoch-3 density (69.5 per km2): " + accepted / area + " per km2");
+        java.util.Set<Plans.Filler> lesserKinds = java.util.EnumSet.noneOf(Plans.Filler.class);
+        for (int i = Math.floorDiv(-R, Plans.CELL); i < Math.floorDiv(R, Plans.CELL); i++)
+            for (int j = Math.floorDiv(-R, Plans.CELL); j < Math.floorDiv(R, Plans.CELL); j++) {
+                Plans.Cell cell = gen.plans.cell(i, j);
+                if (cell == null || cell.type == null || !cell.type.lesser()) continue;
+                lesser++;
+                lesserKinds.add(cell.type);
+                if (cell.type != Plans.Filler.HUT && cell.type != Plans.Filler.OFFERING_STONE) lesserDungeons++;
+            }
+        for (int i = -R / 16; i < R / 16; i++)
+            for (int j = -R / 16; j < R / 16; j++) {
+                if (Catacombs.node(gen.plans, i, j) >= Catacombs.CRYPT) rooms1++;
+                if (Catacombs.deepNode(gen.plans, i, j) >= Catacombs.CRYPT) rooms2++;
+                if (Catacombs.descent(gen.plans, i, j)) shafts++;
+            }
+        double km2 = 4 * R * (double) R / 1e6;
+        int clashes = 0;
+        for (int a = 0; a < square.size(); a++) for (int b = a + 1; b < square.size(); b++) if (Plans.clash(square.get(a), square.get(b))) clashes++;
+        System.out.println(String.format(java.util.Locale.ROOT, "SITE_DENSITY grid=%d ruins=%.1f dungeonRuins=%.1f wetRuins=%.1f lesser=%.1f lesserDungeons=%.1f"
+            + " structures=%.1f (x%.2f) dungeons=%.1f (x%.2f) catacombRooms=%.1f+%.1f (x%.2f) shafts=%.1f clashes=%d", Plans.SITE_GRID, ruins / km2,
+            dungeonRuins / km2, wetRuins / km2, lesser / km2, lesserDungeons / km2, (ruins + lesser) / km2, (ruins + lesser) / km2 / 137.3,
+            (dungeonRuins + lesserDungeons) / km2, (dungeonRuins + lesserDungeons) / km2 / 70.6, rooms1 / km2, rooms2 / km2, (rooms1 + rooms2) / km2 / 1712.8, shafts / km2, clashes));
+        check(clashes == 0, "no two ruins overlap: " + clashes);
+        check(ruins / km2 > 1.45 * 137.3, "the great ruins about 1.5x as close as epoch 4: " + ruins / km2);
+        check((ruins + lesser) / km2 > 2.0 * 137.3, "ruins and lesser ruins together twice epoch 4's ruins: " + (ruins + lesser) / km2);
+        check((dungeonRuins + lesserDungeons) / km2 > 2.0 * 70.6, "dungeons twice epoch 4's: " + (dungeonRuins + lesserDungeons) / km2);
+        check(rooms1 + rooms2 > 2.0 * 1712.8 * km2, "catacomb rooms twice epoch 4's: " + (rooms1 + rooms2) / km2);
+        check(wetRuins > 10 && shafts > 100, "drowned ruins and shafts to the deep catacombs: " + wetRuins + " " + shafts);
+        check(lesserKinds.size() == 6, "every lesser ruin appears: " + lesserKinds);
 
         // 2. Render and verify the city.
         int reach = city.half + 24;
@@ -226,8 +260,27 @@ public final class RuinsPreview {
                 Plans.Cell cell = gen.plans.cell(i, j);
                 if (cell != null && cell.type == Plans.Filler.CATACOMB_GATE) gates++;
             }
-        System.out.println("catacombs rooms=" + rooms + " hollow=" + hollow + " gates=" + gates + " traps=" + TRAPS[0]);
+        // The deep catacombs (epoch 5): hollow rooms 14 blocks under the first level, and ladders down to them.
+        int deepRooms = 0, deepHollow = 0, ladders = 0, descents = 0;
+        for (int i = -12; i <= 12; i++)
+            for (int j = -12; j <= 12; j++) {
+                int x = i * 16 + 8, z = j * 16 + 8, deep = Catacombs.deepDepth(gen.plans, x, z);
+                if (deep < 0 || Catacombs.deepNode(gen.plans, i, j) == Catacombs.NONE) continue;
+                deepRooms++;
+                Chunk c = chunk(gen, i, j);
+                int id = c.id(8, deep + 3, 8);
+                if (id == 0 || id == 8 || id == 9 || id == 30) deepHollow++;
+                if (Catacombs.descent(gen.plans, i, j)) {
+                    descents++;
+                    int depth = gen.plans.depth(x, z);
+                    if (c.id(12, depth, 12) == 65 && c.id(12, deep + 1, 12) == 65 && c.id(12, depth + 1, 12) == 0) ladders++;
+                }
+            }
+        System.out.println("catacombs rooms=" + rooms + " hollow=" + hollow + " gates=" + gates + " traps=" + TRAPS[0]
+            + " deepRooms=" + deepRooms + " deepHollow=" + deepHollow + " descents=" + descents + " ladders=" + ladders);
         check(rooms > 200 && hollow > rooms * 0.9, "catacomb rooms are hollow underground: " + hollow + "/" + rooms);
+        check(deepRooms > 200 && deepHollow > deepRooms * 0.9, "deep catacomb rooms are hollow: " + deepHollow + "/" + deepRooms);
+        check(descents > 20 && ladders == descents, "every shaft runs from the upper room's floor to the deep room: " + ladders + "/" + descents);
         check(gates > 3, "catacomb gates in the field: " + gates);
         check(TRAPS[0] > 0, "dart traps with plates: " + TRAPS[0]);
 

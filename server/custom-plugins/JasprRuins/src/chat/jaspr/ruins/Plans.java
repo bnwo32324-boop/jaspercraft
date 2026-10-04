@@ -5,10 +5,16 @@ import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Where the original ruins go: one possible old city per 320-block cell and one possible wilderness site per 56-block
- * cell (epoch 4, owner 2026-10-04: "structures in Drownhollow 2x as common": 0.83 per 56-block cell is 1.99x the 0.85 per
- * 80-block cell of epoch 3), each a pure function of the seed and the terrain. Anything that would touch land the Lost Cities build (their
- * cities, highways and the ring around them) or stand in water is left out, so the two kinds of ruins never overlap.
+ * Where the original ruins go: one possible old city per 320-block cell and one candidate ruin per 40-block cell, each a
+ * pure function of the seed and the terrain. Anything that would touch land the Lost Cities build (their cities, highways
+ * and the ring around them) is left out, so the two kinds of ruins never overlap.
+ *
+ * Epoch 5 (owner 2026-10-04: "more dense with dungeons and structures. make new ones. 2x it"): eleven new kinds (four
+ * of them out in the drowned shallows, three of them dungeons), and twice the ruins of epoch 4 per square kilometre.
+ * Epoch 4 kept ruins apart with wide cell margins (56-block cells, 23-block margins), which caps how closely they can
+ * stand; now every 40-block cell holds a candidate, dry land takes a land kind and shallow water a drowned one, and a
+ * candidate whose footprint (plus a {@link #SITE_PAD}-block gap) meets a neighbour's yields to the one that ranks first
+ * (Warden arenas, then the wider ruin, then by hash), so no two ruins ever overlap.
  */
 final class Plans {
     /** Whether a block footprint touches land the Lost Cities build (CityApi.reserved in the plugin). */
@@ -17,33 +23,58 @@ final class Plans {
     static final int SEA = 62;
     static final int CITY_GRID = 320, CITY_MARGIN = 112, BLEND = 20;
     static final double CITY_CHANCE = 0.45;
-    static final int SITE_GRID = 56, SITE_MARGIN = 23;
-    static final double SITE_CHANCE = 0.83;
+    static final int SITE_GRID = 40, SITE_MARGIN = 8, SITE_PAD = 2;
+    static final double SITE_CHANCE = 1.0;
+    /** Drowned ruins stand where the sea floor at their centre lies this many blocks under the surface. */
+    static final int WET_MIN = 3, WET_MAX = 24;
     static final int CELL = 24, DOOR_RADIUS = 48, DISTRICT = 128;
     private static final long CITY_SALT = 0x43697479L, SITE_SALT = 0x53697465L;
     private static final int CACHE = 8192;
 
+    static final int CULT = 1, NAMED = 2, DUNGEON = 4, WET = 8;
+
     enum Kind {
-        TEMPLE("Temple", 17), COLONNADE("Colonnade", 20), ZIGGURAT("Ziggurat", 15), WATCHTOWER("Watchtower", 6),
-        AQUEDUCT("Aqueduct", 25), AMPHITHEATER("Amphitheater", 17), STONES("Stone Circle", 10), CRYPT("Crypt", 8),
+        TEMPLE("Temple", 17), COLONNADE("Colonnade", 20), ZIGGURAT("Ziggurat", 15, DUNGEON), WATCHTOWER("Watchtower", 6),
+        AQUEDUCT("Aqueduct", 25), AMPHITHEATER("Amphitheater", 17), STONES("Stone Circle", 10), CRYPT("Crypt", 8, DUNGEON),
         GATEHOUSE("Gatehouse", 13), COLOSSUS("Colossus", 11),
         // The cult arenas, each guarded by a Warden (a mini-boss holding one of the Door's Seals).
-        SANCTUM("Sanctum of the Drowned Star", 18, true), MONOLITHS("Circle of the Watchers", 20, true),
-        PIT("Pit of Offerings", 14, true), POOL("Spawning Pool", 14, true), CHAPEL("Chapel of the Faceless", 13, true),
+        SANCTUM("Sanctum of the Drowned Star", 18, CULT), MONOLITHS("Circle of the Watchers", 20, CULT),
+        PIT("Pit of Offerings", 14, CULT), POOL("Spawning Pool", 14, CULT), CHAPEL("Chapel of the Faceless", 13, CULT),
         // Greater ruins: dungeons above ground, temples and monuments.
-        FORTRESS("Bastion of the Choir", 22), LABYRINTH("Labyrinth of Angles", 21), OSSUARY("Ossuary Temple", 14),
-        DEEP_TEMPLE("Temple of the Deep", 16), OBSERVATORY("Star-Watcher's Spire", 12), GREAT_IDOL("Great Idol of Ythaqqua", 12);
+        FORTRESS("Bastion of the Choir", 22, NAMED | DUNGEON), LABYRINTH("Labyrinth of Angles", 21, NAMED | DUNGEON),
+        OSSUARY("Ossuary Temple", 14, NAMED | DUNGEON), DEEP_TEMPLE("Temple of the Deep", 16, NAMED | DUNGEON),
+        OBSERVATORY("Star-Watcher's Spire", 12, NAMED), GREAT_IDOL("Great Idol of Ythaqqua", 12, NAMED),
+        // Epoch 5: four more ruins, three more dungeons (Undercrofts) ...
+        BELFRY("Belfry", 8), CLOISTER("Cloister", 15), NECROPOLIS("Necropolis", 15, DUNGEON), SCRIPTORIUM("Scriptorium", 11),
+        UNDERCROFT("Undercroft of the Choir", 13, NAMED | DUNGEON), OUBLIETTE("Oubliette of the Choir", 12, NAMED | DUNGEON),
+        KINGS_HALL("Hall of the Drowned Kings", 18, NAMED | DUNGEON),
+        // ... and four out in the drowned shallows (Shallows).
+        SUNKEN_TEMPLE("Sea Temple", 13, WET | DUNGEON), WRECK("Barge", 12, WET), LIGHTHOUSE("Lighthouse", 7, WET),
+        TIDE_SHRINE("Tide Shrine", 10, WET);
         final String noun;
         final int radius;
-        final boolean cult;
-        Kind(String noun, int radius) { this(noun, radius, false); }
-        Kind(String noun, int radius, boolean cult) { this.noun = noun; this.radius = radius; this.cult = cult; }
+        final boolean cult, named, dungeon, wet;
+        Kind(String noun, int radius) { this(noun, radius, 0); }
+        Kind(String noun, int radius, int flags) {
+            this.noun = noun; this.radius = radius;
+            cult = (flags & CULT) != 0; named = cult || (flags & NAMED) != 0; dungeon = cult || (flags & DUNGEON) != 0; wet = (flags & WET) != 0;
+        }
     }
+    private static final Kind[] LAND = java.util.Arrays.stream(Kind.values()).filter(k -> !k.wet).toArray(Kind[]::new);
+    private static final Kind[] DROWNED = java.util.Arrays.stream(Kind.values()).filter(k -> k.wet).toArray(Kind[]::new);
+    /** The widest ruin's radius: how far a site may reach past its own cell's margin (RuinsGenerator.SITE_REACH). */
+    static final int MAX_RADIUS = java.util.Arrays.stream(Kind.values()).mapToInt(k -> k.radius).max().getAsInt();
 
-    /** The field: every free 24-block cell holds one monument. */
+    /**
+     * The field: every free 24-block cell holds one monument -- or, since epoch 5, one of the lesser ruins (Lesser: a cellar,
+     * a tomb, a well, a fallen hut, a spider den, an offering stone), each with a chest or a spawner.
+     */
     enum Filler { GIANT_PILLAR, OBELISK, PILLAR_GATE, CYCLOPEAN_WALL, STAIR_TO_NOWHERE, SUNKEN_PLAZA, ARCHWAY, IDOL, CULT_ALTAR,
-        SPIRE_CLUSTER, COLONNADE_ROW, CYCLOPEAN_BLOCKS, SHRINE_TEMPLE, CATACOMB_GATE, WATCHER_STATUE, OBELISK_GROVE, GIBBETS }
-    private static final int[] FILLER_WEIGHTS = {16, 9, 9, 9, 5, 6, 6, 5, 8, 6, 6, 5, 10, 9, 6, 6, 5};
+        SPIRE_CLUSTER, COLONNADE_ROW, CYCLOPEAN_BLOCKS, SHRINE_TEMPLE, CATACOMB_GATE, WATCHER_STATUE, OBELISK_GROVE, GIBBETS,
+        CELLAR, TOMB, WELL, HUT, SPIDER_DEN, OFFERING_STONE;
+        boolean lesser() { return ordinal() >= CELLAR.ordinal(); }
+    }
+    private static final int[] FILLER_WEIGHTS = {16, 9, 9, 9, 5, 6, 6, 5, 8, 6, 6, 5, 10, 22, 6, 6, 5, 17, 15, 11, 17, 10, 10};
     private static final int FILLER_TOTAL = java.util.Arrays.stream(FILLER_WEIGHTS).sum();
 
     static final class Cell {
@@ -86,7 +117,8 @@ final class Plans {
     final long seed;
     final Terrain terrain;
     private final Reserved reserved;
-    private final ConcurrentHashMap<Long, Object> cities = new ConcurrentHashMap<>(), sites = new ConcurrentHashMap<>(), cells = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Object> cities = new ConcurrentHashMap<>(), sites = new ConcurrentHashMap<>(), candidates = new ConcurrentHashMap<>(),
+        cells = new ConcurrentHashMap<>();
     private volatile Door door;
     private final ConcurrentHashMap<Long, Integer> depths = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Boolean> reservedChunks = new ConcurrentHashMap<>();
@@ -124,7 +156,7 @@ final class Plans {
      * later one at 896,-896).
      */
     void forget() {
-        cities.clear(); sites.clear(); cells.clear(); reservedChunks.clear();
+        cities.clear(); sites.clear(); candidates.clear(); cells.clear(); reservedChunks.clear();
         synchronized (this) { door = null; }
     }
 
@@ -176,11 +208,13 @@ final class Plans {
 
     // ------------------------------------------------------------------ sites
 
+    /** The ruin of a site cell, or null: its candidate, unless that yields to a neighbour that ranks first. */
     Site site(int i, int j) {
         long k = key(i, j);
         Object o = sites.get(k);
         if (o == null) {
-            Site s = computeSite(i, j);
+            Site c = candidate(i, j);
+            Site s = c != null && yields(c, i, j) ? null : c;
             if (sites.size() > CACHE) sites.clear();
             sites.put(k, s == null ? NONE : s);
             return s;
@@ -188,39 +222,92 @@ final class Plans {
         return o == NONE ? null : (Site) o;
     }
 
-    private Site computeSite(int i, int j) {
+    /** A cell's ruin before its neighbours have their say (cached apart from the final answer). */
+    Site candidate(int i, int j) {
+        long k = key(i, j);
+        Object o = candidates.get(k);
+        if (o == null) {
+            Site s = computeCandidate(i, j);
+            if (candidates.size() > CACHE) candidates.clear();
+            candidates.put(k, s == null ? NONE : s);
+            return s;
+        }
+        return o == NONE ? null : (Site) o;
+    }
+
+    /**
+     * Whether a cell's candidate gives way: a neighbouring ruin that ranks first, and is itself built, stands within its
+     * footprint plus the pad. Only the eight neighbours can reach (two cells apart, centres are at least 56 blocks apart,
+     * more than two of the widest footprints and the pad). Rank strictly falls along every chain of yields, so the
+     * recursion ends, and every answer is a pure function of the seed: the caches only remember it.
+     */
+    private boolean yields(Site c, int i, int j) {
+        for (int a = i - 1; a <= i + 1; a++)
+            for (int b = j - 1; b <= j + 1; b++) {
+                if (a == i && b == j) continue;
+                Site d = candidate(a, b);
+                if (d == null || !outranks(d, c) || !clash(c, d)) continue;
+                if (site(a, b) != null) return true;
+            }
+        return false;
+    }
+
+    /**
+     * Warden arenas first (the Seals must be won somewhere), then the wider ruin first (the big ones are the hardest to fit,
+     * and the small ones then fill the gaps round them); then by hash, then position.
+     */
+    static boolean outranks(Site d, Site c) {
+        int rd = rank(d.kind), rc = rank(c.kind);
+        if (rd != rc) return rd > rc;
+        if (d.kind.radius != c.kind.radius) return d.kind.radius > c.kind.radius;
+        if (d.hash != c.hash) return Long.compareUnsigned(d.hash, c.hash) > 0;
+        return d.x != c.x ? d.x > c.x : d.z > c.z;
+    }
+
+    private static int rank(Kind k) { return k.cult ? 1 : 0; }
+
+    /** Whether two footprints (radius plus the one-block frame each) come within the pad of each other. */
+    static boolean clash(Site a, Site b) {
+        int reach = a.kind.radius + b.kind.radius + 2 + SITE_PAD;
+        return Math.abs(a.x - b.x) <= reach && Math.abs(a.z - b.z) <= reach;
+    }
+
+    private Site computeCandidate(int i, int j) {
         long h = Hash.of(seed ^ SITE_SALT, i, j);
         if (Hash.unit(h) >= SITE_CHANCE) return null;
-        Kind[] kinds = Kind.values();
-        Kind kind = kinds[Hash.range(Hash.mix(h ^ 5), 0, kinds.length - 1)];
         int span = SITE_GRID - 2 * SITE_MARGIN;
         int x = i * SITE_GRID + SITE_MARGIN + Hash.range(Hash.mix(h ^ 6), 0, span);
         int z = j * SITE_GRID + SITE_MARGIN + Hash.range(Hash.mix(h ^ 7), 0, span);
-        int r = kind.radius;
         int center = terrain.sample(x, z).y;
-        if (center <= SEA) return null;
-        int wet = 0, sum = center, top = center;
+        // Dry land takes a land ruin, a sea floor WET_MIN..WET_MAX blocks down a drowned one; the shoreline and the deep
+        // water between take nothing.
+        boolean wet = center <= SEA - WET_MIN;
+        if (!wet && center <= SEA || center < SEA - WET_MAX) return null;
+        Kind[] pool = wet ? DROWNED : LAND;
+        Kind kind = pool[Hash.range(Hash.mix(h ^ 5), 0, pool.length - 1)];
+        int r = kind.radius;
+        int wetRing = 0, sum = center, top = center, low = center;
         for (int a = 0; a < 8; a++) {
             double t = a * Math.PI / 4;
             int y = terrain.sample(x + (int) Math.round(Math.cos(t) * r * 0.75), z + (int) Math.round(Math.sin(t) * r * 0.75)).y;
-            if (y <= SEA - 1) wet++;
+            if (y <= SEA - 1) wetRing++;
             sum += y;
             top = Math.max(top, y);
+            low = Math.min(low, y);
         }
-        if (wet > 2) return null;
+        if (wet ? wetRing < 5 || low < SEA - WET_MAX - 6 : wetRing > 2) return null;
         // Keep clear of the old cities (in this and the neighbouring city cells).
         int ci = Math.floorDiv(x, CITY_GRID), cj = Math.floorDiv(z, CITY_GRID);
         for (int a = ci - 1; a <= ci + 1; a++)
             for (int b = cj - 1; b <= cj + 1; b++) {
                 City c = city(a, b);
-                if (c != null && c.outside(x, z) < BLEND + r + 6) return null;
+                if (c != null && c.outside(x, z) < BLEND + r + 3) return null;
             }
         if (door().near(x, z, r + 8)) return null;
         if (reserved.test(x - r, z - r, 2 * r + 1, 2 * r + 1)) return null;
-        int base = kind == Kind.AQUEDUCT ? Math.min(150, top + 7) : Math.max(SEA + 1, (int) Math.round(sum / 9.0));
+        int base = wet ? center : kind == Kind.AQUEDUCT ? Math.min(150, top + 7) : Math.max(SEA + 1, (int) Math.round(sum / 9.0));
         int rot = Hash.range(Hash.mix(h ^ 8), 0, 3);
-        boolean named = kind.cult || kind.ordinal() >= Kind.FORTRESS.ordinal();
-        return new Site(kind, x, z, base, rot, h, named ? "The " + kind.noun : Names.site(Hash.mix(h ^ 9), kind.noun));
+        return new Site(kind, x, z, base, rot, h, kind.named ? "The " + kind.noun : Names.site(Hash.mix(h ^ 9), kind.noun));
     }
 
     /** The site nearest to a point within its radius (for titles), or null. */
