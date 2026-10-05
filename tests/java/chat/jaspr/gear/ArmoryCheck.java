@@ -40,6 +40,44 @@ public final class ArmoryCheck {
         org.bukkit.Bukkit.setServer(server);
     }
 
+    /** Pieces made before the helmet and boots went from 3 to 4 armour are brought up to date in place, and nothing else changes. */
+    static void upgrades() {
+        for (ArmorySet set : ArmorySet.values()) for (ArmoryPiece piece : ArmoryPiece.values()) {
+            ItemStack canonical = ArmoryItems.create(set, piece);
+            check(ArmoryItems.upgraded(canonical) == null, "a current piece needs nothing " + set.id + "_" + piece.id);
+            if (!piece.armour()) continue;
+            // an old piece: the armour amount as it was (3 for the helmet and boots), with enchantments, anvil cost and an Armaments record
+            net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(canonical);
+            NBTTagCompound tag = nms.getTag();
+            NBTTagList mods = tag.getList("AttributeModifiers", 10);
+            for (int i = 0; i < mods.size(); i++) if (mods.get(i).getString("AttributeName").equals("generic.armor")) mods.get(i).setDouble("Amount", piece.armor - 1);
+            NBTTagList ench = new NBTTagList();
+            NBTTagCompound prot = new NBTTagCompound();
+            prot.setShort("id", (short) 0);
+            prot.setShort("lvl", (short) 3);
+            ench.add(prot);
+            tag.set("ench", ench);
+            tag.setInt("RepairCost", 7);
+            NBTTagCompound armament = new NBTTagCompound();
+            armament.setInt("Level", 2);
+            tag.set("JasprArmament", armament);
+            ItemStack old = CraftItemStack.asBukkitCopy(nms);
+            check(ArmoryItems.identify(old) != null, "an old piece is still recognised " + set.id + "_" + piece.id);
+            ItemStack up = ArmoryItems.upgraded(old);
+            check(up != null, "an old piece is upgraded " + set.id + "_" + piece.id);
+            NBTTagCompound out = CraftItemStack.asNMSCopy(up).getTag();
+            double armour = -1;
+            NBTTagList after = out.getList("AttributeModifiers", 10);
+            for (int i = 0; i < after.size(); i++) if (after.get(i).getString("AttributeName").equals("generic.armor")) armour = after.get(i).getDouble("Amount");
+            check(armour == piece.armor && after.size() == 3, "upgraded armour amount " + set.id + "_" + piece.id + ": " + armour);
+            check(ArmoryItems.identify(up) != null && ArmoryItems.identify(up).piece == piece && ArmoryItems.identify(up).set == set, "identity survives " + set.id + "_" + piece.id);
+            check(out.getList("ench", 10).size() == 1 && out.getInt("RepairCost") == 7 && out.getCompound("JasprArmament").getInt("Level") == 2
+                && out.getCompound("display").getList("Lore", 8).toString().equals(tag.getCompound("display").getList("Lore", 8).toString()), "enchantments, anvil cost, armament and lore kept " + set.id + "_" + piece.id);
+            check(ArmoryItems.upgraded(up) == null, "upgrading twice changes nothing " + set.id + "_" + piece.id);
+        }
+        check(ArmoryItems.upgraded(null) == null && ArmoryItems.upgraded(new ItemStack(Material.DIAMOND_HELMET)) == null, "nothing else is touched");
+    }
+
     public static void main(String[] args) {
         net.minecraft.server.v1_12_R1.DispenserRegistry.c();
         fakeServer();
@@ -64,6 +102,8 @@ public final class ArmoryCheck {
                     if (m.getString("AttributeName").equals("generic.armorToughness")) toughness += m.getDouble("Amount");
                     check(m.getString("Slot").equals(piece.slot), "slot " + set.id + "_" + piece.id);
                 }
+                // every armour piece is better than its diamond counterpart (3/8/6/3), the helmet and boots included
+                if (piece.armour()) check(piece.armor > new int[]{3, 8, 6, 3}[piece.armorIndex()] && ArmoryPiece.TOUGHNESS > 2.0, "armour piece beats diamond " + piece.id);
                 if (piece == ArmoryPiece.SWORD) check(piece.damage + 1 > 7, "sword beats diamond");
                 if (piece == ArmoryPiece.AXE) check(piece.damage + 1 > 9, "axe beats diamond");
                 String lore = tag.getCompound("display").getList("Lore", 8).toString();
@@ -72,7 +112,7 @@ public final class ArmoryCheck {
                 ItemStack fake = new ItemStack(piece.base, 1, (short) set.model());
                 check(ArmoryItems.identify(fake) == null, "untagged look-alike " + set.id + "_" + piece.id);
             }
-            check(armour == 22 && Math.abs(toughness - 12.0) < 1e-9, "set totals " + set.id + ": " + armour + "/" + toughness + " (diamond 20/8)");
+            check(armour == 24 && Math.abs(toughness - 12.0) < 1e-9, "set totals " + set.id + ": " + armour + "/" + toughness + " (diamond 20/8)");
         }
         // models: even values 100..110 with the odd one above each free for the vanilla fallback; clear of the expedition
         // armour (10-41), the expedition melee band (1140+) and the guns (1160+)
@@ -127,6 +167,7 @@ public final class ArmoryCheck {
         check(forgedLore.contains("- Armament -") && forgedLore.contains("Level") && forgedLore.indexOf("Void armoury") < forgedLore.indexOf("- Armament -"),
             "armament lines under the header");
         check(!Armory.plainDiamond(ArmoryItems.create(ArmorySet.EMERALD, ArmoryPiece.CHESTPLATE)), "armoury piece is no diamond piece");
+        upgrades();
         net.minecraft.server.v1_12_R1.ItemStack marked = CraftItemStack.asNMSCopy(new ItemStack(Material.DIAMOND_SWORD));
         NBTTagCompound other = new NBTTagCompound();
         other.set("JasprApocalypse", new NBTTagCompound());

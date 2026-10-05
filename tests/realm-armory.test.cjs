@@ -37,6 +37,13 @@ test('armouries: the live hooks are wired', () => {
   assert.match(plugin, /armory\.second\(p\);/);
   assert.match(plugin, /ARMORY_METRICS /);
   assert.match(plugin, /armorySets=/);
+  // pieces made before the stats changed (the helmet and boots 3 -> 4 armour, 2026-10-05) are brought up to date in place, every second
+  assert.match(armory, /void second\(Player p\) \{\s*if \(!p\.isDead\(\)\) carried\(p\);/);
+  assert.match(armory, /ArmoryItems\.upgraded\(inv\.getItem\(i\)\)/);
+  assert.match(armory, /"ARMORY_UPGRADE player="/);
+  assert.match(plugin, /armoryArmour=/);
+  assert.match(java('ArmoryPiece'), /HELMET\("helmet", "Helmet", Material\.DIAMOND_HELMET, "head", 4,/);
+  assert.match(java('ArmoryPiece'), /BOOTS\("boots", "Boots", Material\.DIAMOND_BOOTS, "feet", 4,/);
   // realm plugins and overworld generators reach the loot through the public API
   assert.match(api, /public static List<ItemStack> rollRealmLoot\(Random random, String world, int tier\)/);
   assert.match(api, /if \(pick instanceof ArmoryPiece\)/);

@@ -132,6 +132,32 @@ public final class ArmoryItems {
     }
 
     /**
+     * The up-to-date copy of an armoury armour piece made before its stats last changed (owner 2026-10-05: the helmet and
+     * boots were 3 armour, exactly diamond's, until they became 4), or null when there is nothing to do: not an armoury
+     * armour piece, or its armour, toughness and knockback resistance already read as ArmoryPiece says. Only the amounts of
+     * those three modifiers are rewritten; enchantments, anvil cost, the Armaments record, lore and every other tag stay.
+     */
+    static ItemStack upgraded(ItemStack stack) {
+        Id id = identify(stack);
+        if (id == null || !id.piece.armour()) return null;
+        try {
+            net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(stack);
+            NBTTagList mods = nms.getTag().getList("AttributeModifiers", 10);
+            NBTTagList want = modifiers(id.piece);
+            boolean changed = mods.size() != want.size();
+            for (int i = 0; i < want.size() && !changed; i++) {
+                NBTTagCompound have = mods.get(i), canon = want.get(i);
+                changed = !have.getString("AttributeName").equals(canon.getString("AttributeName")) || have.getDouble("Amount") != canon.getDouble("Amount");
+            }
+            if (!changed) return null;
+            nms.getTag().set("AttributeModifiers", want);
+            return CraftItemStack.asBukkitCopy(nms);
+        } catch (RuntimeException error) {
+            return null;
+        }
+    }
+
+    /**
      * The forged result for a diamond piece: the canonical armoury piece carrying over the diamond piece's enchantments,
      * anvil cost and Armaments record (level, rarity, abilities and the lines that show them), so nothing earned is lost.
      */

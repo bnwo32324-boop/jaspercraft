@@ -1,5 +1,5 @@
 name: JasprGear
-version: 5.0.1
+version: 5.0.2
 main: chat.jaspr.gear.GearPlugin
 author: Jaspr
 softdepend: [AuthMe]

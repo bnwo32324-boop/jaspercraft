@@ -19,8 +19,10 @@ own icon, and the armour has its own look when worn.
 | **Liminal** | Backrooms | diamond piece + 8 Liminal Fragments | Lucid: immune to blindness and nausea, +10% speed | Disorient: 20% chance to blind, +25% vs foes in the dark | Pathfinder: mining in the dark places a torch from your pack |
 | **Void** | End | diamond piece + 4 shulker shells + 4 popped chorus fruit | Ender Step: no levitation, no ender-pearl damage, pulled back from the void once every 5 min | Voidstrike: 15% chance of a +60% hit | Void Pull: drops and XP go straight to you |
 
-- **Stronger than diamond:** armour 3/9/7/3 (diamond 3/8/6/3), toughness 3 a piece (diamond 2), +5% knockback resistance
-  a piece. A full set is 22 armour and 12 toughness (diamond 20 and 8). Sword 8 damage (diamond 7), axe 10 (9), pickaxe 6,
+- **Stronger than diamond, piece by piece:** armour 4/9/7/4 (diamond 3/8/6/3), toughness 3 a piece (diamond 2), +5% knockback
+  resistance a piece. A full set is 24 armour and 12 toughness (diamond 20 and 8). (Until 2026-10-05 the helmet and boots were 3,
+  exactly diamond's: owner, "Emerald should be better than Diamond. That includes the helmet". Pieces made earlier are
+  rewritten in place within a second of being carried or worn: JasprGear 5.0.2, log `ARMORY_UPGRADE`.) Sword 8 damage (diamond 7), axe 10 (9), pickaxe 6,
   shovel 6.5, hoe 2. **No piece ever breaks.**
 - **At home:** in its own realm a set is stronger. Its weapons hit 15% harder, and each armour piece blocks 3% of every
   hit (12% for all four).

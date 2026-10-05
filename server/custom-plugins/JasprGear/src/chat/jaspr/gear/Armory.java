@@ -49,6 +49,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -65,14 +66,15 @@ import org.bukkit.potion.PotionEffectType;
  * (dungeons, temples, strongholds, fortresses, End cities ...) on their first opening, overworld structure chests through
  * GearApi.rollLoot's armoury band, and creatures slain in each realm (the Ender Dragon always leaves a Void piece).
  *
- * Logs ARMORY_FORGE, ARMORY_DROP, ARMORY_CHEST, ARMORY_RESCUE and ARMORY_METRICS (on disable).
+ * Logs ARMORY_FORGE, ARMORY_DROP, ARMORY_CHEST, ARMORY_RESCUE, ARMORY_UPGRADE (armour made before its stats changed, brought up
+ * to date in place: counts only) and ARMORY_METRICS (on disable).
  */
 final class Armory implements Listener {
     private final GearPlugin plugin;
     private final Random random = new Random();
 
     int recipes, forged, pieceDrops, materialDrops, chestPieces, chestMaterials, vanillaChests, veins, trees, areas, tilled,
-        smelted, prospected, pulled, torches, rescues, guarded, cleansed, weaponProcs;
+        smelted, prospected, pulled, torches, rescues, guarded, cleansed, weaponProcs, upgraded;
 
     /** Full-set bonus attribute modifiers, one fixed id each so they are found, kept and removed exactly. */
     private static final UUID HEALTH_ID = UUID.fromString("6a5e3c41-7d2b-4b1a-9f31-5e0c7a1d2001");
@@ -222,8 +224,31 @@ final class Armory implements Listener {
     /** True when this world is the set's home (the old liminal world counts as the Backrooms). */
     static boolean home(ArmorySet set, World world) { return world != null && ArmorySet.ofWorld(world.getName()) == set; }
 
+    /**
+     * Armoury armour in the pack or on the body that was made before the stats last changed (the helmet and boots went from 3
+     * to 4 armour on 2026-10-05) is rewritten in place: same item, enchantments, lore and Armaments, new armour amounts.
+     */
+    private void carried(Player p) {
+        PlayerInventory inv = p.getInventory();
+        int n = 0;
+        for (int i = 0, storage = inv.getStorageContents().length; i < storage; i++) {
+            ItemStack up = ArmoryItems.upgraded(inv.getItem(i));
+            if (up != null) { inv.setItem(i, up); n++; }
+        }
+        ItemStack up = ArmoryItems.upgraded(inv.getHelmet());
+        if (up != null) { inv.setHelmet(up); n++; }
+        up = ArmoryItems.upgraded(inv.getChestplate());
+        if (up != null) { inv.setChestplate(up); n++; }
+        up = ArmoryItems.upgraded(inv.getLeggings());
+        if (up != null) { inv.setLeggings(up); n++; }
+        up = ArmoryItems.upgraded(inv.getBoots());
+        if (up != null) { inv.setBoots(up); n++; }
+        if (n > 0) { upgraded += n; plugin.getLogger().info("ARMORY_UPGRADE player=" + p.getUniqueId() + " pieces=" + n); }
+    }
+
     /** Every second: the full-set attribute bonuses (idempotent), remembered safe ground for Ender Step. */
     void second(Player p) {
+        if (!p.isDead()) carried(p);
         ArmorySet set = p.isDead() ? null : fullSet(p);
         keep(p, Attribute.GENERIC_MAX_HEALTH, HEALTH_ID, "jaspr_armory_prosperity_health", set == ArmorySet.EMERALD ? 4.0 : 0, AttributeModifier.Operation.ADD_NUMBER);
         keep(p, Attribute.GENERIC_LUCK, LUCK_ID, "jaspr_armory_prosperity_luck", set == ArmorySet.EMERALD ? 2.0 : 0, AttributeModifier.Operation.ADD_NUMBER);
@@ -762,7 +787,7 @@ final class Armory implements Listener {
         return "armoryRecipes=" + recipes + " forged=" + forged + " pieceDrops=" + pieceDrops + " materialDrops=" + materialDrops
             + " chestPieces=" + chestPieces + " chestMaterials=" + chestMaterials + " vanillaChests=" + vanillaChests + " veins=" + veins
             + " trees=" + trees + " areas=" + areas + " tilled=" + tilled + " smelted=" + smelted + " prospected=" + prospected + " pulled=" + pulled
-            + " torches=" + torches + " rescues=" + rescues + " guarded=" + guarded + " cleansed=" + cleansed + " weaponProcs=" + weaponProcs;
+            + " torches=" + torches + " rescues=" + rescues + " guarded=" + guarded + " cleansed=" + cleansed + " weaponProcs=" + weaponProcs + " upgraded=" + upgraded;
     }
 
     /** /gear armory give: every piece of a set (or one piece), or a stack of a realm material. */

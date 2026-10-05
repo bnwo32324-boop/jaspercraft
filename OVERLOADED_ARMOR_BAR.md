@@ -28,12 +28,15 @@ by the mod's own rule ("exactly full stays white"); the bar wraps only from 21. 
 
 - **Armour points only.** Enchantments (Thorns, Protection ...) do not add armour points (they act on damage separately), and
   neither do toughness or knockback resistance, which are what make the realm armoury pieces "stronger than diamond"
-  (`ArmoryPiece`: helmet 3, chestplate 9, leggings 7, boots 3 = 22 for a whole set against diamond's 3/8/6/3 = 20, toughness 3
-  each against diamond's 2).
-- A single Emerald Helmet is therefore worth what a diamond helmet is. The orange icon appears once a second realm piece (the
-  chestplate +1, the leggings +1) or a Survivor Gear ring that carries armour while equipped (Vigil Ring +1, Dominion
-  Signet +2, `GearAbilities`) is added: a whole realm set shows one orange icon over nine white ones; the 1.12 cap of 30
-  shows five orange over five white.
+  (`ArmoryPiece`: at the time helmet 3, chestplate 9, leggings 7, boots 3 = 22 for a whole set against diamond's 3/8/6/3 = 20,
+  toughness 3 each against diamond's 2). **Changed the same day (owner: "Emerald should be better than Diamond. That includes
+  the helmet"):** every piece is now one point above diamond, 4/9/7/4 = 24 a set, and old pieces were upgraded in place
+  (`REALM_ARMORY.md`); the reported gear (an Emerald Helmet with diamond chestplate, leggings and boots) is now 21 armour: a
+  half orange icon over a full white row.
+- At the time a single Emerald Helmet was worth what a diamond helmet is, which is why that gear came to exactly 20. The orange
+  now appears with any one realm piece over diamond's own 20 (each is +1), or a Survivor Gear ring that carries armour while
+  equipped (Vigil Ring +1, Dominion Signet +2, `GearAbilities`): a whole realm set (24) shows two orange icons over a white row;
+  the 1.12 cap of 30 shows five orange over five white.
 
 The port was only ever tested against stand-ins, so it was checked in the real client: `tests/armor-bar-browser.cjs` runs the
 live `classes.js` and `assets.epk` in headless Chrome against the loopback fixture (`scripts/tank-preview.cjs`, a lean Paper

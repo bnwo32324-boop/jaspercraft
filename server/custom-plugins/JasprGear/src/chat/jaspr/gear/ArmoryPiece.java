@@ -7,18 +7,20 @@ import org.bukkit.Material;
  * The nine pieces of every realm armoury, each on its diamond counterpart (so enchanting, the Armaments upgrade system
  * and every other diamond-aware rule treat it as the diamond item it outranks). Stats are the same for all six sets:
  *
- *   armour  helmet 3, chestplate 9, leggings 7, boots 3 (diamond: 3/8/6/3) with toughness 3 each (diamond 2) and
- *           +5% knockback resistance each: 22 armour, 12 toughness, 20% knockback resistance for a full set;
+ *   armour  helmet 4, chestplate 9, leggings 7, boots 4 (diamond: 3/8/6/3: every piece one point better) with toughness 3
+ *           each (diamond 2) and +5% knockback resistance each: 24 armour, 12 toughness, 20% knockback resistance for a full
+ *           set (owner 2026-10-05: "Emerald should be better than Diamond. That includes the helmet"; until then the
+ *           helmet and boots were 3, exactly diamond's, and pieces made earlier are brought up to date by ArmoryItems.upgraded);
  *   weapons sword 8 damage at 1.6 (diamond 7), axe 10 at 1.0 (diamond 9);
  *   tools   pickaxe 6 at 1.2, shovel 6.5 at 1.0, hoe 2 at 4.0 (diamond 5, 5.5, 1), mining at diamond speed.
  *
  * Every piece is unbreakable: the item's damage value only picks its model (ArmorySet.model()).
  */
 enum ArmoryPiece {
-    HELMET("helmet", "Helmet", Material.DIAMOND_HELMET, "head", 3, new String[]{"XXX", "X X"}),
+    HELMET("helmet", "Helmet", Material.DIAMOND_HELMET, "head", 4, new String[]{"XXX", "X X"}),
     CHESTPLATE("chestplate", "Chestplate", Material.DIAMOND_CHESTPLATE, "chest", 9, new String[]{"X X", "XXX", "XXX"}),
     LEGGINGS("leggings", "Leggings", Material.DIAMOND_LEGGINGS, "legs", 7, new String[]{"XXX", "X X", "X X"}),
-    BOOTS("boots", "Boots", Material.DIAMOND_BOOTS, "feet", 3, new String[]{"X X", "X X"}),
+    BOOTS("boots", "Boots", Material.DIAMOND_BOOTS, "feet", 4, new String[]{"X X", "X X"}),
     SWORD("sword", "Sword", Material.DIAMOND_SWORD, 7.0, -2.4, new String[]{"X", "X", "S"}),
     AXE("axe", "Axe", Material.DIAMOND_AXE, 9.0, -3.0, new String[]{"XX", "XS", " S"}),
     PICKAXE("pickaxe", "Pickaxe", Material.DIAMOND_PICKAXE, 5.0, -2.8, new String[]{"XXX", " S ", " S "}),

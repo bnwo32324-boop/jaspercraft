@@ -144,6 +144,7 @@ public final class GearPlugin extends JavaPlugin implements Listener, PluginMess
             + " recipes=" + recipes + " supplyRecipes=" + supplyRecipes + " backpacks=" + GearBackpack.values().length
             + " packRecipes=" + packRecipes + " realmItems=" + (GearItem.values().length - GearItem.craftableCount())
             + " armorySets=" + ArmorySet.values().length + " armoryPieces=" + ArmorySet.values().length * ArmoryPiece.values().length
+            + " armoryArmour=" + java.util.Arrays.stream(ArmoryPiece.values()).filter(ArmoryPiece::armour).mapToInt(p -> p.armor).sum()
             + " armoryRecipes=" + armory.recipes + " channel=" + CHANNEL + " protocol=" + PROTOCOL);
         if (Boolean.getBoolean("jaspr.gear.selftest")) getServer().getScheduler().runTask(this, () -> new GearSelfTest(this).run(getServer().getConsoleSender()));
     }
