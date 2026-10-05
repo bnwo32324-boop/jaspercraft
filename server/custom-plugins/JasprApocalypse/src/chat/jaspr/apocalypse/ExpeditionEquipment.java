@@ -110,7 +110,7 @@ public final class ExpeditionEquipment implements Listener {
                     0, 0, PERK_TEXT[set]));
         }
         add(new Spec("sentry_turret", "Sentry Turret", "block", Material.IRON_PICKAXE, 100, 0, 0, "Placeable automated defense.|Right-click: settings.|Sneak + right-click: collect."));
-        add(new Spec("portal_gun", "Portal Gun", "gadget", Material.DIAMOND_HOE, 1160, 0, 0, "Right-click: cyan portal|Sneak + right-click: amber portal|Anyone can travel through your portals"));
+        add(new Spec("portal_gun", "Portal Gun", "gadget", Material.DIAMOND_HOE, 1160, 0, 0, "Right-click: fire a portal; shots alternate blue and orange|Anyone can travel through your portals"));
         add(new Spec("alloy_plate", "Tempered Alloy Plate", "material", Material.IRON_INGOT, 0, 0, 0, "Combine with a Power Cell to press 48 cartridges"));
         add(new Spec("weapon_core", "Ancient Weapon Core", "material", Material.QUARTZ, 0, 0, 0, "Combine with Military Salvage to recover 4 alloy plates"));
         add(new Spec("power_cell", "Sealed Power Cell", "material", Material.PRISMARINE_SHARD, 0, 0, 0, "Powers ammunition presses and coolant injectors"));
@@ -191,6 +191,25 @@ public final class ExpeditionEquipment implements Listener {
         int tier = data.getInt("tier");
         return ApocalypseItems.expedition("portal_gun", tier <= 0 ? 1 : tier);
     }
+    /**
+     * Portal guns made before the shots alternated still say "cyan portal ... amber portal" in their lore. The item stays what it
+     * is (same data, same serial); only the lore lines are replaced by today's, and the footer line is kept. Returns the same
+     * stack when there is nothing to change.
+     */
+    static ItemStack refreshPortalGunLore(ItemStack item) {
+        if (item == null || item.getType() != Material.DIAMOND_HOE || !item.hasItemMeta()
+                || !"portal_gun".equals(ApocalypseItems.id(item))) return item;
+        ItemMeta meta = item.getItemMeta();
+        java.util.List<String> lore = meta.getLore();
+        if (lore == null || lore.isEmpty() || !ChatColor.stripColor(lore.get(0)).startsWith("Right-click: cyan portal")) return item;
+        java.util.List<String> fresh = new java.util.ArrayList<String>();
+        for (String line : SPECS.get("portal_gun").perk.split("\\|", -1)) fresh.add(ChatColor.GRAY + line.trim());
+        fresh.add(lore.get(lore.size() - 1));
+        ItemStack copy = item.clone();
+        meta.setLore(fresh);
+        copy.setItemMeta(meta);
+        return copy;
+    }
     public static boolean isMelee(ItemStack item) {
         Spec spec = identify(item); return spec != null && "melee".equals(spec.category);
     }
@@ -224,7 +243,7 @@ public final class ExpeditionEquipment implements Listener {
     private static void migratePortalGuns(Player player) {
         for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
             ItemStack before = player.getInventory().getItem(slot);
-            ItemStack after = upgradeLegacyPortalGun(before);
+            ItemStack after = refreshPortalGunLore(upgradeLegacyPortalGun(before));
             if (after != before) player.getInventory().setItem(slot, after);
         }
     }

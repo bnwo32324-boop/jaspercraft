@@ -174,7 +174,7 @@ public final class ApocalypsePlugin extends JavaPlugin implements Listener {
             }
             pg.getInventory().addItem(ApocalypseItems.expedition("portal_gun", 5));
             pg.sendMessage(ChatColor.AQUA + "Portal Gun " + ChatColor.GRAY
-                    + "added. Right-click: cyan portal. Sneak + right-click: amber. Anyone can walk through.");
+                    + "added. Right-click: fire a portal; shots alternate blue and orange. Anyone can walk through.");
             return true;
         }
         if ("waypoints".equalsIgnoreCase(cmd.getName()) || "wp".equalsIgnoreCase(cmd.getName())) {

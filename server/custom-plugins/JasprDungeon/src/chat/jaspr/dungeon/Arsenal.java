@@ -80,7 +80,7 @@ public final class Arsenal implements Listener {
         lore.add(ChatColor.GRAY+t.description);lore.add(ChatColor.GRAY+"Damage "+t.damage+" | Range "+t.range+" | "+(t.cooldownMillis/1000.0)+"s recovery");
         if(t.gun()){
             lore.add(ChatColor.YELLOW+"Rounds: "+Math.max(0,Math.min(t.magazine,d.getInt("rounds")))+" / "+t.magazine+(d.getLong("reloadAt")>0?" (reloading)":""));
-            lore.add(ChatColor.GRAY+"Right-click fires; sneak + right-click reloads.");
+            lore.add(ChatColor.GRAY+"Right-click fires; reloads itself when empty; sneak + right-click reloads early.");
             lore.add(ChatColor.GRAY+"One plain iron nugget per round; reload "+(t.reloadMillis/1000.0)+"s.");
         }else lore.add(ChatColor.GRAY+(t.ranged()?"Right-click casts; no ammunition.":"Left-click strikes; special effects have bounded cooldowns."));
         lore.add(ChatColor.DARK_GRAY+"Found only in the dungeon; usable in other worlds. No PvP.");meta.setLore(lore);item.setItemMeta(meta);return item;
@@ -166,6 +166,17 @@ public final class Arsenal implements Listener {
         Location origin=p.getEyeLocation();Vector direction=origin.getDirection().normalize();
         shoot(p,t,use.id,use.key,origin,direction);
         for(int pulse=1;pulse<t.burst;pulse++)enqueue(new Pending(p,t,use.id,use.key,ticks+pulse*11,origin,direction));
+        // Owner 2026-10-05: a gun that can no longer pay for a trigger pull reloads by itself once its shot recovery is over.
+        if(t.gun()&&left<t.triggerCost())enqueue(new Pending(p,t,use.id,use.key,ticks+(t.cooldownMillis+49)/50+(t.burst-1)*11L+1));
+    }
+    /** The automatic reload: still the same gun in hand, still unable to fire, not reloading, and plain iron nuggets carried. */
+    private void load(Player p,Pending job){
+        ItemStack item=settled(p.getInventory().getItemInMainHand());ArmoryCatalog.Type t=type(item);
+        if(t==null||t!=job.type||!t.gun()||!job.id.equals(serial(item))||rounds(item,t)>=t.triggerCost()||data(item).getLong("reloadAt")>0)return;
+        boolean carried=false;int storage=p.getInventory().getStorageContents().length;
+        for(int slot=0;slot<storage&&!carried;slot++)carried=ammo(p.getInventory().getItem(slot));
+        if(!carried)return;
+        p.getInventory().setItemInMainHand(item);reload(p,item,t);
     }
 
     private static final class Melee {
@@ -304,8 +315,11 @@ public final class Arsenal implements Listener {
     }
     private static final class Pending {
         final UUID player;final ArmoryCatalog.Type type;final String id,key;final long due;final Location origin;final Vector direction;final LivingEntity victim;final double damage;
-        Pending(Player p,ArmoryCatalog.Type t,String id,String key,long due,Location origin,Vector direction){player=p.getUniqueId();type=t;this.id=id;this.key=key;this.due=due;this.origin=origin.clone();this.direction=direction.clone();victim=null;damage=0;}
-        Pending(Player p,ArmoryCatalog.Type t,String id,String key,long due,LivingEntity victim,double damage){player=p.getUniqueId();type=t;this.id=id;this.key=key;this.due=due;origin=null;direction=null;this.victim=victim;this.damage=damage;}
+        /** A reload that follows the shot which emptied the magazine (owner 2026-10-05). */
+        final boolean load;
+        Pending(Player p,ArmoryCatalog.Type t,String id,String key,long due,Location origin,Vector direction){player=p.getUniqueId();type=t;this.id=id;this.key=key;this.due=due;this.origin=origin.clone();this.direction=direction.clone();victim=null;damage=0;load=false;}
+        Pending(Player p,ArmoryCatalog.Type t,String id,String key,long due,LivingEntity victim,double damage){player=p.getUniqueId();type=t;this.id=id;this.key=key;this.due=due;origin=null;direction=null;this.victim=victim;this.damage=damage;load=false;}
+        Pending(Player p,ArmoryCatalog.Type t,String id,String key,long due){player=p.getUniqueId();type=t;this.id=id;this.key=key;this.due=due;origin=null;direction=null;victim=null;damage=0;load=true;}
     }
     private void enqueue(Pending job){
         if(pending.size()>=MAX_PENDING)return;int count=0;for(Pending p:pending)if(p.player.equals(job.player))count++;if(count<MAX_PER_PLAYER)pending.add(job);
@@ -323,6 +337,7 @@ public final class Arsenal implements Listener {
         List<Pending> due=new ArrayList<>();Iterator<Pending> iterator=pending.iterator();while(iterator.hasNext()){Pending job=iterator.next();if(job.due<=ticks){iterator.remove();due.add(job);}}
         for(Pending job:due){
             Player p=Bukkit.getPlayer(job.player);if(!readyPlayer(p,job.key)||!held(p,job.type,job.id))continue;
+            if(job.load){load(p,job);continue;}
             if(job.victim!=null){if(allowed(p,job.victim,job.key))damage(p,job.victim,job.damage,job.key,p.getEyeLocation());}
             else shoot(p,job.type,job.id,job.key,job.origin,job.direction);
         }

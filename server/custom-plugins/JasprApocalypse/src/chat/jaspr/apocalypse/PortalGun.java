@@ -29,8 +29,9 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 /**
- * A linked-teleporter tool. Right-click fires the cyan portal, sneak + right-click
- * the amber one; when both exist they are bound, and ANY player who walks into one
+ * A linked-teleporter tool. Right-click fires a portal, and the shots alternate on their own (owner 2026-10-05:
+ * "it just alternates between blue and orange ... no shift-click necessary"): blue, orange, blue again (which moves the
+ * blue one), and so on. When both exist they are bound, and ANY player who walks into one
  * is carried out of the other. Portals live on the server, are drawn for everyone,
  * and are shared, so other people travel through portals you opened. This is an
  * original device -- not a reproduction of any existing game's art or branding.
@@ -46,8 +47,8 @@ final class PortalGun implements Listener {
     private static final double PLANE_DEPTH = 0.7;      // depth of the trigger slab along the portal normal
     private static final long COOLDOWN_MS = 900;   // per-player re-entry lock after a jump
     private static final double EXIT_OFFSET = 1.25;// how far in front of the exit the traveller appears
-    private static final int[] CYAN = {85, 255, 255};
-    private static final int[] AMBER = {255, 150, 0};
+    private static final int[] BLUE = {30, 144, 255};
+    private static final int[] ORANGE = {255, 140, 0};
 
     private final ApocalypsePlugin plugin;
     private final Map<UUID, Pair> pairs = new HashMap<UUID, Pair>();
@@ -73,7 +74,7 @@ final class PortalGun implements Listener {
 
     String metrics() {
         int open = 0;
-        for (Pair p : pairs.values()) { if (p.cyan != null) open++; if (p.amber != null) open++; }
+        for (Pair p : pairs.values()) { if (p.blue != null) open++; if (p.orange != null) open++; }
         return "portalOwners=" + pairs.size() + ",openPortals=" + open;
     }
 
@@ -94,10 +95,10 @@ final class PortalGun implements Listener {
         event.setCancelled(true);
         Player player = event.getPlayer();
         if (!plugin.authenticated(player)) return;
-        fire(player, player.isSneaking());
+        fire(player);
     }
 
-    private void fire(Player player, boolean amber) {
+    private void fire(Player player) {
         World world = player.getWorld();
         Hit hit = rayTrace(player);
         if (hit == null) {
@@ -105,18 +106,22 @@ final class PortalGun implements Listener {
             actionBar(player, ChatColor.GRAY + "No surface in range.");
             return;
         }
-        Portal portal = new Portal(world.getName(), hit.air.getX(), hit.air.getY(), hit.air.getZ(), hit.face, amber);
         Pair pair = pairs.get(player.getUniqueId());
         if (pair == null) { pair = new Pair(); pairs.put(player.getUniqueId(), pair); }
-        if (amber) pair.amber = portal; else pair.cyan = portal;
+        // The shots alternate, blue first; a shot that finds no surface does not take its turn.
+        boolean orange = pair.nextOrange;
+        Portal portal = new Portal(world.getName(), hit.air.getX(), hit.air.getY(), hit.air.getZ(), hit.face, orange);
+        if (orange) pair.orange = portal; else pair.blue = portal;
+        pair.nextOrange = !orange;
 
-        int[] c = amber ? AMBER : CYAN;
+        int[] c = orange ? ORANGE : BLUE;
         Location centre = portal.centre(world);
-        world.playSound(centre, Sound.ENTITY_ENDERMEN_TELEPORT, 0.8f, amber ? 0.8f : 1.3f);
+        world.playSound(centre, Sound.ENTITY_ENDERMEN_TELEPORT, 0.8f, orange ? 0.8f : 1.3f);
         burst(world, centre, c);
-        boolean linked = pair.cyan != null && pair.amber != null;
-        actionBar(player, (amber ? ChatColor.GOLD + "Amber portal set." : ChatColor.AQUA + "Cyan portal set.")
-                + (linked ? ChatColor.GRAY + "  Portals linked." : ChatColor.DARK_GRAY + "  Set the other to link."));
+        boolean linked = pair.blue != null && pair.orange != null;
+        actionBar(player, (orange ? ChatColor.GOLD + "Orange portal set." : ChatColor.AQUA + "Blue portal set.")
+                + (linked ? ChatColor.GRAY + "  Portals linked." : ChatColor.DARK_GRAY + "  Fire again to open the other.")
+                + ChatColor.DARK_GRAY + "  Next: " + (pair.nextOrange ? "orange" : "blue") + ".");
     }
 
     /** March from the eye until a solid surface; returns the air cell in front of it and the facing. */
@@ -165,8 +170,8 @@ final class PortalGun implements Listener {
         List<Active> active = new ArrayList<Active>();
         for (Map.Entry<UUID, Pair> e : pairs.entrySet()) {
             Pair pair = e.getValue();
-            if (pair.cyan != null) active.add(new Active(pair.cyan, pair.amber));
-            if (pair.amber != null) active.add(new Active(pair.amber, pair.cyan));
+            if (pair.blue != null) active.add(new Active(pair.blue, pair.orange));
+            if (pair.orange != null) active.add(new Active(pair.orange, pair.blue));
         }
         if (active.isEmpty()) return;
 
@@ -219,14 +224,14 @@ final class PortalGun implements Listener {
         player.teleport(dest);
         player.setVelocity(n.clone().multiply(speed));
         player.playSound(dest, Sound.ENTITY_ENDERMEN_TELEPORT, 0.9f, 1.0f);
-        burst(world, dest.clone().add(0, 0.9, 0), exit.amber ? AMBER : CYAN);
+        burst(world, dest.clone().add(0, 0.9, 0), exit.orange ? ORANGE : BLUE);
     }
 
     // -- Visuals -------------------------------------------------------------
     private void render(Portal p) {
         World world = Bukkit.getWorld(p.world);
         if (world == null) return;
-        int[] c = p.amber ? AMBER : CYAN;
+        int[] c = p.orange ? ORANGE : BLUE;
         Location centre = p.centre(world);
         Vector n = normal(p.face);
         Vector u = basis(n);
@@ -270,13 +275,13 @@ final class PortalGun implements Listener {
 
     // -- Data ----------------------------------------------------------------
     private static final class Portal {
-        final String world; final int x, y, z; final BlockFace face; final boolean amber;
-        Portal(String world, int x, int y, int z, BlockFace face, boolean amber) {
-            this.world = world; this.x = x; this.y = y; this.z = z; this.face = face; this.amber = amber;
+        final String world; final int x, y, z; final BlockFace face; final boolean orange;
+        Portal(String world, int x, int y, int z, BlockFace face, boolean orange) {
+            this.world = world; this.x = x; this.y = y; this.z = z; this.face = face; this.orange = orange;
         }
         Location centre(World w) { return new Location(w, x + 0.5, y + 0.5, z + 0.5); }
     }
-    private static final class Pair { Portal cyan, amber; }
+    private static final class Pair { Portal blue, orange; boolean nextOrange; }
     private static final class Active { final Portal self, exit; Active(Portal self, Portal exit) { this.self = self; this.exit = exit; } }
     private static final class Hit { final Block air; final BlockFace face; Hit(Block air, BlockFace face) { this.air = air; this.face = face; } }
 

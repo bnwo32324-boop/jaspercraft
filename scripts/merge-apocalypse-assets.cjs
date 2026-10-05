@@ -39,8 +39,10 @@ function merge(input,packDir){
   const parsed=decode(input),changed=new Map();
   function scan(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory())scan(p);else{
     const name=path.relative(packDir,p).replaceAll('\\','/');
-    if(!/^assets\/minecraft\/models\/item\/[a-z0-9_/-]+\.json$/.test(name))continue;
-    const value=fs.readFileSync(p);JSON.parse(value);changed.set(name,value);
+    // Code-native item models, plus the item textures a model of ours paints for itself (the Portal Gun's own texture).
+    const isModel=/^assets\/minecraft\/models\/item\/[a-z0-9_/-]+\.json$/.test(name),isTexture=/^assets\/minecraft\/textures\/items\/[a-z0-9_/-]+\.png$/.test(name);
+    if(!isModel&&!isTexture)continue;
+    const value=fs.readFileSync(p);if(isModel)JSON.parse(value);changed.set(name,value);
   }}}
   scan(packDir);assert.ok(changed.size>=4,'Three guns and base item override are required.');
   // Eagler's resource archive removes the outer assets/ prefix.
@@ -62,6 +64,7 @@ function merge(input,packDir){
     return (prefix?'':'assets/')+namespace+'/'+type+'/'+local+extension;
   };
   for(const [name,value]of replacements){
+    if(name.endsWith('.png'))continue;
     const model=JSON.parse(value);
     for(const texture of Object.values(model.textures||{}))if(!texture.startsWith('#'))
       assert.ok(byName.has(resourcePath(texture,'textures','.png')),name+': missing texture '+texture);
@@ -70,14 +73,15 @@ function merge(input,packDir){
     for(const override of model.overrides||[])
       assert.ok(byName.has(resourcePath(override.model,'models','.json')),name+': missing override '+override.model);
   }
-  return {output,models:[...replacements.keys()],unchangedEntries:parsed.entries.length-[...replacements.keys()].filter(n=>parsed.entries.some(e=>e.name===n)).length};
+  return {output,models:[...replacements.keys()].filter(n=>n.endsWith('.json')),textures:[...replacements.keys()].filter(n=>n.endsWith('.png')),
+    unchangedEntries:parsed.entries.length-[...replacements.keys()].filter(n=>parsed.entries.some(e=>e.name===n)).length};
 }
 if(require.main===module){
   const input=fs.readFileSync(path.join(root,'site','assets.epk'));
   const result=merge(input,path.join(root,'apocalypse-pack'));
   const target=path.join(root,'candidate','apocalypse');fs.mkdirSync(target,{recursive:true});
   fs.writeFileSync(path.join(target,'assets.epk'),result.output);
-  const report={models:result.models,unchangedEntries:result.unchangedEntries,beforeBytes:input.length,afterBytes:result.output.length,
+  const report={models:result.models,textures:result.textures,unchangedEntries:result.unchangedEntries,beforeBytes:input.length,afterBytes:result.output.length,
     sha256:crypto.createHash('sha256').update(result.output).digest('hex')};
   fs.writeFileSync(path.join(target,'asset-merge-report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
 }

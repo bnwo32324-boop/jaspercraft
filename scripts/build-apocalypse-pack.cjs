@@ -37,6 +37,11 @@ const vanillaTextures = new Set([
   'items/iron_pickaxe',
 ]);
 const faces = ['north', 'south', 'east', 'west', 'up', 'down'];
+// The Portal Gun paints its own texture (2026-10-05) and is the one model allowed to omit faces that are hidden against a
+// neighbouring part and to use more cuboids than a firearm normally may; everything else keeps the strict rules.
+const PORTAL_MODEL = 'assets/minecraft/models/item/apocalypse_portal_gun.json';
+const PORTAL_TEXTURE_FILE = 'assets/minecraft/textures/items/apocalypse_portal_gun.png';
+const PORTAL_MAX_ELEMENTS = 80;
 const views = ['firstperson_righthand', 'firstperson_lefthand', 'thirdperson_righthand',
   'thirdperson_lefthand', 'gui', 'ground', 'fixed'];
 
@@ -90,8 +95,12 @@ function validate() {
   })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
   const models = new Map();
   for (const entry of entries) {
-    assert(entry.name === 'pack.mcmeta' || /^assets\/minecraft\/models\/item\/[a-z0-9_]+\.json$/.test(entry.name),
+    assert(entry.name === 'pack.mcmeta' || entry.name === PORTAL_TEXTURE_FILE || /^assets\/minecraft\/models\/item\/[a-z0-9_]+\.json$/.test(entry.name),
       `Unexpected pack input: ${entry.name}`);
+    if (entry.name === PORTAL_TEXTURE_FILE) {
+      assert(entry.data.equals(require('../scripts/png-codec.cjs').encode(portalGun.texture())), 'Portal Gun texture differs from its generator');
+      continue;
+    }
     const json = JSON.parse(entry.data.toString('utf8'));
     if (entry.name === 'pack.mcmeta') {
       assert.equal(json.pack.pack_format, 3, 'Minecraft 1.12.2 requires pack_format 3');
@@ -101,12 +110,13 @@ function validate() {
   for (const [name, model] of models) {
     if (model.parent) assert(['item/handheld', 'minecraft:item/handheld', 'item/generated'].includes(model.parent), `${name}: unexpected parent`);
     for (const texture of Object.values(model.textures || {})) {
-      assert(vanillaTextures.has(texture.replace(/^minecraft:/, '')), `${name}: unverified vanilla texture ${texture}`);
+      const own = name === PORTAL_MODEL && texture === portalGun.TEXTURE;
+      assert(own || vanillaTextures.has(texture.replace(/^minecraft:/, '')), `${name}: unverified vanilla texture ${texture}`);
     }
     for (const override of model.overrides || []) assert(models.has(modelPath(override.model)), `Missing override ${override.model}`);
     if (!model.elements) continue;
     const isGun = [...guns.values()].some(reference => modelPath(reference) === name);
-    assert(model.elements.length >= (isGun ? 12 : 4) && model.elements.length <= 32, `${name}: geometry budget`);
+    assert(model.elements.length >= (isGun ? 12 : 4) && model.elements.length <= (name === PORTAL_MODEL ? PORTAL_MAX_ELEMENTS : 32), `${name}: geometry budget`);
     // Coplanar same-facing overlapping faces z-fight (flicker) in game; apocalypse-pack/zfight.cjs separates them.
     const flicker = require('../apocalypse-pack/zfight.cjs').conflicts(model.elements);
     assert.equal(flicker.length, 0, `${name}: ${flicker.length} z-fighting face pair(s); run apocalypse-pack/zfight.cjs separate()`);
@@ -115,7 +125,8 @@ function validate() {
       triple(element.from, `${label} from`, -16, 32);
       triple(element.to, `${label} to`, -16, 32);
       assert(element.from.every((value, axis) => value < element.to[axis]), `${label}: zero/inverted extent`);
-      assert.deepEqual(Object.keys(element.faces).sort(), [...faces].sort(), `${label}: missing face`);
+      if (name === PORTAL_MODEL) assert(Object.keys(element.faces).length > 0 && Object.keys(element.faces).every(face => faces.includes(face)), `${label}: bad faces`);
+      else assert.deepEqual(Object.keys(element.faces).sort(), [...faces].sort(), `${label}: missing face`);
       for (const face of Object.values(element.faces)) {
         assert(typeof face.texture === 'string' && face.texture.startsWith('#') && model.textures[face.texture.slice(1)], `${label}: missing texture`);
         assert(Array.isArray(face.uv) && face.uv.length === 4 && face.uv.every(value => value >= 0 && value <= 16), `${label}: invalid UV`);

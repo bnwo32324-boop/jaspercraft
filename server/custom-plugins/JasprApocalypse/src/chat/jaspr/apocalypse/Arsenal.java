@@ -291,7 +291,7 @@ public final class Arsenal implements Listener {
 
     public static List<String> guideLines() {
         return Collections.unmodifiableList(Arrays.asList(
-            "Main hand: right-click to fire; sneak + right-click to reload. Crafted and rare-loot guns start empty.",
+            "Main hand: right-click to fire. An empty gun reloads itself while you carry iron nuggets; sneak + right-click reloads early. Crafted and rare-loot guns start empty.",
             "Last Light: 32 damage, 64 blocks, 18 rounds; 1 iron nugget per round.",
             "Requiem: 9 x 10 damage pellets, 28 blocks, 6 shells; 2 iron nuggets per shell.",
             "Gravebreaker: 100 damage, 96 blocks, up to 3 bodies, 3 shots; 8 iron nuggets per shot.",
@@ -322,7 +322,7 @@ public final class Arsenal implements Listener {
             "GRAVEBREAKER\n\nB B D\nG X N\nB Q I\n\nB: Iron Block (3)\nD: Diamond; G: Gold Block\nX: Redstone Block\nN: Nether Star\nQ: Quartz; I: Iron Ingot\n\n100 damage; pierces 3.",
             "PORTAL GUN\n\nB Q D\nQ X E\nB Q G\n\nB: Iron Block (2)\nQ: Quartz (3)\nD: Diamond\nX: Redstone Block\nE: Ender Pearl\nG: Gold Ingot\n\nVanilla materials only.",
             "AMMUNITION\n\nEvery firearm loads plain vanilla Iron Nuggets from your main inventory. Craft Iron Ingots into nuggets using the normal vanilla recipe.\n\nMarked Military Salvage is protected and is never consumed as ammunition.\n\nMost rounds cost 1 nugget; shells cost 2; Gravebreaker shots cost 8.",
-            "LOADING & FIRING\n\nCrafted and rare-loot guns start empty. Keep iron nuggets in your main inventory.\n\nMain hand right-click: fire.\nSneak + right-click: reload.\n\nSwitching slots, dropping, inventory edits or world travel cancels reloads and bursts. Reload ammo is charged at completion.",
+            "LOADING & FIRING\n\nGuns start empty. Keep iron nuggets in your main inventory.\n\nRight-click: fire. An empty gun reloads itself.\nSneak + right-click: reload early.\n\nSwitching slots, dropping, inventory edits or travel cancels a reload. Ammo is charged at completion.",
             "ARSENAL NOTES\n\nGun recipes accept plain vanilla ingredients only. Tagged custom items are rejected even when their base material looks correct.\n\nUse the exact 3x3 patterns, or mirror a pattern.\n\nWalls stop all shots. Armor, shields, PvP rules and protection still apply. Gunfire draws nearby zombies."
         };
     }
@@ -378,7 +378,7 @@ public final class Arsenal implements Listener {
         ItemStack copy = item.clone();
         ItemMeta meta = copy.getItemMeta();
         List<String> lore = new ArrayList<String>(Arrays.asList(ChatColor.GRAY + "Magazine: " + count + "/" + capacity(copy, gun),
-                ChatColor.DARK_GRAY + "Right-click: fire | Sneak + right-click: reload",
+                ChatColor.DARK_GRAY + "Right-click: fire | Reloads itself when empty | Sneak: reload early",
                 ChatColor.GRAY + "Ammo per round: " + gun.ammoCost,
                 ChatColor.GRAY + "Damage: " + gun.pellets + " x " + gun.damage + " | Range: " + Math.round(range(copy, gun) * 10) / 10.0,
                 ChatColor.GRAY + "Shot: " + cooldownMs(copy, gun) + "ms | Reload: " + reloadMs(copy, gun) + "ms",
@@ -429,7 +429,9 @@ public final class Arsenal implements Listener {
         }
         int count = data(held).getInt("rounds");
         if (count == 0) {
-            hint(player, "Empty magazine. Sneak + right-click to reload with iron nuggets.");
+            // Owner 2026-10-05: an empty gun reloads by itself while the inventory holds ammunition for it.
+            if (availableAmmo(player) >= gun.ammoCost) reload(player, gun, held);
+            else hint(player, "Empty magazine and no iron nuggets to load it with.");
             return;
         }
         Location origin = player.getEyeLocation();
@@ -443,6 +445,7 @@ public final class Arsenal implements Listener {
         player.getInventory().setItemInMainHand(rounds(held, gun, count - 1));
         fire(player, origin, direction, gun, candidates, range(held, gun), spread(held, gun));
         if ((gun == Gun.TEMPEST || gun.pattern == Pattern.BURST) && count > 1) burst(player, gun, held, count - 1);
+        else if (count == 1) autoReload(player, gun);
     }
 
     private static String specialty(Gun gun) {
@@ -497,10 +500,27 @@ public final class Arsenal implements Listener {
                     if (candidates == null) { cancelReload(id); return; }
                     player.getInventory().setItemInMainHand(rounds(item, gun, expected - 1));
                     fire(player, eye, direction, gun, candidates, range(item, gun), spread(item, gun));
-                    if (last) bursting.remove(id);
+                    if (last) {
+                        bursting.remove(id);
+                        if (expected - 1 == 0) autoReload(player, gun);
+                    }
                 }
             }, i * 11L)); // Respect vanilla immunity without resetting noDamageTicks.
         }
+    }
+
+    /**
+     * Owner 2026-10-05: "Guns should reload automatically when their magazine is empty, provided there are enough bullets in your
+     * inventory." Called when a shot has just emptied the magazine: the same timed reload as sneak + right-click (which still
+     * reloads a magazine that is not empty yet), cancelled the same ways, and only started when ammunition for one round is carried.
+     */
+    private void autoReload(Player player, Gun gun) {
+        UUID id = player.getUniqueId();
+        if (reloading.containsKey(id) || bursting.containsKey(id) || !allowed(player)) return;
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (identify(held) != gun || data(held).getInt("rounds") != 0) return;
+        if (availableAmmo(player) < gun.ammoCost) { hint(player, gun.title + " is empty and you have no iron nuggets to load it."); return; }
+        reload(player, gun, held);
     }
 
     private void reload(final Player player, final Gun gun, ItemStack item) {
