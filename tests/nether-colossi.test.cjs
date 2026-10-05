@@ -72,10 +72,10 @@ test('colossal wiring: placement, history, bosses, champions, keys, creatures, l
   assert.match(gen, /registry\.setColossusDecision\(s\.cellX, s\.cellZ, on\);/);
   assert.equal((gen.match(/if \(on && colossusClaims\(s\.minX, s\.minZ, s\.maxX, s\.maxZ\)\) on = false;/g) || []).length, 2, 'mega and GLM give way');
   assert.match(plugin, /static final int REGEN_EPOCH = 7;/);
-  // the colossi of 2026-10-04: a 640-block grid of fourteen slots (the Pyramid and the Citadel two each), and the GLM builds and
+  // the colossi of 2026-10-04: an 896-block grid of fourteen slots (the Pyramid and the Citadel two each), and the GLM builds and
   // the mega structures plan around them
   const colossi = java('Colossi');
-  assert.match(colossi, /static final int CELL = 640;/);
+  assert.match(colossi, /static final int CELL = 896;/);
   assert.equal((colossi.match(/SLOTS = \{([^}]*)\}/)[1].match(/Kind\.[A-Z]+/g) || []).length, 14);
   for (const [id, lord, cls] of TITANS) {
     assert.match(colossi, new RegExp('"' + id + '", "[^"]+", \\d+, 32, \\d+, \\d+, [\\d.]+, "' + lord + '"'), id);

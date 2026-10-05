@@ -11,10 +11,11 @@ import java.util.Random;
  * boss): the Great Pyramid and the Caldera Citadel (the third, the Endless Catacombs, lies under everything, see
  * {@link Depths}); since 2026-10-04 ten more (owner: "Add 10 new structures to the Nether. I want them each to be unique,
  * and there should be all kinds of Nether mobs in them, and they should each have a boss. I want them to be huge
- * structures"). One site per 640 x 640-block cell, each hollowing a cavern up to some 350 blocks across that reaches from
- * just above the lava sea towards the Nether's roof. The kinds follow a fixed lattice of fourteen slots (the Pyramid and
- * the Citadel hold two each, so they stand about as often as they did on the old 1152-block grid; each new kind holds
- * one): any four cells in a row, or any three in a column, are all different kinds.
+ * structures"). One site per 896 x 896-block cell (1.8 times as many colossi as the old 1152-block grid held), each
+ * hollowing a cavern up to some 350 blocks across that reaches from just above the lava sea towards the Nether's roof.
+ * The kinds follow a fixed lattice of fourteen slots (the Pyramid and the Citadel hold two each, each new kind one): any
+ * four cells in a row, or any three in a column, are all different kinds. A closer grid would have crowded out the GLM
+ * builds and the mega structures (measured on three seeds: at 640 blocks they would keep 80% and 42%; at 896, 99% and 75%).
  * <p>
  * They are planned after the Nether Cities (which keep their places) and before everything else, without moving
  * anything already decided: a colossus is built only where all of its land is new (no chunk of its box existed before
@@ -23,7 +24,7 @@ import java.util.Random;
  * it, decided once, when its first chunk is reached, like every site).
  */
 final class Colossi {
-    static final int CELL = 640;
+    static final int CELL = 896;
     static final int REACH = 184;     // nothing a site draws is farther than this from its centre (horizontally)
     static final int MARGIN = 196;    // a site's centre keeps this far from its cell's edges
 

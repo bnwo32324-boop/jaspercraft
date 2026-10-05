@@ -44,7 +44,7 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
      * more builds and lost half the megas);
      * v7 2026-10-04: the owner asked for ten new colossal structures ("I want them to be huge structures. All this update is
      * just about big, big, big structures"), each with its Lord and every hostile creature of the Nether: the colossi now
-     * stand on a 640-block grid (fourteen slots, the Pyramid and the Citadel two each) and the GLM builds and mega
+     * stand on an 896-block grid (fourteen slots, the Pyramid and the Citadel two each) and the GLM builds and mega
      * structures plan around them.
      */
     static final int REGEN_EPOCH = 7;

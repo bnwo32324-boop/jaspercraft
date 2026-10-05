@@ -129,6 +129,8 @@ final class RuinsQuest implements GuideKit.Realm {
                 + ".\n\nBeds do not work here.",
             ChatColor.BOLD + "THE WARDENS" + ChatColor.RESET + "\n\nHierophant - Sanctum\nPillar Warden - Circle of the Watchers\nBrood Mother - Pit of Offerings\n"
                 + "Spawn of the Deep - Spawning Pool\nFaceless Priest - Chapel\n\nEach drops its own Seal.",
+            ChatColor.BOLD + "THE GREAT RUINS" + ChatColor.RESET + "\n\nTwenty great ruins stand in the wilds (red marks on your map). Each "
+                + "has a keeper that wakes in its hall, and every horror and monster guards it.\n\nA fallen keeper leaves relics and treasure.",
             ChatColor.BOLD + "THE REWARD" + ChatColor.RESET + "\n\nThe Herald's hoard: the Crown of the Drowned Star, the Herald's Cleaver, the Wings of the "
                 + "Nightgaunt and more.\n\nGoing home: stand in a mossy portal for three seconds.\n\nLost an item? The guide at any gate has more.");
     }
@@ -193,6 +195,16 @@ final class RuinsQuest implements GuideKit.Realm {
         }
         Plans.Door d = plugin.plans().door();
         out.add(new GuideKit.Marker(d.x, d.z, MapCursor.Type.MANSION));
+        for (Plans.GreatSite g : greatsNear(p)) out.add(new GuideKit.Marker(g.x, g.z, MapCursor.Type.RED_MARKER));
+        return out;
+    }
+
+    /** The great structures (epoch 6) within reach of the map, nearest first. */
+    private List<Plans.GreatSite> greatsNear(Player p) {
+        Location l = p.getLocation();
+        List<Plans.GreatSite> out = new ArrayList<>();
+        for (Plans.GreatSite g : plugin.plans().greatsNear(l.getBlockX(), l.getBlockZ(), 2))
+            if (Math.abs(g.x - l.getBlockX()) < 64 * mapScale() && Math.abs(g.z - l.getBlockZ()) < 64 * mapScale()) out.add(g);
         return out;
     }
 
@@ -207,6 +219,9 @@ final class RuinsQuest implements GuideKit.Realm {
         Location l = p.getLocation();
         wanted.sort((a, b) -> Double.compare(Math.hypot(a.x - l.getX(), a.z - l.getZ()), Math.hypot(b.x - l.getX(), b.z - l.getZ())));
         for (int i = 0; i < Math.min(4, wanted.size()); i++) out.add(new GuideKit.Label(wanted.get(i).x, wanted.get(i).z, shortName(wanted.get(i).kind)));
+        // the three nearest great structures, named (every one is marked)
+        List<Plans.GreatSite> greats = greatsNear(p);
+        for (int i = 0; i < Math.min(3, greats.size()); i++) out.add(new GuideKit.Label(greats.get(i).x, greats.get(i).z, greats.get(i).kind.title.replace("The ", "")));
         return out;
     }
 

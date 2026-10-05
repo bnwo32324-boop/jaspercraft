@@ -188,6 +188,9 @@ final class NetherQuest implements GuideKit.Realm, Listener {
                 + " the Voidborn, the Bone Colossus, the Crimson Tyrant and the Blood Count. Each holds a hoard and a relic; conquer any three.",
             ChatColor.BOLD + "COLOSSI" + ChatColor.RESET + "\n\nThe Great Pyramid, the Caldera Citadel and the Endless Catacombs: champions keep"
                 + " the keys to their seals, puzzles and traps guard the way, and a Lord waits at the heart of each.",
+            ChatColor.BOLD + "TEN MORE COLOSSI" + ChatColor.RESET + "\n\nMaw of the Abyss, Ashen Spire, Leviathan's Bones, Infernal Colosseum,"
+                + " Hanging Citadel, Sporefather's Hive, Rime Bastion, Burning Palace, Amethyst Sanctum, World Serpent.\n\nA Lord in each; its fall opens"
+                + " the vault.",
             ChatColor.BOLD + "STRONGHOLDS" + ChatColor.RESET + "\n\nCastles, temples and crypts stand in their own caverns, full of loot, spawners and"
                 + " guards. Break a spawner to stop it. Trapped chests spring ambushes. Forge Hellforged and Soulweave gear from what the guards drop.",
             ChatColor.BOLD + "TIPS" + ChatColor.RESET + "\n\nThe Ghast Queen hits hard. Get ready first in the Nether's other great places:\n\n"
@@ -238,6 +241,18 @@ final class NetherQuest implements GuideKit.Realm, Listener {
         Location l = p.getLocation();
         for (GlmSites.Site s : lordSites(l.getBlockX(), l.getBlockZ(), 1))
             out.add(new GuideKit.Marker(s.x, s.z, done.contains(s.e.lord) ? MapCursor.Type.WHITE_CROSS : MapCursor.Type.RED_MARKER));
+        for (Colossi.Site s : colossiNear(p))
+            out.add(new GuideKit.Marker(s.x, s.z, done.contains(s.kind.lord) ? MapCursor.Type.WHITE_CROSS : MapCursor.Type.TEMPLE));
+        return out;
+    }
+
+    /** The colossal structures standing within a cell of a player (for the map: each crossed once its Lord is conquered). */
+    private List<Colossi.Site> colossiNear(Player p) {
+        List<Colossi.Site> out = new ArrayList<>();
+        if (plugin.gen == null || plugin.registry == null) return out;
+        Location l = p.getLocation();
+        for (Colossi.Site s : plugin.gen.colossi.near(null, l.getBlockX(), l.getBlockZ(), 1))
+            if (!Boolean.FALSE.equals(plugin.registry.colossusDecision(s.cellX, s.cellZ))) out.add(s);
         return out;
     }
 
@@ -248,6 +263,7 @@ final class NetherQuest implements GuideKit.Realm, Listener {
         Location l = p.getLocation();
         for (GlmSites.Site s : lordSites(l.getBlockX(), l.getBlockZ(), 1))
             if (!done.contains(s.e.lord)) out.add(new GuideKit.Label(s.x, s.z, Lords.DEFS.get(s.e.lord).name.replace("The ", "")));
+        for (Colossi.Site s : colossiNear(p)) out.add(new GuideKit.Label(s.x, s.z, s.kind.display.replace("The ", "")));
         return out;
     }
 
