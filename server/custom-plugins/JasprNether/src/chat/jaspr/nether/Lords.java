@@ -83,6 +83,12 @@ import org.bukkit.util.Vector;
  * champions (mini-bosses) keep the keys to their seals: each of these wakes only for a player inside its hall who can
  * see its place, keeps closer to it, and leaves its structure's own treasure; a champion gives no Lord's credit but
  * hands its key to everyone who fought it; a Lord's fall opens its treasury (see {@link Ordeals}).
+ * Since 2026-10-04 ten more Lords keep the ten new colossal structures (owner: "they should each have a boss"): the
+ * Abyssal Gatekeeper in the Maw of the Abyss, the Spire Archon atop the Ashen Spire, the Marrow Wyrm over the Leviathan's
+ * Bones, the Undying Gladiator in the Infernal Colosseum, the Chained Titan in the Hanging Citadel, the Sporefather in his
+ * Hive, the Rime Lich in the Rime Bastion, the Burning King on the Burning Throne, the Amethyst Oracle in her Sanctum and
+ * the Serpent Queen in the Coil of the World Serpent. Each wakes for a player in its hall who can see its place, leaves
+ * its structure's treasure and its relic, and its fall opens its vault.
  * No Lord damages blocks: their explosions, skulls, fireballs and bodies leave the strongholds standing.
  */
 final class Lords implements Listener {
@@ -144,6 +150,27 @@ final class Lords implements Listener {
             .arena(26, 6).champion("warden_key_gallery").hoard("jaspr:depths/warden", "the Weeping Gallery"));
         def(new Def("rot_mother", "The Rot Mother", EntityType.SLIME, 200, 10, 0.3, 6, false, "deep_crawler", BarColor.GREEN, null)
             .arena(26, 6).champion("warden_key_pits").hoard("jaspr:depths/warden", "the Rot Pits"));
+        // the Lords of the ten colossal structures of 2026-10-04 (owner: "they should each have a boss")
+        def(new Def("abyssal_gatekeeper", "The Abyssal Gatekeeper", EntityType.GIANT, 420, 15, 0.25, 10, false, "cinder_imp", BarColor.RED, "gatekeeper_cleaver")
+            .arena(30, 12).hoard("jaspr:colossus/maw_vault", "the Maw of the Abyss"));
+        def(new Def("spire_archon", "The Spire Archon", EntityType.BLAZE, 340, 10, 0.25, 8, true, "pyre_warden", BarColor.YELLOW, "archon_wand")
+            .arena(26, 12).hoard("jaspr:colossus/spire_vault", "the Ashen Spire"));
+        def(new Def("marrow_wyrm", "The Marrow Wyrm", EntityType.ENDER_DRAGON, 360, 12, 0, 0, true, "ashbone_archer", BarColor.WHITE, "wyrmbone_blade")
+            .arena(56, 30).hoard("jaspr:colossus/leviathan_vault", "the Leviathan's Bones"));
+        def(new Def("undying_gladiator", "The Undying Gladiator", EntityType.ZOMBIE, 380, 14, 0.33, 12, false, "pigman_berserker", BarColor.RED, "gladiator_gladius")
+            .arena(34, 10).hoard("jaspr:colossus/colosseum_vault", "the Infernal Colosseum"));
+        def(new Def("chained_titan", "The Chained Titan", EntityType.IRON_GOLEM, 440, 16, 0.25, 12, false, "infernal_knight", BarColor.WHITE, "titan_chain")
+            .arena(26, 10).hoard("jaspr:colossus/hanging_vault", "the Hanging Citadel"));
+        def(new Def("sporefather", "The Sporefather", EntityType.ZOMBIE, 380, 12, 0.3, 8, false, "spore_creeper", BarColor.GREEN, "spore_heart")
+            .arena(26, 10).hoard("jaspr:colossus/hive_vault", "the Sporefather's Hive"));
+        def(new Def("rime_lich", "The Rime Lich", EntityType.STRAY, 360, 12, 0.3, 10, false, "wight", BarColor.BLUE, "rime_scepter")
+            .arena(26, 10).hoard("jaspr:colossus/rime_vault", "the Rime Bastion"));
+        def(new Def("burning_king", "The Burning King", EntityType.WITHER_SKELETON, 420, 14, 0.3, 12, false, "royal_guard", BarColor.RED, "burning_crown")
+            .arena(32, 10).hoard("jaspr:colossus/palace_vault", "the Palace of the Burning Throne"));
+        def(new Def("amethyst_oracle", "The Amethyst Oracle", EntityType.ENDERMAN, 360, 12, 0.32, 8, false, "shade", BarColor.PURPLE, "oracle_prism")
+            .arena(26, 12).hoard("jaspr:colossus/sanctum_vault", "the Amethyst Sanctum"));
+        def(new Def("serpent_queen", "The Serpent Queen", EntityType.SPIDER, 380, 13, 0.34, 8, false, "brimstone_spider", BarColor.GREEN, "serpent_fang")
+            .arena(28, 10).hoard("jaspr:colossus/serpent_vault", "the Coil of the World Serpent"));
     }
 
     static boolean isLord(String kind) { return kind != null && DEFS.containsKey(kind); }
@@ -232,6 +259,43 @@ final class Lords implements Listener {
                 break;
             case "blazing_admiral": q.setItemInMainHand(new ItemStack(Material.IRON_AXE)); break;
             case "rot_mother": ((org.bukkit.entity.Slime) e).setSize(6); break;
+            // the Lords of 2026-10-04
+            case "undying_gladiator":
+                q.setItemInMainHand(new ItemStack(Material.IRON_SWORD));
+                q.setItemInOffHand(new ItemStack(Material.SHIELD));
+                q.setHelmet(new ItemStack(Material.IRON_HELMET));
+                q.setChestplate(dyed(Material.LEATHER_CHESTPLATE, Color.fromRGB(0x8A1A10)));
+                q.setLeggings(new ItemStack(Material.CHAINMAIL_LEGGINGS));
+                q.setBoots(dyed(Material.LEATHER_BOOTS, Color.fromRGB(0x3A2410)));
+                if (e instanceof org.bukkit.entity.Zombie) ((org.bukkit.entity.Zombie) e).setBaby(false);
+                break;
+            case "sporefather":
+                q.setHelmet(new ItemStack(Material.HUGE_MUSHROOM_2));
+                q.setChestplate(dyed(Material.LEATHER_CHESTPLATE, Color.fromRGB(0x5C3A21)));
+                q.setLeggings(dyed(Material.LEATHER_LEGGINGS, Color.fromRGB(0x7A2E2E)));
+                q.setItemInMainHand(new ItemStack(Material.BROWN_MUSHROOM));
+                if (e instanceof org.bukkit.entity.Zombie) ((org.bukkit.entity.Zombie) e).setBaby(false);
+                break;
+            case "rime_lich":
+                q.setHelmet(new ItemStack(Material.PACKED_ICE));
+                q.setItemInMainHand(new ItemStack(Material.BOW));
+                q.setChestplate(dyed(Material.LEATHER_CHESTPLATE, Color.fromRGB(0xA8D8F0)));
+                break;
+            case "burning_king":
+                q.setHelmet(new ItemStack(Material.GOLD_HELMET));
+                q.setItemInMainHand(new ItemStack(Material.GOLD_SWORD));
+                q.setChestplate(dyed(Material.LEATHER_CHESTPLATE, Color.fromRGB(0xC23B0E)));
+                q.setLeggings(dyed(Material.LEATHER_LEGGINGS, Color.fromRGB(0x2A0A04)));
+                break;
+            case "abyssal_gatekeeper":
+                q.setItemInMainHand(new ItemStack(Material.DIAMOND_AXE));
+                q.setHelmet(dyed(Material.LEATHER_HELMET, Color.fromRGB(0x1A0505)));
+                q.setChestplate(dyed(Material.LEATHER_CHESTPLATE, Color.fromRGB(0x3A0A0A)));
+                q.setLeggings(dyed(Material.LEATHER_LEGGINGS, Color.fromRGB(0x1A0505)));
+                q.setBoots(dyed(Material.LEATHER_BOOTS, Color.fromRGB(0x0A0A0A)));
+                break;
+            case "chained_titan": ((IronGolem) e).setPlayerCreated(false); break;
+            case "amethyst_oracle": ((Enderman) e).setCarriedMaterial(new org.bukkit.material.MaterialData(Material.PURPUR_BLOCK)); break;
             case "sphinx_sentinel": ((IronGolem) e).setPlayerCreated(false); break;
             case "bone_colossus": ((IronGolem) e).setPlayerCreated(false); break;
             case "voidborn": ((Enderman) e).setCarriedMaterial(new org.bukkit.material.MaterialData(Material.OBSIDIAN)); break;
@@ -440,6 +504,10 @@ final class Lords implements Listener {
             w.playSound(e.getLocation(), f.d.base == EntityType.ENDER_DRAGON ? Sound.ENTITY_ENDERDRAGON_GROWL : Sound.ENTITY_WITHER_AMBIENT, 3f, 0.6f);
             plugin.getLogger().info("NETHER_LORD_PHASE lord=" + f.d.id + " phase=" + phase + " hp=" + (int) e.getHealth());
             if (f.d.id.equals("blood_count")) mist(f, target);
+            if (f.d.id.equals("undying_gladiator") && phase == 2) {      // he will not fall: back up once, to the crowd's roar
+                e.setHealth(Math.min(e.getMaxHealth(), e.getHealth() + e.getMaxHealth() * 0.15));
+                w.playSound(e.getLocation(), Sound.ENTITY_ENDERDRAGON_GROWL, 2f, 1.4f);
+            }
         }
         double speedUp = 1 - 0.2 * f.phase;
         switch (f.d.id) {
@@ -555,6 +623,84 @@ final class Lords implements Listener {
                 if (target != null && ready(f, "rot", (int) (160 * speedUp))) curse(f, 9, new PotionEffect(PotionEffectType.POISON, 80, 0, false, true), Particle.SLIME);
                 break;
             }
+            // the Lords of the colossi of 2026-10-04
+            case "abyssal_gatekeeper":
+                giant(f, target, speedUp);
+                if (target != null && best > 25 && best < 22 * 22 && ready(f, "inhale", (int) (200 * speedUp))) pull(f, 20, 1.0);   // the Maw draws breath
+                if (target != null && best < 12 * 12 && ready(f, "nova", (int) (220 * speedUp))) nova(f, 9, 7, 100, Particle.LAVA);
+                if (f.phase >= 1 && ready(f, "imps", 360) && count(f, "cinder_imp") < 6) summon(f, "cinder_imp", 3, target);
+                if (f.phase >= 2 && target != null && ready(f, "rain", 240)) rain(f, target, 10);
+                break;
+            case "spire_archon":
+                if (target != null && best < 32 * 32 && ready(f, "volley", (int) (70 * speedUp))) volley(f, target, 5, 0.1, false);
+                if (target != null && ready(f, "rain", (int) (200 * speedUp))) rain(f, target, 8 + 4 * f.phase);
+                if (target != null && best < 8 * 8 && ready(f, "nova", (int) (140 * speedUp))) nova(f, 7, 7, 100, Particle.FLAME);
+                if (target != null && best < 16 && ready(f, "blink", 100)) blinkAway(f, target);
+                if (f.phase >= 2 && target != null && ready(f, "blast", 200)) volley(f, target, 1, 0, true);
+                break;
+            case "marrow_wyrm":
+                dragon(f, target, speedUp, false);
+                if (target != null && best < 40 * 40 && ready(f, "storm", (int) (160 * speedUp))) boneStorm(f);
+                if (f.phase >= 1 && target != null && ready(f, "rot", 260)) curse(f, 18, new PotionEffect(PotionEffectType.WITHER, 60, 0, false, true), Particle.SMOKE_LARGE);
+                break;
+            case "undying_gladiator":
+                if (target != null && best > 25 && best < 20 * 20 && ready(f, "dash", (int) (120 * speedUp))) dash(f, target);
+                if (target != null && best > 9 && best < 14 * 14 && ready(f, "chain", (int) (160 * speedUp))) shackle(f, target);
+                if (target != null && best < 36 && ready(f, "slam", (int) (150 * speedUp))) slam(f, 6, 10, 0.7);
+                if (f.phase >= 1 && ready(f, "rally", 380) && count(f, "pigman_berserker") < 4) summon(f, "pigman_berserker", 2, target);
+                if (f.phase >= 2 && ready(f, "nova", 180)) nova(f, 7, 8, 80, Particle.CRIT);
+                break;
+            case "chained_titan":
+                if (target != null && best > 9 && best < 18 * 18 && ready(f, "chain", (int) (120 * speedUp))) shackle(f, target);
+                if (target != null && best < 49 && ready(f, "slam", (int) (140 * speedUp))) slam(f, 7, 12, 0.8);
+                if (target != null && best < 24 * 24 && ready(f, "shards", (int) (220 * speedUp))) boneStorm(f);
+                if (f.phase >= 1 && ready(f, "knights", 400) && count(f, "infernal_knight") < 4) summon(f, "infernal_knight", 2, target);
+                if (f.phase >= 2 && ready(f, "steam", 200)) steam(f, 9);
+                break;
+            case "sporefather":
+                if (target != null && ready(f, "spores", (int) (160 * speedUp))) curse(f, 10, new PotionEffect(PotionEffectType.POISON, 80, 1, false, true), Particle.SLIME);
+                if (target != null && best < 14 * 14 && ready(f, "web", (int) (180 * speedUp))) web(f, target);
+                if (ready(f, "brood", 360) && count(f, "spore_creeper") < 3) summon(f, "spore_creeper", 2, target);
+                if (f.phase >= 1 && ready(f, "mogus", 300) && count(f, "mogus") < 5) summon(f, "mogus", 3, target);
+                if (f.phase >= 2 && target != null && ready(f, "fog", 260)) curse(f, 14, new PotionEffect(PotionEffectType.WEAKNESS, 120, 0, false, true), Particle.SPELL_MOB);
+                break;
+            case "rime_lich":
+                if (target != null && ready(f, "frost", (int) (150 * speedUp))) curse(f, 12, new PotionEffect(PotionEffectType.SLOW, 80, 2, false, true), Particle.SNOW_SHOVEL);
+                if (target != null && best < 10 * 10 && ready(f, "nova", (int) (180 * speedUp))) nova(f, 8, 7, 0, Particle.SNOWBALL);
+                if (target != null && best > 25 && best < 26 * 26 && ready(f, "blink", (int) (160 * speedUp))) blink(f, target);
+                if (target != null && best < 10 * 10 && ready(f, "drain", (int) (200 * speedUp))) drain(f, 8, 5);
+                if (ready(f, "frosts", 380) && count(f, "frost") < 3) summon(f, "frost", 2, target);
+                if (f.phase >= 2 && target != null && ready(f, "blizzard", 260)) curse(f, 16, new PotionEffect(PotionEffectType.WEAKNESS, 100, 0, false, true), Particle.SNOW_SHOVEL);
+                break;
+            case "burning_king":
+                e.setFireTicks(Math.max(e.getFireTicks(), 40));      // he burns, and fire never harms him
+                bolt(f);
+                if (target != null && f.boltAt == 0 && ready(f, "lightning", (int) (220 * speedUp))) gather(f, target);
+                if (target != null && best < 12 * 12 && ready(f, "whip", (int) (100 * speedUp))) whip(f, target, 11);
+                if (target != null && ready(f, "ring", (int) (200 * speedUp))) nova(f, 8, 7, 120, Particle.FLAME);
+                if (f.phase >= 1 && ready(f, "guard", 400) && count(f, "royal_guard") < 4) summon(f, "royal_guard", 2, target);
+                if (f.phase >= 2 && target != null && ready(f, "comet", 240)) rain(f, target, 12);
+                break;
+            case "amethyst_oracle":
+                if (target != null && best < 18 * 18 && ready(f, "pull", (int) (170 * speedUp))) pull(f, 16, 0.9);
+                if (target != null && best > 9 && best < 24 * 24 && ready(f, "blink", (int) (110 * speedUp))) { blink(f, target); plugin.mobs.hurt(target, e, 7 * plugin.mobs.dmgMult); }
+                if (target != null && ready(f, "gaze", (int) (180 * speedUp))) gaze(f, target);
+                if (target != null && best < 36 && ready(f, "lift", (int) (220 * speedUp))) curse(f, 7, new PotionEffect(PotionEffectType.LEVITATION, 40, 1, false, true), Particle.PORTAL);
+                if (f.phase >= 1 && ready(f, "shades", 400) && count(f, "shade") < 3) summon(f, "shade", 2, target);
+                if (f.phase >= 2 && ready(f, "nova", 200)) nova(f, 8, 8, 0, Particle.SPELL_WITCH);
+                break;
+            case "serpent_queen":
+                if (target != null && best > 25 && best < 20 * 20 && ready(f, "lunge", (int) (110 * speedUp))) dash(f, target);
+                if (target != null && ready(f, "venom", (int) (150 * speedUp))) curse(f, 10, new PotionEffect(PotionEffectType.POISON, 100, 1, false, true), Particle.SLIME);
+                if (target != null && best < 12 * 12 && ready(f, "web", (int) (160 * speedUp))) web(f, target);
+                if (target != null && best < 9 && ready(f, "burrow", (int) (200 * speedUp))) burrow(f);
+                if (ready(f, "asps", 320) && count(f, "asp") < 6) summon(f, "asp", 3, target);
+                if (f.phase >= 1 && ready(f, "brood", 420) && count(f, "brimstone_spider") < 4) summon(f, "brimstone_spider", 2, target);
+                if (f.phase >= 2 && target != null && ready(f, "coil", 240)) {
+                    pull(f, 12, 1.0);
+                    curse(f, 6, new PotionEffect(PotionEffectType.SLOW, 60, 2, false, true), Particle.CRIT);
+                }
+                break;
             default:
         }
     }
@@ -1041,6 +1187,13 @@ final class Lords implements Listener {
             case "scarab_matriarch": v.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 80, 0, false, true), true); break;
             case "rot_mother": v.addPotionEffect(new PotionEffect(PotionEffectType.HUNGER, 120, 1, false, true), true); break;
             case "gaoler": v.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 40, 1, false, true), true); break;
+            case "abyssal_gatekeeper": v.setFireTicks(Math.max(v.getFireTicks(), 100)); break;
+            case "spire_archon": case "burning_king": v.setFireTicks(Math.max(v.getFireTicks(), 100)); break;
+            case "marrow_wyrm": v.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 60, 0, false, true), true); break;
+            case "undying_gladiator": v.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 60, 0, false, true), true); break;
+            case "chained_titan": case "rime_lich": v.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 60, 1, false, true), true); break;
+            case "sporefather": case "serpent_queen": v.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 80, 1, false, true), true); break;
+            case "amethyst_oracle": v.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 30, 0, false, true), true); break;
             default:
         }
     }

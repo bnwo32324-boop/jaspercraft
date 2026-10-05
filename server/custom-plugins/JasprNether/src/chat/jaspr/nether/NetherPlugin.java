@@ -31,7 +31,7 @@ import org.bukkit.plugin.java.JavaPlugin;
  * Everything the browser client sees is vanilla.
  */
 public final class NetherPlugin extends JavaPlugin implements Listener {
-    static final String VERSION = "1.4.0";
+    static final String VERSION = "1.5.0";
     /**
      * Regeneration epoch. Raising it regenerates the Nether once more on the next start (v1 2026-09-26: the port;
      * v2 2026-09-28: the owner asked for a fresh Nether with the mega structures and wonders; v3 2026-09-29: the owner
@@ -41,9 +41,13 @@ public final class NetherPlugin extends JavaPlugin implements Listener {
      * v6 2026-10-04: the owner asked for Nether structures "3x common" and "regenerate the Nether after applying the change":
      * the per-chunk structures, villages and wonders are three times as frequent; the GLM builds, megas and colossi keep
      * their layout, which already covers about 41% of the land - packing the GLM grid to its fitting limit added only 7%
-     * more builds and lost half the megas).
+     * more builds and lost half the megas);
+     * v7 2026-10-04: the owner asked for ten new colossal structures ("I want them to be huge structures. All this update is
+     * just about big, big, big structures"), each with its Lord and every hostile creature of the Nether: the colossi now
+     * stand on a 640-block grid (fourteen slots, the Pyramid and the Citadel two each) and the GLM builds and mega
+     * structures plan around them.
      */
-    static final int REGEN_EPOCH = 6;
+    static final int REGEN_EPOCH = 7;
     static final String OUTER_REALMS = "chat.jaspr.biomes.OuterRealms";
 
     String worldName = "world_nether";

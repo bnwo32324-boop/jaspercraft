@@ -119,6 +119,7 @@ final class Navigator {
 
     static final java.util.Set<String> COLOSSAL = new java.util.HashSet<>(java.util.Arrays.asList("colossus", "great_pyramid", "caldera_citadel",
         "catacombs", "heart", "warden"));
+    static { for (Colossi.Kind k : Colossi.Kind.values()) COLOSSAL.add(k.id); }
 
     /**
      * The colossal structures (inside the cavern, facing the structure), the Catacombs (the nearest open corridor, the
@@ -149,7 +150,9 @@ final class Navigator {
         }
         String home = t;
         if (lord != null) {
+            Colossi.Kind keeps = Colossi.Kind.ofLord(t);
             if (lord.hoard.startsWith("jaspr:depths")) home = lord.champion ? "warden" : "heart";
+            else if (keeps != null) home = keeps.id;
             else home = lord.hoard.contains("pyramid") ? "great_pyramid" : "caldera_citadel";
         }
         Depths dp = plugin.gen.depths;

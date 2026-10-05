@@ -129,8 +129,10 @@ public final class ColossusPreview {
         try (FileInputStream in = new FileInputStream(args[1])) { BlockMap.load(in); }
         Blocks.load();
         boolean ok = true;
-        for (Colossi.Kind k : Colossi.Kind.values()) ok &= colossus(k, out, pictures);
-        ok &= depths(out, pictures);
+        // "-only=<kind id>[,<kind id>...]" checks just those colossi (no Catacombs): for whoever is drawing one up
+        String only = System.getProperty("only", "");
+        for (Colossi.Kind k : Colossi.Kind.values()) if (only.isEmpty() || java.util.Arrays.asList(only.split(",")).contains(k.id)) ok &= colossus(k, out, pictures);
+        if (only.isEmpty()) ok &= depths(out, pictures);
         System.out.println(ok ? "COLOSSI_OK" : "COLOSSI_FAILED");
         if (!ok) System.exit(1);
     }
@@ -148,20 +150,33 @@ public final class ColossusPreview {
         List<Ordeals.Ordeal> ordeals = Colossi.design(kind).ordeals(s);
         Map<String, Integer> kinds = new TreeMap<>();
         for (Ordeals.Ordeal o : ordeals) kinds.merge(o.type.name().toLowerCase(), 1, Integer::sum);
+        boolean titan = kind.titan();
         String[] lords = kind == Colossi.Kind.PYRAMID ? new String[]{"sphinx_sentinel", "vizier_hekkat", "scarab_matriarch", "sunless_pharaoh"}
-            : new String[]{"high_fire_sage", "blazing_admiral", "boiling_warden", "ember_sovereign"};
+            : kind == Colossi.Kind.CITADEL ? new String[]{"high_fire_sage", "blazing_admiral", "boiling_warden", "ember_sovereign"} : new String[]{kind.lord};
         boolean arenas = true;
         for (String l : lords) if (points.getOrDefault("lord:" + l, 0) != 1) arenas = false;
         double avg = r.total / 1e6 / Math.max(1, r.chunks), max = r.worst / 1e6;
-        boolean seals = kinds.getOrDefault("keyseal", 0) == 1 && kinds.getOrDefault("bossseal", 0) == 1;
-        boolean puzzles = kind == Colossi.Kind.PYRAMID ? kinds.getOrDefault("levers", 0) == 1 : kinds.getOrDefault("braziers", 0) == 1;
-        boolean ok = r.same && r.forbidden.isEmpty() && vault && arenas && points.getOrDefault("garrison", 0) >= 10 && spawners.size() >= 1 && r.tiles.signs.size() >= 8
-            && seals && puzzles && ordeals.size() >= 6 && avg < 30 && max < 160;
+        boolean seals = titan ? kinds.getOrDefault("bossseal", 0) >= 1 : kinds.getOrDefault("keyseal", 0) == 1 && kinds.getOrDefault("bossseal", 0) == 1;
+        boolean puzzles = titan || (kind == Colossi.Kind.PYRAMID ? kinds.getOrDefault("levers", 0) == 1 : kinds.getOrDefault("braziers", 0) == 1);
+        // the colossi of 2026-10-04: every hostile creature of the Nether in the drawn garrisons, and a vault behind the Lord's seal
+        java.util.Set<String> held = new java.util.TreeSet<>();
+        for (String pk : r.tiles.pointKinds) if (pk.startsWith("garrison:")) for (String k : pk.substring(9).replace("!", "").split("[+]")) held.add(k);
+        java.util.Set<String> lacking = new java.util.TreeSet<>(java.util.Arrays.asList(ColossusDesign.ROSTER));
+        lacking.removeAll(held);
+        java.util.Set<String> strangers = new java.util.TreeSet<>(held);
+        strangers.removeAll(java.util.Arrays.asList(ColossusDesign.ROSTER));
+        strangers.removeAll(Mobs.KINDS.keySet());
+        int chestCount = r.tiles.chests.size();
+        boolean roster = !titan || lacking.isEmpty();
+        boolean ok = r.same && r.forbidden.isEmpty() && vault && arenas && points.getOrDefault("garrison", 0) >= (titan ? 14 : 10) && spawners.size() >= 1
+            && r.tiles.signs.size() >= (titan ? 4 : 8) && seals && puzzles && ordeals.size() >= (titan ? 1 : 6) && avg < 30 && max < 160
+            && roster && strangers.isEmpty() && (!titan || chestCount >= 16);
         // every ordeal's box lies inside the site's reach
         for (Ordeals.Ordeal o : ordeals) if (o.x1 < s.minX || o.x2 > s.maxX || o.z1 < s.minZ || o.z2 > s.maxZ) ok = false;
         System.out.println("colossus " + kind.id + " site=" + s.x + "," + s.y + "," + s.z + " chunks=" + r.chunks + " avgMs=" + String.format("%.2f", avg) + " maxMs=" + String.format("%.2f", max)
             + " maxWrites=" + r.maxWrites + " deterministic=" + r.same + " forbidden=" + r.forbidden + " chests=" + tables + " points=" + points + " spawners=" + spawners
-            + " signs=" + r.tiles.signs.size() + " skulls=" + r.tiles.skulls.size() + " ordeals=" + kinds + (ok ? " PASS" : " FAIL"));
+            + " signs=" + r.tiles.signs.size() + " skulls=" + r.tiles.skulls.size() + " ordeals=" + kinds
+            + (titan ? " roster=" + (lacking.isEmpty() ? "complete" : "lacking" + lacking) + " strangers=" + strangers : "") + (ok ? " PASS" : " FAIL"));
         if (pictures) {
             int view = Colossi.REACH;
             iso(r.a, s.x, s.z, view, new File(out, kind.id + "-iso.png"), false, false, 2);

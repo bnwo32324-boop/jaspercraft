@@ -258,6 +258,31 @@ final class Loot {
         .add(8, v(Material.GOLD_INGOT, 5, 12)).add(6, v(Material.DIAMOND, 2, 5)).add(7, nx("amethyst_crystal", 8, 16)).add(4, v(Material.GOLDEN_APPLE, 1, 2))
         .add(4, nx("hellforged_ingot", 2, 4)).add(4, armour("ember_guard")).add(3, nx("fire_nation_dao", 1, 1)).add(3, nx("molten_core", 2, 3))
         .add(4, book()).add(2, nx("phoenix_feather", 1, 1));
+    // ---- the ten colossi of 2026-10-04: shared pools, and each colossus's own goods ----------------------------------------
+    /** A colossus's common chests (barracks, halls, side rooms). */
+    static final Pool TITAN = new Pool(3, 7)
+        .add(8, v(Material.GOLD_NUGGET, 4, 12)).add(6, v(Material.IRON_INGOT, 1, 4)).add(6, v(Material.GOLD_INGOT, 1, 3)).add(5, v(Material.BLAZE_POWDER, 2, 5))
+        .add(5, v(Material.GRILLED_PORK, 2, 5)).add(4, v(Material.ARROW, 6, 16)).add(4, nx("amethyst_crystal", 1, 4)).add(4, nx("hellforged_shard", 1, 3))
+        .add(3, potion(org.bukkit.potion.PotionType.FIRE_RESISTANCE)).add(3, v(Material.EXP_BOTTLE, 2, 5)).add(2, book()).add(2, v(Material.GOLDEN_CARROT, 1, 3));
+    /** A colossus's rich chests (its great halls and hidden rooms). */
+    static final Pool TITAN_RICH = new Pool(4, 7)
+        .add(8, v(Material.GOLD_INGOT, 2, 6)).add(6, nx("amethyst_crystal", 3, 7)).add(5, nx("hellforged_shard", 2, 5)).add(3, nx("hellforged_ingot", 1, 2))
+        .add(3, v(Material.DIAMOND, 1, 2)).add(3, v(Material.GOLDEN_APPLE, 1, 1)).add(4, book()).add(4, v(Material.EXP_BOTTLE, 3, 8))
+        .add(3, nx("soul_essence", 1, 3)).add(3, potion(org.bukkit.potion.PotionType.STRENGTH)).add(2, nx("phoenix_feather", 1, 1));
+    /** A colossus's vault behind its Lord's seal (and its Lord's hoard). */
+    static final Pool TITAN_VAULT = new Pool(5, 8)
+        .add(8, v(Material.GOLD_INGOT, 5, 12)).add(6, v(Material.DIAMOND, 2, 5)).add(7, nx("amethyst_crystal", 8, 16)).add(4, v(Material.GOLDEN_APPLE, 1, 2))
+        .add(4, nx("hellforged_ingot", 2, 4)).add(3, nx("molten_core", 1, 3)).add(4, book()).add(3, v(Material.EXP_BOTTLE, 4, 10)).add(2, nx("phoenix_feather", 1, 1));
+    static final Pool TITAN_MAW = new Pool(1, 2).add(5, nx("molten_core", 1, 2)).add(5, nx("pyre_ember", 2, 4)).add(2, armour("hellforged"));
+    static final Pool TITAN_SPIRE = new Pool(1, 2).add(5, v(Material.BLAZE_ROD, 2, 5)).add(5, nx("pyre_ember", 2, 5)).add(2, armour("ember_guard"));
+    static final Pool TITAN_LEVIATHAN = new Pool(1, 2).add(5, nx("wither_bone", 2, 5)).add(5, nx("charred_bone", 2, 5)).add(2, armour("wither_bone"));
+    static final Pool TITAN_COLOSSEUM = new Pool(1, 2).add(5, v(Material.SHIELD, 1, 1)).add(5, v(Material.ARROW, 8, 20)).add(2, armour("black_salamander_hide"));
+    static final Pool TITAN_HANGING = new Pool(1, 2).add(5, nx("soul_essence", 1, 3)).add(5, v(Material.IRON_INGOT, 3, 8)).add(2, armour("soulweave"));
+    static final Pool TITAN_HIVE = new Pool(1, 2).add(5, nx("wither_dust", 2, 5)).add(5, v(Material.MUSHROOM_SOUP, 1, 1)).add(2, armour("orange_salamander_hide"));
+    static final Pool TITAN_RIME = new Pool(1, 2).add(5, nx("rime_crystal", 2, 6)).add(5, nx("frost_rod", 1, 2)).add(2, armour("deepwarden"));
+    static final Pool TITAN_PALACE = new Pool(1, 2).add(5, v(Material.GOLD_INGOT, 3, 8)).add(5, nx("hex_ember", 1, 3)).add(2, armour("hellforged"));
+    static final Pool TITAN_SANCTUM = new Pool(1, 2).add(5, nx("amethyst_crystal", 4, 10)).add(5, v(Material.ENDER_PEARL, 1, 3)).add(2, armour("soulweave"));
+    static final Pool TITAN_SERPENT = new Pool(1, 2).add(5, v(Material.SPIDER_EYE, 2, 5)).add(5, nx("hellhound_fang", 1, 3)).add(2, armour("black_salamander_hide"));
     /** The Catacombs: the dead's leavings, richer the deeper. */
     static final Pool DEPTHS_COMMON = new Pool(3, 6)
         .add(8, v(Material.BONE, 2, 6)).add(6, v(Material.ROTTEN_FLESH, 1, 4)).add(6, v(Material.STRING, 1, 4)).add(6, v(Material.IRON_NUGGET, 2, 9))
@@ -330,6 +355,36 @@ final class Loot {
             case "jaspr:colossus/citadel_rich": COLOSSUS_CITADEL_RICH.roll(r, out); break;
             case "jaspr:colossus/citadel_war": COLOSSUS_CITADEL_WAR.roll(r, out); break;
             case "jaspr:colossus/citadel_vault": COLOSSUS_CITADEL_VAULT.roll(r, out); out.add(armour("ember_guard").make(r)); break;
+            case "jaspr:colossus/maw": TITAN.roll(r, out); TITAN_MAW.roll(r, out); break;
+            case "jaspr:colossus/maw_rich": TITAN_RICH.roll(r, out); TITAN_MAW.roll(r, out); break;
+            case "jaspr:colossus/maw_vault": TITAN_VAULT.roll(r, out); TITAN_MAW.roll(r, out); out.add(armour("hellforged").make(r)); break;
+            case "jaspr:colossus/spire": TITAN.roll(r, out); TITAN_SPIRE.roll(r, out); break;
+            case "jaspr:colossus/spire_rich": TITAN_RICH.roll(r, out); TITAN_SPIRE.roll(r, out); break;
+            case "jaspr:colossus/spire_vault": TITAN_VAULT.roll(r, out); TITAN_SPIRE.roll(r, out); out.add(armour("ember_guard").make(r)); break;
+            case "jaspr:colossus/leviathan": TITAN.roll(r, out); TITAN_LEVIATHAN.roll(r, out); break;
+            case "jaspr:colossus/leviathan_rich": TITAN_RICH.roll(r, out); TITAN_LEVIATHAN.roll(r, out); break;
+            case "jaspr:colossus/leviathan_vault": TITAN_VAULT.roll(r, out); TITAN_LEVIATHAN.roll(r, out); out.add(armour("wither_bone").make(r)); break;
+            case "jaspr:colossus/colosseum": TITAN.roll(r, out); TITAN_COLOSSEUM.roll(r, out); break;
+            case "jaspr:colossus/colosseum_rich": TITAN_RICH.roll(r, out); TITAN_COLOSSEUM.roll(r, out); break;
+            case "jaspr:colossus/colosseum_vault": TITAN_VAULT.roll(r, out); TITAN_COLOSSEUM.roll(r, out); out.add(armour("black_salamander_hide").make(r)); break;
+            case "jaspr:colossus/hanging": TITAN.roll(r, out); TITAN_HANGING.roll(r, out); break;
+            case "jaspr:colossus/hanging_rich": TITAN_RICH.roll(r, out); TITAN_HANGING.roll(r, out); break;
+            case "jaspr:colossus/hanging_vault": TITAN_VAULT.roll(r, out); TITAN_HANGING.roll(r, out); out.add(armour("soulweave").make(r)); break;
+            case "jaspr:colossus/hive": TITAN.roll(r, out); TITAN_HIVE.roll(r, out); break;
+            case "jaspr:colossus/hive_rich": TITAN_RICH.roll(r, out); TITAN_HIVE.roll(r, out); break;
+            case "jaspr:colossus/hive_vault": TITAN_VAULT.roll(r, out); TITAN_HIVE.roll(r, out); out.add(armour("orange_salamander_hide").make(r)); break;
+            case "jaspr:colossus/rime": TITAN.roll(r, out); TITAN_RIME.roll(r, out); break;
+            case "jaspr:colossus/rime_rich": TITAN_RICH.roll(r, out); TITAN_RIME.roll(r, out); break;
+            case "jaspr:colossus/rime_vault": TITAN_VAULT.roll(r, out); TITAN_RIME.roll(r, out); out.add(armour("deepwarden").make(r)); break;
+            case "jaspr:colossus/palace": TITAN.roll(r, out); TITAN_PALACE.roll(r, out); break;
+            case "jaspr:colossus/palace_rich": TITAN_RICH.roll(r, out); TITAN_PALACE.roll(r, out); break;
+            case "jaspr:colossus/palace_vault": TITAN_VAULT.roll(r, out); TITAN_PALACE.roll(r, out); out.add(armour("hellforged").make(r)); break;
+            case "jaspr:colossus/sanctum": TITAN.roll(r, out); TITAN_SANCTUM.roll(r, out); break;
+            case "jaspr:colossus/sanctum_rich": TITAN_RICH.roll(r, out); TITAN_SANCTUM.roll(r, out); break;
+            case "jaspr:colossus/sanctum_vault": TITAN_VAULT.roll(r, out); TITAN_SANCTUM.roll(r, out); out.add(armour("soulweave").make(r)); break;
+            case "jaspr:colossus/serpent": TITAN.roll(r, out); TITAN_SERPENT.roll(r, out); break;
+            case "jaspr:colossus/serpent_rich": TITAN_RICH.roll(r, out); TITAN_SERPENT.roll(r, out); break;
+            case "jaspr:colossus/serpent_vault": TITAN_VAULT.roll(r, out); TITAN_SERPENT.roll(r, out); out.add(armour("black_salamander_hide").make(r)); break;
             case "jaspr:depths/common": DEPTHS_COMMON.roll(r, out); break;
             case "jaspr:depths/rich": DEPTHS_RICH.roll(r, out); break;
             case "jaspr:depths/deep": DEPTHS_DEEP.roll(r, out); break;
@@ -349,7 +404,8 @@ final class Loot {
         "glm:scraps:castle", "glm:common:bastion", "glm:rich:crypt", "glm:vault:volcanic", "glm:vault:arcane", "glm:rich:void", "glm:common:farm",
         "jaspr:colossus/pyramid", "jaspr:colossus/pyramid_rich", "jaspr:colossus/pyramid_vault", "jaspr:colossus/pyramid_sun",
         "jaspr:colossus/citadel", "jaspr:colossus/citadel_rich", "jaspr:colossus/citadel_war", "jaspr:colossus/citadel_vault",
-        "jaspr:depths/common", "jaspr:depths/rich", "jaspr:depths/deep", "jaspr:depths/library", "jaspr:depths/warden", "jaspr:depths/heart"};
+        "jaspr:depths/common", "jaspr:depths/rich", "jaspr:depths/deep", "jaspr:depths/library", "jaspr:depths/warden", "jaspr:depths/heart",
+        "jaspr:colossus/maw", "jaspr:colossus/maw_rich", "jaspr:colossus/maw_vault", "jaspr:colossus/spire", "jaspr:colossus/spire_rich", "jaspr:colossus/spire_vault", "jaspr:colossus/leviathan", "jaspr:colossus/leviathan_rich", "jaspr:colossus/leviathan_vault", "jaspr:colossus/colosseum", "jaspr:colossus/colosseum_rich", "jaspr:colossus/colosseum_vault", "jaspr:colossus/hanging", "jaspr:colossus/hanging_rich", "jaspr:colossus/hanging_vault", "jaspr:colossus/hive", "jaspr:colossus/hive_rich", "jaspr:colossus/hive_vault", "jaspr:colossus/rime", "jaspr:colossus/rime_rich", "jaspr:colossus/rime_vault", "jaspr:colossus/palace", "jaspr:colossus/palace_rich", "jaspr:colossus/palace_vault", "jaspr:colossus/sanctum", "jaspr:colossus/sanctum_rich", "jaspr:colossus/sanctum_vault", "jaspr:colossus/serpent", "jaspr:colossus/serpent_rich", "jaspr:colossus/serpent_vault"};
 
     /** Vanilla-style fill: each rolled stack goes to a random empty slot (large stacks may be split in two). */
     static int fill(Inventory inv, String table, Random r) {

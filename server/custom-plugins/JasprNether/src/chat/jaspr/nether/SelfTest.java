@@ -351,7 +351,7 @@ final class SelfTest implements Listener {
     // ---- stage 3d: the colossal structures and the Endless Catacombs ----------------------------------------------------
     private final List<Colossi.Site> colossal = new ArrayList<>();
 
-    /** Generates the nearest Great Pyramid and Caldera Citadel whole, and the Catacombs' Heart and a Warden's vault. */
+    /** Generates the nearest colossus of every kind whole, and the Catacombs' Heart and a Warden's vault. */
     private void colossi() {
         java.util.LinkedHashSet<Long> want = new java.util.LinkedHashSet<>();
         for (Colossi.Kind k : Colossi.Kind.values()) {
@@ -449,13 +449,14 @@ final class SelfTest implements Listener {
             }
             boolean named = String.join(" ", plugin.whereLines(new Location(w, s.x + 10, s.y + 4, s.z + 10))).contains(s.kind.display);
             String[] want = s.kind == Colossi.Kind.PYRAMID ? new String[]{"scarab_matriarch", "sphinx_sentinel", "sunless_pharaoh", "vizier_hekkat"}
-                : new String[]{"blazing_admiral", "boiling_warden", "ember_sovereign", "high_fire_sage"};
+                : s.kind == Colossi.Kind.CITADEL ? new String[]{"blazing_admiral", "boiling_warden", "ember_sovereign", "high_fire_sage"} : new String[]{s.kind.lord};
             boolean allBosses = bosses.containsAll(java.util.Arrays.asList(want));
             String detail = "at=" + s.x + "," + s.y + "," + s.z + " built=" + built + " chests=" + chests + " filled=" + filled + " trapped=" + trapped + " signs=" + signs
                 + " bosses=" + bosses + " garrisons=" + garrisons + " spawners=" + spawners + " ordeals=" + os.size() + " forbidden=" + bad + " where=" + named
                 + " seals[" + seals.toString().trim() + "] treasuryCycle=" + cycled;
+            boolean titan = s.kind.titan();      // the ten of 2026-10-04: one Lord each, and its vault behind the Lord's seal
             check("colossus_" + s.kind.id, Boolean.TRUE.equals(built) && chests >= 15 && filled == chests && bad == 0 && allBosses && garrisons >= 10 && spawners >= 1
-                && signs >= 8 && os.size() >= 6 && named && sealsOk && cycled, detail);
+                && signs >= (titan ? 4 : 8) && os.size() >= (titan ? 1 : 6) && named && sealsOk && cycled, detail);
         }
         Depths dp = plugin.gen.depths;
         if (dp != null) {

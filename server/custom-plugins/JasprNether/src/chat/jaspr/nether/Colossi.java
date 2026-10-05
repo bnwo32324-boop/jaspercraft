@@ -9,31 +9,59 @@ import java.util.Random;
 /**
  * The Nether's colossal structures (owner, 2026-10-01: "three new mega structures ... huge in scope", each with a
  * boss): the Great Pyramid and the Caldera Citadel (the third, the Endless Catacombs, lies under everything, see
- * {@link Depths}). One site per 1152 x 1152-block cell, the two kinds alternating like a chessboard, each hollowing a
- * cavern some 350 blocks across that reaches from just above the lava sea to the Nether's roof.
+ * {@link Depths}); since 2026-10-04 ten more (owner: "Add 10 new structures to the Nether. I want them each to be unique,
+ * and there should be all kinds of Nether mobs in them, and they should each have a boss. I want them to be huge
+ * structures"). One site per 640 x 640-block cell, each hollowing a cavern up to some 350 blocks across that reaches from
+ * just above the lava sea towards the Nether's roof. The kinds follow a fixed lattice of fourteen slots (the Pyramid and
+ * the Citadel hold two each, so they stand about as often as they did on the old 1152-block grid; each new kind holds
+ * one): any four cells in a row, or any three in a column, are all different kinds.
  * <p>
  * They are planned after the Nether Cities (which keep their places) and before everything else, without moving
  * anything already decided: a colossus is built only where all of its land is new (no chunk of its box existed before
- * this version, see {@link History}) and no recorded structure lies in its box; a mega structure or GLM build planned
- * in its box later gives way to it (decided once, when its first chunk is reached, like every site).
+ * this version, see {@link History}) and no recorded structure lies in its box. The GLM builds and the mega structures
+ * plan their spots around the colossi (since 2026-10-04; a build planned in a colossus's box earlier still gives way to
+ * it, decided once, when its first chunk is reached, like every site).
  */
 final class Colossi {
-    static final int CELL = 1152;
+    static final int CELL = 640;
     static final int REACH = 184;     // nothing a site draws is farther than this from its centre (horizontally)
     static final int MARGIN = 196;    // a site's centre keeps this far from its cell's edges
 
     enum Kind {
-        PYRAMID("great_pyramid", "The Great Pyramid", 176, 32, 88, 104),
-        CITADEL("caldera_citadel", "The Caldera Citadel", 178, 32, 88, 156);
+        //        id                    display                              radius floor dome core dune lord
+        PYRAMID("great_pyramid", "The Great Pyramid", 176, 32, 88, 104, 2.6, "sunless_pharaoh"),
+        CITADEL("caldera_citadel", "The Caldera Citadel", 178, 32, 88, 156, 1.2, "ember_sovereign"),
+        // the ten of 2026-10-04, each with its Lord (see Lords) and every hostile creature of the Nether in its garrisons
+        MAW("abyssal_maw", "The Maw of the Abyss", 172, 32, 88, 120, 1.6, "abyssal_gatekeeper"),
+        SPIRE("ashen_spire", "The Ashen Spire", 160, 32, 88, 90, 1.4, "spire_archon"),
+        LEVIATHAN("leviathan_bones", "The Leviathan's Bones", 176, 32, 84, 150, 2.2, "marrow_wyrm"),
+        COLOSSEUM("infernal_colosseum", "The Infernal Colosseum", 170, 32, 80, 140, 1.0, "undying_gladiator"),
+        HANGING("hanging_citadel", "The Hanging Citadel", 168, 32, 88, 60, 1.2, "chained_titan"),
+        HIVE("spore_hive", "The Sporefather's Hive", 170, 32, 86, 140, 1.8, "sporefather"),
+        RIME("rime_bastion", "The Rime Bastion", 166, 32, 84, 130, 1.4, "rime_lich"),
+        PALACE("burning_palace", "The Palace of the Burning Throne", 176, 32, 86, 150, 1.0, "burning_king"),
+        SANCTUM("amethyst_sanctum", "The Amethyst Sanctum", 164, 32, 88, 120, 1.6, "amethyst_oracle"),
+        SERPENT("world_serpent", "The Coil of the World Serpent", 170, 32, 88, 110, 1.6, "serpent_queen");
 
-        final String id, display;
+        final String id, display, lord;
         /** Cavern radius, floor level, dome height above the floor at the centre, and the dry core radius (no lakes). */
         final int radius, floor, dome, core;
-        Kind(String id, String display, int radius, int floor, int dome, int core) {
+        /** How high the cavern floor's dunes roll. */
+        final double dune;
+        Kind(String id, String display, int radius, int floor, int dome, int core, double dune, String lord) {
             this.id = id; this.display = display; this.radius = radius; this.floor = floor; this.dome = dome; this.core = core;
+            this.dune = dune; this.lord = lord;
         }
         static Kind byId(String id) { for (Kind k : values()) if (k.id.equals(id)) return k; return null; }
+        /** The colossus whose throne a Lord keeps (null for the GLM Lords and the Catacombs' bosses). */
+        static Kind ofLord(String lord) { for (Kind k : values()) if (k.lord.equals(lord)) return k; return null; }
+        /** The colossal structures of 2026-10-04 (every hostile creature of the Nether in their garrisons). */
+        boolean titan() { return ordinal() >= MAW.ordinal(); }
     }
+
+    /** The lattice: slot (cellX + 4 cellZ) mod 14, turned by the seed. The Pyramid and the Citadel hold two slots each. */
+    static final Kind[] SLOTS = {Kind.PYRAMID, Kind.MAW, Kind.SPIRE, Kind.CITADEL, Kind.LEVIATHAN, Kind.COLOSSEUM, Kind.HANGING,
+        Kind.PYRAMID, Kind.HIVE, Kind.RIME, Kind.CITADEL, Kind.PALACE, Kind.SANCTUM, Kind.SERPENT};
 
     /** One planned site; every shape query is a pure function of the seed, so every chunk agrees on it. */
     static final class Site {
@@ -51,7 +79,7 @@ final class Colossi {
         double f(int bx, int bz) { return dist(bx, bz) / edge(bx, bz); }
         int floorAt(int bx, int bz) {
             double f = f(bx, bz);
-            double dune = Draw.fbm(bx, bz, 34, salt + 5) * (kind == Kind.PYRAMID ? 2.6 : 1.2);
+            double dune = Draw.fbm(bx, bz, 34, salt + 5) * kind.dune;
             double rim = f > 0.82 ? Math.pow((f - 0.82) / 0.18, 1.6) * 14 : 0;
             return y + (int) Math.round(dune + rim);
         }
@@ -74,6 +102,16 @@ final class Colossi {
     static {
         DESIGNS[Kind.PYRAMID.ordinal()] = new ColossusPyramid();
         DESIGNS[Kind.CITADEL.ordinal()] = new ColossusCitadel();
+        DESIGNS[Kind.MAW.ordinal()] = new ColossusMaw();
+        DESIGNS[Kind.SPIRE.ordinal()] = new ColossusSpire();
+        DESIGNS[Kind.LEVIATHAN.ordinal()] = new ColossusLeviathan();
+        DESIGNS[Kind.COLOSSEUM.ordinal()] = new ColossusColosseum();
+        DESIGNS[Kind.HANGING.ordinal()] = new ColossusHanging();
+        DESIGNS[Kind.HIVE.ordinal()] = new ColossusHive();
+        DESIGNS[Kind.RIME.ordinal()] = new ColossusRime();
+        DESIGNS[Kind.PALACE.ordinal()] = new ColossusPalace();
+        DESIGNS[Kind.SANCTUM.ordinal()] = new ColossusSanctum();
+        DESIGNS[Kind.SERPENT.ordinal()] = new ColossusSerpent();
     }
     static ColossusDesign design(Kind k) { return DESIGNS[k.ordinal()]; }
 
@@ -97,10 +135,10 @@ final class Colossi {
         return s == NONE ? null : s;
     }
 
-    /** The kinds alternate like a chessboard (which colour is which depends on the seed). */
+    /** The kind of a cell: its slot on the fourteen-slot lattice (see {@link #SLOTS}). */
     Kind kindOf(int cellX, int cellZ) {
-        int parity = (int) ((cellX + cellZ + (seed >>> 17)) & 1);
-        return parity == 0 ? Kind.PYRAMID : Kind.CITADEL;
+        int turn = (int) Math.floorMod(seed >>> 17, (long) SLOTS.length);
+        return SLOTS[Math.floorMod(cellX + 4 * cellZ + turn, SLOTS.length)];
     }
 
     private Site plan(int cellX, int cellZ) {

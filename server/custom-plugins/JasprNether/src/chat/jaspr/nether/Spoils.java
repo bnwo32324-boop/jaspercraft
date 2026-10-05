@@ -14,6 +14,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.SmallFireball;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -39,14 +40,20 @@ import org.bukkit.util.Vector;
  *       Deepwarden set (and the Hollow Crown) keeps the wither away (Deepwarden poison too);</li>
  *   <li>trinkets: the Scarab Amulet (off hand) keeps poison away; the Phoenix Feather (carried) raises its bearer in
  *       flame when near death, once in five minutes;</li>
- *   <li>the Hollow Reliquary (a Catacombs puzzle's prize) opens into Catacomb treasure.</li>
+ *   <li>the Hollow Reliquary (a Catacombs puzzle's prize) opens into Catacomb treasure;</li>
+ *   <li>the relics of the ten colossi of 2026-10-04: the Gatekeeper's Cleaver burns and drags down, the Wyrmbone Blade
+ *       withers and hurls, the Gladius of the Undying mends its wielder, the Titan's Chain drags foes in and slows them,
+ *       the Rime Scepter freezes, the Serpent's Fang poisons; the Burning Crown (worn) keeps fire away and sets foes
+ *       alight; the Archon's Wand hurls three fireballs (right-click, every two seconds; no block is harmed); the Heart of
+ *       the Sporefather (off hand) keeps poison and the wither away; the Oracle's Prism (carried) keeps blindness,
+ *       nausea and levitation away.</li>
  * </ul>
  * Effects are refreshed each second and are never night vision, full-bright or glowing (owner rule).
  */
 final class Spoils implements Listener {
     private final NetherPlugin plugin;
     private final Random random = new Random();
-    private final Map<UUID, Long> flameUsed = new HashMap<>(), feather = new HashMap<>();
+    private final Map<UUID, Long> flameUsed = new HashMap<>(), feather = new HashMap<>(), wandUsed = new HashMap<>();
     long whips, drinks, risen, opened, kept;
 
     Spoils(NetherPlugin plugin) { this.plugin = plugin; }
@@ -64,6 +71,9 @@ final class Spoils implements Listener {
             if (fullSet(p, "deepwarden")) { clear(p, PotionEffectType.WITHER); clear(p, PotionEffectType.POISON); }
             else if (crown) clear(p, PotionEffectType.WITHER);
             if (Items.is(p.getInventory().getItemInOffHand(), "scarab_amulet")) clear(p, PotionEffectType.POISON);
+            if (Items.is(p.getInventory().getItemInOffHand(), "spore_heart")) { clear(p, PotionEffectType.POISON); clear(p, PotionEffectType.WITHER); }
+            if (Ordeals.carries(p, "oracle_prism")) { clear(p, PotionEffectType.BLINDNESS); clear(p, PotionEffectType.CONFUSION); clear(p, PotionEffectType.LEVITATION); }
+            if (Items.is(p.getInventory().getHelmet(), "burning_crown")) p.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 60, 0, true, false), true);
             if (fullSet(p, "ember_guard")) p.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 60, 0, true, false), true);
         }
     }
@@ -89,8 +99,25 @@ final class Spoils implements Listener {
                 v.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 30, 0, false, true), true);
                 v.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 40, 1, false, true), true);
                 break;
+            case "gatekeeper_cleaver":
+                v.setFireTicks(Math.max(v.getFireTicks(), 80));
+                v.setVelocity(v.getVelocity().setY(-0.6));
+                v.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 40, 1, false, true), true);
+                break;
+            case "wyrmbone_blade":
+                v.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 60, 0, false, true), true);
+                v.setVelocity(v.getLocation().toVector().subtract(p.getLocation().toVector()).setY(0).normalize().multiply(0.7).setY(0.4));
+                break;
+            case "gladiator_gladius": if (e.getFinalDamage() > 0) p.setHealth(Math.min(p.getMaxHealth(), p.getHealth() + 1.5)); break;
+            case "titan_chain":
+                v.setVelocity(p.getLocation().toVector().subtract(v.getLocation().toVector()).setY(0).normalize().multiply(0.6).setY(0.2));
+                v.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 50, 1, false, true), true);
+                break;
+            case "rime_scepter": v.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 60, 2, false, true), true); break;
+            case "serpent_fang": v.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 80, 1, false, true), true); break;
             default:
         }
+        if (Items.is(p.getInventory().getHelmet(), "burning_crown")) v.setFireTicks(Math.max(v.getFireTicks(), 60));
         if (Items.is(p.getInventory().getHelmet(), "hollow_crown") && e.getFinalDamage() > 0) {
             double max = p.getMaxHealth();
             p.setHealth(Math.min(max, p.getHealth() + e.getFinalDamage() * 0.2));
@@ -111,6 +138,24 @@ final class Spoils implements Listener {
             if (last != null && ms - last < 2000) return;
             flameUsed.put(p.getUniqueId(), ms);
             lash(p);
+            return;
+        }
+        if (Items.is(hand, "archon_wand")) {
+            e.setCancelled(true);
+            Player p = e.getPlayer();
+            long ms = System.currentTimeMillis();
+            Long last = wandUsed.get(p.getUniqueId());
+            if (last != null && ms - last < 2000) return;
+            wandUsed.put(p.getUniqueId(), ms);
+            Vector dir = p.getLocation().getDirection().normalize();
+            for (int i = -1; i <= 1; i++) {
+                Vector d = Mobs.rotY(dir.clone(), i * 0.12);
+                SmallFireball b = p.launchProjectile(SmallFireball.class, d.multiply(1.5));
+                b.setIsIncendiary(false);
+                b.setMetadata("jn_staff", new org.bukkit.metadata.FixedMetadataValue(plugin, Boolean.TRUE));
+            }
+            p.getWorld().playSound(p.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1f, 1.0f);
+            whips++;
             return;
         }
         if (Items.is(hand, "hollow_reliquary")) {
@@ -158,13 +203,13 @@ final class Spoils implements Listener {
         Player p = (Player) e.getEntity();
         switch (e.getCause()) {
             case FIRE: case FIRE_TICK: case LAVA: case HOT_FLOOR:
-                if (fullSet(p, "ember_guard")) { e.setCancelled(true); p.setFireTicks(0); kept++; return; }
+                if (fullSet(p, "ember_guard") || Items.is(p.getInventory().getHelmet(), "burning_crown")) { e.setCancelled(true); p.setFireTicks(0); kept++; return; }
                 break;
             case WITHER:
-                if (fullSet(p, "deepwarden") || Items.is(p.getInventory().getHelmet(), "hollow_crown")) { e.setCancelled(true); kept++; return; }
+                if (fullSet(p, "deepwarden") || Items.is(p.getInventory().getHelmet(), "hollow_crown") || Items.is(p.getInventory().getItemInOffHand(), "spore_heart")) { e.setCancelled(true); kept++; return; }
                 break;
             case POISON:
-                if (fullSet(p, "deepwarden") || Items.is(p.getInventory().getItemInOffHand(), "scarab_amulet")) { e.setCancelled(true); kept++; return; }
+                if (fullSet(p, "deepwarden") || Items.is(p.getInventory().getItemInOffHand(), "scarab_amulet") || Items.is(p.getInventory().getItemInOffHand(), "spore_heart")) { e.setCancelled(true); kept++; return; }
                 break;
             default:
         }

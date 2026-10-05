@@ -1,5 +1,5 @@
 name: JasprNether
-version: 1.4.0
+version: 1.5.0
 main: chat.jaspr.nether.NetherPlugin
 author: Jaspr
 load: STARTUP

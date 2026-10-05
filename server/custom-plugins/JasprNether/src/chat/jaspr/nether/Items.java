@@ -222,6 +222,25 @@ final class Items {
         def(new Def("sigil_sunless_pharaoh", Material.GOLD_RECORD, 0, "Sigil of the Sunless Pharaoh", JC, true, "Proof that the Sunless Pharaoh fell to you", "Three Lords conquered open the Urn of Sorrow"));
         def(new Def("sigil_ember_sovereign", Material.RECORD_4, 0, "Sigil of the Ember Sovereign", JC, true, "Proof that the Ember Sovereign fell to you", "Three Lords conquered open the Urn of Sorrow"));
         def(new Def("sigil_hollow_king", Material.GREEN_RECORD, 0, "Sigil of the Hollow King", JC, true, "Proof that the Hollow King fell to you", "Three Lords conquered open the Urn of Sorrow"));
+        // the relics of the ten colossi of 2026-10-04 (always in their Lord's hoard) and their sigils
+        def(new Def("gatekeeper_cleaver", Material.DIAMOND_AXE, 0, "Gatekeeper's Cleaver", JC, true, 0, 0, null, 14, 0.8, 0, "Relic of the Abyssal Gatekeeper", "Burns its foes and drags them down").unbreakable());
+        def(new Def("archon_wand", Material.STICK, 0, "Archon's Wand", JC, true, "Relic of the Spire Archon", "Right-click: hurl three fireballs"));
+        def(new Def("wyrmbone_blade", Material.DIAMOND_SWORD, 0, "Wyrmbone Blade", JC, true, 0, 0, null, 12, 1.6, 0, "Relic of the Marrow Wyrm", "Withers and hurls its foes").unbreakable());
+        def(new Def("gladiator_gladius", Material.IRON_SWORD, 0, "Gladius of the Undying", JC, true, 0, 0, null, 9, 2.0, 0, "Relic of the Undying Gladiator", "Every blow mends its wielder a little").unbreakable());
+        def(new Def("titan_chain", Material.IRON_AXE, 0, "Titan's Chain", JC, true, 0, 0, null, 13, 0.9, 0, "Relic of the Chained Titan", "Drags its foes to you and slows them").unbreakable());
+        def(new Def("spore_heart", Material.BROWN_MUSHROOM, 0, "Heart of the Sporefather", JC, true, "Relic of the Sporefather", "In the off hand: poison and the wither", "cannot touch you"));
+        def(new Def("rime_scepter", Material.PRISMARINE_SHARD, 0, "Rime Scepter", JC, true, 0, 0, null, 10, 1.4, 0, "Relic of the Rime Lich", "Its blows freeze its foes").unbreakable());
+        def(new Def("burning_crown", Material.GOLD_HELMET, 0, "Burning Crown", JC, true, 4, 2, null, 0, 0, 0, "Relic of the Burning King", "Worn: fire cannot burn you,", "and your blows set foes alight").unbreakable());
+        def(new Def("oracle_prism", Material.PRISMARINE_CRYSTALS, 0, "Oracle's Prism", JC, true, "Relic of the Amethyst Oracle", "Carried: no blindness, nausea", "or levitation can hold you"));
+        def(new Def("serpent_fang", Material.IRON_SWORD, 0, "Serpent's Fang", JC, true, 0, 0, null, 8, 2.2, 0, "Relic of the Serpent Queen", "Its venom poisons its foes").unbreakable());
+        String[][] titanSigils = {{"abyssal_gatekeeper", "the Abyssal Gatekeeper"}, {"spire_archon", "the Spire Archon"}, {"marrow_wyrm", "the Marrow Wyrm"},
+            {"undying_gladiator", "the Undying Gladiator"}, {"chained_titan", "the Chained Titan"}, {"sporefather", "the Sporefather"},
+            {"rime_lich", "the Rime Lich"}, {"burning_king", "the Burning King"}, {"amethyst_oracle", "the Amethyst Oracle"}, {"serpent_queen", "the Serpent Queen"}};
+        for (int i = 0; i < titanSigils.length; i++) {
+            String who = titanSigils[i][1], title = Character.toUpperCase(who.charAt(0)) + who.substring(1);
+            def(new Def("sigil_" + titanSigils[i][0], DISCS[i % DISCS.length], 0, "Sigil of " + title, JC, true, "Proof that " + who + " fell to you",
+                "Three Lords conquered open the Urn of Sorrow"));
+        }
     }
 
     /** Items made only from JasperCraft's GLM loot: a vanilla recipe must never take them as plain materials. */

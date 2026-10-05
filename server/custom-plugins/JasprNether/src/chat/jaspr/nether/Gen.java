@@ -184,7 +184,15 @@ final class Gen {
 
     /** The keep-outs of the planning order: cities, Lords' strongholds, mega structures, then the other GLM builds. */
     boolean cityOrMegaReach(int x0, int z0, int x1, int z1) { return cityOrLegacyReach(x0, z0, x1, z1) || !mega.touching(x0, z0, x1, z1).isEmpty(); }
-    boolean cityOrLegacyReach(int x0, int z0, int x1, int z1) { return cityReach(x0, z0, x1, z1) || legacyRegistry.structureReach(x0, z0, x1, z1); }
+    boolean cityOrLegacyReach(int x0, int z0, int x1, int z1) {
+        return cityReach(x0, z0, x1, z1) || legacyRegistry.structureReach(x0, z0, x1, z1) || colossalReach(x0, z0, x1, z1);
+    }
+    /**
+     * Whether a box overlaps a planned colossus's reach. Since 2026-10-04 (ten more colossi on a closer grid) the GLM builds
+     * and the mega structures plan their spots around the colossi instead of giving way to them after planning, so a
+     * colossus costs them a spot only where a whole cell is taken.
+     */
+    boolean colossalReach(int x0, int z0, int x1, int z1) { return colossi != null && !colossi.touching(x0, z0, x1, z1).isEmpty(); }
     boolean legacyCityOrMegaReach(int x0, int z0, int x1, int z1) { return cityReach(x0, z0, x1, z1) || !legacyMega.touching(x0, z0, x1, z1).isEmpty(); }
     boolean legacyCityOrLordReach(int x0, int z0, int x1, int z1) {
         return cityReach(x0, z0, x1, z1) || !legacyGlm.touching(GlmSites.Tier.LORD, x0, z0, x1, z1).isEmpty()

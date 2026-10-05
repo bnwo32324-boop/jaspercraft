@@ -79,7 +79,7 @@ final class Garrisons implements Listener {
         plugin.getLogger().info("NETHER_GARRISON_ROUSED at=" + e.x1 + "," + e.y1 + "," + e.z1 + " pack=" + e.name + " spawned=" + made + " nearby=" + alive);
     }
 
-    private static boolean flies(String kind) { return kind.equals("ghastling") || kind.equals("frost") || kind.equals("blaze"); }
+    private static boolean flies(String kind) { return kind.equals("ghastling") || kind.equals("ghast") || kind.equals("frost") || kind.equals("blaze"); }
 
     /** A free spot near the point: two blocks of air on solid ground (or just air for fliers). */
     private static Location spot(World w, int x, int y, int z, int i, boolean flier) {
