@@ -36,10 +36,12 @@ over the Easier Crafting search bar for good.
 
 111 original 16x16 icons (`scripts/trinket-art/`, a small deterministic pixel-art engine: shapes, rim shading, outline):
 72 Dungeon baubles + the Reliquary pouch, 8 Drownhollow relics + 5 Seals, 10 Nether trinkets, 15 Backrooms trinkets.
+Later the same day the big structures update (`BIG_STRUCTURES_UPDATE.md`) added two carried relics of the colossi, the
+Heart of the Sporefather and the Oracle's Prism (Nether bands 31-32): 113 icons, archive cache key `20261005-colossi1`.
 
 * **Carrier technique** (as the Survivor gear's stone hoe, the sentry's iron pickaxe and the armoury's diamond tools): the
   item is an unbreakable stone tool whose damage value (its *band*) picks the model. `stone_sword` carries the Dungeon
-  (bands 1-73), `stone_shovel` the rest (Drownhollow 1-15, Nether 21-30, Backrooms 41-55). Stone tools cannot be smelted or
+  (bands 1-73), `stone_shovel` the rest (Drownhollow 1-15, Nether 21-32, Backrooms 41-55). Stone tools cannot be smelted or
   burned. A custom empty attribute list replaces the tool's attack modifiers, and durability, attributes and the unbreakable
   line are hidden, so a trinket is never a weapon or a tool; right-clicking a block with one makes no path.
 * **Single source of truth**: `scripts/trinket-art/catalog.cjs` (art, carrier, band). Each plugin has the same generated

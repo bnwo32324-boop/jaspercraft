@@ -73,6 +73,13 @@ same per-biome set pieces and rooms one for one.
   extra copies of the commonest surface kinds (The Signal, eight landmarks, five surface rooms). Everything built keeps
   its place and recognition (older layers' fingerprints unmoved, `tests/structure-density.test.cjs`).
 
+## Relic icons
+
+Two of the new Lords' relics are carried trinkets, so they follow the trinket icon update (`TRINKET_ICONS_UPDATE.md`): the
+Heart of the Sporefather (off hand) and the Oracle's Prism (carried) have their own 16x16 icons on the stone-shovel
+carrier, bands 31 and 32 (`scripts/trinket-art/nether.cjs`, `catalog.cjs`). The client archive went live first (cache key
+`20261005-colossi1`; the bands are unused until JasprNether 1.5.0 makes the relics).
+
 ## Tests and tools
 
 `tests/nether-colossi.test.cjs`, `tests/nether-mega.test.cjs`, `tests/ruins.test.cjs` (with `GreatPreview`),
