@@ -133,7 +133,7 @@ public final class RuinsGenerator extends ChunkGenerator {
         else if (n < 0.70) d.setBlock(x, h, z, Canvas.COBBLE, (byte) 0);
         else if (n < 0.80) d.setBlock(x, h, z, Canvas.DIRT, (byte) 1);
         else if (n < 0.86) d.setBlock(x, h, z, Canvas.MOSSY, (byte) 0);
-        // else: bare stone
+        else d.setBlock(x, h, z, Canvas.STONE, (byte) 0);   // bare stone (epoch 6: setRegion stops below h, which left a pit)
     }
 
     @Override
