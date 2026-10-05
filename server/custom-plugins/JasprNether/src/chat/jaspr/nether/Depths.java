@@ -400,18 +400,29 @@ final class Depths {
         return deep > 0.75 ? "jaspr:depths/rich" : deep > 0.4 ? "jaspr:depths/common" : "jaspr:depths/common";
     }
 
+    // Owner 2026-10-05 ("I keep seeing the same structures over and over"): each hall's pack from several, by depth.
+    private static final String[][] PACKS = {
+        // the outer halls
+        {"garrison:crypt_guard+deep_crawler", "garrison:crypt_guard+mummy", "garrison:wight+crypt_guard", "garrison:deep_crawler+brimstone_spider",
+            "garrison:ashbone_archer+crypt_guard", "garrison:charred_ghoul+deep_crawler", "garrison:skeleton+crypt_guard+asp"},
+        // the middle depths
+        {"garrison:crypt_guard+charred_ghoul", "garrison:tomb_guardian+mummy", "garrison:wither_skeleton+crypt_guard", "garrison:lost_soul+charred_ghoul",
+            "garrison:dread_rider+crypt_guard", "garrison:scarab+mummy+crypt_guard"},
+        // the deep
+        {"garrison:crypt_guard+deep_crawler+lost_soul", "garrison:soul_wraith+crypt_guard+lost_soul", "garrison:tomb_guardian+lost_soul+deep_crawler",
+            "garrison:infernal_knight+crypt_guard+lost_soul", "garrison:royal_guard+crypt_guard+soul_wraith"}};
+
     String garrison(Cell c) {
         double deep = 1 - c.depth;
-        if (deep > 0.75) return "garrison:crypt_guard+deep_crawler+lost_soul";
-        if (deep > 0.4) return "garrison:crypt_guard+charred_ghoul";
-        return "garrison:crypt_guard+deep_crawler";
+        String[] p = PACKS[deep > 0.75 ? 2 : deep > 0.4 ? 1 : 0];
+        return p[Math.min(p.length - 1, (int) (u(c.i, c.j, 41) * p.length))];
     }
 
     private String spawnerMob(Cell c) {
         double deep = 1 - c.depth, q = u(c.i, c.j, 30);
-        if (deep > 0.75) return q < 0.4 ? "lost_soul" : q < 0.7 ? "crypt_guard" : "soul_wraith";
-        if (deep > 0.4) return q < 0.5 ? "crypt_guard" : q < 0.8 ? "charred_ghoul" : "deep_crawler";
-        return q < 0.6 ? "crypt_guard" : "deep_crawler";
+        if (deep > 0.75) return q < 0.3 ? "lost_soul" : q < 0.55 ? "crypt_guard" : q < 0.8 ? "soul_wraith" : "tomb_guardian";
+        if (deep > 0.4) return q < 0.3 ? "crypt_guard" : q < 0.55 ? "charred_ghoul" : q < 0.8 ? "deep_crawler" : "mummy";
+        return q < 0.35 ? "crypt_guard" : q < 0.6 ? "deep_crawler" : q < 0.8 ? "wight" : "ashbone_archer";
     }
 
     private void trapMarks(Draw d, Cell c) {

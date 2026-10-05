@@ -9,6 +9,7 @@ import static chat.jaspr.nether.Draw.b;
 /**
  * Small discoveries between the mega structures (owner, 2026-09-28: make the Nether "more interesting and fun to
  * explore"), at most one per chunk, each fitted inside its chunk's box:
+ * since 2026-10-05 any region may raise any of them, its own kinds weighted first, never two alike side by side:
  * <ul>
  *   <li>everywhere: a lost expedition's camp, whose journal gives rumours of the nearest mega structures;</li>
  *   <li>Hell: amethyst geodes in the rock, hanging cages, ghast fossils;</li>
@@ -41,37 +42,64 @@ final class Wonders {
     private static final int ICE = b(174), QUARTZ = b(155), QZ_CHISELED = b(155, 1), LANTERN = b(169), SOUL = b(88), COBBLE = b(4), LOG = b(17, 5);
     private static final int WOOL_W = b(35, 0), WOOL_B = b(35, 12), CARPET_R = b(171, 14), SHROOM_R = b(40), SHROOM_B = b(39), MYCEL = b(110);
 
+    // Owner 2026-10-05: "a lack of variety ... I keep seeing the same structures over and over again". Half the chances of
+    // 2026-10-04 (still 1.5 times the original), every region may raise any wonder (its own kinds weighted first), and a
+    // chunk raises nothing when a neighbouring chunk would raise the same kind.
+    static final String[] KINDS = {"lost_camp", "amethyst_geode", "hanging_cage", "ghast_fossil", "soul_graveyard", "basalt_grove", "fairy_ring", "frozen_obelisk"};
+    /** The chance a chunk of each region raises a wonder: HELL, RUTHLESS_SANDS, TORRID_WASTELAND, FUNGI_FOREST, ARCTIC_ABYSS. */
+    static final double[] CHANCE = {0.20, 0.23, 0.30, 0.15, 0.18};
+    /** The weights of {@link #KINDS} in each region (same order as CHANCE). */
+    static final int[][] WEIGHTS = {
+        {2, 3, 3, 2, 1, 1, 1, 1},     // Hell: geodes and cages first
+        {2, 1, 2, 3, 4, 1, 1, 1},     // Ruthless Sands: soul graveyards and fossils
+        {2, 1, 1, 2, 1, 4, 0, 1},     // Torrid Wasteland: basalt groves
+        {2, 1, 2, 1, 1, 1, 4, 0},     // Fungi Forest: fairy rings
+        {2, 1, 1, 2, 1, 1, 0, 4}};    // Arctic Abyss: frozen obelisks
+
+    private static int regionIndex(Biomes.Nex n) {
+        switch (n) {
+            case RUTHLESS_SANDS: return 1;
+            case TORRID_WASTELAND: return 2;
+            case FUNGI_FOREST: return 3;
+            case ARCTIC_ABYSS: return 4;
+            default: return 0;
+        }
+    }
+
+    /** The kind a chunk draws from its own random (null for none); the builders go on drawing from the same random. */
+    static String pick(Random r, Biomes.Nex region) {
+        int i = regionIndex(region);
+        if (r.nextDouble() >= CHANCE[i]) return null;
+        int total = 0;
+        for (int w : WEIGHTS[i]) total += w;
+        int q = r.nextInt(total);
+        for (int k = 0; k < KINDS.length; k++) { q -= WEIGHTS[i][k]; if (q < 0) return KINDS[k]; }
+        return null;
+    }
+
+    /** What chunk (cx, cz) would raise: a pure function of the seed, so a chunk can ask what its neighbours raise. */
+    String intent(int cx, int cz) {
+        return pick(g.chunkRandom(cx, cz, 0x574F4EL), g.biomes.nex((cx << 4) + 16, (cz << 4) + 16));
+    }
+
     void populate(Area a, Random r, Biomes.Nex region, Gen.Post post) {
+        String kind = pick(r, region);
+        if (kind == null) return;
+        for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++)
+            if ((dx != 0 || dz != 0) && kind.equals(intent(a.cx + dx, a.cz + dz))) return;   // no two of a kind side by side
         int bx = a.ox + 8, bz = a.oz + 8;
         Template.Placed tiles = new Template.Placed();
         Draw d = new Draw(a, bx, bz, bx + 15, bz + 15, tiles);
-        double q = r.nextDouble();
-        String made = null;
-        // Every chance 3x (owner 2026-10-04: "structures in the Nether 3x as common"); each region's total stays below 1.
-        if (q < 3 / 40.0) made = camp(d, r);
-        else {
-            q = r.nextDouble();
-            switch (region) {
-                case HELL:
-                    if (q < 3 / 20.0) made = geode(d, r);
-                    else if (q < 3 / 20.0 + 3 / 25.0) made = cage(d, r);
-                    else if (q < 3 / 20.0 + 3 / 25.0 + 3 / 40.0) made = fossil(d, r);
-                    break;
-                case RUTHLESS_SANDS:
-                    if (q < 3 / 20.0) made = graveyard(d, r);
-                    else if (q < 3 / 20.0 + 3 / 16.0) made = fossil(d, r);
-                    else if (q < 3 / 20.0 + 3 / 16.0 + 3 / 40.0) made = cage(d, r);
-                    break;
-                case TORRID_WASTELAND:
-                    if (q < 3 / 6.0) made = columns(d, r);
-                    else if (q < 3 / 6.0 + 3 / 45.0) made = fossil(d, r);
-                    break;
-                case FUNGI_FOREST:
-                    if (q < 3 / 12.0) made = ring(d, r);
-                    break;
-                default:
-                    if (q < 3 / 10.0) made = obelisk(d, r);
-            }
+        String made;
+        switch (kind) {
+            case "lost_camp": made = camp(d, r); break;
+            case "amethyst_geode": made = geode(d, r); break;
+            case "hanging_cage": made = cage(d, r); break;
+            case "ghast_fossil": made = fossil(d, r); break;
+            case "soul_graveyard": made = graveyard(d, r); break;
+            case "basalt_grove": made = columns(d, r); break;
+            case "fairy_ring": made = ring(d, r); break;
+            default: made = obelisk(d, r);
         }
         if (made == null) return;
         post.add(tiles, made);

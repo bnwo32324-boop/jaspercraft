@@ -128,6 +128,9 @@ final class BnGen {
             g.registry.add("bn", name, ox, py, oz, ox + t.width(rot) - 1, py + t.sy - 1, oz + t.depth(rot) - 1);
             g.count("bn_" + name.replaceAll("_0\\d$", ""));
         } else {
+            // the same cave room everywhere wore thin (owner 2026-10-05: "I keep seeing the same structures over and over"):
+            // now one in three of the underground spots
+            if (r.nextInt(3) != 0) return;
             Template t = g.t("bn_room_01");
             int py = gy - 5;
             int ox = x - (t.width(rot) >> 1), oz = z - (t.depth(rot) >> 1);

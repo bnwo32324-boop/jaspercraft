@@ -80,9 +80,13 @@ test('nether mega wiring: loot, tables, quiet mods, peace, skulls, history, lava
   assert.match(gen, /if \(r\.nextDouble\(\) < 0\.0375 && !quiet\) shrine\(a, r, post\);/, 'Ghast Queen shrines 3x');
   assert.match(gen, /if \(r\.nextInt\(100\) < 45 && !quiet\) extra\(a, r, "nex_spoul_shroom_"/, 'spoul shrooms 3x');
   assert.match(java('BnGen'), /if \(r\.nextFloat\(\) >= 0\.1875f\) return;/, 'BetterNether structures in 3 of 16 chunks');
+  // Owner 2026-10-05 ("a lack of variety"): wonders at half the 3x chances (1.5x the original), any kind in any region, never
+  // two alike side by side; BetterNether's one cave room in a third of the underground spots it took.
   const wonders = java('Wonders');
-  for (const t of ['q < 3 / 40.0', 'q < 3 / 20.0 + 3 / 25.0 + 3 / 40.0', 'q < 3 / 20.0 + 3 / 16.0 + 3 / 40.0', 'q < 3 / 6.0 + 3 / 45.0', 'q < 3 / 12.0', 'q < 3 / 10.0'])
-    assert.ok(wonders.includes(t), 'wonders 3x: ' + t);
+  assert.match(wonders, /static final double\[\] CHANCE = \{0\.20, 0\.23, 0\.30, 0\.15, 0\.18\};/);
+  assert.equal((wonders.match(/WEIGHTS = \{[\s\S]*?\};/)[0].match(/\{(\d+, ){7}\d+\}/g) || []).length, 5, 'every region weighs all eight kinds');
+  assert.match(wonders, /kind\.equals\(intent\(a\.cx \+ dx, a\.cz \+ dz\)\)\) return;/, 'no two alike side by side');
+  assert.match(java('BnGen'), /if \(r\.nextInt\(3\) != 0\) return;\s*Template t = g\.t\("bn_room_01"\);/);
   assert.match(gen, /registry\.setMegaDecision\(s\.cellX, s\.cellZ, on\);/);
   assert.match(gen, /on = megaComplete \|\| centreHere \|\| !world\.isChunkGenerated\(ccx, ccz\);/);
   assert.match(gen, /if \(!quiet\) wonders\.populate\(/);

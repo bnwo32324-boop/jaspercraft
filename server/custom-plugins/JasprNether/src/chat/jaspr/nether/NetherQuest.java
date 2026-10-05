@@ -243,6 +243,23 @@ final class NetherQuest implements GuideKit.Realm, Listener {
             out.add(new GuideKit.Marker(s.x, s.z, done.contains(s.e.lord) ? MapCursor.Type.WHITE_CROSS : MapCursor.Type.RED_MARKER));
         for (Colossi.Site s : colossiNear(p))
             out.add(new GuideKit.Marker(s.x, s.z, done.contains(s.kind.lord) ? MapCursor.Type.WHITE_CROSS : MapCursor.Type.TEMPLE));
+        // the great GLM builds too (owner 2026-10-05: "I don't encounter the big structures or unique ones a lot")
+        for (GlmSites.Site s : greatSites(l.getBlockX(), l.getBlockZ())) out.add(new GuideKit.Marker(s.x, s.z, MapCursor.Type.WHITE_CIRCLE));
+        return out;
+    }
+
+    /** The great GLM builds (castles, cathedrals, labyrinths, palaces) standing within about 600 blocks, nearest first. */
+    List<GlmSites.Site> greatSites(int x, int z) {
+        List<GlmSites.Site> out = new ArrayList<>();
+        if (plugin.gen == null || plugin.registry == null) return out;
+        GlmSites g = plugin.gen.glm;
+        int cell = g.cell(GlmSites.Tier.GREAT), cx = Math.floorDiv(x, cell), cz = Math.floorDiv(z, cell);
+        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+            GlmSites.Site s = g.site(GlmSites.Tier.GREAT, cx + dx, cz + dz);
+            if (s == null || Boolean.FALSE.equals(plugin.registry.glmDecision(s.decisionTier(), s.cellX, s.cellZ))) continue;
+            if (Math.abs(s.x - x) <= 600 && Math.abs(s.z - z) <= 600) out.add(s);
+        }
+        out.sort((a, b) -> Double.compare(a.dist(x, z), b.dist(x, z)));
         return out;
     }
 
@@ -264,6 +281,8 @@ final class NetherQuest implements GuideKit.Realm, Listener {
         for (GlmSites.Site s : lordSites(l.getBlockX(), l.getBlockZ(), 1))
             if (!done.contains(s.e.lord)) out.add(new GuideKit.Label(s.x, s.z, Lords.DEFS.get(s.e.lord).name.replace("The ", "")));
         for (Colossi.Site s : colossiNear(p)) out.add(new GuideKit.Label(s.x, s.z, s.kind.display.replace("The ", "")));
+        List<GlmSites.Site> greats = greatSites(l.getBlockX(), l.getBlockZ());
+        for (int i = 0; i < Math.min(2, greats.size()); i++) out.add(new GuideKit.Label(greats.get(i).x, greats.get(i).z, greats.get(i).e.title));
         return out;
     }
 
