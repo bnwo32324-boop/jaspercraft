@@ -226,7 +226,7 @@ final class ColossusPyramid extends ColossusDesign {
         f.chest(u0 + 1, yb, v0 + 1, Draw.SOUTH, "jaspr:colossus/pyramid_rich");
         f.chest(u0 + 1, yb, v1 - 1, Draw.NORTH, "jaspr:colossus/pyramid");
         f.spawner(u1 - 2, yb, v0 + 2, "mummy");
-        f.wallSign(u1 - 1, yb + 2, hv - 3, Draw.EAST, "The Vizier", "keeps the jar", "of Imsety", "");
+        f.wallSign(u1 - 1, yb + 2, hv - 3, Draw.WEST, "The Vizier", "keeps the jar", "of Imsety", "");
     }
 
     /** The Hall of Stars (east): four lever pillars under a starry ceiling; the right order opens the Hapy niche. */
