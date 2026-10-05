@@ -82,6 +82,8 @@ public final class Gates implements Listener {
     }
     /** Clears the marker only while it still names this run. */
     public void unmark(UUID id,String session){if(session!=null&&session.equals(marker(id)))mark(id,null);}
+    /** The main world's spawn, on a safe floor near it when there is one (where a death in a run sends a player without a bed). */
+    public Location mainSpawn(){World w=Bukkit.getWorlds().get(0);Location l=findSafe(w.getSpawnLocation());return l!=null?l:w.getSpawnLocation().add(.5,0,.5);}
     public Location returnLocation(Player p){
         File f=returns(p.getUniqueId());try{if(f.isFile()){YamlConfiguration y=new YamlConfiguration();y.load(f);String id=y.getString("world");World w=id==null?null:Bukkit.getWorld(UUID.fromString(id));if(w!=null&&!plugin.inside(w)){Location l=new Location(w,y.getDouble("x"),y.getDouble("y"),y.getDouble("z"),(float)y.getDouble("yaw"),(float)y.getDouble("pitch"));Location safe=findSafe(l);if(safe!=null)return safe;}}}catch(Exception ex){plugin.getLogger().warning("DUNGEON_RETURN_FALLBACK "+p.getUniqueId());}
         World w=Bukkit.getWorlds().get(0);return findSafe(w.getSpawnLocation());

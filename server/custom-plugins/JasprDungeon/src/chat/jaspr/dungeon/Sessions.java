@@ -332,17 +332,27 @@ public final class Sessions implements Listener {
     /**
      * A death ends the player's part in the run. The run world is deleted with the run, so nothing may stay behind there:
      * keepInventory (the world's gamerule, and on the event for every later listener) keeps their items and levels.
+     * JasprRPG still resets their stats, as on every death (owner 2026-10-05: "If you die in the dungeon dimension, it
+     * should put you at spawn with all your stuff, but it should reset your character progression levels").
      */
     @EventHandler(priority=EventPriority.LOWEST) public void died(PlayerDeathEvent e){
         Player p=e.getEntity();Session s=of(p.getWorld());if(s==null)return;
         e.setKeepInventory(true);e.setKeepLevel(true);e.getDrops().clear();e.setDroppedExp(0);
         fallen.add(p.getUniqueId());left(p,s,"death");
     }
-    /** Whoever died in a run (or would respawn in a run world) comes back at their way home. */
+    /**
+     * Whoever died in a run comes back at spawn as from any death -- their bed, else the main world's spawn -- and never at
+     * the gate they came in by (6.0.3, owner 2026-10-05). Anyone who would respawn in a run world goes to the main spawn.
+     */
     @EventHandler(priority=EventPriority.HIGH) public void respawn(PlayerRespawnEvent e){
-        Player p=e.getPlayer();boolean died=fallen.remove(p.getUniqueId()),inside=plugin.inside(e.getRespawnLocation().getWorld());if(!died&&!inside)return;
-        Location home=plugin.gates.returnLocation(p);
-        if(home!=null)e.setRespawnLocation(home);else if(inside)e.setRespawnLocation(Bukkit.getWorlds().get(0).getSpawnLocation());
+        Player p=e.getPlayer();boolean died=fallen.remove(p.getUniqueId());Location offered=e.getRespawnLocation();
+        boolean inside=offered==null||offered.getWorld()==null||plugin.inside(offered.getWorld());if(!died&&!inside)return;
+        String to=!inside&&e.isBedSpawn()?"bed":"spawn";
+        if(inside){Location spawn=plugin.gates.mainSpawn();if(spawn!=null)e.setRespawnLocation(spawn);}
+        Location at=e.getRespawnLocation();
+        plugin.getLogger().info("DUNGEON_DEATH_RESPAWN player="+p.getName()+" died="+died+" to="+to+" world="+(at==null||at.getWorld()==null?"-":at.getWorld().getName()));
+        if(died)Bukkit.getScheduler().runTask(plugin,()->{if(p.isOnline())p.sendMessage(ChatColor.GRAY+"You fell in the Dungeon Dimension and woke at "
+            +("bed".equals(to)?"your bed":"spawn")+" with everything you carried. The gate opens a new run.");});
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void unloaded(WorldUnloadEvent e){
         Session s=of(e.getWorld());if(s==null)return;int n=s.realm(e.getWorld().getName());if(n>=0&&s.worlds[n]==e.getWorld())s.worlds[n]=null;

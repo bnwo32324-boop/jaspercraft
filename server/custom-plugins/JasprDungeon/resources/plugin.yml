@@ -1,5 +1,5 @@
 name: JasprDungeon
-version: 6.0.2
+version: 6.0.3
 main: chat.jaspr.dungeon.DungeonPlugin
 load: POSTWORLD
 description: The Dungeon Dimension - every entry through a gate is a fresh run in its own new world with rooms never seen before; some rooms are trapped, seizing traps are rare and fall still once a room is cleared

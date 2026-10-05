@@ -44,7 +44,7 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
         sessions.orphans();
         try{creative.export(new File(getDataFolder(),"creative-catalog.json"));}catch(Exception ex){throw new IllegalStateException("Cannot export dungeon item catalogue",ex);}
         Bukkit.getScheduler().runTaskTimer(this,()->{gates.tick();encounters.tick();sanctuary.tick();arsenal.tick();rifts.tick();sessions.tick();},1,1);
-        getLogger().info("DUNGEON_READY world="+worldName+" generation="+GENERATION_VERSION+" hazards="+HazardCatalog.Type.values().length+" traps=some seizing=rare chests=normal portal=stone-bricks sessions=perEntry");
+        getLogger().info("DUNGEON_READY world="+worldName+" generation="+GENERATION_VERSION+" hazards="+HazardCatalog.Type.values().length+" traps=some seizing=rare chests=normal portal=stone-bricks sessions=perEntry death=spawn");
     }
     /** A new world-name starts a new dimension. The old one's identity and journals move intact to archive/; nothing is deleted. */
     private void archive(org.bukkit.configuration.file.YamlConfiguration old) throws java.io.IOException {
@@ -113,7 +113,7 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
         if(e.isCancelled())return;
         if(inside(e.getFrom().getWorld())||gates.at(e.getFrom())!=null||gates.touching(e.getFrom(),.8,2)!=null){e.setCancelled(true);getLogger().info("DUNGEON_VANILLA_PORTAL_BLOCKED player="+e.getPlayer().getName()+" world="+e.getFrom().getWorld().getName());}
     }
-    // Respawning after a death in a run is Sessions.respawn: the player comes back at their way home.
+    // Respawning after a death in a run is Sessions.respawn: the player comes back at spawn (their bed, else the main spawn).
     // If an administrator has obstructed every recovery square, never reconnect into the same trap.
     @EventHandler public void joined(PlayerJoinEvent e){Player p=e.getPlayer();if(inside(p.getWorld())&&sanctuary.contains(p.getLocation())&&!Sanctuary.safeFloor(p.getLocation())){Location safe=sanctuary.arrival(p.getWorld());if(safe==null)safe=gates.returnLocation(p);if(safe==null)p.kickPlayer("Dungeon refuge and return exit are obstructed. Ask an administrator to restore a safe landing.");else move(p,safe);}}
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args){
