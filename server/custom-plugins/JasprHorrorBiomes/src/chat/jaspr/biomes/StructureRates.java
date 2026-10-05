@@ -100,6 +100,55 @@ public final class StructureRates {
         return b == null ? java.util.Collections.<int[]>emptyList() : b.chunks();
     }
 
+    // == the v3 boundary (3.30.0) ================================================================================
+    /*
+     * 3.30.0 (owner 2026-10-05: "I keep seeing the same structures over and over again, and I don't encounter the big
+     * structures or unique ones a lot"): the catalogue's expedition architecture -- the overworld's big, unique sites --
+     * may now stand from 512 blocks out instead of 3,072, but only on ground none of which existed when 3.30.0 first
+     * started (this boundary, taken then, two chunks of reserve round the site included). No catalogue site had ever been
+     * admitted inside 3,072 blocks, and every lattice room or set piece built before yields nothing to one that only new
+     * ground holds, so everything already built is placed and recognised as before.
+     */
+    public static final String BOUNDARY_FILE_V3 = "jaspr-rates-v3.boundary";
+    private static final int BOUNDARY_MAGIC_V3 = 0x4a525233;
+    private static final Map<Long, WorldgenExpansion.Boundary> BOUNDARIES_V3 = new ConcurrentHashMap<>();
+    private static final Map<Long, Boolean> FAILED_V3 = new ConcurrentHashMap<>();
+    /** Offline probes and tests: a world that had no chunk when 3.30.0 first started. */
+    private static final java.util.Set<Long> FRESH_V3 = ConcurrentHashMap.newKeySet();
+
+    /** Opens (first 3.30.0 start: snapshots) the v3 boundary. Called on WorldInitEvent, before any chunk. */
+    public static synchronized int initializeV3(World world) {
+        long seed = world.getSeed();
+        WorldgenExpansion.Boundary known = BOUNDARIES_V3.get(seed);
+        if (known != null) return known.protectedChunks();
+        try {
+            WorldgenExpansion.Boundary b = WorldgenExpansion.open(world.getWorldFolder(), seed, BOUNDARY_FILE_V3, BOUNDARY_MAGIC_V3);
+            BOUNDARIES_V3.put(seed, b);
+            FAILED_V3.remove(seed);
+            return b.protectedChunks();
+        } catch (IOException | RuntimeException e) {
+            FAILED_V3.put(seed, Boolean.TRUE);                          // fail closed: the old 3,072-block rule everywhere
+            return -1;
+        }
+    }
+
+    public static void assumeFreshV3(long seed) { FRESH_V3.add(seed); }
+
+    /**
+     * True when any chunk of the box, with two chunks round it, existed when 3.30.0 first started -- or when the v3
+     * boundary is not open (an offline plan, or it failed): then the old rule stands.
+     */
+    static boolean touchesOld3(long seed, int x, int z, int sizeX, int sizeZ) {
+        if (FRESH_V3.contains(seed)) return false;
+        if (FAILED_V3.containsKey(seed)) return true;
+        WorldgenExpansion.Boundary b = BOUNDARIES_V3.get(seed);
+        if (b == null) return true;
+        for (int cx = Math.floorDiv(x, 16) - 2; cx <= Math.floorDiv(x + sizeX - 1, 16) + 2; cx++)
+            for (int cz = Math.floorDiv(z, 16) - 2; cz <= Math.floorDiv(z + sizeZ - 1, 16) + 2; cz++)
+                if (b.contains(cx, cz)) return true;
+        return false;
+    }
+
     /** What RELATIVE_STRUCTURE_DENSITY was before 3.25.0: a catalogue cell below it is tier 0 (old rules). */
     public static final double PREVIOUS_DENSITY = 0.20;
     public static final String BOUNDARY_FILE = "jaspr-rates-v1.boundary";

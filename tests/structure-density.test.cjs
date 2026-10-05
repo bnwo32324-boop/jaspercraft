@@ -63,7 +63,7 @@ test('overworld 2x wiring: decided once, built only where nobody has been, recog
   assert.match(tier2, /"tier2-" \+ world\.getUID\(\) \+ "\.receipts"/);
   // populate decides only all-new ground, and yields to the other packs' plans
   assert.match(tier2, /if \(StructureRates\.old2\(seed, cx, cz\)\) \{ pendingCount\+\+; return false; \}/);
-  assert.match(tier2, /String why = PackPlans\.conflict\(l\.world,/);
+  assert.match(tier2, /(?:String why = |if \(why == null\) why = )PackPlans\.conflict\(l\.world,/);   // (3.30.0: after the variety rule)
   assert.match(packs, /"JasprImportedWorldgen"/);
   assert.match(packs, /"JasprMuseMaps"/);
   assert.match(packs, /return "imported-unreadable";/, 'an unreadable pack refuses the site, never guesses');
@@ -94,5 +94,5 @@ test('overworld 2x wiring: decided once, built only where nobody has been, recog
   assert.match(main, /DUNGEON_RETROFIT retired=v8 replacedBy=tier2/);
   assert.doesNotMatch(main, /new DungeonRetrofit\(/);
   assert.match(main, /TIER2_READY receipts=/);
-  assert.match(fs.readFileSync(path.join(plugin, 'resources/plugin.yml'), 'utf8'), /^version: 3\.29\.0$/m);
+  assert.match(fs.readFileSync(path.join(plugin, 'resources/plugin.yml'), 'utf8'), /^version: 3\.(29|30)\.\d+$/m);   // (3.30.0: overworld variety, tests/overworld-variety.test.cjs)
 });

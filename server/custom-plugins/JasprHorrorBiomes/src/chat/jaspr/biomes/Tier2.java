@@ -162,8 +162,36 @@ public final class Tier2 {
         for (int cx = x0 >> 4; cx <= x1 >> 4; cx++)
             for (int cz = z0 >> 4; cz <= z1 >> 4; cz++)
                 if (StructureRates.old2(seed, cx, cz)) { pendingCount++; return false; }   // the retrofit decides it
-        String why = PackPlans.conflict(l.world, (x0 >> 4) - 1, (z0 >> 4) - 1, (x1 >> 4) + 1, (z1 >> 4) + 1);
+        String why = variety(key);
+        if (why == null) why = PackPlans.conflict(l.world, (x0 >> 4) - 1, (z0 >> 4) - 1, (x1 >> 4) + 1, (z1 >> 4) + 1);
         return record(seed, key, why == null, why == null ? "new" : why);
+    }
+
+    // ---------------------------------------------------------------- variety (3.30.0)
+    /*
+     * Owner 2026-10-05: "I keep seeing the same structures over and over again". Tier 2 doubled every kind one for one,
+     * so the commonest surface kinds doubled with the rest. From 3.30.0 tier 2 keeps only 40% of the extra copies it has
+     * not yet decided of the eight commonest landmarks and The Signal, and of the five commonest surface rooms (the
+     * 1500-chunk rates probe and the 3.29.0 calibration); every site already built keeps its receipt.
+     */
+    static final double COMMON_KEEP = 0.4;
+    /** The commonest set pieces by register entry (Megaliths.C_NAME): The Signal and the eight commonest landmarks. */
+    static final int[] COMMON_SET_PIECES = {24, 53, 54, 56, 57, 58, 59, 60, 61};
+    /** The commonest surface rooms (Dungeons D_METHOD): spire, chapel, checkpoint, cabin, shrine. */
+    static final int[] COMMON_ROOMS = {5, 6, 7, 10, 11};
+    private static final java.util.Set<String> COMMON_KEYS = new java.util.HashSet<>();
+    static {
+        for (int k : COMMON_SET_PIECES) COMMON_KEYS.add("t:" + Long.toHexString(Megaliths.tertiarySaltOf(k)) + ":");
+        for (int i : COMMON_ROOMS) COMMON_KEYS.add("d:" + i + ":");
+    }
+
+    /** "variety" when tier 2 leaves out this copy of a common kind (pure: from the key alone), else null. */
+    static String variety(String key) {
+        int second = key.indexOf(':', 2);
+        if (second < 0 || !COMMON_KEYS.contains(key.substring(0, second + 1))) return null;
+        long h = key.hashCode() * 0x9E3779B97F4A7C15L;
+        h ^= h >>> 31; h *= 0xBF58476D1CE4E5B9L; h ^= h >>> 29;
+        return ((h >>> 11) * 0x1.0p-53) < COMMON_KEEP ? null : "variety";
     }
 
     /**

@@ -22,6 +22,8 @@ public final class StructurePlanner {
     public static final double RELATIVE_STRUCTURE_DENSITY=0.46;
     /** Keep expedition architecture out of the opening survival area. */
     public static final int SPAWN_EXCLUSION_RADIUS=3072;
+    /** 3.30.0: on ground new in 3.30.0 (StructureRates v3 boundary) the opening area ends here (see spawnExcluded). */
+    public static final int SPAWN_EXCLUSION_RADIUS_V3=512;
     /** Three quarters of expansion cells are reserved for unmistakable above-ground landmarks. */
     public static final int SURFACE_LANDMARK_TIER=3;
     static final int MARGIN=4, APPROACH=96;
@@ -289,7 +291,7 @@ public final class StructurePlanner {
             int width=design.columns*12+MARGIN*2,depth=design.rows*12+MARGIN*2+APPROACH;
             if(width>EXPANSION_MIN_SPACING-8||depth>EXPANSION_MIN_SPACING-8)continue;
             int x=(int)ax-width/2,z=(int)az-depth/2;
-            if(admit&&intersectsSpawnExclusion(x,z,width,depth))continue;
+            if(admit&&spawnExcluded(seed,x,z,width,depth))continue;
             boolean reserved=false;
             if(admit)for(int cx=Math.floorDiv(x,16)-2;cx<=Math.floorDiv(x+width-1,16)+2&&!reserved;cx++)
                 for(int cz=Math.floorDiv(z,16)-2;cz<=Math.floorDiv(z+depth-1,16)+2;cz++)
@@ -398,7 +400,7 @@ public final class StructurePlanner {
         // The entrance reserve shifts the building north of the anchor. Check the actual room area.
         if(suitable*3<samples*2||design.mode.equals("underwater")&&wet*10<samples*9)return null;
         // Reserve the whole envelope, including access. Never intersect spawn or portal sanctuary halos.
-        if(admit&&intersectsSpawnExclusion(x,z,width,depth))return null;
+        if(admit&&spawnExcluded(seed,x,z,width,depth))return null;
         if(admit)for(int cx=Math.floorDiv(x,16)-2;cx<=Math.floorDiv(x+width-1,16)+2;cx++)
             for(int cz=Math.floorDiv(z,16)-2;cz<=Math.floorDiv(z+depth-1,16)+2;cz++)
                 if(HorrorGenerator.portalChunk(cx,cz))return null;
@@ -489,9 +491,22 @@ public final class StructurePlanner {
         return terrain.random(rx,rz,salt)<RELATIVE_STRUCTURE_DENSITY;
     }
     static boolean intersectsSpawnExclusion(int x,int z,int width,int depth) {
+        return intersectsRadius(x,z,width,depth,SPAWN_EXCLUSION_RADIUS);
+    }
+    private static boolean intersectsRadius(int x,int z,int width,int depth,int radius) {
         long right=(long)x+width-1,bottom=(long)z+depth-1;
         long dx=x>0?x:right<0?-right:0,dz=z>0?z:bottom<0?-bottom:0;
-        return dx*dx+dz*dz<(long)SPAWN_EXCLUSION_RADIUS*SPAWN_EXCLUSION_RADIUS;
+        return dx*dx+dz*dz<(long)radius*radius;
+    }
+    /**
+     * The opening survival area (3.30.0, owner 2026-10-05: "I don't encounter the big structures or unique ones a lot"):
+     * 3,072 blocks as before, except that a site none of whose ground (two chunks of reserve included) existed when
+     * 3.30.0 first started may stand from 512 blocks out. Every admission asks this; identification never did.
+     */
+    static boolean spawnExcluded(long seed,int x,int z,int width,int depth) {
+        if(!intersectsSpawnExclusion(x,z,width,depth))return false;
+        if(intersectsRadius(x,z,width,depth,SPAWN_EXCLUSION_RADIUS_V3))return true;
+        return StructureRates.touchesOld3(seed,x,z,width,depth);
     }
 
     // == tier 2 (3.28.0, the second 1.5x; StructureRates) ================================================================
@@ -513,8 +528,9 @@ public final class StructurePlanner {
     static final int EXPANSION_GRIDS=3;
     private static final int[] EXP_SHIFT_X={0,EXPANSION_REGION/2,EXPANSION_REGION/2},EXP_SHIFT_Z={0,EXPANSION_REGION/2,0};
     private static final String[] EXP_KEY={"structures:v9:","structures:v11:","structures:v12:"};
-    /** Share of each tier-2 expansion grid's cells planned (rates probe: v12 at full density would give 1.21x). */
-    private static final double[] EXP_DENSITY={TIER2_EXPANSION_DENSITY,TIER2_EXPANSION_DENSITY,0.55};
+    /** Share of each tier-2 expansion grid's cells planned (rates probe: v12 at full density would give 1.21x). 3.30.0:
+     * v12 at full density too (owner 2026-10-05, more of the big unique sites); no catalogue site had been decided yet. */
+    private static final double[] EXP_DENSITY={TIER2_EXPANSION_DENSITY,TIER2_EXPANSION_DENSITY,TIER2_EXPANSION_DENSITY};
     private static final Map<RegionKey,Optional<Site>> TIER2_CACHE=new LinkedHashMap<RegionKey,Optional<Site>>(256,.75f,true) {
         protected boolean removeEldestEntry(Map.Entry<RegionKey,Optional<Site>> e) { return size()>CACHE_LIMIT*2; }
     };
@@ -688,7 +704,7 @@ public final class StructurePlanner {
     }
     /** The reserve-wide tier-2 gates: spawn exclusion, ground new in 3.28.0, every portal sanctuary halo. */
     private static boolean tier2Ground(Terrain terrain,int x,int z,int width,int depth) {
-        if(intersectsSpawnExclusion(x,z,width,depth))return false;
+        if(spawnExcluded(terrain.seed,x,z,width,depth))return false;
         if(!StructureRates.permits2(terrain.seed,x,z,width,depth))return false;
         for(int cx=Math.floorDiv(x,16)-2;cx<=Math.floorDiv(x+width-1,16)+2;cx++)
             for(int cz=Math.floorDiv(z,16)-2;cz<=Math.floorDiv(z+depth-1,16)+2;cz++)

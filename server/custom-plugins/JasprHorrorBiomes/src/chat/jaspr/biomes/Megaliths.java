@@ -150,6 +150,8 @@ public final class Megaliths {
     static int cell3(int rank, int cell) {
         return rank >= 0 && rank < C_CELL3.length ? C_CELL3[rank] : StructureRates.tertiaryCell(cell2(rank, cell));
     }
+    /** The tier-2 (tertiary) salt of register entry k: the salt a tier-2 receipt key carries (Tier2.setPieceKey). */
+    static long tertiarySaltOf(int k) { return C_SALT3[k]; }
     static long salt3(int rank, long salt) {
         return rank >= 0 && rank < C_SALT3.length ? C_SALT3[rank] : StructureRates.tertiarySalt(salt);
     }

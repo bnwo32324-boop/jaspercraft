@@ -228,6 +228,7 @@ final class Tier2Retrofit {
                 if (inhabited(cx, cz) > INHABITED_LIMIT) { why = "inhabited"; break; }
                 if (populated(cx, cz)) chunks.add(new int[]{cx, cz});
             }
+        if (why == null) why = Tier2.variety(key);                  // 3.30.0: as Tier2.allow decides new ground
         if (why == null) why = PackPlans.conflict(world, c0 - 1, d0 - 1, c1 + 1, d1 + 1);
         if (why != null) {
             Tier2.record(seed, key, false, why);

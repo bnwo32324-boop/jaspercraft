@@ -148,6 +148,11 @@ public final class HorrorPlugin extends JavaPlugin implements Listener {
         if(w.getName().equals("world")){int n=StructureRates.initialize(w);
             if(n<0)getLogger().severe("RATES_BOUNDARY_FAILED file="+StructureRates.BOUNDARY_FILE+" -- the 3.25.0 extra structures are disabled; older placement is unaffected");
             else getLogger().info("RATES_BOUNDARY_READY protectedChunks="+n+" catalogueDensity="+Math.round(StructurePlanner.RELATIVE_STRUCTURE_DENSITY*100)+"% setPieceLattices=2 roomLattices=+1 vanillaRoomAttempts="+Dungeons.ATTEMPTS+" sanctuaries=+50%");
+            // 3.30.0: the catalogue may stand from 512 blocks out on ground new since then (fails closed: 3072 everywhere).
+            int n3=StructureRates.initializeV3(w);
+            if(n3<0)getLogger().severe("RATES_V3_BOUNDARY_FAILED -- the catalogue keeps the 3072-block opening area everywhere");
+            else getLogger().info("RATES_V3_BOUNDARY_READY oldChunks="+n3+" spawnExclusion="+StructurePlanner.SPAWN_EXCLUSION_RADIUS_V3+"/"+StructurePlanner.SPAWN_EXCLUSION_RADIUS
+                +" commonKeep="+Tier2.COMMON_KEEP);
             // 3.28.0: the second 1.5x (tier 2). Fails closed like the first: without it no tier-2 site is placed.
             int n2=StructureRates.initializeV2(w);
             if(n2<0)getLogger().severe("RATES_V2_BOUNDARY_FAILED file="+StructureRates.BOUNDARY_FILE_V2+" -- the tier-2 structures are disabled; older placement is unaffected");

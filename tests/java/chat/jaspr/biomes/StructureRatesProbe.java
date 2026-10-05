@@ -39,6 +39,27 @@ public final class StructureRatesProbe {
             try { Class.forName("chat.jaspr.biomes.Tier2").getMethod("assumeBuilt", long.class).invoke(null, seed); }
             catch (ClassNotFoundException absent) { /* a jar from before 3.29.0 */ }
         }
+        // 3.30.0: "--fresh-v3" plans as a world that had no chunk when 3.30.0 first started (the catalogue from 512 blocks).
+        if (java.util.Arrays.asList(args).contains("--fresh-v3")) {
+            try { StructureRates.class.getMethod("assumeFreshV3", long.class).invoke(null, seed); }
+            catch (NoSuchMethodException absent) { /* a jar from before 3.30.0 */ }
+        }
+        // 3.30.0: the share of tier-2 copies Tier2.variety keeps, for a common kind and for any other (synthetic keys).
+        try {
+            Method variety = Class.forName("chat.jaspr.biomes.Tier2").getDeclaredMethod("variety", String.class);
+            variety.setAccessible(true);
+            long commonSalt = (long) Megaliths.class.getDeclaredMethod("tertiarySaltOf", int.class).invoke(null, 61);
+            long rareSalt = (long) Megaliths.class.getDeclaredMethod("tertiarySaltOf", int.class).invoke(null, 2);
+            int keptCommon = 0, keptRare = 0, keptRoom = 0, keptRareRoom = 0, n2 = 20000;
+            for (int i = 0; i < n2; i++) {
+                if (variety.invoke(null, "t:" + Long.toHexString(commonSalt) + ":" + (i * 7) + ":" + (i * 13 - 900)) == null) keptCommon++;
+                if (variety.invoke(null, "t:" + Long.toHexString(rareSalt) + ":" + (i * 7) + ":" + (i * 13 - 900)) == null) keptRare++;
+                if (variety.invoke(null, "d:7:" + (i * 5) + ":" + (i * 11 - 400)) == null) keptRoom++;
+                if (variety.invoke(null, "d:0:" + (i * 5) + ":" + (i * 11 - 400)) == null) keptRareRoom++;
+            }
+            System.out.println(String.format(java.util.Locale.ROOT, "VARIETY commonSetPieceKept=%.3f otherSetPieceKept=%.3f commonRoomKept=%.3f otherRoomKept=%.3f",
+                keptCommon / (double) n2, keptRare / (double) n2, keptRoom / (double) n2, keptRareRoom / (double) n2));
+        } catch (ReflectiveOperationException absent) { /* a jar from before 3.30.0 */ }
         Terrain t = new Terrain(seed);
         Map<String, List<String>> layers = new TreeMap<>();
         Map<String, Integer> counts = new TreeMap<>();
