@@ -92,7 +92,8 @@ test('Every overworld generator asks the Lost Cities reservation before placing'
   const planner = read(biomes + 'StructurePlanner.java');
   assert.match(planner, /return cityless\(seed,planRaw\(/);
   assert.match(planner, /return cityless\(seed,planExpansionRaw\(/);
-  assert.match(read(biomes + 'RuinSupplies.java'), /if\(!Cities\.reserved\(w\.getSeed\(\),c\.getX\(\)\*16,c\.getZ\(\)\*16,16,16\)\)Dungeons\.populate/);
+  // (3.29.0: the tier-2 sites are stamped inside the same guard, before the rooms)
+  assert.match(read(biomes + 'RuinSupplies.java'), /if\(!Cities\.reserved\(w\.getSeed\(\),c\.getX\(\)\*16,c\.getZ\(\)\*16,16,16\)\)\{[^}]*?Dungeons\.populate/);
   for (const p of ['server/custom-plugins/JasprImportedWorldgen/patch/chat/jaspr/imported/Admission.java',
     'server/custom-plugins/JasprImportedWorldgen/live-1.2.2/Admission.java']) {
     const s = read(p);

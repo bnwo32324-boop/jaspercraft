@@ -43,7 +43,7 @@ test('nether mega wiring: loot, tables, quiet mods, peace, skulls, history, lava
   const loot = java('Loot'), items = java('Items');
   const known = new Set([...items.matchAll(/def\(new Def\("([a-z_]+)"/g)].map(m => m[1]));
   for (const h of ['withered', 'blazed', 'frosted']) for (const t of ['sword', 'pickaxe', 'shovel', 'axe', 'hoe', 'hammer']) known.add(h + '_amedian_' + t);
-  for (const set of ['wither_bone', 'orange_salamander_hide', 'black_salamander_hide', 'pharaoh', 'ember_guard', 'deepwarden']) for (const slot of ['helmet', 'chestplate', 'leggings', 'boots']) known.add(set + '_' + slot);
+  for (const set of ['hellforged', 'soulweave', 'wither_bone', 'orange_salamander_hide', 'black_salamander_hide', 'pharaoh', 'ember_guard', 'deepwarden']) for (const slot of ['helmet', 'chestplate', 'leggings', 'boots']) known.add(set + '_' + slot);
   for (const m of loot.matchAll(/nx\("([a-z_]+)"|Items\.create\("([a-z_]+)"|armour\("([a-z_]+)"\)/g)) {
     const id = m[1] || m[2];
     if (id) assert.ok(known.has(id), 'loot names an unknown item ' + id);

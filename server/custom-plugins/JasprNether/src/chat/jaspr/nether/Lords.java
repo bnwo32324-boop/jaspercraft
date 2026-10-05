@@ -156,7 +156,7 @@ final class Lords implements Listener {
         def(new Def("spire_archon", "The Spire Archon", EntityType.BLAZE, 340, 10, 0.25, 8, true, "pyre_warden", BarColor.YELLOW, "archon_wand")
             .arena(26, 12).hoard("jaspr:colossus/spire_vault", "the Ashen Spire"));
         def(new Def("marrow_wyrm", "The Marrow Wyrm", EntityType.ENDER_DRAGON, 360, 12, 0, 0, true, "ashbone_archer", BarColor.WHITE, "wyrmbone_blade")
-            .arena(56, 30).hoard("jaspr:colossus/leviathan_vault", "the Leviathan's Bones"));
+            .arena(48, 30).hoard("jaspr:colossus/leviathan_vault", "the Leviathan's Bones"));
         def(new Def("undying_gladiator", "The Undying Gladiator", EntityType.ZOMBIE, 380, 14, 0.33, 12, false, "pigman_berserker", BarColor.RED, "gladiator_gladius")
             .arena(34, 10).hoard("jaspr:colossus/colosseum_vault", "the Infernal Colosseum"));
         def(new Def("chained_titan", "The Chained Titan", EntityType.IRON_GOLEM, 440, 16, 0.25, 12, false, "infernal_knight", BarColor.WHITE, "titan_chain")
