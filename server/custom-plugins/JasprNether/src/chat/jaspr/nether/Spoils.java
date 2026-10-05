@@ -92,7 +92,7 @@ final class Spoils implements Listener {
             case "khopesh": v.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 60, 0, false, true), true); break;
             case "fire_nation_dao":
                 v.setFireTicks(Math.max(v.getFireTicks(), 80));
-                p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 40, 0, false, false), true);
+                p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 40, 0, true, false), true);
                 break;
             case "bone_reaver": v.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 60, 0, false, true), true); break;
             case "pharaoh_crook":

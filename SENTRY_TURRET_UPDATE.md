@@ -32,3 +32,9 @@ Current render correction: the tracking head uses the compact marker stand with 
 - Deploy: graceful stop (maintenance mode), install candidate jar + rebuilt client `classes.js`, bump cache key, restart, confirm `SENTRY_READY` and `APOCALYPSE_READY` in logs.
 
 Live address: <https://jaspr.chat/jaspercraft/>
+
+## Mounting (2026-10-05, JasprApocalypse 3.7.2)
+
+A sentry mounts wherever its body fits and two blocks of headroom are free above it; nothing is needed beside it. Only a
+player whose body is really inside the block, a solid block in the way, or a ceiling within two blocks refuses the mount (see
+`TRINKET_ICONS_UPDATE.md`, `SentryPlacement`, `tests/sentry-placement.test.cjs`).

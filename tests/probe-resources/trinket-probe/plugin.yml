@@ -1,0 +1,7 @@
+name: TrinketProbe
+version: 1
+main: chat.jaspr.trinketprobe.TrinketProbe
+api-version: "1.12"
+commands:
+  trkprobe:
+    description: Checks trinket icons on the real item classes.

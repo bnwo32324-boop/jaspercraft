@@ -275,7 +275,7 @@ public final class Arsenal implements Listener {
             case STAGGER:status(target,PotionEffectType.SLOW,40,1);break;
             case ROOT:status(target,PotionEffectType.SLOW,30,2);break;
             case CHILL:status(target,PotionEffectType.SLOW,60,0);break;
-            case WARD:if(!p.hasPotionEffect(PotionEffectType.ABSORPTION))p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION,60,0));break;
+            case WARD:if(!p.hasPotionEffect(PotionEffectType.ABSORPTION))p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION,60,0,true,false));break;
             case REND:case VENOM:case BRAND:
                 // No vanilla poison/fire survives escape, because each pulse is a fresh bounded event.
                 for(int pulse=1;pulse<=3;pulse++)enqueue(new Pending(p,t,id,key,ticks+pulse*11,target,t.mechanic==ArmoryCatalog.Mechanic.BRAND?2:1));break;

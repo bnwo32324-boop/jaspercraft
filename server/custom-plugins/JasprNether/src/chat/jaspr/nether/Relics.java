@@ -60,6 +60,37 @@ final class Relics implements Listener {
 
     Relics(NetherPlugin plugin) { this.plugin = plugin; }
 
+    // Own icons (owner 2026-10-05: every trinket has its own texture): trinkets made before that are upgraded where they are found.
+/** A trinket is never a tool: right-clicking a block with its stone sword or spade makes no path (the click itself still works). */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void noToolUse(org.bukkit.event.player.PlayerInteractEvent e) {
+        if (e.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK && Skin.carrier(e.getItem())) e.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+    }
+
+    private void icons(org.bukkit.inventory.Inventory inventory, String why) {
+        int n = Items.upgrade(inventory);
+        if (n > 0) plugin.getLogger().info("NETHER_TRINKET_ICONS upgraded=" + n + " via=" + why);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void iconsOnJoin(org.bukkit.event.player.PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        plugin.getServer().getScheduler().runTask(plugin, () -> { if (p.isOnline()) icons(p.getInventory(), "join"); });
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void iconsOnOpen(org.bukkit.event.inventory.InventoryOpenEvent e) {
+        if (e.getInventory().getHolder() instanceof Player) return;
+        icons(e.getInventory(), "container");
+        if (e.getPlayer() instanceof Player) icons(((Player) e.getPlayer()).getInventory(), "open");
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void iconsOnPickup(org.bukkit.event.player.PlayerPickupItemEvent e) {
+        Player p = e.getPlayer();
+        plugin.getServer().getScheduler().runTask(plugin, () -> { if (p.isOnline()) icons(p.getInventory(), "pickup"); });
+    }
+
     String describe() {
         return "burns=" + burns + " heals=" + heals + " staff=" + staffShots + " wards=" + wardsKept + " pendant=" + pendantMends + " sets=" + setBonuses;
     }
@@ -102,7 +133,7 @@ final class Relics implements Listener {
                 Long last = pendantUsed.get(p.getUniqueId());
                 if (last == null || now - last >= 20 * 60) {
                     pendantUsed.put(p.getUniqueId(), now);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 100, 1, true, true), true);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 100, 1, true, false), true);
                     p.getWorld().spawnParticle(Particle.SPELL_MOB_AMBIENT, p.getLocation().add(0, 1, 0), 20, 0.4, 0.6, 0.4, 0);
                     pendantMends++;
                 }

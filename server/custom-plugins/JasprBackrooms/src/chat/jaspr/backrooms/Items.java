@@ -42,6 +42,9 @@ final class Items {
         final List<Object[]> mods = new ArrayList<>();
         Color dye;
         boolean unbreakable, glint;
+        /** The band of this trinket's own icon on the stone-shovel carrier (scripts/trinket-art/catalog.cjs); 0 keeps the vanilla stand-in. */
+        int skin;
+        Def skin(int band) { skin = band; return this; }
         Def(String id, Level level, Kind kind, Material material, String name, String... lore) {
             this.id = id; this.level = level; this.kind = kind; this.material = material; this.name = name; this.lore = lore;
         }
@@ -91,16 +94,16 @@ final class Items {
             .mod("generic.attackDamage", 6.0, "mainhand").mod("generic.attackSpeed", -2.8, "mainhand").glint();
         def(new Def("utility_knife", Level.YELLOW, Kind.TOOL, Material.SHEARS, "Utility Knife", "Cuts carpet, cobwebs and worse."))
             .ench(EFF, 3).ench(UNB, 2).mod("generic.attackDamage", 3.0, "mainhand").mod("generic.attackSpeed", -1.0, "mainhand");
-        def(new Def("canteen", Level.YELLOW, Kind.TRINKET, Material.GLASS_BOTTLE, "Almond Water Canteen", "Right-click: drink (heals 3 hearts", "and Regeneration). Refills in 90 s.")).glint();
-        def(new Def("flickering_bulb", Level.YELLOW, Kind.TRINKET, Material.GLOWSTONE_DUST, "Flickering Bulb", "Carried: Regeneration while you are", "below 40% health.")).glint();
+        def(new Def("canteen", Level.YELLOW, Kind.TRINKET, Material.GLASS_BOTTLE, "Almond Water Canteen", "Right-click: drink (heals 3 hearts", "and Regeneration). Refills in 90 s.")).glint().skin(41);
+        def(new Def("flickering_bulb", Level.YELLOW, Kind.TRINKET, Material.GLOWSTONE_DUST, "Flickering Bulb", "Carried: Regeneration while you are", "below 40% health.")).glint().skin(42);
         // ---- Level 2: the Warehouse ----
         set(Level.WAREHOUSE, new String[] {"hard_hat", "hi_vis_vest", "work_trousers", "steel_toe_boots"},
             new String[] {"Hard Hat", "Hi-Vis Vest", "Work Trousers", "Steel-Toe Boots"}, new Material[] {Material.GOLD_HELMET, LC, LL, Material.IRON_BOOTS}, 0xF2A10F, PROT, 2, PROJ, 1);
         DEFS.get("work_trousers").dye(0x2C3E66);
         def(new Def("crowbar", Level.WAREHOUSE, Kind.WEAPON, Material.IRON_AXE, "Crowbar", "Opens crates. And heads.")).ench(SHARP, 2).ench(Enchantment.KNOCKBACK, 1).ench(UNB, 2);
         def(new Def("pallet_hook", Level.WAREHOUSE, Kind.TOOL, Material.IRON_PICKAXE, "Pallet Hook", "Built for moving heavy things.")).ench(EFF, 4).ench(Enchantment.LOOT_BONUS_BLOCKS, 1).ench(UNB, 2);
-        def(new Def("forklift_key", Level.WAREHOUSE, Kind.TRINKET, Material.TRIPWIRE_HOOK, "Forklift Key", "Carried: Speed.")).glint();
-        def(new Def("packing_tape", Level.WAREHOUSE, Kind.TRINKET, Material.SLIME_BALL, "Roll of Packing Tape", "Off hand: Resistance while you are", "below half health.")).glint();
+        def(new Def("forklift_key", Level.WAREHOUSE, Kind.TRINKET, Material.TRIPWIRE_HOOK, "Forklift Key", "Carried: Speed.")).glint().skin(43);
+        def(new Def("packing_tape", Level.WAREHOUSE, Kind.TRINKET, Material.SLIME_BALL, "Roll of Packing Tape", "Off hand: Resistance while you are", "below half health.")).glint().skin(44);
         // ---- Level 3: the Maintenance Tunnels ----
         set(Level.TUNNELS, new String[] {"welding_mask", "boiler_suit", "asbestos_trousers", "hobnail_boots"},
             new String[] {"Welding Mask", "Boiler Suit", "Asbestos Trousers", "Hobnail Boots"}, new Material[] {Material.IRON_HELMET, LC, LL, Material.CHAINMAIL_BOOTS}, 0xC4541A, FIRE, 3, PROT, 1);
@@ -109,8 +112,8 @@ final class Items {
         def(new Def("pipe_wrench", Level.TUNNELS, Kind.WEAPON, Material.IRON_HOE, "Pipe Wrench", "Still hot from the pipes: sets foes alight."))
             .mod("generic.attackDamage", 8.0, "mainhand").mod("generic.attackSpeed", -3.0, "mainhand").ench(Enchantment.FIRE_ASPECT, 1).ench(UNB, 3);
         def(new Def("valve_key", Level.TUNNELS, Kind.TOOL, Material.IRON_SPADE, "Valve Key", "Turns what will not turn.")).ench(EFF, 4).ench(UNB, 3);
-        def(new Def("pressure_gauge", Level.TUNNELS, Kind.TRINKET, Material.GOLD_PLATE, "Pressure Gauge", "Carried: heat rises at half speed.")).glint();
-        def(new Def("coolant_vial", Level.TUNNELS, Kind.TRINKET, Material.PRISMARINE_CRYSTALS, "Coolant Vial", "Right-click: cool down, put out fire", "and resist fire for 20 s. Every 90 s.")).glint();
+        def(new Def("pressure_gauge", Level.TUNNELS, Kind.TRINKET, Material.GOLD_PLATE, "Pressure Gauge", "Carried: heat rises at half speed.")).glint().skin(45);
+        def(new Def("coolant_vial", Level.TUNNELS, Kind.TRINKET, Material.PRISMARINE_CRYSTALS, "Coolant Vial", "Right-click: cool down, put out fire", "and resist fire for 20 s. Every 90 s.")).glint().skin(46);
         // ---- Level 4: the Electrical Corridors ----
         set(Level.ELECTRICAL, new String[] {"insulated_helmet", "rubber_apron", "lineman_trousers", "rubber_boots"},
             new String[] {"Insulated Helmet", "Rubber Apron", "Lineman's Trousers", "Rubber Boots"}, new Material[] {Material.CHAINMAIL_HELMET, LC, Material.CHAINMAIL_LEGGINGS, LB}, 0x1E1E1E, PROT, 3, BLAST, 2);
@@ -118,8 +121,8 @@ final class Items {
         def(new Def("arc_baton", Level.ELECTRICAL, Kind.WEAPON, Material.BLAZE_ROD, "Arc Baton", "Every blow arcs to a second foe nearby."))
             .mod("generic.attackDamage", 7.0, "mainhand").mod("generic.attackSpeed", -2.4, "mainhand").glint();
         def(new Def("wire_cutters", Level.ELECTRICAL, Kind.TOOL, Material.SHEARS, "Wire Cutters", "Insulated handles.")).ench(EFF, 5).ench(UNB, 3);
-        def(new Def("surge_protector", Level.ELECTRICAL, Kind.TRINKET, Material.REDSTONE_COMPARATOR, "Surge Protector", "Carried: shocks, lightning and", "explosions hurt you 70% less.")).glint();
-        def(new Def("capacitor", Level.ELECTRICAL, Kind.TRINKET, Material.REDSTONE_TORCH_ON, "Capacitor", "Right-click: discharge into up to three", "monsters within 10 blocks. Every 30 s.")).glint();
+        def(new Def("surge_protector", Level.ELECTRICAL, Kind.TRINKET, Material.REDSTONE_COMPARATOR, "Surge Protector", "Carried: shocks, lightning and", "explosions hurt you 70% less.")).glint().skin(47);
+        def(new Def("capacitor", Level.ELECTRICAL, Kind.TRINKET, Material.REDSTONE_TORCH_ON, "Capacitor", "Right-click: discharge into up to three", "monsters within 10 blocks. Every 30 s.")).glint().skin(48);
         // ---- Level 5: the Abandoned Office ----
         set(Level.OFFICE, new String[] {"executive_fedora", "suit_jacket", "suit_trousers", "oxford_shoes"},
             new String[] {"Executive Fedora", "Suit Jacket", "Suit Trousers", "Oxford Shoes"}, new Material[] {LH, Material.IRON_CHESTPLATE, Material.IRON_LEGGINGS, LB}, 0x333338, PROT, 3, null, 0);
@@ -127,16 +130,16 @@ final class Items {
         def(new Def("letter_opener", Level.OFFICE, Kind.WEAPON, Material.IRON_SWORD, "Letter Opener", "Quick and quiet.")).ench(SHARP, 3).ench(UNB, 3)
             .mod("generic.attackDamage", 6.0, "mainhand").mod("generic.attackSpeed", -1.6, "mainhand");
         def(new Def("staple_gun", Level.OFFICE, Kind.TOOL, Material.BOW, "Staple Gun", "Fires faster than it should.")).ench(Enchantment.ARROW_DAMAGE, 3).ench(Enchantment.ARROW_KNOCKBACK, 1).ench(UNB, 2);
-        def(new Def("employee_badge", Level.OFFICE, Kind.TRINKET, Material.NAME_TAG, "Employee ID Badge", "Carried: monsters of the office and", "the city ignore you until you strike.")).glint();
-        def(new Def("cold_coffee", Level.OFFICE, Kind.TRINKET, Material.BOWL, "Cold Coffee", "Right-click: Haste II and Speed II", "for 30 s. Every 2 minutes.")).glint();
+        def(new Def("employee_badge", Level.OFFICE, Kind.TRINKET, Material.NAME_TAG, "Employee ID Badge", "Carried: monsters of the office and", "the city ignore you until you strike.")).glint().skin(49);
+        def(new Def("cold_coffee", Level.OFFICE, Kind.TRINKET, Material.BOWL, "Cold Coffee", "Right-click: Haste II and Speed II", "for 30 s. Every 2 minutes.")).glint().skin(50);
         // ---- Level 6: the Endless City ----
         set(Level.CITY, new String[] {"watchman_cap", "trench_coat", "patrol_trousers", "pavement_boots"},
             new String[] {"Watchman's Cap", "Trench Coat", "Patrol Trousers", "Pavement Boots"}, new Material[] {Material.IRON_HELMET, LC, Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS}, 0x8B7355, PROT, 3, PROJ, 3);
         def(new Def("stop_sign", Level.CITY, Kind.WEAPON, Material.SIGN, "Stop Sign", "STOP.")).mod("generic.attackDamage", 9.0, "mainhand")
             .mod("generic.attackSpeed", -2.9, "mainhand").ench(Enchantment.KNOCKBACK, 2).glint();
         def(new Def("jackhammer", Level.CITY, Kind.TOOL, Material.DIAMOND_PICKAXE, "Jackhammer", "Road works. Not here, though.")).ench(EFF, 5).ench(UNB, 3);
-        def(new Def("dead_mans_watch", Level.CITY, Kind.TRINKET, Material.WATCH, "Dead Man's Watch", "Carried: once every 5 minutes, a blow", "that would kill you leaves you alive.")).glint();
-        def(new Def("subway_token", Level.CITY, Kind.TRINKET, Material.GOLD_NUGGET, "Subway Token", "Right-click: back to the landing of the", "level you are in. Every 5 minutes.")).glint();
+        def(new Def("dead_mans_watch", Level.CITY, Kind.TRINKET, Material.WATCH, "Dead Man's Watch", "Carried: once every 5 minutes, a blow", "that would kill you leaves you alive.")).glint().skin(51);
+        def(new Def("subway_token", Level.CITY, Kind.TRINKET, Material.GOLD_NUGGET, "Subway Token", "Right-click: back to the landing of the", "level you are in. Every 5 minutes.")).glint().skin(52);
         // ---- Level 7: the Poolrooms ----
         set(Level.POOLS, new String[] {"swim_cap", "lifeguard_top", "swim_trunks", "flippers"},
             new String[] {"Swim Cap", "Lifeguard's Top", "Swim Trunks", "Flippers"}, new Material[] {Material.DIAMOND_HELMET, Material.DIAMOND_CHESTPLATE, Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS}, 0, PROT, 4, null, 0);
@@ -144,10 +147,10 @@ final class Items {
         DEFS.get("flippers").ench(Enchantment.DEPTH_STRIDER, 3).ench(FALL, 4);
         def(new Def("tidebreaker", Level.POOLS, Kind.WEAPON, Material.DIAMOND_SWORD, "Tidebreaker", "Deals double damage to anything in water.")).ench(SHARP, 5).ench(UNB, 3);
         def(new Def("pool_skimmer", Level.POOLS, Kind.TOOL, Material.FISHING_ROD, "Pool Skimmer", "Hooks anything. Pulls hard.")).ench(Enchantment.LURE, 3).ench(Enchantment.LUCK, 3).ench(UNB, 3);
-        def(new Def("rubber_duck", Level.POOLS, Kind.TRINKET, Material.RABBIT_FOOT, "Rubber Duck", "Carried: breathe under water, no", "undertow, and heal while in water.")).glint();
-        def(new Def("whistle", Level.POOLS, Kind.TRINKET, Material.IRON_NUGGET, "Lifeguard's Whistle", "Right-click: monsters within 12 blocks", "are slowed and weakened. Every 45 s.")).glint();
+        def(new Def("rubber_duck", Level.POOLS, Kind.TRINKET, Material.RABBIT_FOOT, "Rubber Duck", "Carried: breathe under water, no", "undertow, and heal while in water.")).glint().skin(53);
+        def(new Def("whistle", Level.POOLS, Kind.TRINKET, Material.IRON_NUGGET, "Lifeguard's Whistle", "Right-click: monsters within 12 blocks", "are slowed and weakened. Every 45 s.")).glint().skin(54);
         // ---- the way out ----
-        def(new Def("exit_sign", Level.POOLS, Kind.TRINKET, Material.ITEM_FRAME, "The Exit Sign", "You found the way out of the Backrooms.", "Carried: Speed, Resistance, and", "Regeneration below 40% health.")).glint();
+        def(new Def("exit_sign", Level.POOLS, Kind.TRINKET, Material.ITEM_FRAME, "The Exit Sign", "You found the way out of the Backrooms.", "Carried: Speed, Resistance, and", "Regeneration below 40% health.")).glint().skin(55);
         def(new Def("almond_water", Level.YELLOW, Kind.CONSUMABLE, Material.POTION, "Almond Water", "Heals, and calms the nerves."));
     }
 
@@ -216,7 +219,26 @@ final class Items {
             tag.set("AttributeModifiers", list);
         }
         n.setTag(tag);
-        return CraftItemStack.asBukkitCopy(n);
+        ItemStack made = CraftItemStack.asBukkitCopy(n);
+        return d.skin > 0 ? Skin.apply(made, Skin.SHOVEL, d.skin) : made;
+    }
+
+    /** The upgraded copy of a trinket made before its own icon (the vanilla stand-in item), or null when there is nothing to do. */
+    static ItemStack upgraded(ItemStack s) {
+        Def d = def(s);
+        if (d == null || d.skin <= 0 || s.getType() == Skin.SHOVEL) return null;
+        return Skin.apply(s, Skin.SHOVEL, d.skin);
+    }
+
+    /** Upgrades every old trinket in an inventory in place (same item, same data, new look); the number upgraded. */
+    static int upgrade(org.bukkit.inventory.Inventory inventory) {
+        if (inventory == null) return 0;
+        int n = 0;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack up = upgraded(inventory.getItem(slot));
+            if (up != null) { inventory.setItem(slot, up); n++; }
+        }
+        return n;
     }
 
     // ---- recognising them ---------------------------------------------------------------------------------------------

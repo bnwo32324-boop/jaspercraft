@@ -42,7 +42,11 @@ public final class Relics implements Listener {
         public final int rank;
         public final String[] description;
         Type(){spec=LootCatalog.Bauble.valueOf(name());title=spec.title;material=Material.valueOf(spec.material);rank=spec.rank;description=spec.description.toArray(new String[0]);}
+        /** The band of this bauble's own icon on the stone-sword carrier: its position here plus one (scripts/trinket-art/catalog.cjs). */
+        public int band(){return ordinal()+1;}
     }
+    /** The Reliquary pouch's band: right after the last bauble. */
+    static final int POUCH_BAND=Type.values().length+1;
     private final DungeonPlugin plugin;
     private final LongSupplier clock;
     private final File cooldownDirectory;
@@ -75,13 +79,41 @@ public final class Relics implements Listener {
     }
     public static Type type(ItemStack item){
         NBTTagCompound d=data(item);if(d==null||!"relic".equals(d.getString("kind")))return null;
-        try{Type t=Type.valueOf(d.getString("id"));return item.getType()==t.material?t:null;}catch(IllegalArgumentException ex){return null;}
+        // Baubles made before they had icons of their own are the vanilla stand-in item; upgrade() turns them into the carrier.
+        try{Type t=Type.valueOf(d.getString("id"));return item.getType()==t.material||Skin.is(item,Skin.SWORD,t.band())?t:null;}catch(IllegalArgumentException ex){return null;}
     }
     public static boolean pouch(ItemStack item){
         NBTTagCompound d=data(item);
-        return d!=null&&"pouch".equals(d.getString("kind"))&&item.getType()==Material.RABBIT_HIDE&&item.getAmount()==1&&!d.getString("uuid").isEmpty();
+        return d!=null&&"pouch".equals(d.getString("kind"))&&(item.getType()==Material.RABBIT_HIDE||Skin.is(item,Skin.SWORD,POUCH_BAND))&&item.getAmount()==1&&!d.getString("uuid").isEmpty();
     }
     private static boolean marked(ItemStack item){return data(item)!=null;}
+    // ------------------------------------------------------------ own icons (owner 2026-10-05: every trinket has its own texture)
+    /** The upgraded copy of a bauble or pouch made before its own icon (the vanilla stand-in item), or null when there is nothing to do. */
+    static ItemStack upgraded(ItemStack item){
+        NBTTagCompound d=data(item);if(d==null)return null;
+        if("relic".equals(d.getString("kind"))){Type t=type(item);return t!=null&&item.getType()==t.material&&!Skin.is(item,Skin.SWORD,t.band())?Skin.apply(item,Skin.SWORD,t.band()):null;}
+        if("pouch".equals(d.getString("kind"))&&item.getType()==Material.RABBIT_HIDE)return Skin.apply(item,Skin.SWORD,POUCH_BAND);
+        return null;
+    }
+    /** Upgrades every old bauble and pouch in an inventory in place (same item, same data, new look); the number upgraded. */
+    public static int upgrade(Inventory inventory){
+        if(inventory==null)return 0;int n=0;
+        for(int slot=0;slot<inventory.getSize();slot++){ItemStack up=upgraded(inventory.getItem(slot));if(up!=null){inventory.setItem(slot,up);n++;}}
+        return n;
+    }
+    /** A trinket is never a tool: right-clicking a block with its stone sword or spade makes no path (the click itself still works). */
+    @EventHandler(priority=EventPriority.HIGHEST) public void noToolUse(PlayerInteractEvent e){if(e.getAction()==Action.RIGHT_CLICK_BLOCK&&Skin.carrier(e.getItem()))e.setUseItemInHand(Event.Result.DENY);}
+    private void refresh(Player p,String why){
+        int n=upgrade(p.getInventory());
+        if(n>0)plugin.getLogger().info("DUNGEON_RELIC_ICONS upgraded="+n+" via="+why);
+    }
+    @EventHandler(priority=EventPriority.MONITOR) public void iconsOnJoin(PlayerJoinEvent e){Player p=e.getPlayer();Bukkit.getScheduler().runTask(plugin,()->{if(p.isOnline())refresh(p,"join");});}
+    @EventHandler(priority=EventPriority.MONITOR) public void iconsOnOpen(InventoryOpenEvent e){
+        if(e.getInventory().getHolder() instanceof Player)return;
+        int n=upgrade(e.getInventory());if(n>0)plugin.getLogger().info("DUNGEON_RELIC_ICONS upgraded="+n+" via=container");
+        if(e.getPlayer() instanceof Player)refresh((Player)e.getPlayer(),"open");
+    }
+    @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void iconsOnPickup(PlayerPickupItemEvent e){Player p=e.getPlayer();Bukkit.getScheduler().runTask(plugin,()->{if(p.isOnline())refresh(p,"pickup");});}
     public static ItemStack create(Type t){
         ItemStack item=new ItemStack(t.material);ItemMeta m=item.getItemMeta();
         m.setDisplayName((t.rank>=4?ChatColor.GOLD:ChatColor.LIGHT_PURPLE)+t.title);
@@ -90,13 +122,13 @@ public final class Relics implements Listener {
         lore.add(ChatColor.DARK_GRAY+"Favored in "+LootCatalog.profile(t.spec.theme).theme+".");
         lore.add(ChatColor.GRAY+"Equip inside a Dungeon Reliquary.");
         lore.add(ChatColor.DARK_GRAY+"Only found in the Dungeon Dimension.");m.setLore(lore);item.setItemMeta(m);
-        return edit(item,d->{d.setString("kind","relic");d.setString("id",t.name());d.setInt("version",1);});
+        return Skin.apply(edit(item,d->{d.setString("kind","relic");d.setString("id",t.name());d.setInt("version",1);}),Skin.SWORD,t.band());
     }
     public static ItemStack createPouch(){
         ItemStack item=new ItemStack(Material.RABBIT_HIDE);ItemMeta m=item.getItemMeta();m.setDisplayName(ChatColor.GOLD+"Dungeon Reliquary");
         m.setLore(Arrays.asList(ChatColor.GRAY+"Right-click to equip two distinct dungeon relics.",ChatColor.GRAY+"Carry in your main inventory to activate them.",
             ChatColor.GRAY+"Only your first pouch is active. Effects work in all worlds.",ChatColor.DARK_GRAY+"Contents travel with this pouch, including on death."));
-        item.setItemMeta(m);return edit(item,d->{d.setString("kind","pouch");d.setString("uuid",UUID.randomUUID().toString());d.setInt("version",1);});
+        item.setItemMeta(m);return Skin.apply(edit(item,d->{d.setString("kind","pouch");d.setString("uuid",UUID.randomUUID().toString());d.setInt("version",1);}),Skin.SWORD,POUCH_BAND);
     }
     public static ItemStack roll(Layout.Room r){
         LootCatalog.Bauble b=LootCatalog.roll(r.hash,r.theme,r.tier,r.kind.name());return b==null?null:create(Type.valueOf(b.name()));
@@ -238,7 +270,7 @@ public final class Relics implements Listener {
     }
     private void grant(Player p,Type type,PotionEffectType potion,int ticks){
         if(p.hasPotionEffect(potion))return;if(type.spec.cooldownMillis>0&&!ready(p,type))return;
-        p.addPotionEffect(new PotionEffect(potion,ticks,0));
+        p.addPotionEffect(new PotionEffect(potion,ticks,0,true,false));
     }
     @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true) public void attack(EntityDamageByEntityEvent e){
         if(retaliating||e.isCancelled()||e.getDamage()<=0)return;
