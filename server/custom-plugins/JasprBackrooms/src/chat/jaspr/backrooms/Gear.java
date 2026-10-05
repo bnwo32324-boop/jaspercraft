@@ -63,6 +63,37 @@ final class Gear implements Listener {
 
     Gear(BackroomsPlugin plugin) { this.plugin = plugin; }
 
+    // Own icons (owner 2026-10-05: every trinket has its own texture): trinkets made before that are upgraded where they are found.
+    private void icons(org.bukkit.inventory.Inventory inventory, String why) {
+        int n = Items.upgrade(inventory);
+        if (n > 0) plugin.getLogger().info("BACKROOMS_TRINKET_ICONS upgraded=" + n + " via=" + why);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void iconsOnJoin(org.bukkit.event.player.PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        plugin.getServer().getScheduler().runTask(plugin, () -> { if (p.isOnline()) icons(p.getInventory(), "join"); });
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void iconsOnOpen(org.bukkit.event.inventory.InventoryOpenEvent e) {
+        if (e.getInventory().getHolder() instanceof Player) return;
+        icons(e.getInventory(), "container");
+        if (e.getPlayer() instanceof Player) icons(((Player) e.getPlayer()).getInventory(), "open");
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void iconsOnPickup(org.bukkit.event.player.PlayerPickupItemEvent e) {
+        Player p = e.getPlayer();
+        plugin.getServer().getScheduler().runTask(plugin, () -> { if (p.isOnline()) icons(p.getInventory(), "pickup"); });
+    }
+
+    /** A trinket is never a tool: right-clicking a block with its stone spade makes no path (the click itself still works). */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void noToolUse(PlayerInteractEvent e) {
+        if (e.getAction() == Action.RIGHT_CLICK_BLOCK && Skin.carrier(e.getItem())) e.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+    }
+
     Carry of(Player p) { return carry.getOrDefault(p.getUniqueId(), new Carry()); }
 
     // ---- queries other parts ask --------------------------------------------------------------------------------------
@@ -154,14 +185,14 @@ final class Gear implements Listener {
             case "canteen":
                 if (!ready(p, d.id, 90)) return;
                 p.setHealth(Math.min(p.getMaxHealth(), p.getHealth() + 6));
-                p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 100, 0));
+                p.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 100, 0, true, false));
                 p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_DRINK, 1f, 1f);
                 break;
             case "coolant_vial":
                 if (!ready(p, d.id, 90)) return;
                 plugin.hazards().cool(p);
                 p.setFireTicks(0);
-                p.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 400, 0));
+                p.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 400, 0, true, false));
                 p.getWorld().spawnParticle(Particle.CLOUD, p.getLocation().add(0, 1, 0), 30, 0.4, 0.6, 0.4, 0.02);
                 p.playSound(p.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1f, 1.2f);
                 break;
@@ -179,8 +210,8 @@ final class Gear implements Listener {
             }
             case "cold_coffee":
                 if (!ready(p, d.id, 120)) return;
-                p.addPotionEffect(new PotionEffect(PotionEffectType.FAST_DIGGING, 600, 1));
-                p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 600, 1));
+                p.addPotionEffect(new PotionEffect(PotionEffectType.FAST_DIGGING, 600, 1, true, false));
+                p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 600, 1, true, false));
                 p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_DRINK, 1f, 0.7f);
                 break;
             case "subway_token": {
@@ -271,7 +302,7 @@ final class Gear implements Listener {
         savedAt.put(p.getUniqueId(), now);
         e.setCancelled(true);
         p.setHealth(Math.min(p.getMaxHealth(), 8));
-        p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 200, 1));
+        p.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 200, 1, true, false));
         p.playSound(p.getLocation(), Sound.ITEM_TOTEM_USE, 0.8f, 1.2f);
         p.sendMessage(ChatColor.GOLD + "The Dead Man's Watch stops. " + ChatColor.GRAY + "Not yet. (Again in 5 minutes.)");
         saves++;

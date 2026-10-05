@@ -193,7 +193,7 @@ final class ArmamentListener implements Listener {
             int adrenaline = Armament.abilityLevel(piece, AbilityType.ADRENALINE);
             if (adrenaline > 0 && random.nextInt(100) < adrenaline * 8 * scale) {
                 player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION,
-                        (int) (adrenaline * 60 * scale), 0, true, true), true);
+                        (int) (adrenaline * 60 * scale), 0, true, false), true);
             }
 
             if (event instanceof EntityDamageByEntityEvent) {

@@ -443,14 +443,25 @@ public final class SentryTurret implements Listener {
     /** Null when the body fits; otherwise the reason to show the placer. */
     private String roomFor(Block target) {
         if (target == null || target.getY() < 1 || target.getY() > 255 - PLACE_HEADROOM) return "No room to mount the sentry there.";
-        if (!target.isEmpty() && !target.isLiquid()) return "No room to mount the sentry there.";
+        if (!mountable(target)) return "No room to mount the sentry there.";
         for (int dy = 1; dy <= PLACE_HEADROOM; dy++) {
             if (target.getRelative(BlockFace.UP, dy).getType().isOccluding()) return "The tracker needs " + PLACE_HEADROOM + " blocks of headroom above the sentry.";
         }
-        for (Entity entity : target.getWorld().getNearbyEntities(target.getLocation().add(0.5, 0.5, 0.5), 1, 1, 1)) {
-            if (entity instanceof Player && !((Player) entity).isDead()) return "A survivor is standing there.";
+        // Only a body that is really inside the block refuses it (never a neighbour one block over; no space is needed beside it).
+        for (Entity entity : target.getWorld().getNearbyEntities(target.getLocation().add(0.5, 0.5, 0.5), 2, 2, 2)) {
+            if (!(entity instanceof Player) || ((Player) entity).isDead()) continue;
+            Location at = entity.getLocation();
+            if (SentryPlacement.overlaps(at.getX(), at.getY(), at.getZ(), target.getX(), target.getY(), target.getZ())) return "A survivor is standing there.";
         }
         return null;
+    }
+
+    /** Air, liquid and what a vanilla block replaces when placed over it (grass, dead bushes, a single snow layer). */
+    @SuppressWarnings("deprecation")
+    private static boolean mountable(Block target) {
+        if (target.isEmpty() || target.isLiquid()) return true;
+        Material type = target.getType();
+        return type == Material.LONG_GRASS || type == Material.DEAD_BUSH || (type == Material.SNOW && target.getData() == 0);
     }
 
     private void faceDispenser(Block target, BlockFace face) {

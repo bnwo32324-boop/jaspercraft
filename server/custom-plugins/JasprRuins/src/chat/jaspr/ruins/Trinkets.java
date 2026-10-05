@@ -24,8 +24,12 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -61,6 +65,23 @@ final class Trinkets implements Listener {
         final String[] text;
         Trinket(String title, Material material, int data, String... text) { this.title = title; this.material = material; this.data = (short) data; this.text = text; }
         String key() { return name().toLowerCase(Locale.ROOT); }
+        /**
+         * The band of this relic's own icon on the stone-shovel carrier (scripts/trinket-art/catalog.cjs); 0 for the two relics
+         * that are worn in the helmet slot, which stay the skull and the diamond helmet they are.
+         */
+        int band() {
+            switch (this) {
+                case WARDSTONE: return 1;
+                case TIDE_PEARL: return 2;
+                case TENTACLE_CHARM: return 3;
+                case STAR_SHARD: return 4;
+                case NIGHTGAUNT_PINION: return 5;
+                case GHOUL_TOOTH: return 6;
+                case MIGO_CYLINDER: return 7;
+                case IDOL_OF_THE_DREAMER: return 9;
+                default: return 0;
+            }
+        }
     }
 
     /** Relics that drop from horrors and chests (the mask, idol and crown come only from the Herald). */
@@ -75,6 +96,8 @@ final class Trinkets implements Listener {
         final Material material;
         Seal(String title, Material material, String keeper) { this.title = title; this.material = material; this.keeper = keeper; }
         String key() { return name().toLowerCase(Locale.ROOT); }
+        /** The band of this seal's own icon on the stone-shovel carrier: 11 plus its position. */
+        int band() { return 11 + ordinal(); }
     }
 
     // ------------------------------------------------------------------ items
@@ -97,7 +120,7 @@ final class Trinkets implements Listener {
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
         item.setItemMeta(meta);
-        return item;
+        return t.band() > 0 ? Skin.apply(item, Skin.SHOVEL, t.band()) : item;
     }
 
     static ItemStack seal(Seal s) {
@@ -109,7 +132,7 @@ final class Trinkets implements Listener {
         meta.addEnchant(Enchantment.DURABILITY, 1, true);
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(meta);
-        return item;
+        return Skin.apply(item, Skin.SHOVEL, s.band());
     }
 
     static ItemStack random(Random r) { return item(COMMON[r.nextInt(COMMON.length)]); }
@@ -247,6 +270,61 @@ final class Trinkets implements Listener {
     private final Map<UUID, Long> provoked = new HashMap<>();
 
     Trinkets(RuinsPlugin plugin) { this.plugin = plugin; }
+
+    // ------------------------------------------------------------------ own icons (owner 2026-10-05: every trinket has its own texture)
+
+    /** The upgraded copy of a relic or seal made before its own icon (the vanilla stand-in item), or null when there is nothing to do. */
+    static ItemStack upgraded(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return null;
+        Trinket t = trinketOf(item);
+        if (t != null && t.band() > 0 && item.getType() == t.material && item.getDurability() == t.data) return Skin.apply(item, Skin.SHOVEL, t.band());
+        Seal s = sealOf(item);
+        if (s != null && item.getType() == s.material) return Skin.apply(item, Skin.SHOVEL, s.band());
+        return null;
+    }
+
+    /** Upgrades every old relic and seal in an inventory in place (same item, same lore, new look); the number upgraded. */
+    static int upgrade(Inventory inventory) {
+        if (inventory == null) return 0;
+        int n = 0;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack up = upgraded(inventory.getItem(slot));
+            if (up != null) { inventory.setItem(slot, up); n++; }
+        }
+        return n;
+    }
+
+
+    /** A trinket is never a tool: right-clicking a block with its stone sword or spade makes no path (the click itself still works). */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void noToolUse(org.bukkit.event.player.PlayerInteractEvent e) {
+        if (e.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK && Skin.carrier(e.getItem())) e.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+    }
+
+    private void refresh(Player p, String why) {
+        int n = upgrade(p.getInventory());
+        if (n > 0) plugin.getLogger().info("RUINS_RELIC_ICONS upgraded=" + n + " via=" + why);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void iconsOnJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        plugin.getServer().getScheduler().runTask(plugin, () -> { if (p.isOnline()) refresh(p, "join"); });
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void iconsOnOpen(InventoryOpenEvent e) {
+        if (e.getInventory().getHolder() instanceof Player) return;
+        int n = upgrade(e.getInventory());
+        if (n > 0) plugin.getLogger().info("RUINS_RELIC_ICONS upgraded=" + n + " via=container");
+        if (e.getPlayer() instanceof Player) refresh((Player) e.getPlayer(), "open");
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void iconsOnPickup(PlayerPickupItemEvent e) {
+        Player p = e.getPlayer();
+        plugin.getServer().getScheduler().runTask(plugin, () -> { if (p.isOnline()) refresh(p, "pickup"); });
+    }
 
     private static void effect(Player p, PotionEffectType type, int amplifier) {
         p.addPotionEffect(new PotionEffect(type, 70, amplifier, true, false), true);

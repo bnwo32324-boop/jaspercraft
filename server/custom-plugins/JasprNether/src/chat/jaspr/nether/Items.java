@@ -29,6 +29,9 @@ final class Items {
         final List<Object[]> mods = new ArrayList<>();
         final Map<org.bukkit.enchantments.Enchantment, Integer> enchants = new LinkedHashMap<>();
         boolean unbreakable;
+        /** The band of this trinket's own icon on the stone-shovel carrier (scripts/trinket-art/catalog.cjs); 0 keeps the vanilla stand-in. */
+        int skin;
+        Def skin(int band) { skin = band; return this; }
         /** An extra attribute modifier (op 0 add, 1 multiply base) in a slot (mainhand, offhand, head, chest, legs, feet). */
         Def mod(String attr, double amount, int op, String slot) { mods.add(new Object[]{attr, amount, op, slot}); return this; }
         Def ench(org.bukkit.enchantments.Enchantment e, int level) { enchants.put(e, level); return this; }
@@ -157,15 +160,15 @@ final class Items {
             def(new Def("soulweave_" + slots[i], leather[i], 0, "Soulweave " + slotNames[i], JC, false, soul[i], 1, SOULWEAVE, 0, 0, 0, "Full set: the wither cannot touch you"));
         }
         // trinkets: carried in the off hand (their power shows in the off hand) or anywhere in the inventory
-        def(new Def("brimstone_idol", Material.QUARTZ, 0, "Brimstone Idol", JC, true, "In the off hand: +2 attack damage").mod("generic.attackDamage", 2, 0, "offhand"));
-        def(new Def("heart_of_cinders", Material.FERMENTED_SPIDER_EYE, 0, "Heart of Cinders", JC, true, "In the off hand: two more hearts").mod("generic.maxHealth", 4, 0, "offhand"));
-        def(new Def("hellhound_collar", Material.RABBIT_HIDE, 0, "Hellhound Collar", JC, true, "In the off hand: run 15% faster").mod("generic.movementSpeed", 0.15, 1, "offhand"));
+        def(new Def("brimstone_idol", Material.QUARTZ, 0, "Brimstone Idol", JC, true, "In the off hand: +2 attack damage").mod("generic.attackDamage", 2, 0, "offhand").skin(21));
+        def(new Def("heart_of_cinders", Material.FERMENTED_SPIDER_EYE, 0, "Heart of Cinders", JC, true, "In the off hand: two more hearts").mod("generic.maxHealth", 4, 0, "offhand").skin(22));
+        def(new Def("hellhound_collar", Material.RABBIT_HIDE, 0, "Hellhound Collar", JC, true, "In the off hand: run 15% faster").mod("generic.movementSpeed", 0.15, 1, "offhand").skin(23));
         def(new Def("obsidian_aegis", Material.SHIELD, 0, "Obsidian Aegis", JC, true, "A shield of the Nether's black glass").mod("generic.armor", 3, 0, "offhand")
             .mod("generic.armorToughness", 2, 0, "offhand"));
-        def(new Def("ember_heart", Material.SPECKLED_MELON, 0, "Ember Heart", JC, true, "In the off hand: fire cannot burn you"));
-        def(new Def("wither_ward", Material.INK_SACK, 0, "Wither Ward", JC, true, "Carried: the wither cannot touch you"));
-        def(new Def("magma_band", Material.GOLD_NUGGET, 0, "Magma Band", JC, true, "Carried: magma cannot burn your feet", "and whoever strikes you catches fire"));
-        def(new Def("ghastly_pendant", Material.GHAST_TEAR, 0, "Ghastly Pendant", JC, true, "Carried: when you are near death,", "it mends you (once a minute)"));
+        def(new Def("ember_heart", Material.SPECKLED_MELON, 0, "Ember Heart", JC, true, "In the off hand: fire cannot burn you").skin(24));
+        def(new Def("wither_ward", Material.INK_SACK, 0, "Wither Ward", JC, true, "Carried: the wither cannot touch you").skin(25));
+        def(new Def("magma_band", Material.GOLD_NUGGET, 0, "Magma Band", JC, true, "Carried: magma cannot burn your feet", "and whoever strikes you catches fire").skin(26));
+        def(new Def("ghastly_pendant", Material.GHAST_TEAR, 0, "Ghastly Pendant", JC, true, "Carried: when you are near death,", "it mends you (once a minute)").skin(27));
         // the Nether Lords' relics (half the time in a Lord's hoard) and sigils (to everyone who conquers one)
         def(new Def("deathwing_talon", Material.DIAMOND_SWORD, 0, "Deathwing's Talon", JC, true, 0, 0, null, 11, 1.6, 0, "Relic of Deathwing", "Burns and hurls its foes").unbreakable());
         def(new Def("wyrmfire_bow", Material.BOW, 0, "Wyrmfire Bow", JC, true, "Relic of Ignareth", "Its arrows burst in flame").unbreakable()
@@ -177,7 +180,7 @@ final class Items {
         def(new Def("voidstep_boots", Material.LEATHER_BOOTS, 0, "Voidstep Boots", JC, true, 3, 2, VOIDSTEP, 0, 0, 0, "Relic of the Voidborn", "Worn: no fall damage, 10% faster")
             .mod("generic.movementSpeed", 0.1, 1, "feet").unbreakable());
         def(new Def("colossus_maul", Material.DIAMOND_SPADE, 0, "Colossus Maul", JC, true, 0, 0, null, 15, 0.7, 0, "Relic of the Bone Colossus", "Hurls its foes into the air").unbreakable());
-        def(new Def("tyrant_heart", Material.INK_SACK, 1, "Tyrant's Heart", JC, true, "Relic of the Crimson Tyrant", "In the off hand: fire cannot burn you,", "and you take less harm"));
+        def(new Def("tyrant_heart", Material.INK_SACK, 1, "Tyrant's Heart", JC, true, "Relic of the Crimson Tyrant", "In the off hand: fire cannot burn you,", "and you take less harm").skin(28));
         def(new Def("bloodfang_dagger", Material.IRON_SWORD, 0, "Bloodfang Dagger", JC, true, 0, 0, null, 7, 2.2, 0, "Relic of the Blood Count", "Drinks a quarter of the harm it deals").unbreakable());
         for (int i = 0; i < LORD_IDS.length; i++)
             def(new Def("sigil_" + LORD_IDS[i], DISCS[i], 0, "Sigil of " + Character.toUpperCase(LORD_NAMES[i].charAt(0)) + LORD_NAMES[i].substring(1), JC, true,
@@ -204,8 +207,8 @@ final class Items {
         def(new Def("khopesh", Material.DIAMOND_SWORD, 0, "Khopesh of the Necropolis", JC, true, 0, 0, null, 8, 1.6, 0, "Its blows poison"));
         def(new Def("fire_nation_dao", Material.DIAMOND_SWORD, 0, "Dao of the Fire Nation", JC, true, 0, 0, null, 8, 1.8, 0, "Burns its foes and quickens you"));
         def(new Def("bone_reaver", Material.DIAMOND_AXE, 0, "Bone Reaver", JC, true, 0, 0, null, 11, 0.9, 0, "Its blows weaken"));
-        def(new Def("scarab_amulet", Material.GOLD_NUGGET, 0, "Scarab Amulet", JC, true, "In the off hand: poison cannot touch you"));
-        def(new Def("phoenix_feather", Material.FEATHER, 0, "Phoenix Feather", JC, true, "Carried: when you are near death,", "you rise in flame (once in five minutes)"));
+        def(new Def("scarab_amulet", Material.GOLD_NUGGET, 0, "Scarab Amulet", JC, true, "In the off hand: poison cannot touch you").skin(29));
+        def(new Def("phoenix_feather", Material.FEATHER, 0, "Phoenix Feather", JC, true, "Carried: when you are near death,", "you rise in flame (once in five minutes)").skin(30));
         // armour sets
         String[] slots = {"helmet", "chestplate", "leggings", "boots"}, slotNames = {"Helmet", "Chestplate", "Leggings", "Boots"};
         Material[] leather = {Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE, Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS};
@@ -275,7 +278,27 @@ final class Items {
             tag.setInt("CustomPotionColor", potionColour(id));
         }
         n.setTag(tag);
-        return CraftItemStack.asBukkitCopy(n);
+        ItemStack made = CraftItemStack.asBukkitCopy(n);
+        return d.skin > 0 ? Skin.apply(made, Skin.SHOVEL, d.skin) : made;
+    }
+
+    /** The upgraded copy of a trinket made before its own icon (the vanilla stand-in item), or null when there is nothing to do. */
+    static ItemStack upgraded(ItemStack s) {
+        String id = id(s);
+        Def d = id == null ? null : DEFS.get(id);
+        if (d == null || d.skin <= 0 || s.getType() == Skin.SHOVEL) return null;
+        return Skin.apply(s, Skin.SHOVEL, d.skin);
+    }
+
+    /** Upgrades every old trinket in an inventory in place (same item, same data, new look); the number upgraded. */
+    static int upgrade(org.bukkit.inventory.Inventory inventory) {
+        if (inventory == null) return 0;
+        int n = 0;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack up = upgraded(inventory.getItem(slot));
+            if (up != null) { inventory.setItem(slot, up); n++; }
+        }
+        return n;
     }
 
     static int potionColour(String id) {

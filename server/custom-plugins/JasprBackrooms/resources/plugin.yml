@@ -1,5 +1,5 @@
 name: JasprBackrooms
-version: 1.0.2
+version: 1.0.3
 softdepend: [JasprGear]
 main: chat.jaspr.backrooms.BackroomsPlugin
 author: Jaspr
