@@ -19,3 +19,27 @@ can recreate it yourself" (Overloaded Armor Bar 1.0.4g for 1.12.2, MIT, LocusWay
 - Test: `tests/armor-bar-client.test.cjs` (stage exact, reversible, stable; every icon for 0, 7, 20, 22, 23, 30, 40,
   41 ... 300 armour against the mod's rules; colours from the mod's own config).
 - Client only: no plugin or restart. Cache key `classes.js?v=20261003-armorbar1`.
+
+## "It is not working" (owner, 2026-10-05)
+
+The report came with the gear in a screenshot: an Emerald Helmet, a diamond chestplate (named, Thorns III), diamond leggings and
+diamond boots, and a bar of ten full white icons. That gear is **exactly 20 armour** (3 + 8 + 6 + 3), which is one full white row
+by the mod's own rule ("exactly full stays white"); the bar wraps only from 21. What does and does not count:
+
+- **Armour points only.** Enchantments (Thorns, Protection ...) do not add armour points (they act on damage separately), and
+  neither do toughness or knockback resistance, which are what make the realm armoury pieces "stronger than diamond"
+  (`ArmoryPiece`: helmet 3, chestplate 9, leggings 7, boots 3 = 22 for a whole set against diamond's 3/8/6/3 = 20, toughness 3
+  each against diamond's 2).
+- A single Emerald Helmet is therefore worth what a diamond helmet is. The orange icon appears once a second realm piece (the
+  chestplate +1, the leggings +1) or a Survivor Gear ring that carries armour while equipped (Vigil Ring +1, Dominion
+  Signet +2, `GearAbilities`) is added: a whole realm set shows one orange icon over nine white ones; the 1.12 cap of 30
+  shows five orange over five white.
+
+The port was only ever tested against stand-ins, so it was checked in the real client: `tests/armor-bar-browser.cjs` runs the
+live `classes.js` and `assets.epk` in headless Chrome against the loopback fixture (`scripts/tank-preview.cjs`, a lean Paper
+server): the player wears diamond pieces with explicit `generic.armor` modifiers so the server computes 0, 7, 20, 22, 23 and 30
+armour (and 22 with Regeneration, the other entry into the armour loop), and the ten icons of the armour row are classified by
+colour from screenshots. All 12 checks pass: no row at 0, three white and a half and empty outlines at 7, ten white at 20, one
+orange at 22, orange plus an orange/white half icon at 23, five orange at 30, no page or server exceptions.
+
+    TANK_PREVIEW_ROOT=<checkout with candidate/tanks and candidate/tank-client> ARMOR_BAR_CLASSES=<live classes.js> ARMOR_BAR_ASSETS=<live assets.epk> node tests/armor-bar-browser.cjs [out-dir]
