@@ -7,6 +7,9 @@
 // Citadel drawn chunk by chunk on synthetic Nether terrain (deterministic, no forbidden or valuable block, every boss's
 // arena, stocked, cheap), windows of the Catacombs likewise (and no lava left touching the halls), and the whole
 // labyrinth's map walked from the Heart (the four Wardens' doors reached, nearly all of it connected). Then the wiring.
+// 2026-10-04 (owner: "Add 10 new structures to the Nether. I want them each to be unique, and there should be all kinds
+// of Nether mobs in them, and they should each have a boss. I want them to be huge structures"): ten more colossi, each
+// with its Lord, a vault behind the Lord's seal and every hostile creature of the Nether in its garrisons.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -18,8 +21,10 @@ const root = path.resolve(__dirname, '..');
 const jdk = 'C:/Program Files/Eclipse Adoptium/jdk-17.0.20.8-hotspot/bin';
 const src = path.join(root, 'server/custom-plugins/JasprNether/src/chat/jaspr/nether');
 const java = name => fs.readFileSync(path.join(src, name + '.java'), 'utf8');
-const NEW = ['History', 'Colossi', 'ColossusDesign', 'ColossusPyramid', 'ColossusCitadel', 'Depths', 'Ordeals', 'Dwellers', 'Spoils'];
-const LORDS = ['sunless_pharaoh', 'ember_sovereign', 'hollow_king'];
+// the ten colossi of 2026-10-04: kind id, Lord, design class
+const TITANS = [['abyssal_maw', 'abyssal_gatekeeper', 'ColossusMaw'], ['ashen_spire', 'spire_archon', 'ColossusSpire'], ['leviathan_bones', 'marrow_wyrm', 'ColossusLeviathan'], ['infernal_colosseum', 'undying_gladiator', 'ColossusColosseum'], ['hanging_citadel', 'chained_titan', 'ColossusHanging'], ['spore_hive', 'sporefather', 'ColossusHive'], ['rime_bastion', 'rime_lich', 'ColossusRime'], ['burning_palace', 'burning_king', 'ColossusPalace'], ['amethyst_sanctum', 'amethyst_oracle', 'ColossusSanctum'], ['world_serpent', 'serpent_queen', 'ColossusSerpent']];
+const NEW = ['History', 'Colossi', 'ColossusDesign', 'ColossusPyramid', 'ColossusCitadel', 'Depths', 'Ordeals', 'Dwellers', 'Spoils', ...TITANS.map(t => t[2])];
+const LORDS = ['sunless_pharaoh', 'ember_sovereign', 'hollow_king', ...TITANS.map(t => t[1])];
 const CHAMPIONS = {sphinx_sentinel: 'canopic_jar_duamutef', vizier_hekkat: 'canopic_jar_imsety', scarab_matriarch: 'canopic_jar_qebehsenuef',
   high_fire_sage: 'sun_seal', blazing_admiral: 'admiral_seal', boiling_warden: 'warden_seal',
   gaoler: 'warden_key_gaol', bone_harrower: 'warden_key_ossuary', weeping_shade: 'warden_key_gallery', rot_mother: 'warden_key_pits'};
@@ -38,7 +43,12 @@ test('colossal structures and the Catacombs: per chunk, deterministic, no valuab
   fs.rmSync(out, {recursive: true, force: true});
   assert.equal(run.status, 0, run.stderr + run.stdout.slice(-4000));
   assert.match(run.stdout, /COLOSSI_OK/);
-  for (const id of ['great_pyramid', 'caldera_citadel']) assert.match(run.stdout, new RegExp('colossus ' + id + ' .*deterministic=true forbidden=\\{\\} .*PASS'), id);
+  for (const id of ['great_pyramid', 'caldera_citadel', ...TITANS.map(t => t[0])]) assert.match(run.stdout, new RegExp('colossus ' + id + ' .*deterministic=true forbidden=\\{\\} .*PASS'), id);
+  for (const [id, lord] of TITANS) {
+    assert.match(run.stdout, new RegExp('colossus ' + id + ' .*lord:' + lord + '=1'), id + ' keeps its Lord');
+    assert.match(run.stdout, new RegExp('colossus ' + id + ' .*ordeals=\\{[^}]*bossseal=[1-9]'), id + ' has its vault behind the Lord\'s seal');
+    assert.match(run.stdout, new RegExp('colossus ' + id + ' .*roster=complete strangers=\\[\\]'), id + ' holds every hostile creature of the Nether');
+  }
   for (const lord of ['sunless_pharaoh', 'sphinx_sentinel', 'vizier_hekkat', 'scarab_matriarch']) assert.match(run.stdout, new RegExp('colossus great_pyramid .*lord:' + lord + '=1'), lord);
   for (const lord of ['ember_sovereign', 'high_fire_sage', 'blazing_admiral', 'boiling_warden']) assert.match(run.stdout, new RegExp('colossus caldera_citadel .*lord:' + lord + '=1'), lord);
   assert.match(run.stdout, /colossus great_pyramid .*ordeals=\{[^}]*keyseal=1[^}]*levers=1/, 'the Canopic Seal and the Hall of Stars');
@@ -55,13 +65,24 @@ test('colossal structures and the Catacombs: per chunk, deterministic, no valuab
 test('colossal wiring: placement, history, bosses, champions, keys, creatures, loot, ordeals, safety', () => {
   const gen = java('Gen'), plugin = java('NetherPlugin'), lords = java('Lords'), items = java('Items'), loot = java('Loot'), mobs = java('Mobs');
   const ordeals = java('Ordeals'), dwellers = java('Dwellers'), depths = java('Depths'), life = java('GlmLife');
-  const designs = ['ColossusPyramid', 'ColossusCitadel', 'Depths'].map(java).join('\n');
+  const designs = ['ColossusPyramid', 'ColossusCitadel', 'Depths', ...TITANS.map(t => t[2])].map(java).join('\n');
   // placement: a colossus only on land newer than this update and clear of every recorded structure, decided once;
   // a mega site or a GLM build gives way to a built colossus; the Nether is not regenerated for it
   assert.match(gen, /on = !history\.anyOld\(s\.minX, s\.minZ, s\.maxX, s\.maxZ\) && !registry\.structureReach\(s\.minX, s\.minZ, s\.maxX, s\.maxZ\);/);
   assert.match(gen, /registry\.setColossusDecision\(s\.cellX, s\.cellZ, on\);/);
   assert.equal((gen.match(/if \(on && colossusClaims\(s\.minX, s\.minZ, s\.maxX, s\.maxZ\)\) on = false;/g) || []).length, 2, 'mega and GLM give way');
-  assert.match(plugin, /static final int REGEN_EPOCH = 6;/);
+  assert.match(plugin, /static final int REGEN_EPOCH = 7;/);
+  // the colossi of 2026-10-04: a 640-block grid of fourteen slots (the Pyramid and the Citadel two each), and the GLM builds and
+  // the mega structures plan around them
+  const colossi = java('Colossi');
+  assert.match(colossi, /static final int CELL = 640;/);
+  assert.equal((colossi.match(/SLOTS = \{([^}]*)\}/)[1].match(/Kind\.[A-Z]+/g) || []).length, 14);
+  for (const [id, lord, cls] of TITANS) {
+    assert.match(colossi, new RegExp('"' + id + '", "[^"]+", \\d+, 32, \\d+, \\d+, [\\d.]+, "' + lord + '"'), id);
+    assert.match(colossi, new RegExp('= new ' + cls + '\\(\\);'), cls);
+    assert.match(java(cls), new RegExp('final class ' + cls + ' extends ColossusDesign'), cls + ' is a full design');
+  }
+  assert.match(gen, /\|\| colossalReach\(x0, z0, x1, z1\);/, 'GLM builds and mega structures plan around the colossi');
   // the history is taken once and kept with the world's records; the Heart's place is chosen once and kept
   assert.match(java('History'), /"colossi-history\.txt"/);
   assert.match(plugin, /gen\.history = History\.of\(w, data, getLogger\(\)\);/);
@@ -99,6 +120,12 @@ test('colossal wiring: placement, history, bosses, champions, keys, creatures, l
   assert.match(mobs, /Dwellers\.specs\(Mobs::spec\);/);
   assert.match(mobs, /default: if \(!Fiends\.think\(this, t\)\) Dwellers\.think\(this, t\);/);
   const all = new Set([...kinds, ...[...java('Fiends').matchAll(/new Mobs\.Spec\("([a-z_]+)"/g)].map(m => m[1])]);
+  // the colossi of 2026-10-04 hold every hostile creature of the Nether: the roster names only real kinds
+  const roster = java('ColossusDesign').match(/ROSTER = \{([^;]*)\};/)[1].match(/"([a-z_]+)"/g).map(s => s.slice(1, -1));
+  assert.ok(roster.length >= 41, 'roster ' + roster.length);
+  const netherex = new Set([...mobs.matchAll(/spec\(new Spec\("([a-z_]+)"/g)].map(m => m[1]));
+  for (const k of roster) assert.ok(all.has(k) || netherex.has(k) || ['blaze', 'magma_cube', 'wither_skeleton', 'zombie_pigman', 'skeleton'].includes(k), 'roster kind ' + k);
+  for (const k of roster) all.add(k);
   for (const m of designs.matchAll(/"garrison:([a-z_+]+)"/g)) for (const k of m[1].split('+')) assert.ok(all.has(k), 'garrison kind ' + k);
   for (const m of designs.matchAll(/spawner\([^;]*?"([a-z_]+)"\)/g)) assert.ok(all.has(m[1]), 'spawner kind ' + m[1]);
   for (const m of designs.matchAll(/q < [0-9.]+ \? "([a-z_]+)" : (?:q < [0-9.]+ \? "([a-z_]+)" : )?"([a-z_]+)"/g)) for (const k of m.slice(1).filter(Boolean)) assert.ok(all.has(k), 'spawner mob ' + k);

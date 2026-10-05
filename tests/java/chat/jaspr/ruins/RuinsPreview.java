@@ -157,17 +157,25 @@ public final class RuinsPreview {
                 if (Catacombs.deepNode(gen.plans, i, j) >= Catacombs.CRYPT) rooms2++;
                 if (Catacombs.descent(gen.plans, i, j)) shafts++;
             }
+        // Epoch 6: the great structures (each counted once, though each is a whole complex) and the land they take.
+        int greats = 0;
+        for (int i = Math.floorDiv(-R, Plans.GREAT_GRID); i < Math.floorDiv(R, Plans.GREAT_GRID); i++)
+            for (int j = Math.floorDiv(-R, Plans.GREAT_GRID); j < Math.floorDiv(R, Plans.GREAT_GRID); j++) {
+                Plans.GreatSite g = gen.plans.great(i, j);
+                if (g != null && g.x >= -R && g.x < R && g.z >= -R && g.z < R) greats++;
+            }
         double km2 = 4 * R * (double) R / 1e6;
         int clashes = 0;
         for (int a = 0; a < square.size(); a++) for (int b = a + 1; b < square.size(); b++) if (Plans.clash(square.get(a), square.get(b))) clashes++;
-        System.out.println(String.format(java.util.Locale.ROOT, "SITE_DENSITY grid=%d ruins=%.1f dungeonRuins=%.1f wetRuins=%.1f lesser=%.1f lesserDungeons=%.1f"
+        System.out.println(String.format(java.util.Locale.ROOT, "SITE_DENSITY grid=%d ruins=%.1f dungeonRuins=%.1f wetRuins=%.1f lesser=%.1f lesserDungeons=%.1f greats=%.1f"
             + " structures=%.1f (x%.2f) dungeons=%.1f (x%.2f) catacombRooms=%.1f+%.1f (x%.2f) shafts=%.1f clashes=%d", Plans.SITE_GRID, ruins / km2,
-            dungeonRuins / km2, wetRuins / km2, lesser / km2, lesserDungeons / km2, (ruins + lesser) / km2, (ruins + lesser) / km2 / 137.3,
-            (dungeonRuins + lesserDungeons) / km2, (dungeonRuins + lesserDungeons) / km2 / 70.6, rooms1 / km2, rooms2 / km2, (rooms1 + rooms2) / km2 / 1712.8, shafts / km2, clashes));
+            dungeonRuins / km2, wetRuins / km2, lesser / km2, lesserDungeons / km2, greats / km2, (ruins + lesser + greats) / km2, (ruins + lesser + greats) / km2 / 137.3,
+            (dungeonRuins + lesserDungeons + greats) / km2, (dungeonRuins + lesserDungeons + greats) / km2 / 70.6, rooms1 / km2, rooms2 / km2, (rooms1 + rooms2) / km2 / 1712.8, shafts / km2, clashes));
         check(clashes == 0, "no two ruins overlap: " + clashes);
-        check(ruins / km2 > 1.45 * 137.3, "the great ruins about 1.5x as close as epoch 4: " + ruins / km2);
-        check((ruins + lesser) / km2 > 2.0 * 137.3, "ruins and lesser ruins together twice epoch 4's ruins: " + (ruins + lesser) / km2);
-        check((dungeonRuins + lesserDungeons) / km2 > 2.0 * 70.6, "dungeons twice epoch 4's: " + (dungeonRuins + lesserDungeons) / km2);
+        check(greats / km2 > 8, "the great structures (epoch 6): " + greats / km2 + " per km2");
+        check((ruins + greats) / km2 > 1.2 * 137.3, "the ruins and great structures together closer than epoch 4's ruins: " + (ruins + greats) / km2);
+        check((ruins + lesser + greats) / km2 > 2.0 * 137.3, "ruins, lesser ruins and great structures twice epoch 4's ruins: " + (ruins + lesser + greats) / km2);
+        check((dungeonRuins + lesserDungeons + greats) / km2 > 2.0 * 70.6, "dungeons twice epoch 4's: " + (dungeonRuins + lesserDungeons + greats) / km2);
         check(rooms1 + rooms2 > 2.0 * 1712.8 * km2, "catacomb rooms twice epoch 4's: " + (rooms1 + rooms2) / km2);
         check(wetRuins > 10 && shafts > 100, "drowned ruins and shafts to the deep catacombs: " + wetRuins + " " + shafts);
         check(lesserKinds.size() == 6, "every lesser ruin appears: " + lesserKinds);

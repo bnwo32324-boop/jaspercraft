@@ -14,21 +14,36 @@ const root = path.resolve(__dirname, '..');
 const jdk = 'C:/Program Files/Eclipse Adoptium/jdk-17.0.20.8-hotspot/bin';
 const plugins = path.join(root, 'server/custom-plugins');
 const javaFiles = dir => fs.readdirSync(dir, {recursive: true}).filter(f => f.endsWith('.java')).map(f => path.join(dir, f));
+// the twenty great structures of epoch 6 and their keepers
+const GREATS = ['NECROPOLIS', 'CATHEDRAL', 'SLEEPER', 'STAR_TOWER', 'SHOGGOTH_VATS', 'DREADNOUGHT', 'MIGO_HIVE', 'TINDALOS', 'BLACK_GOAT', 'BEACON',
+  'VIADUCT', 'CELAENO', 'TERRACES', 'BASTION', 'SILVER_GATE', 'LENG', 'ELDER_VAULT', 'CISTERN', 'ORRERY', 'GOLGOTHA'];
+const KEEPERS = ['GHOUL_KING', 'DROWNED_BISHOP', 'SLEEPERS_AVATAR', 'STAR_PRIEST', 'ELDER_SHOGGOTH', 'DROWNED_ADMIRAL', 'MIGO_OVERSEER', 'TINDALOS_ALPHA',
+  'DARK_YOUNG', 'LAMPLIGHTER', 'TOLL_KEEPER', 'LIBRARIAN', 'DROWNED_QUEEN', 'DEEP_WARLORD', 'GATE_GUARDIAN', 'HIGH_PRIEST', 'ELDER_THING', 'CISTERN_GORGON',
+  'KEEPER_OF_AEONS', 'BONE_TYRANT'];
+const designClass = k => 'Great' + k.split('_').map(w => w[0] + w.slice(1).toLowerCase()).join('');
 
 test('ruins generator: sites, old city, determinism, tiles, weathering, portal frames, speed', {skip: !fs.existsSync(jdk)}, () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'jaspr-ruins-test-'));
   const classes = path.join(out, 'classes'), images = path.join(out, 'preview');
   const cp = [path.join(root, 'server/cache/patched_1.12.2.jar'), path.join(root, 'server/plugins/JasprHorrorBiomes.jar')].join(path.delimiter);
   const sources = [...javaFiles(path.join(plugins, 'JasprLostCities/src')), ...javaFiles(path.join(plugins, 'JasprRuins/src')),
-    path.join(root, 'tests/java/chat/jaspr/ruins/RuinsPreview.java')];
+    path.join(root, 'tests/java/chat/jaspr/ruins/RuinsPreview.java'), path.join(root, 'tests/java/chat/jaspr/ruins/GreatPreview.java')];
   const javac = spawnSync(path.join(jdk, 'javac.exe'), ['--release', '8', '-encoding', 'UTF-8', '-proc:none', '-Xlint:-options', '-nowarn', '-cp', cp, '-d', classes, ...sources], {encoding: 'utf8'});
   assert.equal(javac.status, 0, javac.stderr);
   // Lost Cities assets are read from its resources at runtime by the plugin only; the offline check needs none.
   const run = spawnSync(path.join(jdk, 'java.exe'), ['-XX:ActiveProcessorCount=1', '-Xmx768m', '-ea', '-Djava.awt.headless=true',
     '-cp', classes + path.delimiter + cp, 'chat.jaspr.ruins.RuinsPreview', images], {encoding: 'utf8'});
+  // Epoch 6 (owner 2026-10-04: "make 20 new big structures there as well. They all should be unique and have bosses, and they
+  // should include all types of mobs and custom mobs"): every great structure generated with the real generator and checked.
+  const greats = spawnSync(path.join(jdk, 'java.exe'), ['-XX:ActiveProcessorCount=1', '-Xmx900m', '-ea', '-Djava.awt.headless=true',
+    '-cp', classes + path.delimiter + cp, 'chat.jaspr.ruins.GreatPreview', '-'], {encoding: 'utf8'});
   fs.rmSync(out, {recursive: true, force: true});
   assert.equal(run.status, 0, run.stderr + run.stdout);
   assert.match(run.stdout, /RUINS_OK/);
+  assert.equal(greats.status, 0, greats.stderr + greats.stdout.slice(-4000));
+  assert.match(greats.stdout, /GREATS_OK/);
+  assert.match(greats.stdout, /great plan .*kindsFound=20\/20/);
+  for (const k of GREATS) assert.match(greats.stdout, new RegExp('great ' + k + ' .*roster=complete strangers=\[\] badPoints=0 boss=ok forbidden=\{\} deterministic=true PASS'), k);
   // Epoch 5 (owner 2026-10-04: "more dense with dungeons and structures. make new ones. 2x it"), measured in RuinsPreview
   // against epoch 4 on the same seed and square: ruins plus lesser ruins, dungeons and catacomb rooms each at least 2x.
   const density = /SITE_DENSITY grid=40 .*structures=[\d.]+ \(x([\d.]+)\) dungeons=[\d.]+ \(x([\d.]+)\) catacombRooms=[\d.+]+ \(x([\d.]+)\).* clashes=0/.exec(run.stdout);
@@ -56,7 +71,27 @@ test('ruins plugin wiring: Lost Cities registration, mossy portals, client-green
   assert.match(api, /public static void registerWorld\(String worldName, String titleFormat, PrimerHook hook\)/);
   assert.match(read('scripts/deploy/DeployLogic.ps1'), /'JasprRuins'\s+= @\('RUINS_READY'\)/);
   // The dimension lives on disk while empty and is regenerated for this design (the old world is renamed, not deleted).
-  assert.match(plugin, /static final int EPOCH = 5;/);
+  assert.match(plugin, /static final int EPOCH = 6;/);
+  // The great structures (epoch 6): planned before the ruins and the field, drawn last, each a full design with its keeper
+  // and garrisons of every horror and every overworld monster; dangerous inside, quiet at the gates.
+  const ruinsSrc = f => read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/' + f + '.java');
+  const plans = ruinsSrc('Plans'), greatsSrc = ruinsSrc('Greats'), keepers = ruinsSrc('Bosses'), garrisons = ruinsSrc('Garrisons');
+  for (const [i, k] of GREATS.entries()) {
+    assert.match(plans, new RegExp(k + '\("[^"]+", \d+, (true|false), "' + KEEPERS[i] + '"\)'), k + ' keeps ' + KEEPERS[i]);
+    assert.ok(greatsSrc.includes('= new ' + designClass(k) + '();'), designClass(k) + ' registered');
+    assert.match(ruinsSrc(designClass(k)), new RegExp('final class ' + designClass(k) + ' extends GreatDesign'), designClass(k) + ' is a full design');
+    assert.ok(keepers.includes(KEEPERS[i] + '(EntityType'), KEEPERS[i]);
+  }
+  assert.ok(gen.includes('if (g != null) Greats.draw(g, c);'), 'the great structures are drawn last');
+  assert.ok(plans.includes('if (greatNear(x, z, r + SITE_PAD + 3)) return null;'), 'the ruins keep clear of them');
+  assert.ok(ruinsSrc('Danger').includes('return "great";'), 'inside one is inside a structure');
+  assert.ok(keepers.includes('RUINS_KEEPER_SLAIN') && keepers.includes('KEEPER_COOLDOWN = 30L * 60_000L'), 'keepers rest half an hour');
+  assert.ok(garrisons.includes('plugin.danger().sanctuary(at)') && garrisons.includes('e.blockList().clear()') && garrisons.includes('RUINS_GARRISON_ROUSED'),
+    'garrisons: never at the gates, never blasting the stone, logged');
+  assert.doesNotMatch(garrisons, /getName\(\)|getAddress\(\)/, 'no player names in the garrison log');
+  const roster = ruinsSrc('GreatDesign');
+  for (const k of ['deep_one', 'ghoul', 'cult_zealot', 'tomb_crawler', 'nightgaunt', 'shoggoth', 'mi_go', 'star_spawn', 'hound', 'cult_adept',
+    'zombie', 'skeleton', 'spider', 'creeper', 'witch', 'enderman', 'slime', 'evoker', 'illusioner', 'wither_skeleton']) assert.ok(roster.includes('"' + k + '"'), 'roster ' + k);
   assert.ok(plugin.includes('plans().forget();'), 'plans made before the Lost Cities attached are forgotten once the world is open');
   assert.ok(plugin.includes('Bukkit.unloadWorld(w, true)'), 'saved and unloaded after its last player leaves');
   assert.ok(plugin.includes('public void login(PlayerLoginEvent e)'), 'loaded for a player who logged out inside it');

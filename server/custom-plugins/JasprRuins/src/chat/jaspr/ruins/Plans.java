@@ -139,7 +139,8 @@ final class Plans {
         CELLAR, TOMB, WELL, HUT, SPIDER_DEN, OFFERING_STONE;
         boolean lesser() { return ordinal() >= CELLAR.ordinal(); }
     }
-    private static final int[] FILLER_WEIGHTS = {16, 9, 9, 9, 5, 6, 6, 5, 8, 6, 6, 5, 10, 22, 6, 6, 5, 17, 15, 11, 17, 10, 10};
+    // Epoch 6: the lesser ruins weigh about twice as much (36 .. 21), so the field makes up the ruins the great structures displace.
+    private static final int[] FILLER_WEIGHTS = {16, 9, 9, 9, 5, 6, 6, 5, 8, 6, 6, 5, 10, 22, 6, 6, 5, 36, 32, 23, 36, 21, 21};
     private static final int FILLER_TOTAL = java.util.Arrays.stream(FILLER_WEIGHTS).sum();
 
     static final class Cell {
@@ -483,7 +484,7 @@ final class Plans {
         if (reserved.test(x0, z0, CELL, CELL)) return null;
         City c = cityNear(cx, cz);
         if (c != null && c.outside(cx, cz) < -CELL / 2) return null;
-        if (greatNear(cx, cz, 0)) return null;                       // a great structure lays its own ground
+        // beside and under a great structure only the cracked floor: the structure draws over it
         boolean crowded = c != null && c.outside(cx, cz) < BLEND + CELL / 2 || greatNear(cx, cz, CELL / 2 + 2);
         int si = Math.floorDiv(cx, SITE_GRID), sj = Math.floorDiv(cz, SITE_GRID);
         for (int a = si - 1; a <= si + 1 && !crowded; a++)
