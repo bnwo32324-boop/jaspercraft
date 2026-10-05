@@ -1,5 +1,8 @@
 # BetterNether + NetherEx (JasprNether 1.2.0) -- 2026-09-26, mega structures 2026-09-28, GLM builds 2026-09-29
 
+> 2026-10-04/05 (1.5.0): ten new colossi with their Lords, 1.8x as many colossi, and more variety (wonders of every kind,
+> fewer cave rooms, varied Catacomb packs); the Nether regenerates (epoch 7). See BIG_STRUCTURES_UPDATE.md.
+
 > 2026-09-29 (1.2.0): the owner's 98 GLM structures spawn in the Nether with 13 new creatures, spawners, mob packs,
 > trapped chests, Nether-themed loot, gear and trinkets, and the ten Nether Lords; three Lords must be conquered before
 > the Urn of Sorrow answers. The Nether regenerates (epoch 3). See GLM_NETHER_UPDATE.md.

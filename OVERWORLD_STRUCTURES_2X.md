@@ -1,5 +1,8 @@
 # Overworld structures 2x (JasprHorrorBiomes 3.29.0)
 
+> 2026-10-05 (3.30.0): variety on new ground -- the catalogue's big unique sites from 512 blocks out, fewer extra copies of
+> the commonest kinds. See BIG_STRUCTURES_UPDATE.md.
+
 Owner, 2026-10-04: "Make structures in the overworld 2x common ... Don't regenerate the overworld, but do retrofit
 structures that would normally spawn if it was regenerated."
 

@@ -1,5 +1,8 @@
 # Drownhollow, the drowned city (JasprRuins, epoch 5)
 
+> 2026-10-04/05 (1.4.0, epoch 6): twenty great structures, each with a keeper and garrisons of every horror and monster;
+> Drownhollow regenerates. See BIG_STRUCTURES_UPDATE.md.
+
 > 2026-09-29: the Drownhollow Guide at every mossy gate hands out a compass, a checklist and a map that lead through
 > the three Seals, the Great Door and the Herald (they replace the Pilgrim's Primer and the Drowned Star Compass). See
 > GUIDE_KIT_UPDATE.md.
