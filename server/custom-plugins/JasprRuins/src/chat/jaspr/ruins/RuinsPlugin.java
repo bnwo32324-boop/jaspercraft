@@ -61,7 +61,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     static final String WORLD = "jaspr_ruins";
     static final long SALT = 0x5275696E73L;   // "Ruins"
     /** Bumped when the dimension is redesigned: an older saved world is retired (renamed, not deleted) and regenerated. */
-    static final int EPOCH = 5;
+    static final int EPOCH = 6;
     /**
      * The owner asked for Drownhollow at half the difficulty and half the spawns (2026-09-28): everything hostile deals
      * this share of its damage to players, horrors and Wardens have this share of their health, and the hazards and
@@ -83,6 +83,7 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
     private Horrors horrors;
     private Danger danger;
     private Bosses bosses;
+    private Garrisons garrisons;
     private Trinkets trinkets;
     private Sky sky;
     private RuinsQuest quest;
@@ -114,8 +115,9 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         trinkets = new Trinkets(this);
         sky = new Sky(this);
         quest = new RuinsQuest(this);
+        garrisons = new Garrisons(this);
         guide = new GuideKit(this, quest);   // registers itself: the gate guides, compass, checklist and map
-        for (Listener l : new Listener[] {this, portals, horrors, bosses, trinkets, sky}) Bukkit.getPluginManager().registerEvents(l, this);
+        for (Listener l : new Listener[] {this, portals, horrors, bosses, trinkets, sky, garrisons}) Bukkit.getPluginManager().registerEvents(l, this);
         toldFile = new File(getDataFolder(), "told.txt");
         loadTold();
         Bukkit.getScheduler().runTaskTimer(this, portals::tick, 20L, 4L);
@@ -123,12 +125,14 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
         Bukkit.getScheduler().runTaskTimer(this, horrors::tick, 40L, 10L);
         Bukkit.getScheduler().runTaskTimer(this, horrors::dreadTick, 40L, 40L);
         Bukkit.getScheduler().runTaskTimer(this, bosses::tick, 40L, 10L);
+        Bukkit.getScheduler().runTaskTimer(this, garrisons::tick, 45L, 20L);
         Bukkit.getScheduler().runTaskTimer(this, trinkets::tick, 40L, 20L);
         Bukkit.getScheduler().runTaskTimer(this, sky::tick, 60L, 40L);
         Bukkit.getScheduler().runTaskTimer(this, this::lifecycle, 100L, 40L);
         getLogger().info("RUINS_READY world=" + WORLD + " epoch=" + EPOCH + " loaded=false lostCities=registered portals=" + portals.count()
             + " cityGrid=" + Plans.CITY_GRID + " siteGrid=" + Plans.SITE_GRID + " cell=" + Plans.CELL + " siteKinds=" + Plans.Kind.values().length
-            + " lesserRuins=" + java.util.Arrays.stream(Plans.Filler.values()).filter(Plans.Filler::lesser).count() + " deepCatacombs=" + Catacombs.DEEP_DROP);
+            + " lesserRuins=" + java.util.Arrays.stream(Plans.Filler.values()).filter(Plans.Filler::lesser).count() + " deepCatacombs=" + Catacombs.DEEP_DROP
+            + " greatGrid=" + Plans.GREAT_GRID + " greatKinds=" + Plans.Great.values().length + " roster=" + GreatDesign.ROSTER.length);
     }
 
     @Override
@@ -142,7 +146,8 @@ public final class RuinsPlugin extends JavaPlugin implements Listener {
                 + " ambushes=" + horrors.ambushes + " shadows=" + horrors.shadows + " crumbles=" + horrors.crumbles + " easedHits=" + horrors.eased)
             + (danger == null ? "" : " " + danger.describe()) + " traps=" + p.traps
             + (sky == null ? "" : " skyFlashes=" + sky.flashes)
-            + (bosses == null ? "" : " wardensSlain=" + bosses.wardensSlain + " heraldsSlain=" + bosses.heraldsSlain)
+            + (bosses == null ? "" : " wardensSlain=" + bosses.wardensSlain + " keepersSlain=" + bosses.keepersSlain + " heraldsSlain=" + bosses.heraldsSlain)
+            + (garrisons == null ? "" : " " + garrisons.describe())
             + (portals == null ? "" : " portalsLit=" + portals.lit + " portalsBuilt=" + portals.built + " travels=" + portals.travels + " portalsClosed=" + portals.closed
                 + " portalsLinked=" + portals.linked + " strayArrivals=" + portals.strayArrivals
                 + " portalsAdopted=" + portals.adopted + " vanillaBlocked=" + portals.vanillaBlocked));

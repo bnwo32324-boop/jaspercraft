@@ -96,6 +96,7 @@ final class Danger {
         Plans.City c = plans.cityNear(x, z);
         if (c != null && c.outside(x, z) <= 0) return "city";
         if (plans.siteAt(x, z) != null) return "site";
+        if (plans.greatAt(x, z) != null) return "great";
         return null;
     }
 

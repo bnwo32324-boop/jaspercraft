@@ -88,6 +88,12 @@ public final class RuinsGenerator extends ChunkGenerator {
                 Plans.Site site = plans.site(i, j);
                 if (site != null) Sites.draw(site, c);
             }
+        // The great structures (epoch 6) last: each stays inside its own 256-block cell.
+        for (int i = Math.floorDiv(c.x0, Plans.GREAT_GRID); i <= Math.floorDiv(c.x0 + 15, Plans.GREAT_GRID); i++)
+            for (int j = Math.floorDiv(c.z0, Plans.GREAT_GRID); j <= Math.floorDiv(c.z0 + 15, Plans.GREAT_GRID); j++) {
+                Plans.GreatSite g = plans.great(i, j);
+                if (g != null) Greats.draw(g, c);
+            }
     }
 
     // Biome slots the browser client styles green and snow-free (JasprBiomeStyles restyles every slot for the horror

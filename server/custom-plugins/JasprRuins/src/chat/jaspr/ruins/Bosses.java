@@ -54,6 +54,11 @@ import org.bukkit.potion.PotionEffectType;
  * passed), fights with a boss bar and three tricks, and drops its Seal, a relic, a lore book and treasure. Three different
  * Seals set into the Great Door open it and wake the Dreamer's Herald, a giant in three phases whose death ends the Dream:
  * everyone near receives the Herald's hoard. Arena cooldowns, the Door's Seals and the list of Dreamslayers persist.
+ * <p>
+ * Epoch 6 (owner, 2026-10-04: "make 20 new big structures ... They all should be unique and have bosses"): each great
+ * structure ({@link Greats}) has its own keeper, which wakes when a player comes within 20 blocks of its hall (and its
+ * thirty-minute rest has passed), fights with its own three powers (faster once below half health) and its own
+ * horrors, and leaves relics, a lore book and treasure. They hold no Seal of the Door.
  */
 final class Bosses implements Listener {
     static final String TAG = "jaspr_boss", TYPE_TAG = "jaspr_boss:", ARENA_TAG = "jaspr_boss_arena:", STONE_TAG = "jaspr_boss_stone";
@@ -64,15 +69,45 @@ final class Bosses implements Listener {
         BROOD_MOTHER(EntityType.SPIDER, "The Brood Mother", 300, 10, BarColor.RED, Trinkets.Seal.HUNGER, "Something vast stirs in the bones."),
         SPAWN_OF_THE_DEEP(EntityType.SLIME, "Spawn of the Deep", 520, 12, BarColor.GREEN, Trinkets.Seal.DEEP, "The pool rises to meet you."),
         FACELESS_PRIEST(EntityType.ILLUSIONER, "The Faceless Priest", 280, 0, BarColor.PURPLE, Trinkets.Seal.SILENCE, "It has no face. It wants yours."),
-        HERALD(EntityType.GIANT, "The Dreamer's Herald", 1600, 16, BarColor.PINK, null, "IT WALKS.");
+        HERALD(EntityType.GIANT, "The Dreamer's Herald", 1600, 16, BarColor.PINK, null, "IT WALKS."),
+        // the keepers of the great structures (epoch 6): body, title, health, damage, bar, intro, the horror it calls, its powers
+        GHOUL_KING(EntityType.HUSK, "The Ghoul-King", 360, 11, BarColor.YELLOW, "The dead kings hunger.", Horrors.Kind.GHOUL, Move.CALL, Move.QUAKE, Move.HUNGER),
+        DROWNED_BISHOP(EntityType.ZOMBIE, "The Drowned Bishop", 380, 12, BarColor.BLUE, "The bells toll under the water.", Horrors.Kind.DEEP_ONE, Move.CONFUSE, Move.PULL, Move.CALL),
+        SLEEPERS_AVATAR(EntityType.GIANT, "The Avatar of the Sleeper", 900, 14, BarColor.PURPLE, "The Sleeper turns in its dream.", Horrors.Kind.STAR_SPAWN, Move.QUAKE, Move.STONES, Move.CALL),
+        STAR_PRIEST(EntityType.EVOKER, "The Star Priest", 320, 0, BarColor.WHITE, "The stars are watching.", Horrors.Kind.NIGHTGAUNT, Move.FANGS, Move.LEVITATE, Move.CALL),
+        ELDER_SHOGGOTH(EntityType.SLIME, "The Elder Shoggoth", 560, 12, BarColor.GREEN, "Tekeli-li! Tekeli-li!", Horrors.Kind.SHOGGOTH, Move.PUSH, Move.CALL, Move.LEAP),
+        DROWNED_ADMIRAL(EntityType.STRAY, "The Drowned Admiral", 360, 11, BarColor.BLUE, "All hands to the deep.", Horrors.Kind.DEEP_ONE, Move.LEAP, Move.SLOW, Move.CALL),
+        MIGO_OVERSEER(EntityType.ENDERMAN, "The Mi-Go Overseer", 380, 12, BarColor.PURPLE, "It wants your mind in a jar.", Horrors.Kind.MI_GO, Move.SWAP, Move.BLIND, Move.CALL),
+        TINDALOS_ALPHA(EntityType.WOLF, "The Alpha of Tindalos", 320, 12, BarColor.RED, "It comes through the angles.", Horrors.Kind.HOUND, Move.LEAP, Move.WITHER, Move.CALL),
+        DARK_YOUNG(EntityType.IRON_GOLEM, "The Dark Young", 480, 16, BarColor.GREEN, "The Black Goat's child stirs.", Horrors.Kind.GHOUL, Move.QUAKE, Move.POISON, Move.CALL),
+        LAMPLIGHTER(EntityType.PIG_ZOMBIE, "The Lamplighter of R'lyeh", 340, 12, BarColor.YELLOW, "The lamp burns green.", Horrors.Kind.DEEP_ONE, Move.LIGHTNING, Move.BLIND, Move.CALL),
+        TOLL_KEEPER(EntityType.VINDICATOR, "The Toll Keeper", 360, 13, BarColor.RED, "None cross without paying.", Horrors.Kind.CULT_ZEALOT, Move.LEAP, Move.SLOW, Move.CALL),
+        LIBRARIAN(EntityType.ILLUSIONER, "The Librarian of Celaeno", 320, 0, BarColor.PURPLE, "Some books read you.", Horrors.Kind.NIGHTGAUNT, Move.BLIND, Move.CONFUSE, Move.CALL),
+        DROWNED_QUEEN(EntityType.WITCH, "The Drowned Queen", 340, 0, BarColor.BLUE, "Kneel, and drown.", Horrors.Kind.DEEP_ONE, Move.POISON, Move.PULL, Move.CALL),
+        DEEP_WARLORD(EntityType.ZOMBIE, "The Warlord of Y'ha-nthlei", 420, 14, BarColor.GREEN, "The Deep Ones march.", Horrors.Kind.DEEP_ONE, Move.QUAKE, Move.PULL, Move.CALL),
+        GATE_GUARDIAN(EntityType.WITHER_SKELETON, "The Guardian of the Silver Gate", 400, 14, BarColor.WHITE, "Only the Key may pass.", Horrors.Kind.STAR_SPAWN, Move.FANG_LINE, Move.LIGHTNING, Move.CALL),
+        HIGH_PRIEST(EntityType.STRAY, "The High Priest of Leng", 340, 10, BarColor.YELLOW, "He wears a yellow silken mask.", Horrors.Kind.CULT_ADEPT, Move.SLOW, Move.FANGS, Move.CALL),
+        ELDER_THING(EntityType.SPIDER, "The Elder Thing", 360, 11, BarColor.GREEN, "It was here before the stars.", Horrors.Kind.TOMB_CRAWLER, Move.WEBS, Move.POISON, Move.CALL),
+        CISTERN_GORGON(EntityType.ELDER_GUARDIAN, "The Gorgon of the Cistern", 380, 10, BarColor.BLUE, "Do not meet her eyes.", Horrors.Kind.DEEP_ONE, Move.SLOW, Move.WEAKEN, Move.CALL),
+        KEEPER_OF_AEONS(EntityType.BLAZE, "The Keeper of Aeons", 320, 8, BarColor.YELLOW, "Time runs backwards here.", Horrors.Kind.NIGHTGAUNT, Move.LIGHTNING, Move.LEVITATE, Move.CALL),
+        BONE_TYRANT(EntityType.SKELETON, "The Bone Tyrant", 360, 10, BarColor.WHITE, "Golgotha remembers every skull.", Horrors.Kind.STAR_SPAWN, Move.STONES, Move.WITHER, Move.CALL);
         final EntityType type;
         final String title, intro;
         final int health, damage;
         final BarColor color;
         final Trinkets.Seal seal;
+        /** A great structure's keeper: the horror it calls and its three powers (null for the Wardens and the Herald). */
+        final Horrors.Kind minion;
+        final Move[] moves;
         Boss(EntityType type, String title, int health, int damage, BarColor color, Trinkets.Seal seal, String intro) {
             this.type = type; this.title = title; this.health = health; this.damage = damage; this.color = color; this.seal = seal; this.intro = intro;
+            this.minion = null; this.moves = null;
         }
+        Boss(EntityType type, String title, int health, int damage, BarColor color, String intro, Horrors.Kind minion, Move... moves) {
+            this.type = type; this.title = title; this.health = health; this.damage = damage; this.color = color; this.seal = null; this.intro = intro;
+            this.minion = minion; this.moves = moves;
+        }
+        boolean keeper() { return moves != null; }
         static Boss of(Plans.Kind k) {
             switch (k) {
                 case SANCTUM: return HIEROPHANT;
@@ -85,9 +120,17 @@ final class Bosses implements Listener {
         }
     }
 
+    /** The powers of the great structures' keepers. */
+    enum Move { FANGS, FANG_LINE, QUAKE, STONES, WEBS, CALL, CONFUSE, BLIND, WITHER, POISON, SLOW, LEVITATE, SWAP, LEAP, PUSH, PULL, LIGHTNING, HUNGER, WEAKEN }
+
+    /** The keeper of a great structure. */
+    static Boss keeperOf(Plans.Great g) { return Boss.valueOf(g.boss); }
+
     static boolean isBoss(Entity e) { return e != null && e.getScoreboardTags().contains(TAG); }
 
-    static final long WARDEN_COOLDOWN = 30L * 60_000L, HERALD_COOLDOWN = 45L * 60_000L;
+    static final long WARDEN_COOLDOWN = 30L * 60_000L, HERALD_COOLDOWN = 45L * 60_000L, KEEPER_COOLDOWN = 30L * 60_000L;
+    /** A keeper wakes for a player this close to its hall (and this far up or down). */
+    static final int KEEPER_WAKE = 20, KEEPER_WAKE_DY = 14;
     static final int SEALS_NEEDED = 3;
 
     private static final class Active {
@@ -113,7 +156,7 @@ final class Bosses implements Listener {
     private final Set<String> slayers = new HashSet<>();
     private boolean doorOpen;
     private long doorClosesAt;
-    long wardensSlain, heraldsSlain;
+    long wardensSlain, heraldsSlain, keepersSlain;
 
     Bosses(RuinsPlugin plugin) {
         this.plugin = plugin;
@@ -176,6 +219,20 @@ final class Bosses implements Listener {
                     spawn(Boss.of(s.kind), arena, new Location(w, sp[0] + 0.5, sp[1], sp[2] + 0.5));
                 }
         }
+        // The keepers of the great structures (epoch 6).
+        for (Player p : w.getPlayers()) {
+            if (p.getGameMode() == org.bukkit.GameMode.SPECTATOR || p.getGameMode() == org.bukkit.GameMode.CREATIVE || p.isDead()) continue;
+            Location l = p.getLocation();
+            for (Plans.GreatSite g : plugin.plans().greatsNear(l.getBlockX(), l.getBlockZ(), 1)) {
+                if (!g.covers(l.getBlockX(), l.getBlockZ(), KEEPER_WAKE + 2)) continue;
+                int[] b = Greats.boss(g);
+                if (Math.abs(l.getX() - (b[0] + 0.5)) > KEEPER_WAKE || Math.abs(l.getZ() - (b[2] + 0.5)) > KEEPER_WAKE || Math.abs(l.getY() - b[1]) > KEEPER_WAKE_DY) continue;
+                String arena = Greats.arena(g);
+                if (active.containsKey(arena) || cooldown.getOrDefault(arena, 0L) > now) continue;
+                if (!w.isChunkLoaded(b[0] >> 4, b[2] >> 4)) continue;
+                spawn(keeperOf(g.kind), arena, new Location(w, b[0] + 0.5, b[1], b[2] + 0.5));
+            }
+        }
         // An open Door whose Herald went back to sleep (nobody near for a minute) wakes it when someone walks into the hall.
         if (doorOpen && doorClosesAt == 0 && !active.containsKey("door")) {
             int[] hs = Cult.heraldSpawn(plugin.plans().door());
@@ -208,6 +265,12 @@ final class Bosses implements Listener {
         Horrors.set(e, Attribute.GENERIC_KNOCKBACK_RESISTANCE, boss == Boss.HERALD ? 1.0 : 0.6);
         Horrors.set(e, Attribute.GENERIC_FOLLOW_RANGE, 48);
         if (boss == Boss.BROOD_MOTHER) Horrors.set(e, Attribute.GENERIC_MOVEMENT_SPEED, 0.4);
+        if (boss == Boss.ELDER_THING || boss == Boss.TINDALOS_ALPHA) Horrors.set(e, Attribute.GENERIC_MOVEMENT_SPEED, 0.42);
+        if (e instanceof org.bukkit.entity.IronGolem) ((org.bukkit.entity.IronGolem) e).setPlayerCreated(false);
+        if (e instanceof org.bukkit.entity.Wolf) ((org.bukkit.entity.Wolf) e).setAngry(true);
+        if (e instanceof org.bukkit.entity.PigZombie) { ((org.bukkit.entity.PigZombie) e).setAngry(true); ((org.bukkit.entity.PigZombie) e).setAnger(Integer.MAX_VALUE / 2); }
+        if (e instanceof org.bukkit.entity.Zombie) ((org.bukkit.entity.Zombie) e).setBaby(false);
+        if (boss.keeper()) dressKeeper(e, boss);
         Active a = new Active(boss, e, arena, at.clone());
         active.put(arena, a);
         for (Player p : Horrors.playersNear(at, 48)) p.sendTitle(ChatColor.DARK_RED + boss.title, ChatColor.GRAY + boss.intro, 10, 60, 20);
@@ -261,6 +324,7 @@ final class Bosses implements Listener {
         Player target = Horrors.nearest(e, 48);
         if (e instanceof Creature && target != null) ((Creature) e).setTarget(target);
         if (a.boss == Boss.HERALD) { herald(a, target, near); return; }
+        if (a.boss.keeper()) { keeper(a, target, near); return; }
         if (a.ticks % 8 != 0) return;   // a Warden acts every four seconds
         int move = (a.ticks / 8) % 3;
         Location at = e.getLocation();
@@ -337,6 +401,98 @@ final class Bosses implements Listener {
                 if (!near.isEmpty()) near.get(random.nextInt(near.size())).addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 1));
                 break;
         }
+    }
+
+    /** A keeper: walks if it is a giant, and every four seconds (three below half health) uses the next of its three powers. */
+    private void keeper(Active a, Player target, List<Player> near) {
+        LivingEntity e = a.entity;
+        if (e instanceof org.bukkit.entity.Wolf) ((org.bukkit.entity.Wolf) e).setAngry(true);
+        if (a.boss.type == EntityType.GIANT && target != null) {      // giants have no wits of their own: it walks and strikes like the Herald
+            Location at = e.getLocation(), to = target.getLocation();
+            double dx = to.getX() - at.getX(), dz = to.getZ() - at.getZ(), dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist > 4 && e.isOnGround()) e.setVelocity(new org.bukkit.util.Vector(dx / dist * 0.22, e.getVelocity().getY(), dz / dist * 0.22));
+            if (dist <= 5.5 && a.ticks % 3 == 0) {
+                target.damage(a.boss.damage, e);
+                target.setVelocity(Horrors.away(at, to, 1.1, 0.5));
+            }
+        }
+        int every = e.getHealth() < e.getMaxHealth() / 2 ? 6 : 8;
+        if (a.ticks % every != 0) return;
+        Move m = a.boss.moves[(a.ticks / every) % a.boss.moves.length];
+        power(a, m, target, near);
+    }
+
+    private void power(Active a, Move m, Player target, List<Player> near) {
+        LivingEntity e = a.entity;
+        Location at = e.getLocation();
+        switch (m) {
+            case FANGS: fangRing(e, 2, 6); break;
+            case FANG_LINE: for (Player p : near) fangLine(e, p.getLocation(), 16); break;
+            case QUAKE: quake(e, 7, 8, 0.9); break;
+            case STONES: for (Player p : Horrors.playersNear(at, 22)) fallingStone(p.getLocation().add(0, 10, 0)); break;
+            case WEBS: for (Player p : Horrors.playersNear(at, 14)) web(p.getLocation().getBlock()); break;
+            case CALL: if (a.boss.minion != null) call(e, a.boss.minion, 2, 7); break;
+            case CONFUSE: for (Player p : Horrors.playersNear(at, 14)) { p.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 120, 0)); p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 60, 1)); } break;
+            case BLIND: for (Player p : Horrors.playersNear(at, 16)) p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 80, 0)); break;
+            case WITHER: for (Player p : Horrors.playersNear(at, 12)) p.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 80, 0)); break;
+            case POISON: for (Player p : Horrors.playersNear(at, 12)) p.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 100, 0)); break;
+            case SLOW: for (Player p : Horrors.playersNear(at, 16)) p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 80, 1)); break;
+            case LEVITATE: for (Player p : Horrors.playersNear(at, 12)) p.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 0)); break;
+            case SWAP:
+                if (!near.isEmpty()) {
+                    Player p = near.get(random.nextInt(near.size()));
+                    Location mine = at.clone(), theirs = p.getLocation().clone();
+                    e.teleport(theirs);
+                    p.teleport(mine);
+                    p.playSound(mine, Sound.ENTITY_ENDERMEN_TELEPORT, 1f, 0.6f);
+                }
+                break;
+            case LEAP:
+                if (target != null) {
+                    e.setVelocity(Horrors.away(at, target.getLocation(), 1.2, 0.6));
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> { if (e.isValid()) quake(e, 5, 7, 0.6); }, 24L);
+                }
+                break;
+            case PUSH: for (Player p : Horrors.playersNear(at, 14)) p.setVelocity(Horrors.away(at, p.getLocation(), 1.2, 0.4)); break;
+            case PULL: for (Player p : Horrors.playersNear(at, 18)) if (p.getLocation().distanceSquared(at) > 9) p.setVelocity(Horrors.away(p.getLocation(), at, 1.0, 0.3)); break;
+            case LIGHTNING:
+                for (Player p : near) {
+                    Location strike = p.getLocation().add(random.nextInt(5) - 2, 0, random.nextInt(5) - 2);
+                    e.getWorld().strikeLightningEffect(strike);
+                    for (Player hit : Horrors.playersNear(strike, 2.5)) hit.damage(7.0, e);
+                }
+                break;
+            case HUNGER: for (Player p : Horrors.playersNear(at, 14)) { p.addPotionEffect(new PotionEffect(PotionEffectType.HUNGER, 200, 1)); p.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, 0)); } break;
+            case WEAKEN: for (Player p : Horrors.playersNear(at, 16)) { p.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 120, 0)); p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 60, 0)); } break;
+            default: break;
+        }
+    }
+
+    /** A keeper's look: what it holds and wears (nothing of it drops). */
+    private static void dressKeeper(LivingEntity e, Boss boss) {
+        org.bukkit.inventory.EntityEquipment q = e.getEquipment();
+        if (q == null) return;
+        switch (boss) {
+            case GHOUL_KING: q.setHelmet(new ItemStack(Material.GOLD_HELMET)); q.setItemInMainHand(new ItemStack(Material.BONE)); break;
+            case DROWNED_BISHOP: q.setHelmet(new ItemStack(Material.PRISMARINE)); q.setItemInMainHand(new ItemStack(Material.STICK)); break;
+            case DROWNED_ADMIRAL: q.setHelmet(new ItemStack(Material.CHAINMAIL_HELMET)); q.setItemInMainHand(new ItemStack(Material.IRON_SWORD)); break;
+            case LAMPLIGHTER: q.setItemInMainHand(new ItemStack(Material.SEA_LANTERN)); break;
+            case TOLL_KEEPER: q.setItemInMainHand(new ItemStack(Material.IRON_AXE)); break;
+            case DEEP_WARLORD: q.setHelmet(new ItemStack(Material.IRON_HELMET)); q.setChestplate(new ItemStack(Material.CHAINMAIL_CHESTPLATE)); q.setItemInMainHand(new ItemStack(Material.IRON_SWORD)); break;
+            case GATE_GUARDIAN: q.setHelmet(new ItemStack(Material.IRON_HELMET)); q.setItemInMainHand(new ItemStack(Material.STONE_SWORD)); break;
+            case HIGH_PRIEST: q.setHelmet(new ItemStack(Material.SPONGE)); break;
+            case BONE_TYRANT: q.setHelmet(new ItemStack(Material.GOLD_HELMET)); q.setItemInMainHand(new ItemStack(Material.BOW)); break;
+            default: break;
+        }
+        q.setItemInMainHandDropChance(0f); q.setItemInOffHandDropChance(0f); q.setHelmetDropChance(0f);
+        q.setChestplateDropChance(0f); q.setLeggingsDropChance(0f); q.setBootsDropChance(0f);
+    }
+
+    /** A keeper's fireballs never set the ruins alight. */
+    @EventHandler(ignoreCancelled = true)
+    public void fireballs(org.bukkit.event.entity.ProjectileLaunchEvent e) {
+        if (e.getEntity() instanceof org.bukkit.entity.SmallFireball && e.getEntity().getShooter() instanceof Entity && isBoss((Entity) e.getEntity().getShooter()))
+            ((org.bukkit.entity.SmallFireball) e.getEntity()).setIsIncendiary(false);
     }
 
     private void call(LivingEntity boss, Horrors.Kind kind, int count, int cap) {
@@ -452,6 +608,18 @@ final class Bosses implements Listener {
             cooldown.put("door", now + HERALD_COOLDOWN);
             doorClosesAt = now + 3L * 60_000L;
             plugin.getLogger().info("RUINS_HERALD_SLAIN by=" + (killer == null ? "unknown" : killer.getName()) + " rewarded=" + Horrors.playersNear(at, 64).size());
+        } else if (boss.keeper()) {
+            keepersSlain++;
+            e.setDroppedExp(700);
+            e.getDrops().add(Trinkets.random(random));
+            e.getDrops().add(Trinkets.random(random));
+            e.getDrops().add(Lore.book(random.nextInt(Lore.bookCount() - 1)));
+            e.getDrops().add(new ItemStack(Material.DIAMOND, 2 + random.nextInt(3)));
+            e.getDrops().add(new ItemStack(Material.GOLDEN_APPLE, 2));
+            e.getDrops().add(new ItemStack(Material.EXP_BOTTLE, 4 + random.nextInt(5)));
+            if (arena != null) cooldown.put(arena, now + KEEPER_COOLDOWN);
+            for (Player p : Horrors.playersNear(at, 48)) p.sendTitle(ChatColor.GOLD + "KEEPER SLAIN", ChatColor.GRAY + boss.title, 10, 60, 20);
+            plugin.getLogger().info("RUINS_KEEPER_SLAIN boss=" + boss.name() + " arena=" + arena);
         } else {
             wardensSlain++;
             e.setDroppedExp(600);
@@ -561,7 +729,7 @@ final class Bosses implements Listener {
     }
 
     String status() {
-        return "Wardens slain " + wardensSlain + ", Heralds slain " + heraldsSlain + ", active " + active.keySet() + ", Door "
+        return "Wardens slain " + wardensSlain + ", Keepers slain " + keepersSlain + ", Heralds slain " + heraldsSlain + ", active " + active.keySet() + ", Door "
             + (doorOpen ? "open" : "sealed (" + doorSeals.size() + "/" + SEALS_NEEDED + ")") + ", Dreamslayers " + slayers.size();
     }
 

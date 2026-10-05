@@ -15,6 +15,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * stand; now every 40-block cell holds a candidate, dry land takes a land kind and shallow water a drowned one, and a
  * candidate whose footprint (plus a {@link #SITE_PAD}-block gap) meets a neighbour's yields to the one that ranks first
  * (Warden arenas, then the wider ruin, then by hash), so no two ruins ever overlap.
+ *
+ * Epoch 6 (owner 2026-10-04: "In the Drown Hollow dimension, make 20 new big structures there as well. They all should be
+ * unique and have bosses, and they should include all types of mobs and custom mobs"): the great structures, one
+ * candidate per 256-block cell ({@link Great}, drawn by {@link Greats}), each up to some 110 blocks across with its own
+ * boss (see {@link Bosses}) and garrisons of every horror and every kind of monster (see {@link Garrisons}). They are
+ * planned before the ruins and the field, which keep clear of them.
  */
 final class Plans {
     /** Whether a block footprint touches land the Lost Cities build (CityApi.reserved in the plugin). */
@@ -32,6 +38,65 @@ final class Plans {
     private static final int CACHE = 8192;
 
     static final int CULT = 1, NAMED = 2, DUNGEON = 4, WET = 8;
+
+    /**
+     * The twenty great structures of epoch 6, in their lattice order (a cell's preferred kind is its slot (i + 5j) mod 20,
+     * turned by the seed, so any five cells in a row, or four in a column, prefer twenty different kinds). Each names its
+     * boss (a {@link Bosses.Boss}); a spot of the wrong kind of ground takes a kind of that ground. Four stand in the shallows or on the shores; the Weeping
+     * Cistern floods itself underground.
+     */
+    enum Great {
+        NECROPOLIS("The Necropolis of the Ghoul-Kings", 52, false, "GHOUL_KING"),
+        CATHEDRAL("The Drowned Cathedral", 48, true, "DROWNED_BISHOP"),
+        SLEEPER("The Fallen Sleeper", 50, false, "SLEEPERS_AVATAR"),
+        STAR_TOWER("The Tower of Silent Stars", 36, false, "STAR_PRIEST"),
+        SHOGGOTH_VATS("The Shoggoth Vats", 46, false, "ELDER_SHOGGOTH"),
+        DREADNOUGHT("The Dreadnought", 56, true, "DROWNED_ADMIRAL"),
+        MIGO_HIVE("The Hive of the Mi-Go", 44, false, "MIGO_OVERSEER"),
+        TINDALOS("The Angles of Tindalos", 46, false, "TINDALOS_ALPHA"),
+        BLACK_GOAT("The Temple of the Black Goat", 50, false, "DARK_YOUNG"),
+        BEACON("The Beacon of R'lyeh", 40, true, "LAMPLIGHTER"),
+        VIADUCT("The Viaduct of the Drowned Kings", 56, false, "TOLL_KEEPER"),
+        CELAENO("The Library of Celaeno", 42, false, "LIBRARIAN"),
+        TERRACES("The Terraces of the Drowned Queen", 50, false, "DROWNED_QUEEN"),
+        BASTION("Y'ha-nthlei, Bastion of the Deep", 52, true, "DEEP_WARLORD"),
+        SILVER_GATE("The Gate of the Silver Key", 46, false, "GATE_GUARDIAN"),
+        LENG("The Monastery of Leng", 50, false, "HIGH_PRIEST"),
+        ELDER_VAULT("The Vault of the Elder Sign", 44, false, "ELDER_THING"),
+        CISTERN("The Weeping Cistern", 44, false, "CISTERN_GORGON"),
+        ORRERY("The Orrery of Aeons", 42, false, "KEEPER_OF_AEONS"),
+        GOLGOTHA("Golgotha, the Skull Keep", 46, false, "BONE_TYRANT");
+        final String title, boss;
+        /** Half the footprint (a square): nothing is drawn farther than this from the centre, along either axis. */
+        final int radius;
+        final boolean wet;
+        Great(String title, int radius, boolean wet, String boss) { this.title = title; this.radius = radius; this.wet = wet; this.boss = boss; }
+    }
+    static final int GREAT_GRID = 256;
+    static final int GREAT_MAX = java.util.Arrays.stream(Great.values()).mapToInt(g -> g.radius).max().getAsInt();
+    /** A great structure's centre keeps this far from its cell's edges, so it never reaches into a neighbouring cell. */
+    static final int GREAT_MARGIN = GREAT_MAX + 4;
+    private static final long GREAT_SALT = 0x47726561744CL;
+
+    /** A planned great structure. {@code base} is its ground floor (the sea floor for the drowned ones). */
+    static final class GreatSite {
+        final Great kind;
+        final int i, j, x, z, base, rot;
+        final long hash;
+        final Plans plans;
+        /** The design's layout (see {@link Greats#plan}), made once from the site's hash. */
+        volatile Object plan;
+        GreatSite(Great kind, int i, int j, int x, int z, int base, int rot, long hash, Plans plans) {
+            this.kind = kind; this.i = i; this.j = j; this.x = x; this.z = z; this.base = base; this.rot = rot; this.hash = hash; this.plans = plans;
+        }
+        /** Whether a column lies within the footprint plus {@code pad}. */
+        boolean covers(int wx, int wz, int pad) { return Math.abs(wx - x) <= kind.radius + pad && Math.abs(wz - z) <= kind.radius + pad; }
+        /** The land's height at any column (a pure function of the seed, unlike Canvas.ground, which only knows its chunk). */
+        int surface(int wx, int wz) { return plans.surface(wx, wz); }
+        /** How deep the sea lies over the floor at the centre (0 on land). */
+        int sea() { return Math.max(0, SEA - base); }
+        String name() { return kind.title; }
+    }
 
     enum Kind {
         TEMPLE("Temple", 17), COLONNADE("Colonnade", 20), ZIGGURAT("Ziggurat", 15, DUNGEON), WATCHTOWER("Watchtower", 6),
@@ -118,7 +183,7 @@ final class Plans {
     final Terrain terrain;
     private final Reserved reserved;
     private final ConcurrentHashMap<Long, Object> cities = new ConcurrentHashMap<>(), sites = new ConcurrentHashMap<>(), candidates = new ConcurrentHashMap<>(),
-        cells = new ConcurrentHashMap<>();
+        cells = new ConcurrentHashMap<>(), greats = new ConcurrentHashMap<>();
     private volatile Door door;
     private final ConcurrentHashMap<Long, Integer> depths = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Boolean> reservedChunks = new ConcurrentHashMap<>();
@@ -156,7 +221,7 @@ final class Plans {
      * later one at 896,-896).
      */
     void forget() {
-        cities.clear(); sites.clear(); candidates.clear(); cells.clear(); reservedChunks.clear();
+        cities.clear(); sites.clear(); candidates.clear(); cells.clear(); greats.clear(); reservedChunks.clear();
         synchronized (this) { door = null; }
     }
 
@@ -304,6 +369,7 @@ final class Plans {
                 if (c != null && c.outside(x, z) < BLEND + r + 3) return null;
             }
         if (door().near(x, z, r + 8)) return null;
+        if (greatNear(x, z, r + SITE_PAD + 3)) return null;
         if (reserved.test(x - r, z - r, 2 * r + 1, 2 * r + 1)) return null;
         int base = wet ? center : kind == Kind.AQUEDUCT ? Math.min(150, top + 7) : Math.max(SEA + 1, (int) Math.round(sum / 9.0));
         int rot = Hash.range(Hash.mix(h ^ 8), 0, 3);
@@ -321,8 +387,9 @@ final class Plans {
         return null;
     }
 
-    /** Whether a column lies within {@code pad} blocks of any site's footprint. */
+    /** Whether a column lies within {@code pad} blocks of any site's (or great structure's) footprint. */
     boolean siteNear(int wx, int wz, int pad) {
+        if (greatNear(wx, wz, pad)) return true;
         int i = Math.floorDiv(wx, SITE_GRID), j = Math.floorDiv(wz, SITE_GRID);
         for (int a = i - 1; a <= i + 1; a++)
             for (int b = j - 1; b <= j + 1; b++) {
@@ -348,6 +415,7 @@ final class Plans {
     boolean open(int wx, int wz, int pad) {
         City c = cityNear(wx, wz);
         if (c != null && c.outside(wx, wz) < pad) return false;
+        if (greatNear(wx, wz, pad)) return false;
         int i = Math.floorDiv(wx, SITE_GRID), j = Math.floorDiv(wz, SITE_GRID);
         for (int a = i - 1; a <= i + 1; a++)
             for (int b = j - 1; b <= j + 1; b++) {
@@ -415,7 +483,8 @@ final class Plans {
         if (reserved.test(x0, z0, CELL, CELL)) return null;
         City c = cityNear(cx, cz);
         if (c != null && c.outside(cx, cz) < -CELL / 2) return null;
-        boolean crowded = c != null && c.outside(cx, cz) < BLEND + CELL / 2;
+        if (greatNear(cx, cz, 0)) return null;                       // a great structure lays its own ground
+        boolean crowded = c != null && c.outside(cx, cz) < BLEND + CELL / 2 || greatNear(cx, cz, CELL / 2 + 2);
         int si = Math.floorDiv(cx, SITE_GRID), sj = Math.floorDiv(cz, SITE_GRID);
         for (int a = si - 1; a <= si + 1 && !crowded; a++)
             for (int b = sj - 1; b <= sj + 1; b++) {
@@ -436,6 +505,109 @@ final class Plans {
         }
         int jx = Hash.range(Hash.mix(h ^ 2), -2, 2), jz = Hash.range(Hash.mix(h ^ 3), -2, 2);
         return new Cell(type, cx + jx, cz + jz, ground, Hash.range(Hash.mix(h ^ 4), 0, 3), sea, h);
+    }
+
+    // ------------------------------------------------------------------ the great structures (epoch 6)
+
+    /** The great structure of a 256-block cell, or null. */
+    GreatSite great(int i, int j) {
+        long k = key(i, j);
+        Object o = greats.get(k);
+        if (o == null) {
+            GreatSite g = computeGreat(i, j);
+            if (greats.size() > CACHE) greats.clear();
+            greats.put(k, g == null ? NONE : g);
+            return g;
+        }
+        return o == NONE ? null : (GreatSite) o;
+    }
+
+    /** The great structure whose footprint (plus pad) holds a column, or null. */
+    GreatSite greatAt(int wx, int wz, int pad) {
+        int i = Math.floorDiv(wx, GREAT_GRID), j = Math.floorDiv(wz, GREAT_GRID);
+        for (int a = i - 1; a <= i + 1; a++)
+            for (int b = j - 1; b <= j + 1; b++) {
+                GreatSite g = great(a, b);
+                if (g != null && g.covers(wx, wz, pad)) return g;
+            }
+        return null;
+    }
+
+    GreatSite greatAt(int wx, int wz) { return greatAt(wx, wz, 0); }
+
+    boolean greatNear(int wx, int wz, int pad) { return greatAt(wx, wz, pad) != null; }
+
+    /** The great structures within {@code cells} cells of a column, nearest first (for the bosses, garrisons and guides). */
+    java.util.List<GreatSite> greatsNear(int wx, int wz, int cells) {
+        int i = Math.floorDiv(wx, GREAT_GRID), j = Math.floorDiv(wz, GREAT_GRID);
+        java.util.List<GreatSite> out = new java.util.ArrayList<>();
+        for (int a = i - cells; a <= i + cells; a++)
+            for (int b = j - cells; b <= j + cells; b++) { GreatSite g = great(a, b); if (g != null) out.add(g); }
+        out.sort((p, q) -> Long.compare((long) (p.x - wx) * (p.x - wx) + (long) (p.z - wz) * (p.z - wz), (long) (q.x - wx) * (q.x - wx) + (long) (q.z - wz) * (q.z - wz)));
+        return out;
+    }
+
+    /** A cell's preferred kind on the lattice (turned by the seed). */
+    Great greatSlot(int i, int j) {
+        Great[] all = Great.values();
+        int turn = (int) Math.floorMod(Hash.mix(seed ^ GREAT_SALT), (long) all.length);
+        return all[Math.floorMod(i + 5 * j + turn, all.length)];
+    }
+
+    private static final Great[] GREAT_LAND = java.util.Arrays.stream(Great.values()).filter(g -> !g.wet).toArray(Great[]::new);
+    private static final Great[] GREAT_WET = java.util.Arrays.stream(Great.values()).filter(g -> g.wet).toArray(Great[]::new);
+
+    /**
+     * Up to eight spots in the cell, first only those whose ground suits the cell's preferred kind (dry land, or a sea floor
+     * 3 to 24 blocks down for the drowned ones), then any: a spot of the other ground takes a kind of its own ground, chosen
+     * by the spot's hash. A spot must be clear of the Great Door, the old cities and the Lost Cities, and not too steep.
+     */
+    private GreatSite computeGreat(int i, int j) {
+        long h = Hash.of(seed ^ GREAT_SALT, i, j);
+        Great preferred = greatSlot(i, j);
+        int span = GREAT_GRID - 2 * GREAT_MARGIN;
+        for (int t = 0; t < 16; t++) {
+            boolean strict = t < 8;
+            long ht = Hash.of(h, t & 7, 17);
+            int x = i * GREAT_GRID + GREAT_MARGIN + Hash.range(Hash.mix(ht ^ 1), 0, span);
+            int z = j * GREAT_GRID + GREAT_MARGIN + Hash.range(Hash.mix(ht ^ 2), 0, span);
+            int center = terrain.sample(x, z).y;
+            if (center < SEA - 30) continue;                                           // deep water: no footing
+            int r = preferred.radius, wetRing = 0, top = center, low = center;
+            int[] ys = new int[17];
+            ys[0] = center;
+            for (int a = 0; a < 16; a++) {
+                double ang = a * Math.PI / 8, rr = r * (a % 2 == 0 ? 0.85 : 0.5);
+                int y = terrain.sample(x + (int) Math.round(Math.cos(ang) * rr), z + (int) Math.round(Math.sin(ang) * rr)).y;
+                ys[a + 1] = y;
+                if (y <= SEA - 1) wetRing++;
+                top = Math.max(top, y);
+                low = Math.min(low, y);
+            }
+            // a drowned spot: shallow sea (3 to 30 blocks down) mostly round about, or a shore with water on at least six sides
+            boolean wet = center <= SEA - WET_MIN ? wetRing >= 9 : center <= SEA + 3 && wetRing >= 6;
+            boolean dry = center > SEA + 1 && wetRing <= 1 && top - low <= 30;
+            if (!wet && !dry) continue;
+            if (strict && wet != preferred.wet) continue;
+            Great[] pool = wet ? GREAT_WET : GREAT_LAND;
+            Great kind = wet == preferred.wet ? preferred : pool[Hash.range(Hash.mix(ht ^ 4), 0, pool.length - 1)];
+            r = kind.radius;
+            if (door().near(x, z, r + 24)) continue;
+            boolean nearCity = false;
+            int ci = Math.floorDiv(x, CITY_GRID), cj = Math.floorDiv(z, CITY_GRID);
+            for (int a = ci - 1; a <= ci + 1 && !nearCity; a++)
+                for (int b = cj - 1; b <= cj + 1; b++) {
+                    City c = city(a, b);
+                    if (c != null && c.outside(x, z) < BLEND + r + 8) { nearCity = true; break; }
+                }
+            if (nearCity) continue;
+            if (reserved.test(x - r - 4, z - r - 4, 2 * r + 9, 2 * r + 9)) continue;
+            Arrays.sort(ys);
+            int base = wet ? center : Math.max(SEA + 2, Math.min(150, ys[8]));
+            int rot = Hash.range(Hash.mix(ht ^ 3), 0, 3);
+            return new GreatSite(kind, i, j, x, z, base, rot, ht, this);
+        }
+        return null;
     }
 
     int cachedCities() { return cities.size(); }
