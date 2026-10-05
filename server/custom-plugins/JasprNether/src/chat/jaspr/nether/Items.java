@@ -231,10 +231,10 @@ final class Items {
         def(new Def("wyrmbone_blade", Material.DIAMOND_SWORD, 0, "Wyrmbone Blade", JC, true, 0, 0, null, 12, 1.6, 0, "Relic of the Marrow Wyrm", "Withers and hurls its foes").unbreakable());
         def(new Def("gladiator_gladius", Material.IRON_SWORD, 0, "Gladius of the Undying", JC, true, 0, 0, null, 9, 2.0, 0, "Relic of the Undying Gladiator", "Every blow mends its wielder a little").unbreakable());
         def(new Def("titan_chain", Material.IRON_AXE, 0, "Titan's Chain", JC, true, 0, 0, null, 13, 0.9, 0, "Relic of the Chained Titan", "Drags its foes to you and slows them").unbreakable());
-        def(new Def("spore_heart", Material.BROWN_MUSHROOM, 0, "Heart of the Sporefather", JC, true, "Relic of the Sporefather", "In the off hand: poison and the wither", "cannot touch you"));
+        def(new Def("spore_heart", Material.BROWN_MUSHROOM, 0, "Heart of the Sporefather", JC, true, "Relic of the Sporefather", "In the off hand: poison and the wither", "cannot touch you").skin(31));
         def(new Def("rime_scepter", Material.PRISMARINE_SHARD, 0, "Rime Scepter", JC, true, 0, 0, null, 10, 1.4, 0, "Relic of the Rime Lich", "Its blows freeze its foes").unbreakable());
         def(new Def("burning_crown", Material.GOLD_HELMET, 0, "Burning Crown", JC, true, 4, 2, null, 0, 0, 0, "Relic of the Burning King", "Worn: fire cannot burn you,", "and your blows set foes alight").unbreakable());
-        def(new Def("oracle_prism", Material.PRISMARINE_CRYSTALS, 0, "Oracle's Prism", JC, true, "Relic of the Amethyst Oracle", "Carried: no blindness, nausea", "or levitation can hold you"));
+        def(new Def("oracle_prism", Material.PRISMARINE_CRYSTALS, 0, "Oracle's Prism", JC, true, "Relic of the Amethyst Oracle", "Carried: no blindness, nausea", "or levitation can hold you").skin(32));
         def(new Def("serpent_fang", Material.IRON_SWORD, 0, "Serpent's Fang", JC, true, 0, 0, null, 8, 2.2, 0, "Relic of the Serpent Queen", "Its venom poisons its foes").unbreakable());
         String[][] titanSigils = {{"abyssal_gatekeeper", "the Abyssal Gatekeeper"}, {"spire_archon", "the Spire Archon"}, {"marrow_wyrm", "the Marrow Wyrm"},
             {"undying_gladiator", "the Undying Gladiator"}, {"chained_titan", "the Chained Titan"}, {"sporefather", "the Sporefather"},

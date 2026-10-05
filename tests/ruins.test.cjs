@@ -43,7 +43,7 @@ test('ruins generator: sites, old city, determinism, tiles, weathering, portal f
   assert.equal(greats.status, 0, greats.stderr + greats.stdout.slice(-4000));
   assert.match(greats.stdout, /GREATS_OK/);
   assert.match(greats.stdout, /great plan .*kindsFound=20\/20/);
-  for (const k of GREATS) assert.match(greats.stdout, new RegExp('great ' + k + ' .*roster=complete strangers=\[\] badPoints=0 boss=ok forbidden=\{\} deterministic=true PASS'), k);
+  for (const k of GREATS) assert.match(greats.stdout, new RegExp('great ' + k + ' .*roster=complete strangers=\\[\\] badPoints=0 boss=ok forbidden=\\{\\} deterministic=true PASS'), k);
   // Epoch 5 (owner 2026-10-04: "more dense with dungeons and structures. make new ones. 2x it"), measured in RuinsPreview
   // against epoch 4 on the same seed and square: ruins plus lesser ruins, dungeons and catacomb rooms each at least 2x.
   const density = /SITE_DENSITY grid=40 .*structures=[\d.]+ \(x([\d.]+)\) dungeons=[\d.]+ \(x([\d.]+)\) catacombRooms=[\d.+]+ \(x([\d.]+)\).* clashes=0/.exec(run.stdout);
@@ -77,7 +77,7 @@ test('ruins plugin wiring: Lost Cities registration, mossy portals, client-green
   const ruinsSrc = f => read('server/custom-plugins/JasprRuins/src/chat/jaspr/ruins/' + f + '.java');
   const plans = ruinsSrc('Plans'), greatsSrc = ruinsSrc('Greats'), keepers = ruinsSrc('Bosses'), garrisons = ruinsSrc('Garrisons');
   for (const [i, k] of GREATS.entries()) {
-    assert.match(plans, new RegExp(k + '\("[^"]+", \d+, (true|false), "' + KEEPERS[i] + '"\)'), k + ' keeps ' + KEEPERS[i]);
+    assert.match(plans, new RegExp(k + '\\("[^"]+", \\d+, (true|false), "' + KEEPERS[i] + '"\\)'), k + ' keeps ' + KEEPERS[i]);
     assert.ok(greatsSrc.includes('= new ' + designClass(k) + '();'), designClass(k) + ' registered');
     assert.match(ruinsSrc(designClass(k)), new RegExp('final class ' + designClass(k) + ' extends GreatDesign'), designClass(k) + ' is a full design');
     assert.ok(keepers.includes(KEEPERS[i] + '(EntityType'), KEEPERS[i]);

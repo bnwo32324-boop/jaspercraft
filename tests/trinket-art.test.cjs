@@ -101,7 +101,7 @@ test('Skin.java is the same generated file in every plugin', () => {
 });
 
 test('catalogue: every icon is 16x16, drawn, distinct, and fits with its outline', () => {
-  assert.equal(ENTRIES.length, 111);
+  assert.equal(ENTRIES.length, 113);   // 111 + the two carried relics of the colossi (2026-10-05)
   const seen = new Map();
   for (const e of ENTRIES) {
     const icon = e.icon(), box = icon.box(), px = icon.finish();

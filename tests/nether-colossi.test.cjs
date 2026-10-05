@@ -94,6 +94,11 @@ test('colossal wiring: placement, history, bosses, champions, keys, creatures, l
   assert.match(depths, /claims\.above\(cx - 6, cz - 6, cx \+ 6, cz \+ 6\)/);
   // the bosses: three Lords (they count towards the Urn of Sorrow) with relics and sigils, ten champions with keys
   const known = new Set([...items.matchAll(/new Def\("([a-z_]+)"/g)].map(m => m[1]));
+  // the ten colossal Lords' sigils are made in a loop over titanSigils
+  const titanSigils = /String\[\]\[\] titanSigils = \{([\s\S]*?)\};/.exec(items);
+  assert.ok(titanSigils, 'titanSigils');
+  for (const m of titanSigils[1].matchAll(/\{"([a-z_]+)", /g)) known.add('sigil_' + m[1]);
+  assert.match(items, /def\(new Def\("sigil_" \+ titanSigils\[i\]\[0\]/);
   for (const set of SETS) for (const slot of ['helmet', 'chestplate', 'leggings', 'boots']) known.add(set + '_' + slot);
   for (const h of ['withered', 'blazed', 'frosted']) for (const t of ['sword', 'pickaxe', 'shovel', 'axe', 'hoe', 'hammer']) known.add(h + '_amedian_' + t);
   for (const lord of LORDS) {

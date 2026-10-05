@@ -195,16 +195,16 @@ public final class TrinketProbe extends JavaPlugin {
             check(e.getKey().equals(id.invoke(null, up)), e.getKey() + " upgraded keeps its identity");
             old.addItem(stand);
         }
-        check(skinned == 10, "ten Nether trinkets are skinned, got " + skinned);
+        check(skinned == 12, "twelve Nether trinkets are skinned (ten, and two relics of the colossi), got " + skinned);
         int n = (Integer) upgrade.invoke(null, old);
-        check(n == 10, "old trinkets upgrade (10), got " + n);
+        check(n == 12, "old trinkets upgrade (12), got " + n);
         check((Integer) upgrade.invoke(null, old) == 0, "a second pass changes nothing");
         // The off-hand modifiers survive the carrier switch: the Brimstone Idol still adds attack damage in the off hand.
         NBTTagCompound idol = CraftItemStack.asNMSCopy((ItemStack) create.invoke(null, "brimstone_idol", 1)).getTag();
         boolean offhand = false;
         for (int i = 0; i < idol.getList("AttributeModifiers", 10).size(); i++) offhand |= "offhand".equals(idol.getList("AttributeModifiers", 10).get(i).getString("Slot"));
         check(offhand, "the Brimstone Idol keeps its off-hand attack modifier");
-        out.sendMessage("TRK_DETAIL nether trinkets=10 upgraded=" + n);
+        out.sendMessage("TRK_DETAIL nether trinkets=12 upgraded=" + n);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

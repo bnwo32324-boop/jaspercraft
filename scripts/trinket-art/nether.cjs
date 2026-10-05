@@ -65,6 +65,21 @@ const ICONS = {
     i.paint(P([[13.6, 1.4], [10.4, 2.2], [6.6, 5], [4.4, 9], [4, 13.4], [6.6, 11.4], [10.4, 8.6], [12.8, 4.6]]), ramp(0xf0701c), {spec: [3, 1]});
     i.mark(P([[13.6, 1.4], [10.6, 2.6], [12.4, 5.4]]), 0xffe58a); i.mark(L(13, 2, 4.4, 13, .9), 0xc43a1c);
     i.dots([[2, 14], [3, 11], [14, 8]], 0xffb13a);
+  },
+  // the relics of the colossi of 2026-10-04 that are carried or held in the off hand
+  SPORE_HEART: i => {
+    i.paint(heart(8, 9.4, .95), ramp(0x8a4a2c), {spec: [2, 1]});
+    i.paint(E(8, 4.2, 5.6, 2.8), ramp(0xb0302a), {spec: [2, 0]});
+    i.dots([[5, 3], [8, 2], [11, 3], [7, 5], [10, 5]], 0xf2e8cb);
+    i.mark(PA([[6, 9], [8, 11.6], [10, 9]], .8), 0x4a2416);
+    i.dots([[2, 12], [14, 11], [3, 8], [13, 14]], 0xa9d97c);
+  },
+  ORACLE_PRISM: i => {
+    i.paint(P([[8, .8], [12.6, 5], [8, 15.2], [3.4, 5]]), C.amethyst, {spec: [1, 1]});
+    i.paint(P([[8, .8], [12.6, 5], [8, 6.4]]), ramp(0xb98ae8));
+    i.mark(PA([[3.4, 5], [8, 6.4], [12.6, 5]], .7), 0x4a2a7a); i.mark(L(8, 6.4, 8, 15.2, .6), 0x5b3592);
+    i.paint(E(8, 8.6, 1.7, 1.2), C.pearl); i.dots([[8, 8]], 0x16121f);
+    i.dots([[2, 2], [14, 3], [13, 12], [3, 13]], 0xd9c2ff);
   }
 };
 module.exports = {ICONS, make, draw: name => make(ICONS[name])};
