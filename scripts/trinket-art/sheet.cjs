@@ -1,6 +1,6 @@
 'use strict';
 /* Contact sheet for reviewing icons: node scripts/trinket-art/sheet.cjs <set> [out.png] [scale]
- * sets: dungeon | ruins | nether | backrooms | all. Prints each icon's painted size and flags anything that would touch the edge. */
+ * sets: dungeon | dungeon7 | ruins | nether | backrooms | all. Prints each icon's painted size and flags anything that would touch the edge. */
 const fs = require('node:fs'), path = require('node:path');
 const {png, SIZE} = require('./engine.cjs');
 
@@ -27,6 +27,10 @@ function load(set) {
     const d = require('./dungeon.cjs');
     for (const name of Object.keys(d.ICONS)) entries.push(['dungeon:' + name, d.draw(name)]);
     entries.push(['dungeon:POUCH', d.draw('POUCH')]);
+  }
+  if (set === 'dungeon7' || set === 'all') {
+    const d7 = require('./dungeon7.cjs');
+    for (const name of Object.keys(d7.ICONS)) entries.push(['dungeon7:' + name, d7.draw(name)]);
   }
   for (const other of ['ruins', 'nether', 'backrooms']) {
     if (set === other || set === 'all') {

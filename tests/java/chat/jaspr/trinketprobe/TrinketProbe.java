@@ -74,15 +74,20 @@ public final class TrinketProbe extends JavaPlugin {
     private void dungeon(CommandSender out) throws Exception {
         Class<?> relics = cls("JasprDungeon", "chat.jaspr.dungeon.Relics"), type = cls("JasprDungeon", "chat.jaspr.dungeon.Relics$Type");
         Object[] types = type.getEnumConstants();
-        check(types.length == 72, "72 baubles");
+        check(types.length >= 72, "the 72 classic baubles");
+        // Generation 7: a bauble after the classic 72 carries an explicit band, on the stone sword or the stone spade.
+        Method bandOf = type.getMethod("band"), carrierOf = null;
+        try { carrierOf = type.getMethod("carrier"); } catch (NoSuchMethodException classicOnly) { check(types.length == 72, "only the classic baubles have no carrier()"); }
         Method create = relics.getMethod("create", type), typeOf = relics.getMethod("type", ItemStack.class), createPouch = relics.getMethod("createPouch"), pouchOf = relics.getMethod("pouch", ItemStack.class);
         Method upgrade = relics.getMethod("upgrade", Inventory.class), upgraded = method(relics, "upgraded", ItemStack.class), edit = relics.getMethod("edit", ItemStack.class, Consumer.class);
         Inventory old = Bukkit.createInventory(null, 90);
         for (Object t : types) {
             String name = ((Enum) t).name();
-            int band = ((Enum) t).ordinal() + 1;
+            int ordinal = ((Enum) t).ordinal(), band = ordinal < 72 ? ordinal + 1 : (Integer) bandOf.invoke(t);
+            Material carrier = ordinal < 72 || carrierOf == null ? Material.STONE_SWORD : (Material) carrierOf.invoke(t);
+            check((Integer) bandOf.invoke(t) == band, name + " keeps its band");
             ItemStack fresh = (ItemStack) create.invoke(null, t);
-            skinned(fresh, Material.STONE_SWORD, band, name);
+            skinned(fresh, carrier, band, name);
             check(typeOf.invoke(null, fresh) == t, name + " is recognised as itself");
             check(name.equals(nbtId(fresh, "JasprPenitentRelic")), name + " keeps its id");
             // A bauble made before icons: the stand-in item with the same name, lore and tags.
@@ -93,10 +98,10 @@ public final class TrinketProbe extends JavaPlugin {
             check(typeOf.invoke(null, stand) == t, name + " made before icons is still recognised");
             ItemStack up = (ItemStack) upgraded.invoke(null, stand);
             check(up != null, name + " is upgraded");
-            skinned(up, Material.STONE_SWORD, band, name + " (upgraded)");
+            skinned(up, carrier, band, name + " (upgraded)");
             check(typeOf.invoke(null, up) == t && name.equals(nbtId(up, "JasprPenitentRelic")), name + " upgraded keeps its identity");
             check(upgraded.invoke(null, up) == null && upgraded.invoke(null, fresh) == null, name + " is upgraded only once");
-            old.addItem(stand);
+            if (ordinal < 72) old.addItem(stand);
         }
         // The pouch: its identity (uuid, sockets) survives the new look.
         ItemStack pouch = (ItemStack) createPouch.invoke(null);
@@ -116,7 +121,24 @@ public final class TrinketProbe extends JavaPlugin {
         check(n == 73, "an inventory of 72 old baubles and an old pouch upgrades 73 items, got " + n);
         for (ItemStack item : old.getContents()) if (item != null) check(item.getType() == Material.STONE_SWORD, "every old item became a carrier");
         check((Integer) upgrade.invoke(null, old) == 0, "a second pass changes nothing");
-        out.sendMessage("TRK_DETAIL dungeon baubles=72 pouch=1 upgraded=" + n);
+        // Generation 7: the Floor Guardians' trophy weapons, each on its own stone-sword band with its own damage and speed.
+        int trophies = 0;
+        Class<?> trophy = null;
+        try { trophy = cls("JasprDungeon", "chat.jaspr.dungeon.TrophyCatalog$Trophy"); } catch (ClassNotFoundException beforeGenerationSeven) { trophy = null; }
+        if (trophy != null) {
+            Class<?> maker = cls("JasprDungeon", "chat.jaspr.dungeon.Trophies");
+            Method make = maker.getMethod("create", trophy), trophyOf = maker.getMethod("type", ItemStack.class);
+            for (Object t : trophy.getEnumConstants()) {
+                if (!(Boolean) trophy.getMethod("weapon").invoke(t)) continue;
+                String name = ((Enum) t).name();
+                ItemStack weapon = (ItemStack) make.invoke(null, t);
+                skinned(weapon, Material.STONE_SWORD, trophy.getField("band").getInt(t), name);
+                check(trophyOf.invoke(null, weapon) == t, name + " is recognised as itself");
+                check(CraftItemStack.asNMSCopy(weapon).getTag().getList("AttributeModifiers", 10).size() == 2, name + " has its own damage and speed");
+                trophies++;
+            }
+        }
+        out.sendMessage("TRK_DETAIL dungeon baubles=" + types.length + " pouch=1 upgraded=" + n + " trophies=" + trophies);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
