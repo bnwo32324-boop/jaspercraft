@@ -8,61 +8,66 @@
   running it through Forge."
 - "once you're done porting the MutantCreatures, I want them spawning naturally in the overworld as well."
 - Integration into the Dungeon Dimension is done separately (JasprDungeon calls `chat.jaspr.mutants.MutantsApi.spawn(String
-  kind, Location at)` by reflection and expects a `LivingEntity` back; kinds: mutant_zombie, mutant_skeleton, mutant_creeper,
-  mutant_enderman, creeper_minion, spider_pig, mutant_snow_golem).
+  kind, Location at)` by reflection and expects a Bukkit `LivingEntity` back, or null; kinds: mutant_zombie,
+  mutant_skeleton, mutant_creeper, mutant_enderman, creeper_minion, spider_pig, mutant_snow_golem).
 
 ## Source and licence
 - Source: `C:\Users\AM\Downloads\MutantCreaturesLegacy-main (1)\MutantCreaturesLegacy-main` (Forge 1.12.2, MCP names,
-  88 Java files, ~14.5k lines; assets under src/main/resources/assets/mutantbeasts). Release jar for reference:
-  `C:\Users\AM\Downloads\MutantCreaturesLegacy-1.12.2-1.0.4 (1).jar`.
+  88 Java files, ~14.5k lines; assets under src/main/resources/assets/mutantbeasts; default config MutantBeasts.cfg).
+  Release jar for reference: `C:\Users\AM\Downloads\MutantCreaturesLegacy-1.12.2-1.0.4 (1).jar`.
 - Code and original assets: AGPL-3.0 (LICENSE). Keep the copyright headers, ship LICENSE with the port, keep the ported
-  source in the repository (players must be able to get it: AGPL section 13). The NEW Mutant Skeleton sounds
-  (assets/.../sounds/entity/mutant_skeleton/*.ogg outside legacy/) are All Rights Reserved (LICENSE_ASSETS): never ship
-  them; the mod's own config switches `mutantSkeletonLegacy{Ambient,Death,Hurt,Step}Sound` select the original (AGPL)
-  legacy sounds: set them true.
+  source in this repository (players must be able to get it: AGPL section 13; the lead adds the in-game/site source offer).
+- The NEW Mutant Skeleton sounds (`sounds/entity/mutant_skeleton/*.ogg` outside `legacy/`) are All Rights Reserved
+  (LICENSE_ASSETS): never copy, ship or commit them. The mod's own switches `mutantSkeletonLegacy{Ambient,Death,Hurt,Step}Sound`
+  are set true; bite/bow_draw/bow_shoot/jump/punch use vanilla stand-ins (`MUTANTS_PROTOCOL.md` 1.4).
 
 ## The platform (why this is a port, not a jar drop)
-- Server: Paper 1.12.2 (Spigot NMS names, net.minecraft.server.v1_12_R1). No Forge. Toolchain for compiling MCP-named
-  source against it and reobfuscating: `C:\Users\AM\Documents\JasperCraft-Mutants\toolchain\README.md`.
+- Server: Paper 1.12.2 (Spigot NMS names, `net.minecraft.server.v1_12_R1`). No Forge. Toolchain for compiling MCP-named
+  source against Paper and reobfuscating to Spigot names: `C:\Users\AM\Documents\JasperCraft-Mutants\toolchain\README.md`.
 - Client: the browser client is EaglercraftX 1.12.2 compiled to JavaScript by TeaVM (`site/classes.js`), patched by many
-  JS "stages". No Forge, no Java class loading. The mod's client code (models, renderers, animation API, particles, layers,
-  the tracker GUI, item renderers) is translated line by line into a JS stage, the way Mo' Bends was
-  (`scripts/build-mobends-client.cjs`, `client-mods/mobends/`). Reference for the client internals:
-  `C:\Users\AM\Documents\JasperCraft-Mutants\docs\CLIENT_INTERNALS.md`.
-- Assets go into the client archive (`site/assets.epk`) through a merge script like `scripts/build-trinket-pack.cjs`:
-  textures, models, sounds.json entries and .ogg files (legacy skeleton sounds only), lang names.
-- New items cannot be new client Item ids: each mod item is a vanilla carrier item with NBT identity and a damage-band or
-  NBT-skin model override (see `scripts/trinket-art`, `scripts/build-nbt-skin-client.cjs`, the realm armoury's worn-armour
-  hook in `scripts/build-armory-client.cjs`); the item's server behaviour is the mod's own code.
+  fenced JS "stages". No Forge, no Java class loading. The mod's client-side code (entity client paths, models,
+  renderers, animation API, particles, layers, the tracker GUI, item renderers, armour model) is translated faithfully into
+  a JS stage, the way Mo' Bends was (`scripts/build-mobends-client.cjs`, `client-mods/mobends/`). Engine reference:
+  `MUTANTS_CLIENT_INTERNALS.md` (repo root).
+- Wire contract: `MUTANTS_PROTOCOL.md` (repo root). Like Forge, the same objects exist on both sides with fixed ids:
+  15 entities (210-224), 15 items (4000-4014), 43 sound events (1000-1042), 2 particles (100, 101); entity spawns use the
+  `jaspr:mutants` SPAWN message; the mod's four packets use channel `mutantbeasts` byte-for-byte.
+- Assets go into the client archive (`site/assets.epk`) through a merge script like `scripts/build-trinket-pack.cjs`, all
+  under the `minecraft` domain (the client loads no other domain): textures, item models, sounds.json entries
+  `jaspr.mutants.*` with .ogg files (AGPL ones only), lang entries (the mod's en_us names/keys).
 
-## Server plugin JasprMutants (AGPL-3.0)
+## Server plugin JasprMutants (AGPL-3.0) - `server/custom-plugins/JasprMutants/`
 - Keep the mod's package (`chumbanotz.mutantbeasts...`) and classes; compile the real source with MCP names against
-  `paper-mcp.jar` plus a small `net.minecraftforge...` shim package that implements exactly the Forge API the mod uses on
-  the server (ForgeEventFactory, ForgeHooks, MinecraftForge.EVENT_BUS posting the few events the mod subscribes to from
-  Bukkit events, IEntityAdditionalSpawnData, IThrowableEntity, EnumHelper for the armour material, ObfuscationReflectionHelper
-  with the reobf names, config as the mod's own MBConfig defaults loaded from a YAML file, OreDictionary lookups). Change mod
-  code only where the platform forces it, and mark each change with `// JasperCraft port:` and why.
-- Entities: register every mod entity (mutant_zombie, mutant_skeleton, mutant_creeper, mutant_enderman, mutant_snow_golem,
-  spider_pig, creeper_minion, endersoul_clone, body_part, chemical_x, creeper_minion_egg, endersoul_fragment, mutant_arrow,
-  skull_spirit, throwable_block) with the server so they save, load, track (the mod's tracker ranges/frequencies) and spawn
-  packets reach clients in a form the client stage turns into the mod's entities (agree the exact protocol with the client
-  port in `MUTANTS_PROTOCOL.md` (repo root): network type ids, metadata keys the vanilla client must not apply, IEntityAdditionalSpawnData
-  bytes, the mod's four packets (CreeperMinionTracker server-bound, HeldBlock, SpawnParticle, Teleport client-bound) as
-  plugin channel `mutantbeasts:main` with the mod's own message ids and byte layouts).
-- Items, recipes (assets/.../recipes), brewing (SpecialBrewingRecipe: Chemical X), loot tables (assets/.../loot_tables),
-  advancements (assets/.../advancements) as close to the mod as the platform allows; spawn eggs; the creeper minion tracker.
-- Natural spawning in the overworld as the mod configures it (MBConfig global spawn rate and per-mutant probabilities,
-  biome rules via the shim's BiomeDictionary over vanilla biomes), and never inside the dungeon's run worlds (the dungeon
-  places its own) unless asked.
-- `chat.jaspr.mutants.MutantsApi.spawn(String kind, Location at)` for the dungeon.
-- Logs: MUTANTS_READY with counts; privacy-safe failure lines.
+  `paper-mcp.jar` plus a `net.minecraftforge...` shim that implements exactly the Forge API the mod uses (ForgeEventFactory,
+  ForgeHooks, MinecraftForge.EVENT_BUS fed from Bukkit/NMS hook points for the events the mod subscribes to,
+  IEntityAdditionalSpawnData, IThrowableEntity, IShearable, EnumHelper (armour material, particle types),
+  ObfuscationReflectionHelper with the reobf names, Config/ConfigManager over the mod's MBConfig defaults, BrewingRecipeRegistry,
+  BiomeDictionary/ForgeRegistries.BIOMES views, OreDictionary lookups, the IGuiHandler/proxy split). Methods Forge adds to
+  vanilla classes (overridden or called by the mod) must keep working: call the mod's overrides from the equivalent hook.
+  Change mod code only where the platform forces it, mark each change `// JasperCraft port: <why>`, list all in
+  `server/custom-plugins/JasprMutants/PORT_NOTES.md`.
+- Registries: register the mod's entity classes (Paper EntityTypes, ids/keys of the protocol table), items (Item registry,
+  ids 4000-4014), sound events (1000-1042, the MBSoundEvents FIELD instances), particle enum constants (100, 101), loot
+  tables (the mod's JSON under its keys), recipes (the mod's JSON recipes as NMS IRecipe; never unlock them in the client
+  recipe book), the brewing recipes, advancements (the mod's JSON), spawn eggs (vanilla spawn_egg + EntityTag id).
+- Entities: save/load (chunk NBT round trip), Bukkit wrappers for every class (non-vanilla classes otherwise hit
+  CraftEntity's "Unknown entity" assertion), tracking with the mod's tracker parameters through a custom tracker entry
+  that sends the protocol's SPAWN message instead of any vanilla spawn packet (Paper's EntityTrackerEntry throws for
+  unknown non-living classes), plus the per-player filter of section 5 of the protocol.
+- Natural spawning in the main overworld (`world`) exactly as the mod configures it (copySpawnsForMutant weights, MBConfig
+  global spawn rate and rules), and not in other worlds (realms, dungeon runs) unless the dungeon asks through MutantsApi.
+- `chat.jaspr.mutants.MutantsApi.spawn(String kind, Location at)`.
+- Logs: `MUTANTS_READY ...` (add it to the deployer's READY list at integration), privacy-safe failure lines.
 
-## Client stage JASPR_MUTANTS
-- Translate the mod's client package faithfully: animationapi (Animator, JointModelRenderer, Transform, IAnimatedEntity),
-  models (all of client/model), renderers and layers (client/renderer/entity, MBEntityLayerOnShoulder, LayerCreeperCharge),
-  particles (EndersoulParticle, SkullSpiritParticle), the item stack renderer (Endersoul Hand), the tracker screen, the
-  client event handler and proxy behaviour (e.g. the mutant enderman's view effects), using the engine's own ModelRenderer,
-  GlStateManager and texture binding where they exist.
-- Also carry the dungeon's Big Mobs render scale (`jaspr:scale` table: "entityId:hundredths,..." -> draw that mob scaled and
-  give its client hitbox the same size), since both touch the same render hooks.
-- Fenced, removable, rebuilt from the LIVE classes.js, parse-checked, with diagnostics like Mo' Bends'.
+## Client stage JASPR_MUTANTS - `client-mods/mutants/`, `scripts/build-mutants-client.cjs`, `scripts/build-mutants-pack.cjs`
+- Twin classes for the 15 entities (client paths of the mod's entity classes: data keys, ticking, animation state,
+  handleStatusUpdate, readSpawnData, interactions such as the tracker GUI and spider-pig riding) and the 15 items (client
+  paths: use actions, armour model and texture, the Endersoul Hand item renderer, tooltips), registered under the protocol
+  ids, plus the SPAWN handler, the `mutantbeasts` channel handlers, sounds, particles (100/101), spawn-egg colours, the
+  creative tab.
+- Renderers and models translated from the mod (animationapi Animator/JointModelRenderer/Transform/IAnimatedEntity,
+  ScalableModelRenderer, every model, renderer and layer), using the engine's ModelRenderer, GlStateManager and texture
+  binding (resumable first bind).
+- Also the dungeon's Big Mobs render scale (`jaspr:scale`, protocol section 6).
+- Fenced, removable, rebuilt from the LIVE classes.js, parse-checked, `unpatch(build(x)) === x`, with diagnostics like
+  Mo' Bends'. Installed as the outermost stage.
