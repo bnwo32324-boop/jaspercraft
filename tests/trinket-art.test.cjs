@@ -7,14 +7,26 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {ENTRIES, CARRIERS, RUINS_BANDS, NETHER_BANDS, BACKROOMS_BANDS} = require('../scripts/trinket-art/catalog.cjs');
+const {ENTRIES, CARRIERS, RUINS_BANDS, NETHER_BANDS, BACKROOMS_BANDS, DUNGEON7_BANDS} = require('../scripts/trinket-art/catalog.cjs');
 const dungeonArt = require('../scripts/trinket-art/dungeon.cjs');
+const dungeon7Art = require('../scripts/trinket-art/dungeon7.cjs');
 const pack = require('../scripts/build-trinket-pack.cjs');
 const {TARGETS, render} = require('../scripts/trinket-art/gen-skin.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 const plugins = 'server/custom-plugins/';
+// The Dungeon plugin's source: the live copy, or (JASPR_DUNGEON_SRC=<.../src/chat/jaspr/dungeon>) a sandbox being prepared for it.
+const DUNGEON_SRC = process.env.JASPR_DUNGEON_SRC ? path.resolve(process.env.JASPR_DUNGEON_SRC) : path.join(root, plugins, 'JasprDungeon/src/chat/jaspr/dungeon');
+const dungeonSource = f => fs.readFileSync(path.join(DUNGEON_SRC, f), 'utf8');
+/** Relics.Type's constants in order, each with its explicit carrier and band (generation 7) or null (classic: position + 1). */
+function relicTypes(src) {
+  const body = src.slice(src.indexOf('public enum Type {') + 'public enum Type {'.length, src.indexOf('public final LootCatalog.Bauble spec;')).replace(/\/\/[^\n]*/g, '');
+  return [...body.matchAll(/\b([A-Z][A-Z0-9_]+)(?:\(Skin\.(SWORD|SHOVEL),(\d+)\))?\s*[,;]/g)]
+    .map(m => ({name: m[1], carrier: m[2] ? (m[2] === 'SWORD' ? 'stone_sword' : 'stone_shovel') : null, band: m[3] ? +m[3] : null}));
+}
+/** TrophyCatalog's weapons and their stone-sword bands (an empty map before generation 7). */
+function trophyBands(src) { return Object.fromEntries([...src.matchAll(/^\s+([A-Z_]+)\((\d+), \d+, Kind\.WEAPON/gm)].map(m => [m[1], +m[2]])); }
 const enumNames = (text, name) => {
   const start = text.indexOf('enum ' + name + ' {');
   assert.ok(start >= 0, 'enum ' + name);
@@ -22,22 +34,47 @@ const enumNames = (text, name) => {
   return [...body.matchAll(/(?:^|[,{\s])([A-Z][A-Z0-9_]+)\s*(?:\(|,|$)/gm)].map(m => m[1]).filter(n => n !== name.toUpperCase());
 };
 
-test('Dungeon: every one of the 72 baubles has an icon, in the enum order the bands count from', () => {
-  const loot = read(plugins + 'JasprDungeon/src/chat/jaspr/dungeon/LootCatalog.java');
+test('Dungeon: the 72 classic baubles keep their icons and bands (their enum position + 1), the pouch 73', () => {
+  const loot = dungeonSource('LootCatalog.java');
   const baubles = [...loot.slice(loot.indexOf('public enum Bauble')).matchAll(/^\s+([A-Z][A-Z_]+)\("[^"]+","[A-Z_]+",\d,\d+,Trigger/gm)].map(m => m[1]);
-  assert.equal(baubles.length, 72);
-  assert.deepEqual(Object.keys(dungeonArt.ICONS), baubles, 'icons follow LootCatalog.Bauble order');
-  const relics = read(plugins + 'JasprDungeon/src/chat/jaspr/dungeon/Relics.java');
-  const types = relics.slice(relics.indexOf('public enum Type {'), relics.indexOf('public final LootCatalog.Bauble spec;')).match(/[A-Z][A-Z_]{3,}/g).filter(n => n !== 'Type');
-  assert.deepEqual(types, baubles, 'Relics.Type has the same order');
-  assert.match(relics, /public int band\(\)\{return ordinal\(\)\+1;\}/, 'band = position + 1');
-  assert.match(relics, /static final int POUCH_BAND=Type\.values\(\)\.length\+1;/, 'the pouch follows the last bauble');
-  const entries = ENTRIES.filter(e => e.plugin === 'dungeon');
+  assert.ok(baubles.length >= 72);
+  assert.deepEqual(Object.keys(dungeonArt.ICONS), baubles.slice(0, 72), 'classic icons follow LootCatalog.Bauble order');
+  const relics = dungeonSource('Relics.java'), types = relicTypes(relics);
+  assert.deepEqual(types.map(t => t.name), baubles, 'Relics.Type has the same order');
+  assert.ok(types.slice(0, 72).every(t => t.band === null), 'a classic bauble keeps position + 1');
+  assert.match(relics, /public int band\(\)\{return (ordinal\(\)\+1|icon>0\?icon:ordinal\(\)\+1);\}/, 'band = position + 1 unless explicit');
+  assert.match(relics, /static final int POUCH_BAND=(Type\.values\(\)\.length\+1|73);/, 'the pouch follows the 72 classic baubles');
+  if (/POUCH_BAND=Type\.values\(\)\.length\+1/.test(relics)) assert.equal(types.length, 72, 'a pouch band computed from the enum only holds with exactly 72 baubles');
+  const entries = ENTRIES.filter(e => e.plugin === 'dungeon' && !(e.id in DUNGEON7_BANDS));
   assert.equal(entries.length, 73);
   assert.deepEqual(entries.map(e => e.band), Array.from({length: 73}, (_, i) => i + 1));
   assert.ok(entries.every(e => e.carrier === 'stone_sword'));
   assert.match(relics, /Skin\.apply\(edit\(item,d->\{d\.setString\("kind","relic"\)/, 'new baubles are skinned');
   assert.match(relics, /Skin\.apply\(edit\(item,d->\{d\.setString\("kind","pouch"\)/, 'new pouches are skinned');
+});
+
+test('Dungeon generation 7: every new bauble and trophy has its own explicit band, and the plugin agrees once it names them', () => {
+  assert.deepEqual(Object.keys(dungeon7Art.ICONS).sort(), Object.keys(DUNGEON7_BANDS).sort(), 'art and band tables name the same items');
+  assert.equal(Object.keys(DUNGEON7_BANDS).length, 115, '112 baubles (the victor\'s laurel included) and 3 trophy weapons');
+  for (const [id, [carrier, band]] of Object.entries(DUNGEON7_BANDS)) {
+    if (carrier === 'stone_sword') assert.ok(band >= 74 && band <= 130, id + ': after the pouch, below the sword\'s durability');
+    else {
+      assert.equal(carrier, 'stone_shovel', id);
+      assert.ok(band >= 56 && band <= 130, id + ': clear of Drownhollow (1-15), the Nether (21-32) and the Backrooms (41-55)');
+    }
+  }
+  assert.ok(Object.values(DUNGEON7_BANDS).filter(([c]) => c === 'stone_sword').length === 57, 'the stone sword is full: 74..130');
+  const relics = dungeonSource('Relics.java'), types = relicTypes(relics), fresh = types.filter(t => t.band !== null);
+  if (!fresh.length) { assert.equal(types.length, 72, 'before generation 7 the plugin names its 72 classic baubles only'); return; }
+  // The plugin names its generation 7 items: both sides must agree band for band.
+  const java = {};
+  for (const t of fresh) java[t.name] = [t.carrier, t.band];
+  for (const [id, band] of Object.entries(trophyBands(dungeonSource('TrophyCatalog.java')))) java[id] = ['stone_sword', band];
+  assert.deepEqual(java, DUNGEON7_BANDS, 'Relics.Type and TrophyCatalog carry exactly the catalogue\'s bands');
+  assert.equal(types.length - 72, fresh.length, 'every bauble after the classic 72 has an explicit band');
+  assert.match(relics, /static final int POUCH_BAND=73;/, 'the pouch band is fixed');
+  assert.match(relics, /Skin\.apply\(edit\(item,d->\{d\.setString\("kind","relic"\);d\.setString\("id",t\.name\(\)\);d\.setInt\("version",1\);\}\),t\.carrier\(\),t\.band\(\)\)/, 'a bauble is skinned on its own carrier and band');
+  assert.match(dungeonSource('Trophies.java'), /return Skin\.apply\(CraftItemStack\.asBukkitCopy\(n\),Skin\.SWORD,t\.band\);/, 'a trophy weapon is skinned on its stone-sword band');
 });
 
 test('Drownhollow: skinned relics and seals match the Java bands; only the worn two keep vanilla items', () => {
@@ -101,7 +138,7 @@ test('Skin.java is the same generated file in every plugin', () => {
 });
 
 test('catalogue: every icon is 16x16, drawn, distinct, and fits with its outline', () => {
-  assert.equal(ENTRIES.length, 113);   // 111 + the two carried relics of the colossi (2026-10-05)
+  assert.equal(ENTRIES.length, 228);   // 111 + the two carried relics of the colossi (2026-10-05) + the Dungeon Dimension's 115 generation 7 items
   const seen = new Map();
   for (const e of ENTRIES) {
     const icon = e.icon(), box = icon.box(), px = icon.finish();
