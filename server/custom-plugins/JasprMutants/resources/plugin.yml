@@ -1,0 +1,16 @@
+name: JasprMutants
+version: 1.0.0
+main: chat.jaspr.mutants.JasprMutants
+load: STARTUP
+loadbefore: [JasprApocalypse, JasprAtlas, JasprBackrooms, JasprBlight, JasprBounties, JasprClientBudget, JasprDaylight, JasprDisasters, JasprDungeon, JasprEnchantments, JasprFeral, JasprFinder, JasprGear, JasprGraves, JasprHorrorBiomes, JasprImportedWorldgen, JasprInvasions, JasprLostCities, JasprMuseMaps, JasprMuseMapsPack, JasprNether, JasprPerfTweaks, JasprRPG, JasprRevive, JasprRuins, JasprTanks, JasprVoiceChat, JasprWorldReset, TestServerControl]
+description: Mutant Creatures Legacy (Mutant Beasts, AGPL-3.0) ported to Paper - the mod's own classes on a Forge API shim
+authors: [ChumbaNotz (Mutant Creatures Legacy), JasperCraft (Paper port)]
+website: https://github.com/ChumbaNotz/MutantCreaturesLegacy
+commands:
+  mutants:
+    description: Mutant Creatures status, config reload and spawning
+    usage: /mutants [status|reload|spawn <kind>]
+    permission: jaspr.mutants.admin
+permissions:
+  jaspr.mutants.admin:
+    default: op
