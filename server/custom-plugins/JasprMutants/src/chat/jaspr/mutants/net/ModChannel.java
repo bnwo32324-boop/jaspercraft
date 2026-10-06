@@ -177,7 +177,7 @@ public final class ModChannel implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessage(String channel, Player player, byte[] data) {
+    public void onPluginMessageReceived(String channel, Player player, byte[] data) {
         if (!this.name.equals(channel) || !(player instanceof CraftPlayer)) return;
         EntityPlayerMP mp = ((CraftPlayer) player).getHandle();
         if (data == null || data.length < 1 || data.length > 1024) {
