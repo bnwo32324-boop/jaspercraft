@@ -4,7 +4,8 @@ Owner, 2026-10-07: the wide inventory leaves an empty gap beside the crafting gr
 here ...?" Picked: **1. event forecast, 3. character summary, 4. active item effects.**
 
 A small dark panel fills that gap in the survival inventory, with three tabs (tap a tab, or tap anywhere else on the panel to flip
-to the next one):
+to the next one). Its colours, and those of the whole inventory, are the JasperCraft theme of `INVENTORY_THEME_UPDATE.md` (same
+day, colours only):
 
 | Tab | Shows |
 | --- | --- |

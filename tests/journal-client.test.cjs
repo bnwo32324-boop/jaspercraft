@@ -276,7 +276,7 @@ test('content: the You tab, the Perks tab and countdowns that run on the client'
   assert.match(all, /Level \|4/);
   assert.equal(all.includes('ranks'), false, 'no stat sheet, no stat rows');
   // The experience bar: 5 of 40 filled out of the bar's width.
-  const bar = rectsOf(p).filter(r => r.c === (0xFF55FF55 | 0) && r.y2 - r.y1 === 3);
+  const bar = rectsOf(p).filter(r => r.c === (0xFFA6E34A | 0) && r.y2 - r.y1 === 3);
   assert.equal(bar.length, 1);
   assert.equal(bar[0].x2 - bar[0].x1, Math.round((p.hits.frame[2] - p.hits.frame[0] - 2 - 6) * 5 / 40) - 1);
 

@@ -258,11 +258,13 @@ var JasprWide = (function () {
     } catch (error) { report("click", error); return false; }
   }
 
-  var BLACK = 0xFF000000 | 0, WHITE = 0xFFFFFFFF | 0, BODY = 0xFFC6C6C6 | 0, SHADE = 0xFF555555 | 0,
-    SLOT_DARK = 0xFF373737 | 0, SLOT = 0xFF8B8B8B | 0;
-  /** Rectangles (absolute coordinates) that widen the window: the vanilla frame (black outline, 2px white highlight,
-   * 2px grey shadow, rounded 3px corners, as in container/inventory.png) carried on to the new right edge, the body
-   * over the old right edge, and vanilla slot cells for the extension columns; plus the dark backdrop strip. */
+  // The JasperCraft palette (owner 2026-10-07, a colour-only change; scripts/jasper-theme.cjs recolours the textures with the same
+  // values): outline, 2px frame highlight (torchlight amber), body (the cat favicon's teal), 2px frame shade, and the slot cells.
+  var OUTLINE = 0xFF03171B | 0, FRAME_HI = 0xFFF0B552 | 0, BODY = 0xFF12454F | 0, FRAME_SHADE = 0xFF7A4E1C | 0,
+    SLOT_DARK = 0xFF06222A | 0, SLOT_HI = 0xFF3C8791 | 0, SLOT = 0xFF0B2F37 | 0;
+  /** Rectangles (absolute coordinates) that widen the window: the frame of container/inventory.png (outline, 2px highlight,
+   * 2px shade, rounded 3px corners) carried on to the new right edge, the body over the old right edge, and slot cells as in
+   * the texture for the extension columns; plus the dark backdrop strip. */
   function pocketPlan(gui) {
     try {
       if (failed) return null;
@@ -271,18 +273,18 @@ var JasprWide = (function () {
       var L = gui.is | 0, T = gui.l7 | 0, S = e.S, H = e.H, W = e.W, rects = [];
       function r(x1, y1, x2, y2, c) { if (x2 > x1 && y2 > y1) rects.push([L + x1 | 0, T + y1 | 0, L + x2 | 0, T + y2 | 0, c]); }
       // The band from the old right edge to the new one.
-      r(S - 4, 0, W - 4, 1, BLACK); r(S - 4, 1, W - 4, 3, WHITE); r(S - 4, 3, W - 4, H - 3, BODY);
-      r(S - 4, H - 3, W - 4, H - 1, SHADE); r(S - 4, H - 1, W - 4, H, BLACK);
+      r(S - 4, 0, W - 4, 1, OUTLINE); r(S - 4, 1, W - 4, 3, FRAME_HI); r(S - 4, 3, W - 4, H - 3, BODY);
+      r(S - 4, H - 3, W - 4, H - 1, FRAME_SHADE); r(S - 4, H - 1, W - 4, H, OUTLINE);
       // The new right edge: the four columns of the vanilla one.
       var x = W - 4;
-      r(x, 0, x + 1, 1, BLACK); r(x, 1, x + 1, 3, WHITE); r(x, 3, x + 1, H - 4, BODY); r(x, H - 4, x + 1, H - 1, SHADE); r(x, H - 1, x + 1, H, BLACK);
-      r(x + 1, 1, x + 2, 2, BLACK); r(x + 1, 2, x + 2, 3, BODY); r(x + 1, 3, x + 2, H - 1, SHADE); r(x + 1, H - 1, x + 2, H, BLACK);
-      r(x + 2, 2, x + 3, 3, BLACK); r(x + 2, 3, x + 3, H - 2, SHADE); r(x + 2, H - 2, x + 3, H - 1, BLACK);
-      r(x + 3, 3, x + 4, H - 2, BLACK);
-      // Slot cells: dark top/left, light bottom/right, two mid-grey corners, mid-grey inside.
+      r(x, 0, x + 1, 1, OUTLINE); r(x, 1, x + 1, 3, FRAME_HI); r(x, 3, x + 1, H - 4, BODY); r(x, H - 4, x + 1, H - 1, FRAME_SHADE); r(x, H - 1, x + 1, H, OUTLINE);
+      r(x + 1, 1, x + 2, 2, OUTLINE); r(x + 1, 2, x + 2, 3, BODY); r(x + 1, 3, x + 2, H - 1, FRAME_SHADE); r(x + 1, H - 1, x + 2, H, OUTLINE);
+      r(x + 2, 2, x + 3, 3, OUTLINE); r(x + 2, 3, x + 3, H - 2, FRAME_SHADE); r(x + 2, H - 2, x + 3, H - 1, OUTLINE);
+      r(x + 3, 3, x + 4, H - 2, OUTLINE);
+      // Slot cells: dark top/left, light bottom/right, two inside-coloured corners, the inside.
       for (var k = 0; k < e.cells.length; k += 2) {
         var cx = e.cells[k] - 1, cy = e.cells[k + 1] - 1;
-        r(cx, cy, cx + 17, cy + 17, SLOT_DARK); r(cx + 1, cy + 1, cx + 18, cy + 18, WHITE); r(cx + 1, cy + 1, cx + 17, cy + 17, SLOT);
+        r(cx, cy, cx + 17, cy + 17, SLOT_DARK); r(cx + 1, cy + 1, cx + 18, cy + 18, SLOT_HI); r(cx + 1, cy + 1, cx + 17, cy + 17, SLOT);
         r(cx + 17, cy, cx + 18, cy + 1, SLOT); r(cx, cy + 17, cx + 1, cy + 18, SLOT);
       }
       var cut = gui.$jwCut | 0, strip = cut > 0 ? [gui.q | 0, 0, (gui.q | 0) + cut | 0, gui.L | 0] : null;

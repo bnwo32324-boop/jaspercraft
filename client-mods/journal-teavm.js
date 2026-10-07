@@ -29,11 +29,16 @@ var JasprJournal = (function () {
   var PAD = 3, TAB_H = 11, LINE = 9, LINES = 6, FOOTER = 8, STALE_MS = 60000;
   var TABS = [{id: "soon", label: "Soon", short: "Soon", one: "S"}, {id: "you", label: "You", short: "Me", one: "Y"}, {id: "perks", label: "Perks", short: "Fx", one: "P"}];
 
+  // The JasperCraft look (owner 2026-10-07, colours only; the same palette as the inventory textures, scripts/jasper-theme.cjs): a
+  // night-teal screen inset like a slot, cream text, torchlight amber for accents, bronze lines, a brass button. white is the
+  // main text colour (cream), gray the label colour, dim the faint one; red / gold / green / aqua / yellow / orange keep their
+  // meanings (danger, warning, good, trinket, morning, dusk) in warmer tones.
   var C = {
-    white: 0xFFFFFFFF | 0, gray: 0xFFAAAAAA | 0, dim: 0xFF8E8E8E | 0, red: 0xFFFF5555 | 0, gold: 0xFFFFAA00 | 0, green: 0xFF55FF55 | 0,
-    aqua: 0xFF55FFFF | 0, yellow: 0xFFFFFF55 | 0, blue: 0xFF5599FF | 0, orange: 0xFFFF9A2E | 0,
-    edgeDark: 0xFF373737 | 0, edgeLight: 0xFFFFFFFF | 0, screen: 0xFF1B1B1B | 0, tabOn: 0xFF4A4A4A | 0, tabOff: 0xFF2C2C2C | 0,
-    line: 0xFF5E5E5E | 0, barBack: 0xFF000000 | 0, barFill: 0xFF55FF55 | 0, barEdge: 0xFF5E5E5E | 0, button: 0xFF3E5C8A | 0, buttonHi: 0xFF6C93C9 | 0
+    white: 0xFFF4E6BC | 0, gray: 0xFF8DB4B6 | 0, dim: 0xFF5E8286 | 0, red: 0xFFFF6A55 | 0, gold: 0xFFF0B552 | 0, green: 0xFF9EE06B | 0,
+    aqua: 0xFF5FE0D3 | 0, yellow: 0xFFF7D86A | 0, blue: 0xFF5599FF | 0, orange: 0xFFFF9B4A | 0,
+    edgeDark: 0xFF06222A | 0, edgeLight: 0xFF3C8791 | 0, screen: 0xFF071B20 | 0, tabOn: 0xFF1B5B67 | 0, tabOff: 0xFF0A2A32 | 0,
+    accent: 0xFFF0B552 | 0, line: 0xFF7A4E1C | 0, barBack: 0xFF03100F | 0, barFill: 0xFFA6E34A | 0, barEdge: 0xFF7A4E1C | 0,
+    button: 0xFFA9772C | 0, buttonHi: 0xFFF0B552 | 0, buttonLo: 0xFF5E3D14 | 0
   };
 
   var data = null, receivedAt = 0, seq = 0, tab = 0, page = 0, plans = null, command = null, hello = {connection: null};
@@ -278,8 +283,8 @@ var JasprJournal = (function () {
       for (i = 0; i < boxes.length; i++) {
         var b = boxes[i], on = i === tab;
         rect(b.x0, ty, b.x1, ty + TAB_H, on ? C.tabOn : C.tabOff);
-        if (on) rect(b.x0, ty + TAB_H - 1, b.x1, ty + TAB_H, C.green);
-        if (i > 0) rect(b.x0, ty, b.x0 + 1, ty + TAB_H, C.edgeDark);
+        if (on) rect(b.x0, ty + TAB_H - 1, b.x1, ty + TAB_H, C.accent);
+        if (i > 0) rect(b.x0, ty, b.x0 + 1, ty + TAB_H, C.edgeLight);
         var tw = width(font, b.label);
         str(b.label, b.x0 + Math.floor((b.x1 - b.x0 - tw) / 2), ty + 2, on ? C.white : C.gray);
         hits.tabs.push([b.x0, ty, b.x1, ty + TAB_H + 2]);
@@ -297,7 +302,7 @@ var JasprJournal = (function () {
           if (filled > 2) rect(x + 1, y + 2, x + Math.min(bw - 1, filled), y + 5, C.barFill);
         } else if (r.button !== undefined) {
           var bwid = max, by = y;
-          rect(x, by, x + bwid, by + 11, C.buttonHi); rect(x + 1, by + 1, x + bwid, by + 11, C.edgeDark); rect(x + 1, by + 1, x + bwid - 1, by + 10, C.button);
+          rect(x, by, x + bwid, by + 11, C.buttonHi); rect(x + 1, by + 1, x + bwid, by + 11, C.buttonLo); rect(x + 1, by + 1, x + bwid - 1, by + 10, C.button);
           var lw = width(font, r.button);
           str(r.button, x + Math.floor((bwid - lw) / 2), by + 2, C.white);
           // The tap target runs on to the bottom of the inset: a taller target than the drawn button for a finger.

@@ -124,15 +124,17 @@ test('screen: one 266px window centred; the widened part is inside for clicks; f
   assert.equal(plan.rects.length, 5 + 13 + 5 * 20, 'band, new right edge (vanilla corner pattern), 20 vanilla cells');
   assert.deepEqual(Array.from(plan.strip), [390, 0, 480, 300], 'dark backdrop over the strip right of gui.q');
   assert.ok(plan.rects.every(r => r[0] >= gui.is + 169 && r[2] <= gui.is + 266), 'drawing stays between the vanilla grid (cells from 169) and the new edge');
-  // The frame carries the vanilla colours to the new edge: outline, highlight, body, shadow.
+  // The frame carries the texture's colours to the new edge: outline, highlight, body, shadow. They are the JasperCraft palette
+  // (scripts/jasper-theme.cjs), the same one container/inventory.png is recoloured with, so the widened part matches the window.
+  const P = require('../scripts/jasper-theme.cjs').JASPER, col = name => 'ff' + P[name].slice(1).toLowerCase();
   const at = (x, y) => { let c = null; for (const r of plan.rects) if (x >= r[0] && x < r[2] && y >= r[1] && y < r[3]) c = (r[4] >>> 0).toString(16); return c; };
   const L = gui.is, T = gui.l7;
   assert.deepEqual([at(L + 200, T), at(L + 200, T + 1), at(L + 200, T + 50), at(L + 200, T + 164), at(L + 200, T + 165)],
-    ['ff000000', 'ffffffff', 'ffc6c6c6', 'ff555555', 'ff000000']);
+    [col('outline'), col('frameHi'), col('body'), col('frameShade'), col('outline')]);
   assert.deepEqual([at(L + 262, T + 50), at(L + 263, T + 50), at(L + 264, T + 50), at(L + 265, T + 50), at(L + 265, T + 1)],
-    ['ffc6c6c6', 'ff555555', 'ff555555', 'ff000000', null], 'right edge as vanilla columns 172-175');
+    [col('body'), col('frameShade'), col('frameShade'), col('outline'), null], 'right edge as vanilla columns 172-175');
   assert.deepEqual([at(L + 169, T + 141), at(L + 170, T + 145), at(L + 186, T + 145), at(L + 187, T + 141)],
-    ['ff373737', 'ff8b8b8b', 'ffffffff', 'ff373737'], 'hotbar 10 cell continues the vanilla grid');
+    [col('slotDark'), col('slot'), col('slotHi'), col('slotDark')], 'hotbar 10 cell continues the vanilla grid');
 });
 
 test('builder: every hook on the live client, reversible byte for byte, stable, parses', {skip: !fs.existsSync(LIVE)}, () => {

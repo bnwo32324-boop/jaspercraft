@@ -113,16 +113,17 @@ var JasprGear = (function () {
       if (!L) return null;
       var rects = [], items = [], x0 = L.x0, y0 = L.y0, w = PANEL_W, h = PANEL_H;
       var r = function (rx, ry, rw, rh, c) { rects.push({x: rx, y: ry, w: rw, h: rh, color: c | 0}); };
-      r(x0 + 1, y0, w - 2, h, 0xFF000000); r(x0, y0 + 1, w, h - 2, 0xFF000000);
-      r(x0 + 1, y0 + 1, w - 2, h - 2, 0xFFC6C6C6);
-      r(x0 + 1, y0 + 1, w - 3, 2, 0xFFFFFFFF); r(x0 + 1, y0 + 1, 2, h - 3, 0xFFFFFFFF);
-      r(x0 + 3, y0 + h - 3, w - 4, 2, 0xFF555555); r(x0 + w - 3, y0 + 3, 2, h - 4, 0xFF555555);
+      // The JasperCraft palette of the inventory (scripts/jasper-theme.cjs): outline, body, 2px highlight and shade, slot cells.
+      r(x0 + 1, y0, w - 2, h, 0xFF03171B); r(x0, y0 + 1, w, h - 2, 0xFF03171B);
+      r(x0 + 1, y0 + 1, w - 2, h - 2, 0xFF12454F);
+      r(x0 + 1, y0 + 1, w - 3, 2, 0xFFF0B552); r(x0 + 1, y0 + 1, 2, h - 3, 0xFFF0B552);
+      r(x0 + 3, y0 + h - 3, w - 4, 2, 0xFF7A4E1C); r(x0 + w - 3, y0 + 3, 2, h - 4, 0xFF7A4E1C);
       var hover = slotAt(L, x, y);
       for (var i = 0; i < COUNT; i++) {
         var sx = x0 + 5, sy = y0 + 5 + i * 18;
-        r(sx - 1, sy - 1, 17, 1, 0xFF373737); r(sx - 1, sy - 1, 1, 17, 0xFF373737);
-        r(sx, sy + 16, 17, 1, 0xFFFFFFFF); r(sx + 16, sy, 1, 17, 0xFFFFFFFF);
-        r(sx, sy, 16, 16, 0xFF8B8B8B);
+        r(sx - 1, sy - 1, 17, 1, 0xFF06222A); r(sx - 1, sy - 1, 1, 17, 0xFF06222A);
+        r(sx, sy + 16, 17, 1, 0xFF3C8791); r(sx + 16, sy, 1, 17, 0xFF3C8791);
+        r(sx, sy, 16, 16, 0xFF0B2F37);
         if (hover === i) r(sx, sy, 16, 16, 0x80FFFFFF);
         var stack = stacks[i] || icons[i];
         if (stack) items.push({stack: stack, x: sx, y: sy});

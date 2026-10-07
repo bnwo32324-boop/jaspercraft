@@ -13,7 +13,7 @@
  *
  *   node tests/journal-browser.cjs [out-dir] [--mobile]
  * Needs candidate/deploy/classes.js (the client with the journal stage: node scripts/assemble-journal-client.cjs) and assets.epk,
- * candidate/JasprJournal.jar and candidate/jars/{JasprRPG,JasprDisasters}.jar (scripts/build-journal-plugin.cjs and
+ * server/plugins/JasprJournal.jar and candidate/jars/{JasprRPG,JasprDisasters}.jar (scripts/build-journal-plugin.cjs and
  * scripts/patch-plugin-jars.cjs), candidate/browser-fixture/{jaspr-paper-wide.jar,TrinketProbe.jar}, candidate/tanks/JasprTanks.jar and
  * candidate/tank-client/ (borrowed by the fixture).
  */
@@ -79,7 +79,7 @@ function buildStandIn() {
   } finally { fs.rmSync(dir, {recursive: true, force: true}); }
 }
 
-for (const f of ['candidate/deploy/classes.js', 'candidate/deploy/assets.epk', 'candidate/JasprJournal.jar', 'candidate/jars/JasprRPG.jar', 'candidate/jars/JasprDisasters.jar',
+for (const f of ['candidate/deploy/classes.js', 'candidate/deploy/assets.epk', 'server/plugins/JasprJournal.jar', 'candidate/jars/JasprRPG.jar', 'candidate/jars/JasprDisasters.jar',
   'candidate/browser-fixture/jaspr-paper-wide.jar', 'candidate/browser-fixture/TrinketProbe.jar', 'server/plugins/JasprInvasions.jar']) {
   if (!fs.existsSync(path.join(ROOT, f))) throw new Error('missing fixture input: ' + f);
 }
@@ -106,7 +106,7 @@ function stopAll() {
 
 (async () => {
   const standIn = buildStandIn();
-  const plugins = ['candidate/JasprJournal.jar', 'candidate/jars/JasprRPG.jar', 'candidate/jars/JasprDisasters.jar', 'server/plugins/JasprInvasions.jar', path.relative(ROOT, standIn)].join(',');
+  const plugins = ['server/plugins/JasprJournal.jar', 'candidate/jars/JasprRPG.jar', 'candidate/jars/JasprDisasters.jar', 'server/plugins/JasprInvasions.jar', path.relative(ROOT, standIn)].join(',');
   fixture = spawn(process.execPath, [path.join(ROOT, 'scripts', 'tank-preview.cjs')], {cwd: ROOT, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
     env: Object.assign({}, process.env, {TANK_PREVIEW_CLASSES: classesPath, TANK_PREVIEW_ASSETS: path.join(ROOT, 'candidate', 'deploy', 'assets.epk'), TANK_PREVIEW_PLUGINS: plugins,
       TANK_PREVIEW_COPY: 'candidate/browser-fixture/jaspr-paper-wide.jar=>paper.jar;candidate/browser-fixture/TrinketProbe.jar=>plugins/TrinketProbe.jar'})});
@@ -219,8 +219,15 @@ function stopAll() {
       let bright = 0, total = 0;
       for (let gy = fr[1] + 14; gy < fr[3] - 2; gy += 1) for (let gx = fr[0] + 2; gx < fr[2] - 2; gx += 1) { const c = px(gx, gy); total++; if (c[0] > 150 || c[1] > 150 || c[2] > 150) bright++; }
       check(bright > 40 && bright / total < 0.45, 'with text in it (not blank, not a wash)', {bright, total});
-      const slotGrey = px(fr[0] - 3, fr[1] + 30);
-      check(slotGrey[0] > 150 && slotGrey[0] < 215, 'the window body is untouched just left of the panel', slotGrey);
+      // The window body just left of the panel is the JasperCraft teal (scripts/jasper-theme.cjs), drawn by the recoloured texture.
+      const body = px(fr[0] - 3, fr[1] + 30), want = require('../scripts/jasper-theme.cjs').rgb(require('../scripts/jasper-theme.cjs').JASPER.body);
+      check(body.every((v, i) => Math.abs(v - want[i]) <= 12), 'the window body just left of the panel is the theme colour', {body, want});
+      // A slot in the vanilla part (recoloured texture) and one in the widened part (the module's rectangles) are the same colour,
+      // and the frame highlight (amber) runs along the top of the window and of the widened part alike.
+      const th = require('../scripts/jasper-theme.cjs'), near = (c, hex) => c.every((v, i) => Math.abs(v - th.rgb(hex)[i]) <= 12);
+      const slotA = px(L + 12, T + 146), slotB = px(L + 178, T + 146), hiA = px(L + 100, T + 1.5), hiB = px(L + 220, T + 1.5);
+      check(near(slotA, th.JASPER.slot) && near(slotB, th.JASPER.slot), 'slots are the theme colour in the window and in its widened part', {slotA, slotB});
+      check(near(hiA, th.JASPER.frameHi) && near(hiB, th.JASPER.frameHi), 'the amber frame highlight runs along the top of both parts', {hiA, hiB});
     }
     // Content from the server.
     let t = flat(p);
