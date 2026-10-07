@@ -29,7 +29,7 @@ import org.bukkit.plugin.messaging.PluginMessageListener;
  *
  * Only information a player could already get is sent: the Blood Moon cycle, their own invasion mark (the /invasion status line),
  * a coarse disaster hint (never the exact time: that is administrator information), their own level and stat summary, and the
- * silent effects (ambient, particle-less) that items keep on them. Nothing is accepted from the client but the hello.
+ * trinkets they wear (Survivor Gear) and the silent effects (ambient, particle-less) that items keep on them. Nothing is accepted from the client but the hello.
  */
 public final class JournalPlugin extends JavaPlugin implements Listener, PluginMessageListener {
     static final String CHANNEL = "jaspr:journal";
@@ -115,7 +115,8 @@ public final class JournalPlugin extends JavaPlugin implements Listener, PluginM
             getLogger().info("JOURNAL_METRICS clients=" + clients.size() + " sends=" + sends + " hellos=" + hellos
                     + " rejected=" + rejected + " sendFailures=" + sendFailures
                     + " siegeFail=" + sources.failures(JournalSources.Source.SIEGE) + " invasionFail=" + sources.failures(JournalSources.Source.INVASIONS)
-                    + " disasterFail=" + sources.failures(JournalSources.Source.DISASTERS) + " rpgFail=" + sources.failures(JournalSources.Source.RPG));
+                    + " disasterFail=" + sources.failures(JournalSources.Source.DISASTERS) + " rpgFail=" + sources.failures(JournalSources.Source.RPG)
+                    + " gearFail=" + sources.failures(JournalSources.Source.GEAR));
         }
     }
 
@@ -161,6 +162,8 @@ public final class JournalPlugin extends JavaPlugin implements Listener, PluginM
         s.level = Math.max(0, Math.min(9999, player.getLevel()));
         s.xp = Math.max(0, Math.min(40, Math.round(player.getExp() * 40f)));
         s.rpg = sources.stats(id, player.getLevel());
+        List<String[]> worn = sources.gear(player);
+        if (worn != null) for (String[] row : worn) if (row != null && row.length > 0) s.gear(row[0], JournalRules.headline(row));
         for (PotionEffect effect : player.getActivePotionEffects()) {
             // The effects items keep on their bearer: ambient and without particles (the client lists no box for them).
             if (!effect.isAmbient() || effect.hasParticles()) continue;

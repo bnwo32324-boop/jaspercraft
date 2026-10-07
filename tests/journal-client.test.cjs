@@ -69,7 +69,8 @@ test('stage: the engine helpers the module calls exist with the shapes it assume
 });
 
 test('stacking: every other stage can still be rebuilt on a client that carries this one, and the stages commute', {skip: !hasLive}, () => {
-  const live = fs.readFileSync(LIVE, 'latin1');
+  // The live client may already carry this stage (once deployed): the unpatched client is the reference.
+  const live = stage.strip(fs.readFileSync(LIVE, 'latin1'));
   const withJournal = stage.build(live).result;
   for (const name of ['build-wide-inventory-client', 'build-text-fit-client', 'build-silent-effects-client', 'build-nbt-skin-client', 'build-armor-bar-client']) {
     const other = require('../scripts/' + name + '.cjs');
@@ -125,7 +126,7 @@ const payload = (o = {}) => JSON.stringify(Object.assign({v: 1, d: 12, ph: 'Dusk
 test('parse: a good payload is read, anything else is refused or bounded', () => {
   const {api} = load();
   const good = api.JasprJournal.parse(payload());
-  assert.deepEqual(good, {day: 12, phase: 'Dusk', level: 37, xp: 20, moon: 2, invasion: [1, 15], disaster: [1, ''], rpg: [14, 9, 45, 3, 11],
+  assert.deepEqual(good, {day: 12, phase: 'Dusk', level: 37, xp: 20, moon: 2, invasion: [1, 15], disaster: [1, ''], rpg: [14, 9, 45, 3, 11], gear: [],
     fx: [{name: 'Water Breathing', seconds: 0}, {name: 'Haste II', seconds: 23}]});
   for (const bad of [null, undefined, '', '{', '[]', '"x"', 'null', '{"v":2}', '{"v":"1"}', JSON.stringify({d: 1}), 'x'.repeat(5000), payload().slice(0, 40)]) {
     assert.equal(api.JasprJournal.parse(bad), null, String(bad).slice(0, 30));
@@ -291,7 +292,63 @@ test('content: the You tab, the Perks tab and countdowns that run on the client'
   t.tick(25000);
   assert.equal(t.api.JasprJournal.plan(t.screen).texts.map(x => x.s.java).join('|').includes('Haste'), false, 'an expired effect is dropped');
   p = open(t, payload({fx: []}));
-  assert.match(p.texts.map(x => x.s.java).join('|'), /Nothing active\|Items give perks|Nothing active\|Items give/);
+  assert.match(p.texts.map(x => x.s.java).join('|'), /Nothing active\|Worn trinkets\|and item\|effects are\|listed here\./);
+  assert.equal(p.hits.pages, 1);
+});
+
+/** The seven trinkets of the gear column with their real headline effects (the first line of each item's tooltip). */
+const WORN = [['Worn Teddy Bear', 'Sneak still to rest and heal'], ['Thermal Goggles', 'Immune to burning, -50% lava damage'], ['Scrap Magnet', '[J] Magnet: pull items and XP (7m)'],
+  ['Capacitor Belt', '+10% speed; melee hits may discharge'], ['Phase Headset', '[H] Blink 8m, sneak+[H] ender chest'], ['Riot Vest', 'Plates absorb 6 damage, then recharge'],
+  ['Rebreather', 'Breathe underwater, no blight poison']];
+
+test('perks: worn trinkets are listed with their headline effect, kept together, paged, nothing cut off (the owner\'s report)', () => {
+  for (const scale of [1, 1.15]) {
+    const t = load({scale});
+    t.api.JasprJournal.setTab(2);
+    const L = t.screen.is, x0 = L + 176, x1 = L + 258;
+    let p = open(t, payload({gw: WORN, fx: []}));
+    assert.ok(p.hits.pages >= 4 && p.hits.pages <= 8, 'seven trinkets take a few pages: ' + p.hits.pages);
+    const seen = [];
+    for (let pg = 0; pg < p.hits.pages; pg++) {
+      const lines = p.texts.filter(x => x.y > t.screen.l7 + 4 + 12).map(x => x.s.java);
+      seen.push(lines.filter(s => !/^\d+\/\d+ tap$/.test(s)));
+      for (const x of p.texts) {
+        const w = t.advance(x.s.java);
+        assert.ok(x.x >= x0 + 1 && x.x + w <= x1 - 1, `scale ${scale} page ${pg}: "${x.s.java}" is cut off`);
+      }
+      // A page never starts with a trinket's effect line without its title: the title is the aqua row above it.
+      const rows = p.texts.filter(x => x.y > t.screen.l7 + 4 + 12 && !/^\d+\/\d+ tap$/.test(x.s.java));
+      assert.ok(rows.length <= 6, 'six rows at most');
+      if (pg < p.hits.pages - 1) { const body = p.hits.body; t.api.JasprJournalClick(t.screen, body[0] + 3, body[1] + 3, 0); p = t.api.JasprJournal.plan(t.screen); }
+    }
+    const all = seen.flat().join(' ');
+    for (const [title] of WORN) for (const word of title.split(' ')) assert.ok(all.includes(word), `"${word}" of ${title} is shown at scale ${scale}`);
+    // Every title is followed (on the same page) by the start of its own effect line: groups are never split when they fit.
+    for (let pg = 0; pg < seen.length; pg++) {
+      const first = seen[pg][0] || '';
+      const isEffect = WORN.some(([, e]) => e.startsWith(first) && first.length > 0);
+      assert.ok(!isEffect || scale !== 1, `scale ${scale}: page ${pg} does not start in the middle of a trinket ("${first}")`);
+    }
+  }
+});
+
+test('perks: trinkets and effects together, trinkets first; the empty message only when there is truly nothing', () => {
+  const t = load();
+  t.api.JasprJournal.setTab(2);
+  let p = open(t, payload({gw: [WORN[0]], fx: [['Haste II', 0]]}));
+  let all = p.texts.map(x => x.s.java).join('|');
+  assert.match(all, /Worn Teddy\|Bear\|Sneak still to\|rest and heal\|Haste II/, all);
+  assert.equal(all.includes('Nothing active'), false);
+  p = open(t, payload({gw: [], fx: []}));
+  assert.match(p.texts.map(x => x.s.java).join('|'), /Nothing active/);
+  p = open(t, payload({gw: [WORN[2]], fx: []}));
+  assert.equal(p.texts.map(x => x.s.java).join('|').includes('Nothing active'), false, 'one worn trinket is not "nothing"');
+  // Hostile data: wrong shapes, too many, markup: bounded and plain.
+  const wild = t.api.JasprJournal.parse(JSON.stringify({v: 1, d: 1, ph: 'Day', lv: 1, xp: 1, fx: [], gw: [['A', 'b'], ['x'], 5, null, ['<b>' + 'T'.repeat(80), 'e'.repeat(200)]].concat(Array.from({length: 20}, (_, i) => ['G' + i, 'e']))}));
+  assert.equal(wild.gear.length, 8);
+  assert.equal(wild.gear[0].title, 'A');
+  assert.ok(wild.gear[1].title.length <= 28 && wild.gear[1].effect.length <= 60);
+  assert.equal(t.api.JasprJournal.parse('{"v":1,"d":1,"ph":"Day","lv":1,"xp":1,"fx":[],"gw":"nope"}').gear.length, 0);
 });
 
 test('input: tabs, the button, pages; clicks on the panel are used up and others pass', () => {

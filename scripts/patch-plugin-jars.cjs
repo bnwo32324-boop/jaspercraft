@@ -12,7 +12,7 @@ const arg = name => { const i = process.argv.indexOf(name); return i > 0 ? proce
 const GAME = arg('--game') || 'C:/Users/AM/Documents/Eaglercraft-1.12.2-Tailscale';
 const OUT = arg('--out') || path.join(ROOT, 'candidate', 'jars');
 const WANT = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && !(i > 0 && all[i - 1].startsWith('--')));
-const PLUGINS = ['JasprApocalypse', 'JasprDungeon', 'JasprRuins', 'JasprNether', 'JasprBackrooms', 'JasprRPG', 'JasprDisasters'];
+const PLUGINS = ['JasprApocalypse', 'JasprDungeon', 'JasprRuins', 'JasprNether', 'JasprBackrooms', 'JasprRPG', 'JasprDisasters', 'JasprGear'];
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const walk = (dir, base = dir) => fs.readdirSync(dir, {withFileTypes: true}).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name), base) : [path.relative(base, path.join(dir, e.name)).split(path.sep).join('/')]);
 

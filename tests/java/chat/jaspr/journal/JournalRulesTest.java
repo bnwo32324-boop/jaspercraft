@@ -133,6 +133,25 @@ public final class JournalRulesTest {
         String b = bare.json(true);
         check(b.equals("{\"v\":1,\"d\":0,\"ph\":\"Night\",\"lv\":0,\"xp\":0,\"fx\":[]}"), b);
         System.out.println("SAMPLE " + b);
+        // Worn trinkets: {title, headline}, in the order given, bounded, plain.
+        JournalRules.Snapshot worn = new JournalRules.Snapshot();
+        worn.gear("Worn Teddy Bear", JournalRules.headline(new String[] {"Worn Teddy Bear", "Sneak still to rest and heal", "Last Stand"}));
+        worn.gear("Scrap \"Magnet\"", JournalRules.headline(new String[] {"Scrap Magnet"}));
+        worn.gear("Rebreather", JournalRules.headline(null));
+        worn.effect("Haste II", 0);
+        String w = worn.json(true);
+        check(w.contains("\"gw\":[[\"Worn Teddy Bear\",\"Sneak still to rest and heal\"],[\"Scrap Magnet\",\"\"],[\"Rebreather\",\"\"]]"), w);
+        check(w.indexOf("\"gw\"") < w.indexOf("\"fx\""), "trinkets before effects");
+        check(!new JournalRules.Snapshot().json(true).contains("gw"), "no trinkets, no key");
+        check(worn.json(false).contains("\"gw\""), "the change key includes the trinkets: putting one on is a change");
+        System.out.println("SAMPLE " + w);
+        JournalRules.Snapshot crowd = new JournalRules.Snapshot();
+        for (int i = 0; i < 30; i++) crowd.gear("T" + i, "effect " + i);
+        check(crowd.gear.size() == JournalRules.MAX_GEAR, "at most eight trinkets");
+        check(crowd.json(true).length() < 1024, "still small");
+        StringBuilder longText = new StringBuilder();for (int i = 0; i < 200; i++) longText.append('x');
+        JournalRules.Snapshot big = new JournalRules.Snapshot();big.gear(longText.toString(), longText.toString());
+        check(big.gear.get(0)[0].length() == 28 && big.gear.get(0)[1].length() == 60, "titles and effects are bounded");
         // A hostile name cannot break the payload.
         JournalRules.Snapshot evil = new JournalRules.Snapshot();
         evil.effect("A\"B\\C\nDé" + "x", 5);

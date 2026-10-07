@@ -191,7 +191,7 @@ function stopAll() {
     await cmd('time set 0');
     await sleep(2500);
     const log = await getText(webPort, '/log').catch(() => '');
-    check(/JOURNAL_READY version=1\.0\.0 channel=jaspr:journal/.test(log + fxOut), 'the Journal plugin is up');
+    check(/JOURNAL_READY version=1\.0\.1 channel=jaspr:journal/.test(log + fxOut), 'the Journal plugin is up');
     check(/JOURNAL_CLIENT_HELLO clients=1/.test(log + fxOut), 'the server received the client\'s hello on jaspr:journal');
     let st = await status();
     check(st && st.hasData && st.fresh && st.stats.packets >= 1 && st.stats.hellos === 1, 'the panel data arrived over the plugin channel', st && st.stats);

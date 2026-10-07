@@ -246,6 +246,28 @@ public final class GearApi {
         return prof != null && prof.worn().contains(item);
     }
 
+    /**
+     * 5.0.3: the trinkets an online player wears, in slot order, for the Field Journal's Perks tab (JasprJournal calls this through
+     * reflection). One row per worn trinket: {title, effect line, effect line, ...} exactly as the item's tooltip lists them.
+     * Read-only: it never loads a profile from disk (a player whose profile is not loaded yet simply has none) and changes nothing.
+     */
+    public static List<String[]> worn(org.bukkit.entity.Player player) {
+        List<String[]> out = new ArrayList<String[]>();
+        GearPlugin plugin = GearPlugin.instance;
+        if (plugin == null || player == null || !player.isOnline()) return out;
+        GearProfile prof = plugin.existing(player);
+        if (prof == null) return out;
+        for (org.bukkit.inventory.ItemStack stack : prof.slots) {
+            GearItem item = GearItems.identify(stack);
+            if (item == null) continue;
+            String[] row = new String[1 + item.effects.length];
+            row[0] = item.title;
+            System.arraycopy(item.effects, 0, row, 1, item.effects.length);
+            out.add(row);
+        }
+        return out;
+    }
+
     /** All gear ids in catalogue order. */
     public static List<String> ids() {
         List<String> out = new ArrayList<String>();

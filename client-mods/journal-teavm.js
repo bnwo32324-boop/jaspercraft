@@ -78,13 +78,19 @@ var JasprJournal = (function () {
     var o;
     try { o = JSON.parse(json); } catch (error) { return null; }
     if (!o || typeof o !== "object" || o.v !== 1) return null;
-    var d = {day: int(o.d, 0, 99999999, 0), phase: text(o.ph, 8) || "Day", level: int(o.lv, 0, 9999, 0), xp: int(o.xp, 0, 40, 0),
-      moon: null, invasion: null, disaster: null, rpg: null, fx: []};
+    var d = {day: int(o.d, 0, 99999999, 0), phase: text(o.ph, 8) || "Morning", level: int(o.lv, 0, 9999, 0), xp: int(o.xp, 0, 40, 0),
+      moon: null, invasion: null, disaster: null, rpg: null, gear: [], fx: []};
     if (o.bm !== undefined) d.moon = int(o.bm, -2, 99999, -1);
     if (o.iv instanceof Array && o.iv.length === 2) d.invasion = [int(o.iv[0], 0, 3, 0), int(o.iv[1], 0, 99999999, 0)];
     if (o.dz instanceof Array && o.dz.length === 2) d.disaster = [int(o.dz[0], 0, 2, 0), text(o.dz[1], 24)];
     if (o.rp instanceof Array && o.rp.length === 5) {
       d.rpg = [int(o.rp[0], 0, 99999, 0), int(o.rp[1], 0, 999, 0), int(o.rp[2], 0, 999, 0), int(o.rp[3], 0, 999, 0), int(o.rp[4], -1, 99999, -1)];
+    }
+    if (o.gw instanceof Array) {
+      for (var g = 0; g < o.gw.length && d.gear.length < 8; g++) {
+        var w = o.gw[g];
+        if (w instanceof Array && w.length === 2) d.gear.push({title: text(w[0], 28) || "?", effect: text(w[1], 60)});
+      }
     }
     if (o.fx instanceof Array) {
       for (var i = 0; i < o.fx.length && d.fx.length < 12; i++) {
@@ -181,9 +187,13 @@ var JasprJournal = (function () {
       }
       out.push({button: "Open Stats", command: "/stats"});
     } else {
-      if (!d.fx.length) {
-        row(font, [["Nothing active", C.gray]], max, out);
-        row(font, [["Items give perks while carried or worn.", C.dim]], max, out);
+      // The trinkets worn in the gear column (a title and its headline effect, kept together on one page), then the effects items
+      // keep on you. The full text of a trinket is on its tooltip.
+      for (var g = 0; g < d.gear.length; g++) {
+        var start = out.length;
+        row(font, [[d.gear[g].title, C.aqua]], max, out);
+        if (d.gear[g].effect) row(font, [[d.gear[g].effect, C.gray]], max, out);
+        for (var k = start; k < out.length - 1; k++) out[k].keep = true;
       }
       for (var i = 0; i < d.fx.length; i++) {
         var e = d.fx[i], left = e.seconds > 0 ? e.seconds - elapsed : 0;
@@ -191,8 +201,29 @@ var JasprJournal = (function () {
         if (e.seconds > 0) row(font, [[e.name + " ", C.white], [mmss(left), C.aqua]], max, out);
         else row(font, [[e.name, C.white]], max, out);
       }
+      if (!out.length) {
+        row(font, [["Nothing active", C.gray]], max, out);
+        row(font, [["Worn trinkets and item effects are listed here.", C.dim]], max, out);
+      }
     }
     return out;
+  }
+
+  /** Pages of at most LINES rows. A group (rows marked keep, with the row after them) stays on one page when it fits on one. */
+  function paginate(rows) {
+    var pages = [[]], i = 0;
+    while (i < rows.length) {
+      var j = i;
+      while (j < rows.length - 1 && rows[j].keep) j++;
+      var size = j - i + 1, cur = pages[pages.length - 1];
+      if (cur.length > 0 && cur.length + size > LINES && size <= LINES) { cur = []; pages.push(cur); }
+      for (var k = i; k <= j; k++) {
+        if (cur.length >= LINES) { cur = []; pages.push(cur); }
+        cur.push(rows[k]);
+      }
+      i = j + 1;
+    }
+    return pages;
   }
 
   // ---- the plan: absolute rectangles and strings -------------------------------------------------------------------
@@ -255,9 +286,9 @@ var JasprJournal = (function () {
       }
       rect(f.x0 + 1, ty + TAB_H, f.x1 - 1, ty + TAB_H + 1, C.line);
       // Content: pages of LINES rows.
-      var max = f.x1 - f.x0 - 2 - PAD * 2, rows = rowsFor(font, tab, max, elapsed), pages = Math.max(1, Math.ceil(rows.length / LINES));
+      var max = f.x1 - f.x0 - 2 - PAD * 2, paged = paginate(rowsFor(font, tab, max, elapsed)), pages = paged.length;
       if (page >= pages) { page = 0; }
-      var top = ty + TAB_H + 3, from = page * LINES, shown = rows.slice(from, from + LINES);
+      var top = ty + TAB_H + 3, shown = paged[page];
       for (i = 0; i < shown.length; i++) {
         var r = shown[i], y = top + i * LINE, x = f.x0 + 1 + PAD;
         if (r.bar !== undefined) {

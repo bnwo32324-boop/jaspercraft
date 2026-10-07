@@ -22,13 +22,13 @@ swap(`'-XX:ActiveProcessorCount=2'`, `'-XX:ActiveProcessorCount=1'`);
 swap(`    fs.copyFileSync(CANDIDATE, stagedJar);
 `, `    fs.copyFileSync(CANDIDATE, stagedJar);
     const extra = JSON.parse(process.env.JOURNAL_JARS || '{}');
-    for (const name of ['JasprRPG', 'JasprDisasters', 'JasprInvasions', 'JasprJournal']) {
+    for (const name of ['JasprRPG', 'JasprDisasters', 'JasprInvasions', 'JasprGear', 'JasprJournal']) {
       if (!extra[name] || !fs.statSync(extra[name]).isFile()) throw new Error('JOURNAL_JARS needs a jar for ' + name);
       fs.copyFileSync(extra[name], path.join(server, 'plugins', name + '.jar'));
     }
 `);
 // The probe depends on every plugin it inspects, so it enables after them.
-swap(`depend: [AuthMe, JasprApocalypse]`, `depend: [AuthMe, JasprApocalypse]\\nsoftdepend: [JasprJournal, JasprRPG, JasprDisasters, JasprInvasions]`);
+swap(`depend: [AuthMe, JasprApocalypse]`, `depend: [AuthMe, JasprApocalypse]\\nsoftdepend: [JasprJournal, JasprRPG, JasprDisasters, JasprInvasions, JasprGear]`);
 const runner = new Module(filename, module);
 runner.filename = filename;
 runner.paths = Module._nodeModulePaths(__dirname);

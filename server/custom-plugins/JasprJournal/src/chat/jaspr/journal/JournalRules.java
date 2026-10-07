@@ -18,6 +18,8 @@ final class JournalRules {
     static final int LOOKAHEAD_DAYS = 400;
     /** Longest list of item effects sent. */
     static final int MAX_EFFECTS = 12;
+    /** Most worn trinkets sent (the gear column has seven slots). */
+    static final int MAX_GEAR = 8;
     /** Effects kept alive by an item are refreshed every second as a 70 tick effect; anything shorter than this is "while worn". */
     static final int MAINTAINED_TICKS = 100;
 
@@ -128,6 +130,13 @@ final class JournalRules {
         int[] rpg;                // {ranks, raised, total, affordable, cheapest}
         final List<String> effectNames = new ArrayList<String>();
         final List<Integer> effectSeconds = new ArrayList<Integer>();
+        /** The trinkets worn in the gear column: {title, headline effect}. */
+        final List<String[]> gear = new ArrayList<String[]>();
+
+        void gear(String title, String effect) {
+            if (gear.size() >= MAX_GEAR) return;
+            gear.add(new String[] {clean(title, 28), clean(effect, 60)});
+        }
 
         void effect(String name, int seconds) {
             if (effectNames.size() >= MAX_EFFECTS) return;
@@ -150,6 +159,14 @@ final class JournalRules {
                 for (int i = 0; i < rpg.length; i++) b.append(i == 0 ? "" : ",").append(rpg[i]);
                 b.append(']');
             }
+            if (!gear.isEmpty()) {
+                b.append(",\"gw\":[");
+                for (int i = 0; i < gear.size(); i++) {
+                    if (i > 0) b.append(',');
+                    b.append("[\"").append(escape(gear.get(i)[0])).append("\",\"").append(escape(gear.get(i)[1])).append("\"]");
+                }
+                b.append(']');
+            }
             b.append(",\"fx\":[");
             for (int i = 0; i < effectNames.size(); i++) {
                 if (i > 0) b.append(',');
@@ -170,4 +187,7 @@ final class JournalRules {
         return out.toString();
     }
     static String escape(String s) { return clean(s, 64); }
+
+    /** The headline of a trinket's effect lines: the first line, or "" when it has none. {@code row} is {title, line, line, ...}. */
+    static String headline(String[] row) { return row != null && row.length > 1 && row[1] != null ? row[1] : ""; }
 }

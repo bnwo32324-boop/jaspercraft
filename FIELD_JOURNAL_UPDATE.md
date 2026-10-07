@@ -10,7 +10,7 @@ to the next one):
 | --- | --- |
 | **Soon** | Blood Moon: `in 2 nights` / `tomorrow` / `tonight` / `NOW!` · Invasion: `none marked` / `from day 15` / `any night` / `UNDER WAY` · Disaster: `quiet` / `brewing` / `<kind> now!` · the day and time of day in the footer (`Day 12 Dusk`) |
 | **You** | Experience level and bar · `14 ranks` · `9/45 stats` · `Raise 3 now` (stats you can afford right now) or `next: 6 lv` or `all maxed` · an **Open Stats** button (sends `/stats`, the same as the K key) |
-| **Perks** | The effects your items keep on you (the "silent" ones the inventory deliberately lists no box for, so they never cover the Easier Crafting search bar): name, level, and a countdown when the effect is a timed one (an item-kept effect shows no time) |
+| **Perks** | The **trinkets you wear** in the gear column (Survivor Gear: each one's name and its headline effect, the first line of its tooltip; a trinket's lines stay together on a page), then the effects your items keep on you (the "silent" ones the inventory deliberately lists no box for, so they never cover the Easier Crafting search bar): name, level, and a countdown when the effect is a timed one (an item-kept effect shows no time). 1.0.1 (2026-10-07): the first version listed only those potion-style effects, so it said "Nothing active" to a player wearing trinkets, whose perks are not potion effects at all (owner report) |
 
 Nothing else changes: the window, the slots and the gear column are as before. On phones the panel exists in the Expand view of the
 inventory (it lives in the widened window); Contract (the vanilla window) has no gap and so no panel. A chest or any other window
@@ -20,7 +20,7 @@ never shows it.
 
 New plugin **JasprJournal 1.0.0** (`server/custom-plugins/JasprJournal`). The browser says `hello 1` on the plugin channel
 `jaspr:journal` when it joins; from then on the server sends that player's panel as one small JSON string (under 600 bytes) whenever
-it changes, and at least every ten seconds. The client uses nothing else and sends nothing back but the hello and the `/stats`
+it changes, and at least every ten seconds (a typical payload is 300-1,100 bytes: the worn trinkets are the biggest part). The client uses nothing else and sends nothing back but the hello and the `/stats`
 command a button press stands for. Only information a player could already get:
 
 * **Blood Moon**: the day and time, and the siege's own rule (`SiegeRules.bloodMoon` with the configured interval), asked every time.
@@ -28,9 +28,9 @@ command a button press stands for. Only information a player could already get:
 * **Disaster**: only `quiet`, `brewing` (due within a Minecraft day, no more precise) or the kind while it runs. The exact time stays
   an administrator's secret (`/<disaster> status`), and the journal has no way to see it.
 * **You**: the player's own level and stat sheet summary.
-* **Perks**: the player's own effects that are ambient and particle-less.
+* **Perks**: the trinkets the player wears (title and headline effect, as their tooltip lists them) and their own effects that are ambient and particle-less.
 
-Bounds: at most 12 effects, texts reduced to plain ASCII and capped, at most 6 incoming messages a second per player (any message
+Bounds: at most 8 trinkets and 12 effects, texts reduced to plain ASCII and capped, at most 6 incoming messages a second per player (any message
 that is not exactly `hello 1` is refused and counted), a 64-byte limit on what is read from the client, and a client that has sent
 no valid hello gets nothing.
 
@@ -45,6 +45,7 @@ JasprJournal needs none of them at compile time and keeps working, with only tha
 * **Blood Moon**: reflection into JasprApocalypse `SiegeRules.bloodMoon(long, int)` and its config `siege.blood-moon-every-nights`.
 * **Stats**: `RpgApi.summary(UUID, int)` (new, JasprRPG 1.3.2): `{ranks, stats raised, stats, stats affordable now, cheapest next
   price}`. Read-only.
+* **Worn trinkets**: `GearApi.worn(Player)` (new, JasprGear 5.0.3): one row per worn trinket in slot order, `{title, effect line, ...}`. Read-only: it uses only an already loaded profile and never touches the disk.
 * **Disasters**: `DisasterPlugin.journalState()` (new, JasprDisasters 1.4.1): `"active:<kind>"`, `"brewing"` or `"quiet"`.
 * **Invasions**: reads the plugin's own private state with reflection (`active`, `settings.daysAfterSleep`, the progress store's
   `all()` and each record's `sleptAt`), never creating a record. JasprInvasions was not touched because another session has
@@ -74,7 +75,7 @@ panel, and a tap on the body (not just the 11 pixel tabs) flips tabs, which give
 | --- | --- |
 | Pure rules (phases, Blood Moon countdown checked against a tick-by-tick simulation, invasion and disaster states, effect names, payload) and source contracts (the rule copy is the siege's real text, read-only doors, coarse disaster hint, wire format) | `tests/journal-server.test.cjs` |
 | Client stage (builds on the live client, reversible, hooks placed outside other stages' text, state numbers new, every other stage still rebuilds on top of it), module on mocks with the real font's widths (fit, wrap, paging, tabs, taps, stale data, hostile payloads), resumable entry points | `tests/journal-client.test.cjs` |
-| **Real Paper** with the real Apocalypse, RPG, Disasters, Invasions and Journal jars (440 assertions): Blood Moon against the real `SiegeRules` at a sweep of times and intervals, invasion mark lifecycle, disaster hint, stat summary against an independent computation, silent effects, hello bounds, a missing plugin hides only its row | `node tests/journal-smoke.cjs --paper` (see its header for the environment) |
+| **Real Paper** with the real Apocalypse, RPG, Disasters, Invasions, Gear and Journal jars (457 assertions): Blood Moon against the real `SiegeRules` at a sweep of times and intervals, invasion mark lifecycle, disaster hint, stat summary against an independent computation, silent effects, hello bounds, a missing plugin hides only its row | `node tests/journal-smoke.cjs --paper` (see its header for the environment) |
 | **Real browser** against a real server (wide inventory jar + real Journal/RPG/Disasters/Invasions + a stand-in JasprApocalypse carrying the real `SiegeRules`): hello and data over the channel, the panel's geometry and pixels, every word inside the frame, real mouse clicks on tabs and the button (the server opens the stat sheet), a silent effect with its countdown, no panel in other windows; `--mobile` repeats it as a phone in landscape then portrait with touch | `node tests/journal-browser.cjs [--mobile]` |
 
 ## Rebuild order and ownership
@@ -82,8 +83,8 @@ panel, and a tap on the body (not just the 11 pixel tabs) flips tabs, which give
 Client: LIVE `classes.js` -> `node scripts/build-journal-client.cjs` (outermost, but nothing else needs it unpatched; `--unpatch`
 removes it exactly). `node scripts/assemble-journal-client.cjs --game <live checkout> --out candidate/deploy --key <cache key>`
 builds `classes.js` and `client.html` from the live files. Plugins: `node scripts/build-journal-plugin.cjs` (JasprJournal, one
-processor) and `node scripts/patch-plugin-jars.cjs --game <live checkout> --out candidate/jars JasprRPG JasprDisasters` (the patch
-tool now also knows JasprDisasters and compiles on one processor).
+processor) and `node scripts/patch-plugin-jars.cjs --game <live checkout> --out candidate/jars JasprRPG JasprDisasters JasprGear` (the patch
+tool now also knows JasprDisasters and JasprGear and compiles on one processor).
 
 New panel rows: add the data to `JournalRules.Snapshot` (and its test), the parsing in `parse()`, and the rows in `rowsFor()`; keep
 a tab at six rows or let it page.

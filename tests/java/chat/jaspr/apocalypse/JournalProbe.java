@@ -95,12 +95,12 @@ public final class JournalProbe extends JavaPlugin implements Listener {
         phase("setup",()->{
             check(Bukkit.getOnlinePlayers().isEmpty(),"No real players in fixture");
             world=Bukkit.getWorlds().get(0);
-            for(String name:new String[]{"JasprJournal","JasprApocalypse","JasprRPG","JasprDisasters","JasprInvasions"}){
+            for(String name:new String[]{"JasprJournal","JasprApocalypse","JasprRPG","JasprDisasters","JasprInvasions","JasprGear"}){
                 Plugin p=plugin(name);check(p!=null&&p.isEnabled(),name+" is loaded and enabled in the fixture");
             }
             journal=plugin("JasprJournal");
             actor=new Actor("anon_0707");
-            check(journal.getDescription().getVersion().equals("1.0.0"),"Journal version");
+            check(journal.getDescription().getVersion().equals("1.0.1"),"Journal version");
         });
         if(actor==null){finish();return;}
         phase("payload-basics",this::basics);
@@ -109,6 +109,7 @@ public final class JournalProbe extends JavaPlugin implements Listener {
         phase("disaster-hint-never-the-time",this::disasters);
         phase("stat-summary-matches-an-independent-computation",this::stats);
         phase("silent-item-effects",this::effects);
+        phase("worn-trinkets",this::trinkets);
         phase("hello-handshake-and-bounds",this::hello);
         phase("a-missing-plugin-hides-only-its-row",this::missing);
         phase("no-source-failed",()->{
@@ -252,6 +253,44 @@ public final class JournalProbe extends JavaPlugin implements Listener {
             check(panel().get("fx").getAsJsonArray().size()<=12,"at most twelve are sent");
         }finally{actor.effects.clear();}
         check(panel().get("fx").getAsJsonArray().size()==0,"and none when there are none");
+    }
+
+    /** The owner's report: trinkets worn in the gear column must be listed (they are not potion effects). */
+    private void trinkets() throws Exception {
+        Plugin gear=plugin("JasprGear");
+        Class<?> api=gear.getClass().getClassLoader().loadClass("chat.jaspr.gear.GearApi"),itemType=gear.getClass().getClassLoader().loadClass("chat.jaspr.gear.GearItem");
+        Method create=api.getDeclaredMethod("create",String.class);create.setAccessible(true);
+        Method byId=itemType.getDeclaredMethod("byId",String.class);byId.setAccessible(true);
+        check(!panel().has("gw"),"nothing worn: no trinket list");
+        Object prof=call(gear,"profile",new Class<?>[]{Player.class},actor.player);
+        ItemStack[] slots=(ItemStack[])field(prof,"slots");
+        try{
+            slots[0]=(ItemStack)create.invoke(null,"rebreather");
+            slots[3]=(ItemStack)create.invoke(null,"capacitor_belt");
+            slots[6]=(ItemStack)create.invoke(null,"scrap_magnet");
+            slots[5]=(ItemStack)create.invoke(null,"teddy_bear");
+            JsonArray gw=panel().get("gw").getAsJsonArray();
+            check(gw.size()==4,"four worn trinkets are listed: "+gw);
+            String[] order={"rebreather","capacitor_belt","teddy_bear","scrap_magnet"};   // slot order: neck, belt, body, charm
+            for(int i=0;i<order.length;i++){
+                Object item=byId.invoke(null,order[i]);
+                String title=(String)itemType.getField("title").get(item);String[] effects=(String[])itemType.getField("effects").get(item);
+                check(gw.get(i).getAsJsonArray().get(0).getAsString().equals(title.replaceAll("[^\\x20-\\x7e]","")),"slot "+i+" is "+title+": "+gw.get(i));
+                check(gw.get(i).getAsJsonArray().get(1).getAsString().equals(effects[0].replaceAll("[^\\x20-\\x7e\"\\\\]","").replace("\"","")),"its headline is the first tooltip line: "+gw.get(i));
+            }
+            // Non-trinket stacks in a slot (or junk) are ignored.
+            slots[1]=new ItemStack(Material.STONE_HOE);slots[2]=new ItemStack(Material.DIRT,3);
+            check(panel().get("gw").getAsJsonArray().size()==4,"a plain stone hoe and dirt in the gear slots are not trinkets");
+            // The change key: the same payload while nothing changes, a different one when something is taken off.
+            String before=panel().toString();slots[3]=null;
+            check(!panel().toString().equals(before)&&panel().get("gw").getAsJsonArray().size()==3,"taking one off changes the list");
+        }finally{java.util.Arrays.fill(slots,null);}
+        check(!panel().has("gw"),"all taken off: no trinket list again");
+        // A player whose gear profile is not loaded has none, and asking loads nothing.
+        Actor stranger=new Actor("anon_0710");
+        Map<?,?> loaded=(Map<?,?>)field(gear,"profiles");int before=loaded.size();
+        String json=(String)journal.getClass().getMethod("panelJson",Player.class).invoke(journal,stranger.player);
+        check(!json.contains("\"gw\"")&&loaded.size()==before,"asking about a player with no loaded profile loads nothing");
     }
 
     private void hello() throws Exception {

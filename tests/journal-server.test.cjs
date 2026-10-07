@@ -32,8 +32,10 @@ test('rules: phases, Blood Moon countdown (against a simulation), invasion and d
     assert.equal(r.status, 0, r.stderr + r.stdout);
     assert.match(r.stdout, /JOURNAL_RULES_PASS checks=\d+/);
     const samples = r.stdout.split('\n').filter(l => l.startsWith('SAMPLE ')).map(l => JSON.parse(l.slice(7)));
-    assert.equal(samples.length, 3);
-    const [full, bare, evil] = samples;
+    assert.equal(samples.length, 4);
+    const [full, bare, wornSample, evil] = samples;
+    assert.deepEqual(wornSample.gw, [['Worn Teddy Bear', 'Sneak still to rest and heal'], ['Scrap Magnet', ''], ['Rebreather', '']]);
+    assert.deepEqual(wornSample.fx, [['Haste II', 0]]);
     assert.deepEqual(full, {v: 1, d: 12, ph: 'Dusk', bm: 2, iv: [1, 15], dz: [1, ''], lv: 37, xp: 20, rp: [14, 9, 45, 3, 11], fx: [['Water Breathing', 0], ['Haste II', 23]]});
     assert.deepEqual(bare, {v: 1, d: 0, ph: 'Night', lv: 0, xp: 0, fx: []});
     assert.deepEqual(evil.dz, [2, 'Tor']);
@@ -61,11 +63,19 @@ test('sources are read-only doors: nothing is written to another plugin, and a f
   }
   assert.doesNotMatch(sources, /getDeclaredMethod\("get"/, 'the invasion store is read with all(), never get() (which creates records)');
   assert.match(sources, /getDeclaredMethod\("all"\)/);
-  assert.equal((sources.match(/catch \(Throwable error\)/g) || []).length, 4, 'every source guards itself');
+  assert.equal((sources.match(/catch \(Throwable error\)/g) || []).length, 5, 'every source guards itself');
   assert.match(sources, /JOURNAL_SOURCE_UNAVAILABLE source=/);
   // The doors on the other plugins exist and are small.
   assert.match(read('server/custom-plugins/JasprDisasters/src/chat/jaspr/disasters/DisasterPlugin.java'), /public String journalState\(\) \{/);
   assert.match(read('server/custom-plugins/JasprRPG/src/chat/jaspr/rpg/RpgApi.java'), /public static int\[\] summary\(UUID player, int xpLevels\) \{/);
+  // The worn-trinket door: read-only, never loads a profile from disk, in slot order.
+  const gear = read('server/custom-plugins/JasprGear/src/chat/jaspr/gear/GearApi.java');
+  const door = gear.slice(gear.indexOf('public static List<String[]> worn('), gear.indexOf('/** All gear ids in catalogue order. */'));
+  assert.match(door, /plugin\.existing\(player\)/, 'only an already loaded profile: nothing is read from disk');
+  assert.doesNotMatch(door, /plugin\.profile\(|\.save|\.set\w*\(|slots\[[^\]]*\]\s*=/, 'nothing is written');
+  assert.match(door, /for \(org\.bukkit\.inventory\.ItemStack stack : prof\.slots\)/, 'slot order');
+  assert.match(sources, /chat\.jaspr\.gear\.GearApi/);
+  assert.match(sources, /getDeclaredMethod\("worn", org\.bukkit\.entity\.Player\.class\)/);
   const inv = read('server/custom-plugins/JasprInvasions/src/chat/jaspr/invasions/InvasionPlugin.java');
   for (const f of ['active', 'settings', 'store']) assert.match(inv, new RegExp('private [^\\n]*\\b' + f + ';|private final [^\\n]*\\b' + f + ' ='), 'InvasionPlugin.' + f);
   assert.match(read('server/custom-plugins/JasprInvasions/src/chat/jaspr/invasions/ProgressStore.java'), /Collection<PlayerProgress> all\(\)/);
@@ -99,11 +109,12 @@ test('wire format: channel, hello, bounded decode, payload only on change or hea
   // Logs: counts and names of sources only.
   for (const m of plugin.matchAll(/getLogger\(\)\.[a-z]+\(([^;]*)\);/g)) assert.doesNotMatch(m[1], /getName|getAddress|getUniqueId|password|token|cookie|ip\b/i, m[1].slice(0, 90));
   const yml = read('server/custom-plugins/JasprJournal/resources/plugin.yml');
-  assert.match(yml, /^version: 1\.0\.0$/m);
-  assert.match(yml, /softdepend: \[JasprApocalypse, JasprRPG, JasprInvasions, JasprDisasters\]/);
+  assert.match(yml, /^version: 1\.0\.1$/m);
+  assert.match(yml, /softdepend: \[JasprApocalypse, JasprRPG, JasprInvasions, JasprDisasters, JasprGear\]/);
 });
 
 test('versions of the plugins that gained a door are bumped', () => {
   assert.match(read('server/custom-plugins/JasprRPG/resources/plugin.yml'), /^version: 1\.3\.2$/m);
   assert.match(read('server/custom-plugins/JasprDisasters/resources/plugin.yml'), /^version: 1\.4\.1$/m);
+  assert.match(read('server/custom-plugins/JasprGear/resources/plugin.yml'), /^version: 5\.0\.3$/m);
 });

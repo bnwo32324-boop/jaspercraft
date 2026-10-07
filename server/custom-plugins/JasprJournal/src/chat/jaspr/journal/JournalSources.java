@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -16,7 +17,7 @@ import org.bukkit.plugin.Plugin;
  * that fails is counted and reported once, and never throws into the caller.
  */
 final class JournalSources {
-    enum Source { SIEGE, INVASIONS, DISASTERS, RPG }
+    enum Source { SIEGE, INVASIONS, DISASTERS, RPG, GEAR }
 
     private final Logger log;
     private final Map<Source, Integer> failures = new EnumMap<Source, Integer>(Source.class);
@@ -28,7 +29,7 @@ final class JournalSources {
     private Field invActive, invSettings, invStore, invDays, invEnabled, progressId, progressSlept;
     private Method storeAll;
     // Disasters and the stat sheet: small public methods added for this panel.
-    private Method disasterState, rpgSummary;
+    private Method disasterState, rpgSummary, gearWorn;
 
     JournalSources(Logger log) { this.log = log; }
 
@@ -45,6 +46,7 @@ final class JournalSources {
             case SIEGE: siegeRule = null; break;
             case INVASIONS: invActive = null; storeAll = null; break;
             case DISASTERS: disasterState = null; break;
+            case GEAR: gearWorn = null; break;
             default: rpgSummary = null; break;
         }
     }
@@ -151,6 +153,26 @@ final class JournalSources {
             return result instanceof int[] && ((int[]) result).length == 5 ? (int[]) result : null;
         } catch (Throwable error) {
             fail(Source.RPG, error);
+            return null;
+        }
+    }
+
+    // ----------------------------------------------------------------------------------------------------------- worn trinkets
+    /** The trinkets a player wears in the Survivor Gear column, in slot order, each {title, effect line, ...}; null when the Gear plugin is not running. */
+    @SuppressWarnings("unchecked")
+    List<String[]> gear(org.bukkit.entity.Player player) {
+        try {
+            Plugin plugin = enabled("JasprGear");
+            if (plugin == null) return null;
+            if (gearWorn == null) {
+                Class<?> api = plugin.getClass().getClassLoader().loadClass("chat.jaspr.gear.GearApi");
+                gearWorn = api.getDeclaredMethod("worn", org.bukkit.entity.Player.class);
+                gearWorn.setAccessible(true);
+            }
+            Object result = gearWorn.invoke(null, player);
+            return result instanceof List ? (List<String[]>) result : null;
+        } catch (Throwable error) {
+            fail(Source.GEAR, error);
             return null;
         }
     }
