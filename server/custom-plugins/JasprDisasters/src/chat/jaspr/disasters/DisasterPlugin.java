@@ -160,6 +160,18 @@ public final class DisasterPlugin extends JavaPlugin implements Listener {
 
     private long minutesUntilNext() { return Math.max(0L, (nextAt - System.currentTimeMillis()) / 60000L); }
 
+    /**
+     * What the Field Journal (JasprJournal, called through reflection) may tell every player: "active:<kind>" while a disaster
+     * runs, "brewing" when the next one is due within a Minecraft day, else "quiet". The exact time stays secret (the status
+     * command is for administrators), and nothing is changed.
+     */
+    public String journalState() {
+        Disaster running = active;
+        Kind kind = activeKind;
+        if (running != null && kind != null) return "active:" + kind.label;
+        return nextAt - System.currentTimeMillis() <= DisasterConfig.MILLIS_PER_MC_DAY ? "brewing" : "quiet";
+    }
+
     // ---------------------------------------------------------------- main loop
 
     private void pump() {

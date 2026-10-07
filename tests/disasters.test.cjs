@@ -61,7 +61,7 @@ test('five kinds, each with its own command, all admin-only, all run through the
   for (const command of ['shower', 'lightning', 'quake', 'tornado', 'blizzard']) {
     assert.match(yml, new RegExp('\\n  ' + command + ':\\n(?:    .*\\n)*?    permission: jaspr\\.disasters\\.admin'), command);
   }
-  assert.match(yml, /version: 1\.4\.0/);
+  assert.match(yml, /version: 1\.4\.1/);
   const main = read('DisasterPlugin.java');
   for (const kind of ['QUAKE("earthquake", "quake")', 'TORNADO("tornado", "tornado")', 'BLIZZARD("blizzard", "blizzard")']) assert.ok(main.includes(kind), kind);
   assert.ok(main.includes('Schedule.next(now, settings.scheduleMinDays, settings.scheduleMaxDays, random)'), 'one timer after every disaster');
