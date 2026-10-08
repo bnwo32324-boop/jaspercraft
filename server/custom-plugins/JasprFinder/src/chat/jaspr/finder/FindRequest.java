@@ -8,7 +8,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.block.ShulkerBox;
 
 /**
- * One "find" request from the recipe panel: "find &lt;item id&gt; &lt;damage&gt; &lt;exact&gt; &lt;title...&gt;".
+ * One "find" request: from the recipe panel, "find &lt;item id&gt; &lt;damage&gt; &lt;exact&gt; &lt;title...&gt;"; or, for an item in the
+ * player's own window (Shift + right click on a slot), built from the server's copy of that stack by {@link #of}.
  *
  * Matching follows what the panel shows. A JasperCraft item (exact = 1: an unbreakable item whose damage value picks its
  * model, like Survivor Gear or a realm armoury piece) matches only that exact item and damage. A vanilla tool or armour
@@ -42,6 +43,34 @@ final class FindRequest {
         String title = parts.length > 4 ? clean(parts[4]) : "";
         if (title.isEmpty()) title = pretty(material);
         return new FindRequest(material, damage, exact, title);
+    }
+
+    /**
+     * The request for a stack the player points at in their own window (Shift + right click, Find): the same kind of match
+     * the crafting panel asks for. An unbreakable item is a JasperCraft model item and matches that exact item and damage; a
+     * vanilla tool or armour piece matches whatever its wear; anything else matches its damage value. The title is what the
+     * player's client calls the item (colour codes and control characters stripped), else the item's own name, else the
+     * material. Null for an empty stack.
+     */
+    @SuppressWarnings("deprecation")
+    static FindRequest of(ItemStack stack, String clientTitle) {
+        if (stack == null || stack.getType() == Material.AIR || stack.getAmount() <= 0) return null;
+        Material material = stack.getType();
+        boolean unbreakable = false;
+        String named = "";
+        if (stack.hasItemMeta()) {
+            ItemMeta meta = stack.getItemMeta();
+            if (meta != null) {
+                unbreakable = meta.isUnbreakable();
+                if (meta.hasDisplayName()) named = clean(meta.getDisplayName());
+            }
+        }
+        boolean wears = material.getMaxDurability() > 0 && !unbreakable;
+        int damage = wears ? 0 : Math.max(0, Math.min(32767, (int) stack.getDurability()));
+        String title = clientTitle == null ? "" : clean(clientTitle);
+        if (title.isEmpty()) title = named;
+        if (title.isEmpty()) title = pretty(material);
+        return new FindRequest(material, damage, unbreakable, title);
     }
 
     /** A registry id ("minecraft:diamond_pickaxe") as its Bukkit material, or null. */

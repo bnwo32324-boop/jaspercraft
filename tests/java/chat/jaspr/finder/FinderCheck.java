@@ -9,8 +9,9 @@ import org.bukkit.inventory.meta.BlockStateMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 
 /** Offline check for the Chest Finder: request parsing, item matching (wear, JasperCraft items, damage kinds, shulker
- * boxes), the plugin-message decode and the direction words; with a file argument, that every request the crafting panel
- * can send parses. Prints FINDER_OK checks=N. */
+ * boxes), the plugin-message decode and the direction words; Find on an inventory slot (the request built from a real
+ * stack, the "find slot" message and the lookup in the window that is open); with a file argument, that every request
+ * the crafting panel can send parses. Prints FINDER_OK checks=N. */
 public final class FinderCheck {
     static int checks;
 
@@ -171,6 +172,50 @@ public final class FinderCheck {
         ItemStack[] swordsSorted = ChestSorter.sorted(swords);
         check(swordsSorted[0].hasItemMeta() == false && "Aardvark".equals(swordsSorted[1].getItemMeta().getDisplayName()), "unnamed first, then by name; never merged");
 
+        // Find on an inventory slot (Shift + right click): the request is built from the server's own copy of the stack
+        FindRequest worn = FindRequest.of(stack(Material.DIAMOND_PICKAXE, 900, false), "Diamond Pickaxe");
+        check(worn != null && worn.material == Material.DIAMOND_PICKAXE && !worn.exact && worn.damage == 0, "a worn vanilla pickaxe is asked for without its wear");
+        check(worn.matches(stack(Material.DIAMOND_PICKAXE, 0, false)) && worn.matches(stack(Material.DIAMOND_PICKAXE, 1200, false)), "any wear matches");
+        check(!worn.matches(stack(Material.DIAMOND_PICKAXE, 106, true)), "never an armoury pickaxe built on the same base");
+        FindRequest model = FindRequest.of(stack(Material.DIAMOND_PICKAXE, 106, true), "Titan Pickaxe");
+        check(model.exact && model.damage == 106 && model.matches(stack(Material.DIAMOND_PICKAXE, 106, true)), "a JasperCraft model item is exact");
+        check(!model.matches(stack(Material.DIAMOND_PICKAXE, 107, true)) && !model.matches(stack(Material.DIAMOND_PICKAXE, 106, false)), "only that model");
+        FindRequest wool = FindRequest.of(stack(Material.WOOL, 14, false), "Red Wool");
+        check(!wool.exact && wool.damage == 14 && wool.matches(stack(Material.WOOL, 14, false)) && !wool.matches(stack(Material.WOOL, 0, false)), "wool: its colour");
+        check(FindRequest.of(new ItemStack(Material.DIRT, 64), null).title.equals("Dirt"), "no title from the client: the material's name");
+        ItemStack called = new ItemStack(Material.DIAMOND_SWORD);
+        ItemMeta calledMeta = called.getItemMeta(); calledMeta.setDisplayName("§bVermilion §lBlade"); called.setItemMeta(calledMeta);
+        check(FindRequest.of(called, "").title.equals("Vermilion Blade"), "no title from the client: the item's own name, colour codes stripped");
+        check(FindRequest.of(called, "§cWhat the client says§r\u0007").title.equals("What the client says"), "the client's title wins, cleaned");
+        check(FindRequest.of(called, new String(new char[120]).replace('\0', 'q')).title.length() == FindRequest.MAX_TITLE, "title bounded");
+        check(FindRequest.of(null, "x") == null && FindRequest.of(new ItemStack(Material.AIR), "x") == null, "an empty stack finds nothing");
+        // the message: "find slot <window id> <slot> [title]"
+        check(java.util.Arrays.equals(FinderPlugin.slotRef("find slot 0 12 Emerald Boots"), new int[]{0, 12}), "inventory window 0, slot 12");
+        check(java.util.Arrays.equals(FinderPlugin.slotRef("find slot 37 3"), new int[]{37, 3}) && FinderPlugin.slotTitle("find slot 37 3").isEmpty(), "no title");
+        check("Emerald Boots".equals(FinderPlugin.slotTitle("find slot 0 12 Emerald Boots")), "title kept whole, spaces included");
+        for (String bad : new String[]{null, "", "find slot", "find slot 1", "find slot x 1", "find slot 1 y", "find slot -1 3", "find slot 3 -1", "find slot 256 0",
+                "find slot 0 256", "find slot 0 99999999999 x", "find minecraft:stone 0 0 x", "find slotted 0 1 x", "slot 0 1", "find slot 0 1 " + new String(new char[200]).replace('\0', 'z')})
+            check(FinderPlugin.slotRef(bad) == null, "slot request rejected: " + bad);
+        // the server's own copy of the slot, only in the window that is open
+        net.minecraft.server.v1_12_R1.InventorySubcontainer held = new net.minecraft.server.v1_12_R1.InventorySubcontainer("check", false, 4);
+        held.setItem(1, org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack.asNMSCopy(stack(Material.DIAMOND_PICKAXE, 33, false)));
+        held.setItem(3, org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack.asNMSCopy(stack(Material.DIAMOND_PICKAXE, 106, true)));
+        net.minecraft.server.v1_12_R1.Container open = new net.minecraft.server.v1_12_R1.Container() {
+            { windowId = 5; for (int i = 0; i < 4; i++) a(new net.minecraft.server.v1_12_R1.Slot(held, i, 0, 0)); }
+            @Override public org.bukkit.inventory.InventoryView getBukkitView() { return null; }
+            @Override public boolean canUse(net.minecraft.server.v1_12_R1.EntityHuman human) { return true; }
+        };
+        FinderPlugin.SlotLookup pickaxe = FinderPlugin.lookup(open, 5, 1);
+        check(pickaxe.problem == null && pickaxe.stack.getType() == Material.DIAMOND_PICKAXE && pickaxe.stack.getDurability() == 33, "slot 1 holds the pickaxe");
+        FindRequest slotRequest = FindRequest.of(pickaxe.stack, "Diamond Pickaxe");
+        check(slotRequest.matches(stack(Material.DIAMOND_PICKAXE, 0, false)) && !slotRequest.exact, "and asks for diamond pickaxes");
+        FindRequest slotModel = FindRequest.of(FinderPlugin.lookup(open, 5, 3).stack, "Titan Pickaxe");
+        check(slotModel.exact && slotModel.damage == 106, "the unbreakable one in slot 3 is exact");
+        check("empty".equals(FinderPlugin.lookup(open, 5, 0).problem) && FinderPlugin.lookup(open, 5, 0).stack == null, "an empty slot");
+        check("stale".equals(FinderPlugin.lookup(open, 6, 1).problem) && "stale".equals(FinderPlugin.lookup(open, 0, 1).problem), "another window than the open one");
+        check("stale".equals(FinderPlugin.lookup(null, 5, 1).problem), "no window at all");
+        check("range".equals(FinderPlugin.lookup(open, 5, 4).problem) && "range".equals(FinderPlugin.lookup(open, 5, 200).problem), "past the last slot");
+
         // every request the crafting panel can send (written by tests/chest-finder.test.cjs) names a real item
         if (args.length > 0) {
             int panel = 0;
@@ -181,6 +226,21 @@ public final class FinderCheck {
                 panel++;
             }
             System.out.println("FINDER_PANEL requests=" + panel);
+        }
+        // every "find slot" message the inventory menu can send (written by tests/chest-finder.test.cjs) is well formed, and
+        // whatever name rides along becomes a clean, bounded title
+        if (args.length > 1) {
+            int slots = 0;
+            for (String line : java.nio.file.Files.readAllLines(java.nio.file.Paths.get(args[1]), StandardCharsets.UTF_8)) {
+                if (line.isEmpty()) continue;
+                int[] ref = FinderPlugin.slotRef(line);
+                check(ref != null && ref[0] == 9, "slot request parses: " + line);
+                String title = FindRequest.clean(FinderPlugin.slotTitle(line));
+                check(title.length() <= FindRequest.MAX_TITLE && title.indexOf('§') < 0, "title is clean: " + line);
+                check(FindRequest.of(new ItemStack(Material.DIAMOND_PICKAXE), FinderPlugin.slotTitle(line)).title.length() > 0, "a title is always found: " + line);
+                slots++;
+            }
+            System.out.println("FINDER_SLOT requests=" + slots);
         }
         System.out.println("FINDER_OK checks=" + checks);
     }

@@ -54,6 +54,12 @@ import org.bukkit.scheduler.BukkitTask;
  * player's own ender chest contents light up every ender chest nearby. Remembered containers are kept per player (at
  * most 4096, oldest first out) in plugins/JasprFinder/players/&lt;uuid&gt;.txt.
  *
+ * Find on an inventory slot (owner, 2026-10-08: "right-click any item in your inventory and click Find ... the same
+ * functionality of identifying the items in nearby chests"; it is Shift + right click, a plain right click still halves
+ * a stack): the client sends "find slot &lt;window id&gt; &lt;slot&gt; [title]" on the same channel. The server reads that slot of
+ * the window the player has open right now (the inventory, a crafting table ...) and searches for exactly that item, so the
+ * client never has to name it; a window that is no longer the open one, or an empty slot, finds nothing.
+ *
  * Bounded: one request per player every two seconds, a 48-block radius (config), loaded chunks only, at most 600
  * containers looked at and 16 highlighted per request, one highlight per player at a time.
  * Sort (owner, 2026-10-03: "a sorting button for chests that auto-organizes everything"): the chest screen's Sort button
@@ -61,11 +67,12 @@ import org.bukkit.scheduler.BukkitTask;
  * creative-tab order) -- only a real chest, trapped chest, chest minecart, shulker box or the player's own ender chest,
  * never a plugin's menu, and only when the window id is the one open right now. At most two sorts a second per player.
  *
- * Logs FINDER_READY, FINDER_FIND (player id, item, found, scanned, ms), FINDER_SORT (player id, container, stacks before
+ * Logs FINDER_READY, FINDER_FIND (player id, item, via panel or slot, found, scanned, ms), FINDER_FIND_REFUSED (a slot
+ * request that pointed at nothing: player id, reason, window, slot), FINDER_SORT (player id, container, stacks before
  * and after), FINDER_SORT_REFUSED, FINDER_METRICS.
  */
 public final class FinderPlugin extends JavaPlugin implements Listener, PluginMessageListener {
-    static final String CHANNEL = "jaspr:find", SORT_CHANNEL = "jaspr:sort";
+    static final String CHANNEL = "jaspr:find", SORT_CHANNEL = "jaspr:sort", SLOT_PREFIX = "find slot ";
     static final int MAX_REMEMBERED = 4096, MAX_SCAN = 600, MAX_SHOWN = 16, HIGHLIGHT_TICKS = 300, PULSE = 10;
     static final long COOLDOWN_MS = 2000, SORT_COOLDOWN_MS = 500;
 
@@ -76,7 +83,7 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
     private File folder;
     private int radius;
     private boolean searchAll;
-    long requests, found, misses, rejected, limited, remembered, sorts, sortRefused, sortStale, sortFailed;
+    long requests, found, misses, rejected, limited, remembered, sorts, sortRefused, sortStale, sortFailed, slotRequests, slotStale, slotEmpty;
 
     @Override
     public void onEnable() {
@@ -90,7 +97,7 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
         getServer().getMessenger().registerIncomingPluginChannel(this, SORT_CHANNEL, this);
         for (Player p : getServer().getOnlinePlayers()) load(p.getUniqueId());
         getServer().getScheduler().runTaskTimer(this, this::saveDirty, 6000L, 6000L);
-        getLogger().info("FINDER_READY channel=" + CHANNEL + " sort=" + SORT_CHANNEL + " radius=" + radius + " search=" + (searchAll ? "all" : "opened")
+        getLogger().info("FINDER_READY channel=" + CHANNEL + " sort=" + SORT_CHANNEL + " slotFind=true radius=" + radius + " search=" + (searchAll ? "all" : "opened")
             + " maxShown=" + MAX_SHOWN + " seconds=" + HIGHLIGHT_TICKS / 20);
     }
 
@@ -101,7 +108,8 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
         dirty.addAll(opened.keySet());
         saveDirty();
         getLogger().info("FINDER_METRICS requests=" + requests + " found=" + found + " misses=" + misses + " rejected=" + rejected
-            + " limited=" + limited + " remembered=" + remembered + " sorts=" + sorts + " sortRefused=" + sortRefused
+            + " limited=" + limited + " remembered=" + remembered + " slotRequests=" + slotRequests + " slotStale=" + slotStale
+            + " slotEmpty=" + slotEmpty + " sorts=" + sorts + " sortRefused=" + sortRefused
             + " sortStale=" + sortStale + " sortFailed=" + sortFailed);
     }
 
@@ -198,10 +206,67 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
         Long last = lastFind.get(p.getUniqueId());
         if (last != null && now - last < COOLDOWN_MS) { limited++; return; }
         lastFind.put(p.getUniqueId(), now);
-        FindRequest request = FindRequest.parse(decode(data));
-        if (request == null || p.isDead() || p.getGameMode() == GameMode.SPECTATOR) { rejected++; return; }
+        String text = decode(data);
+        if (p.isDead() || p.getGameMode() == GameMode.SPECTATOR) { rejected++; return; }
+        boolean viaSlot = text != null && text.startsWith(SLOT_PREFIX);
+        FindRequest request = viaSlot ? fromSlot(p, text) : FindRequest.parse(text);
+        if (request == null) { if (!viaSlot) rejected++; return; }
         requests++;
-        find(p, request, now);
+        if (viaSlot) slotRequests++;
+        find(p, request, now, viaSlot ? "slot" : "panel");
+    }
+
+    /** "find slot <window id> <slot> [title]" as {window, slot}, or null when it is not a well-formed request. */
+    static int[] slotRef(String text) {
+        if (text == null || !text.startsWith(SLOT_PREFIX) || text.length() > 200) return null;
+        String[] parts = text.split(" ", 5);
+        if (parts.length < 4) return null;
+        try {
+            int window = Integer.parseInt(parts[2]), slot = Integer.parseInt(parts[3]);
+            return window < 0 || window > 255 || slot < 0 || slot > 255 ? null : new int[]{window, slot};
+        } catch (NumberFormatException bad) {
+            return null;
+        }
+    }
+
+    /** What the player's client called the item in "find slot <window id> <slot> [title]"; empty when it sent none. */
+    static String slotTitle(String text) {
+        String[] parts = text.split(" ", 5);
+        return parts.length > 4 ? parts[4] : "";
+    }
+
+    /** What a slot request points at: the item in that slot of the open window, or why there is none. */
+    static final class SlotLookup {
+        final ItemStack stack;
+        final String problem;   // null when there is a stack; else "stale" (not the open window), "range" or "empty"
+        SlotLookup(ItemStack stack, String problem) { this.stack = stack; this.problem = problem; }
+    }
+
+    /** The server's own copy of slot <code>slot</code> of window <code>window</code>, only while that is the window open now. */
+    static SlotLookup lookup(net.minecraft.server.v1_12_R1.Container open, int window, int slot) {
+        if (open == null || open.windowId != window) return new SlotLookup(null, "stale");
+        if (slot < 0 || slot >= open.slots.size()) return new SlotLookup(null, "range");
+        net.minecraft.server.v1_12_R1.ItemStack held = open.getSlot(slot).getItem();
+        if (held == null || held.isEmpty()) return new SlotLookup(null, "empty");
+        return new SlotLookup(org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack.asBukkitCopy(held), null);
+    }
+
+    /** The request for the item this player pointed at in their window, or null (and a log line) when it points at nothing. */
+    FindRequest fromSlot(Player p, String text) {
+        int[] ref = slotRef(text);
+        if (ref == null) { rejected++; return null; }
+        SlotLookup at = lookup(((org.bukkit.craftbukkit.v1_12_R1.entity.CraftPlayer) p).getHandle().activeContainer, ref[0], ref[1]);
+        FindRequest request = at.stack == null ? null : FindRequest.of(at.stack, slotTitle(text));
+        if (request != null) return request;
+        String problem = at.problem == null ? "empty" : at.problem;
+        if ("stale".equals(problem)) slotStale++;
+        else if ("empty".equals(problem)) slotEmpty++;
+        else rejected++;
+        getLogger().info("FINDER_FIND_REFUSED player=" + p.getUniqueId() + " via=slot reason=" + problem + " window=" + ref[0] + " slot=" + ref[1]);
+        if (!"range".equals(problem))
+            p.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
+                new net.md_5.bungee.api.chat.TextComponent(ChatColor.GRAY + "Find: that item is no longer there."));
+        return null;
     }
 
     /** "sort <window id>": sorts the container this player has open, if it is one that may be sorted. */
@@ -280,7 +345,7 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
         return new String(data, at, value, StandardCharsets.UTF_8);
     }
 
-    void find(Player p, FindRequest request, long started) {
+    void find(Player p, FindRequest request, long started, String via) {
         World w = p.getWorld();
         Location at = p.getLocation();
         double r2 = (double) radius * radius;
@@ -328,7 +393,7 @@ public final class FinderPlugin extends JavaPlugin implements Listener, PluginMe
         if (hits.size() > MAX_SHOWN) hits = new ArrayList<Block>(hits.subList(0, MAX_SHOWN));
         long ms = System.currentTimeMillis() - started;
         getLogger().info("FINDER_FIND player=" + p.getUniqueId() + " item=" + request.material.name() + ":" + request.damage
-            + (request.exact ? ":exact" : "") + " found=" + total + " scanned=" + scanned + " ms=" + ms);
+            + (request.exact ? ":exact" : "") + " via=" + via + " found=" + total + " scanned=" + scanned + " ms=" + ms);
         if (hits.isEmpty()) {
             misses++;
             p.sendMessage(ChatColor.GOLD + "[Find] " + ChatColor.GRAY + "No " + (searchAll ? "chest" : "chest you have opened")

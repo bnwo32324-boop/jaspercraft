@@ -41,6 +41,13 @@
  * chests holding it sparkle for this player only. JasprChestSearch, at the end of this file, puts
  * a search box on chest, ender chest and shulker box screens that dims every slot whose item name
  * does not match. On a phone, the Right: ON touch button makes a tap a right click.
+ *
+ * Find on an inventory item (owner, 2026-10-08: "right-click any item in your inventory and click Find. The UI
+ * should look the same"; then "It should be Shift + right-click, since right-click already has a function in the
+ * inventory to halve item stack"): Shift + right click on an item in the inventory or the crafting table's
+ * window opens the same menu (Find in chests, Cancel) titled with the item's name. Find sends "find slot
+ * <window id> <slot> <title>" on jaspr:find -- the server reads that slot itself -- and closes the screen.
+ * A plain right click stays the game's own. On a phone: Right: ON and Shift: ON, then a tap.
  */
 
 // Apocalypse blueprints as the server defines them (scripts/sync-apocalypse-blueprints.cjs); kept for
@@ -157,12 +164,19 @@ var JasprRecipeBook = (function () {
       return list.qN.data[index];
     } catch (error) { return null; }
   }
+  /* How many slots the open window has (the wide inventory's extra ones included). */
+  function slotCount(book) {
+    try {
+      var list = slots(book);
+      return list && list.qN ? list.g | 0 : 0;
+    } catch (error) { return 0; }
+  }
 
   return {
     ITEM_SIZE: ITEM_SIZE, ITEM_LIFT: ITEM_LIFT, HEADER_GAP: HEADER_GAP,
     of: of, attach: attach, layout: layout, die: die,
     empty: empty, count: count, tagged: tagged, same: same,
-    slotAt: slotAt, extraSlots: extraSlots, invSlot: invSlot, realWidth: realWidth,
+    slotAt: slotAt, slotCount: slotCount, extraSlots: extraSlots, invSlot: invSlot, realWidth: realWidth,
     books: function () { return books; },
     disabled: function () { return disabled; },
     failure: function () { return failure; },
@@ -423,18 +437,69 @@ var JasprRecipeBook = (function () {
     return true;
   };
 
+  /* Puts a menu ({title, entries, and i or slot}) at a point of the window, kept on screen, and makes it the open one. */
+  RB.placeMenu = function (book, menu, x, y) {
+    var gui = book.gui, h = MENU_ROW * (menu.entries.length + 1) + 4;
+    // Kept on screen: x and y are relative to the window, the screen runs from -guiLeft to width - guiLeft.
+    var minX = -(gui.is | 0), maxX = RB.realWidth(gui) - (gui.is | 0) - MENU_W - 1;
+    var minY = -(gui.l7 | 0), maxY = (gui.L | 0) - (gui.l7 | 0) - h - 1;
+    menu.x = Math.max(minX + 1, Math.min(x + 2, maxX));
+    menu.y = Math.max(minY + 1, Math.min(y + 2, maxY));
+    menu.w = MENU_W; menu.h = h;
+    book.menu = menu;
+  };
+
   RB.openMenu = function (book, index, x, y) {
     var entries = [{label: "Find in chests", act: "find"}];
     if (book.craftable && book.craftable.set[index] && RB.gridFree(book)) entries.push({label: "Fill grid", act: "fill"});
     entries.push({label: "Cancel", act: "close"});
-    var gui = book.gui, h = MENU_ROW * (entries.length + 1) + 4;
-    // Kept on screen: x and y are relative to the window, the screen runs from -guiLeft to width - guiLeft.
-    var minX = -(gui.is | 0), maxX = RB.realWidth(gui) - (gui.is | 0) - MENU_W - 1;
-    var minY = -(gui.l7 | 0), maxY = (gui.L | 0) - (gui.l7 | 0) - h - 1;
-    x = Math.max(minX + 1, Math.min(x + 2, maxX));
-    y = Math.max(minY + 1, Math.min(y + 2, maxY));
-    book.menu = {i: index, x: x, y: y, w: MENU_W, h: h, title: RB.recipe(index).title, entries: entries};
+    RB.placeMenu(book, {i: index, title: RB.recipe(index).title, entries: entries}, x, y);
     RB.menus = (RB.menus | 0) + 1;
+  };
+
+  /* Find on an item in the window itself (owner, 2026-10-08: "right-click any item in your inventory and click Find. The
+   * UI should look the same"; it is Shift + right click, a plain right click still halves a stack): the same menu as for a
+   * panel item, with Find in chests and Cancel. `slot` is the window slot, `name` what the game calls the item. */
+  RB.openSlotMenu = function (book, slot, x, y, name) {
+    try {
+      var title = String(name === null || name === undefined ? "" : name).replace(/\xa7./g, "").replace(/[\x00-\x1f\x7f]/g, "").slice(0, 48);
+      RB.placeMenu(book, {i: -1, slot: slot | 0, title: title || "Item", entries: [{label: "Find in chests", act: "find"}, {label: "Cancel", act: "close"}]}, x, y);
+      RB.slotMenus = (RB.slotMenus | 0) + 1;
+    } catch (error) { RB.die("slotmenu", error); }
+  };
+
+  /* The window slot under a point (window coordinates), picked as the game picks it: the first slot whose 16x16 square, a
+   * pixel wider on every side, holds the point; -1 for none. Worked out from the slots' own positions, because a touch
+   * moves the pointer and clicks at once, before any frame has worked out the hover. */
+  RB.slotUnder = function (book, x, y) {
+    var n = RB.slotCount(book);
+    for (var k = 0; k < n; k++) {
+      var slot = RB.slotAt(book, k);
+      if (!slot) continue;
+      var sx = slot.Lr | 0, sy = slot.Fg | 0;
+      if (x >= sx - 1 && x < sx + 17 && y >= sy - 1 && y < sy + 17) return k;
+    }
+    return -1;
+  };
+
+  /* GuiScreen.isShiftKeyDown(), as the original: the game's own Keyboard.isKeyDown (Jz), which sees the key even when the
+   * page's own listeners do not (and the phone's Shift button); the document listener below is a fallback. */
+  RB.shiftDown = function () {
+    var shift = !!RB.shift || Date.now() - (RB.shiftClickAt || 0) < 500;
+    try { shift = !!(Jz(42) || Jz(54)) || shift; } catch (ignored) { }
+    return shift;
+  };
+
+  /* The window slot a click wants to Find, or -1: Shift + right click on any slot but the crafting output, while the panel can
+   * draw a menu. A click on an open menu is the menu's; on another item it moves the menu there. A plain right click, or
+   * anything else, stays the game's. */
+  RB.findSlotFor = function (book, localX, localY, button) {
+    try {
+      if (button !== 1 || !RB.prepared() || !book.craftable || !RB.shiftDown()) return -1;
+      if (book.menu && RB.menuHit(book.menu, localX, localY) !== null) return -1;
+      var slot = RB.slotUnder(book, localX, localY);
+      return slot === book.resultSlot ? -1 : slot;
+    } catch (error) { RB.die("findslot", error); return -1; }
   };
 
   /* "find", "fill" or "close" for an entry, "inside" for the title row, null outside the menu. */
@@ -466,6 +531,16 @@ var JasprRecipeBook = (function () {
     if (!id) return null;
     var title = String(recipe.title || "").replace(/\u00a7./g, "").replace(/[\x00-\x1f\x7f]/g, "").slice(0, 48);
     return "find " + id[1] + " " + (damage ? (+damage[1] | 0) : 0) + " " + (/Unbreakable:1b/.test(snbt) ? 1 : 0) + " " + title;
+  };
+
+  /* What Find sends for an item in the window: "find slot <window id> <slot> <title>". The server reads that slot of the window
+   * it has open for the player, so the client never has to name the item (the title is only for the chat message). */
+  RB.findSlotText = function (book, menu) {
+    var gui = book.gui, win = gui && gui.h2 ? gui.h2.iu : null;
+    if (win === null || win === undefined || !(win >= 0) || !(menu.slot >= 0)) return null;
+    var title = String(menu.title || "").replace(/\xa7./g, "").replace(/[\x00-\x1f\x7f]/g, "").slice(0, 48);
+    RB.slotFinds = (RB.slotFinds | 0) + 1;
+    return "find slot " + (win | 0) + " " + (menu.slot | 0) + " " + title;
   };
   RB.channels = {};
   RB.channel = function (name) {
@@ -648,7 +723,7 @@ var JasprRecipeBook = (function () {
     if (book.menu) {
       var menu = book.menu, act = RB.menuHit(menu, localX, localY);
       book.menu = null;
-      if (act === "find") { book.findRequest = RB.findText(menu.i); return []; }
+      if (act === "find") { book.findRequest = menu.slot === undefined ? RB.findText(menu.i) : RB.findSlotText(book, menu); return []; }
       if (act === "fill") return RB.craftClicks(book, menu.i, 1);
       if (act !== null) return [];   // the title row, or Cancel
     }
@@ -685,11 +760,7 @@ var JasprRecipeBook = (function () {
   RB.craftClicks = function (book, index, button) {
     if (!RB.gridFree(book)) return [];   // grid in use: as the original
 
-    // GuiScreen.isShiftKeyDown(), as the original: the game's own Keyboard.isKeyDown (Jz), which sees
-    // the key even when the page's own listeners do not; the document listener below is a fallback.
-    var shift = !!RB.shift || Date.now() - (RB.shiftClickAt || 0) < 500;
-    try { shift = !!(Jz(42) || Jz(54)) || shift; } catch (ignored) { }
-    var clicks = RB.clickScript(book, index, button, shift);
+    var clicks = RB.clickScript(book, index, button, RB.shiftDown());
     if (clicks.length) {
       book.refreshAt = 0;
       book.pending = button === 0 ? {index: index, until: Date.now() + 1500} : null;
@@ -819,6 +890,9 @@ function JasprRecipeBookDraw(a, b, c) {
       if (JasprRecipeBook.disabled()) return;
       d = JasprRecipeBook.of(a);
       if (d === null) return;
+      // The Find menu on an item hides the game's item tooltip (a.a_b is the slot under the pointer, which also
+      // keeps the number and drop keys off that slot while the menu is open).
+      if (d.menu && d.menu.slot !== undefined) a.a_b = null;
       $p = 1;
     case 1:
       JasprRecipeBookPrepare(a); if (B()) break _;
@@ -949,8 +1023,8 @@ function JasprRecipeBookSend(a, b, c) {
 /* Sends the click script the plain JavaScript worked out. handleMouseClick is the same
  * entry point the screen uses for a real click, so the server sees ordinary slot traffic. */
 function JasprRecipeBookClick(a, b, c, d) {
-  var e,f,g,$p=0,$z;
-  if (FX()) { var $T=Ds(); $p=$T.l(); g=$T.l(); f=$T.l(); e=$T.l(); d=$T.l(); c=$T.l(); b=$T.l(); a=$T.l(); }
+  var e,f,g,h,$p=0,$z;
+  if (FX()) { var $T=Ds(); $p=$T.l(); h=$T.l(); g=$T.l(); f=$T.l(); e=$T.l(); d=$T.l(); c=$T.l(); b=$T.l(); a=$T.l(); }
   _:while (true) { switch ($p) {
     case 0:
       // A chest screen's search box (JasprChestSearch below) takes its own clicks.
@@ -962,7 +1036,11 @@ function JasprRecipeBookClick(a, b, c, d) {
       }
       if (JasprRecipeBook.disabled()) return;
       e = JasprRecipeBook.of(a);
-      if (e === null || e.inventory === null) return;
+      if (e === null) return;
+      // Shift + right click on an item in the window: the Find menu (a plain right click still halves the stack).
+      f = JasprRecipeBook.findSlotFor(e, (b | 0) - (a.is | 0), (c | 0) - (a.l7 | 0), d | 0);
+      if (f >= 0) { $p = 7; continue _; }
+      if (e.inventory === null) { e.menu = null; return; }   // between a click script and the next scan: the screen's
       f = JasprRecipeBook.planClicks(e, (b | 0) - (a.is | 0), (c | 0) - (a.l7 | 0), d | 0);
       // null means the click was not on the panel, so the screen must still see it.
       // An empty script means it was ours and there is simply nothing to send.
@@ -993,9 +1071,25 @@ function JasprRecipeBookClick(a, b, c, d) {
     case 6:
       JasprRecipeBookSend(a, g, "jaspr:sort"); if (B()) break _;
       return;
+    case 7:
+      // Find on a slot: read its item. An empty slot leaves the click to the screen (and closes a menu left open).
+      g = JasprRecipeBook.slotAt(e, f);
+      if (g === null) { e.menu = null; return; }
+      $p = 8;
+    case 8:
+      $z = g.eew(); if (B()) break _;
+      h = $z;
+      if (JasprRecipeBook.empty(h)) { e.menu = null; return; }
+      JasprRecipeBookHandled = true;
+      $p = 9;
+    case 9:
+      // Its name is the menu's title (the game's own getDisplayName, as the chest search asks it).
+      $z = EJv(h); if (B()) break _;
+      JasprRecipeBook.openSlotMenu(e, f, (b | 0) - (a.is | 0), (c | 0) - (a.l7 | 0), $rt_ustr($z));
+      return;
     default: FT();
   } }
-  Ds().s(a,b,c,d,e,f,g,$p);
+  Ds().s(a,b,c,d,e,f,g,h,$p);
 }
 
 /* Entry points the patched screen methods call. Each one swallows its own errors: a screen
@@ -1369,6 +1463,8 @@ if (typeof window !== "undefined" && window) {
           scroll: book ? book.scroll : 0,
           menu: !!(book && book.menu),
           menus: JasprRecipeBook.menus | 0,
+          slotMenus: JasprRecipeBook.slotMenus | 0,
+          slotFinds: JasprRecipeBook.slotFinds | 0,
           finds: JasprRecipeBook.finds | 0,
           sorts: JasprRecipeBook.sorts | 0
         };

@@ -5,7 +5,9 @@ works like the original mod: it lists **every recipe you can craft right now** f
 slots that fits the open grid (2x2 inventory or 3x3 table), grouped by creative tab and sorted by name.
 
 - **Click** a recipe: loads the grid and crafts one. **Shift-click**: as many as the inventory allows.
-  **Right-click**: only loads the grid. Search (2+ letters) covers all recipes; ones you cannot make yet
+  **Right-click**: only loads the grid (since 2026-10-03 it opens a small menu: Find in chests, Fill grid,
+  Cancel, see CHEST_FINDER.md; and since 2026-10-08 **Shift + right-click on any item of the window** opens
+  Find in chests for that item). Search (2+ letters) covers all recipes; ones you cannot make yet
   are dimmed and say what is missing ("missing ingredients" / "needs a crafting table"). Hover shows the
   ingredients under the window, cycling through alternatives (coal/charcoal, any planks, any wool...).
 - **Source of truth**: `client-mods/recipe-table.json`, an export of every crafting recipe the real
