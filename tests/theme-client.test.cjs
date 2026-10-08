@@ -39,6 +39,14 @@ test('palette: the wide window, the gear column and the journal draw in the colo
   assert.equal(c('gold'), argbHex('frameHi'));
   assert.equal(c('line'), argbHex('frameShade'));
   assert.equal(c('white'), argbHex('label'), 'the main text colour is the window title colour');
+  // The Easier Crafting search box and the Chest Finder's box and Sort button: the module carries the stage's new lines, in palette colours.
+  const rb = read('client-mods/recipe-book-teavm.js');
+  const palette = new Set(Object.values(P).map(h => h.slice(1).toUpperCase()).concat(['A9772C', '5E3D14', 'C58A35']));
+  for (const [from, to] of stage.RB_FROM_TO) {
+    assert.equal(rb.split(to).length - 1, 1, 'the module carries the new lines: ' + to.slice(0, 60));
+    assert.equal(rb.includes(from), false, 'and no longer the old ones');
+    for (const c of to.match(/0xFF[0-9A-F]{6}/g)) assert.ok(palette.has(c.slice(4)), c + ' is a palette colour');
+  }
   // The title colour of the client.
   assert.equal(stage.LABEL, parseInt(P.label.slice(1), 16));
   assert.equal(theme.argb('#F0B552'), 0xFFF0B552 | 0);
@@ -70,17 +78,18 @@ function liveTextures() {
   return Object.keys(theme.TEXTURES).map(t => [t, by.get('assets/minecraft/textures/gui/' + t)]);
 }
 const hexAt = (img, x, y) => { const i = (y * img.w + x) * 4; return [img.rgba[i], img.rgba[i + 1], img.rgba[i + 2], img.rgba[i + 3]].map(v => v.toString(16).padStart(2, '0')).join(''); };
-test('textures: every shape and every pixel outside the windows is kept; only the colours of the window change', {skip: !hasEpk}, () => {
+const inSprite = (spec, x, y) => (spec.sprites || []).some(s => x >= s.rect[0] && y >= s.rect[1] && x < s.rect[2] && y < s.rect[3]);
+test('textures: every shape and every pixel outside the windows and their sprites is kept; only colours change', {skip: !hasEpk}, () => {
   for (const [texture, bytes] of liveTextures()) {
     assert.ok(bytes, texture + ' exists in the archive');
     const before = png.decode(bytes), spec = theme.TEXTURES[texture];
-    // The live archive may already carry the theme; the vanilla reference is the other way round then.
+    // The live archive may already carry (part of) the theme; whatever is vanilla in it is recoloured, the rest stays.
     const after = theme.retheme(before, texture);
     assert.equal(after.w, before.w); assert.equal(after.h, before.h);
     for (let y = 0; y < before.h; y++) for (let x = 0; x < before.w; x++) {
       const i = (y * before.w + x) * 4, inside = x < spec.w && y < spec.h;
       assert.equal(after.rgba[i + 3] === 0, before.rgba[i + 3] === 0, `${texture}: transparency at ${x},${y}`);
-      if (!inside && !spec.sheet) assert.deepEqual(after.rgba.subarray(i, i + 4), before.rgba.subarray(i, i + 4), `${texture}: pixel ${x},${y} outside the window changed`);
+      if (!inside && !spec.sheet && !inSprite(spec, x, y)) assert.deepEqual(after.rgba.subarray(i, i + 4), before.rgba.subarray(i, i + 4), `${texture}: pixel ${x},${y} outside the window changed`);
     }
     // Idempotent: a themed texture stays as it is.
     if (spec.sheet) assert.deepEqual(theme.retheme(after, texture).rgba, after.rgba, texture + ' recolours once'); else assert.equal(theme.retheme(after, texture), after, texture + ' recolours once');
@@ -88,7 +97,9 @@ test('textures: every shape and every pixel outside the windows is kept; only th
     if (!spec.sheet) {
       // No vanilla grey is left in the window.
       const left = new Set();
-      for (let y = 0; y < spec.h; y++) for (let x = 0; x < spec.w; x++) { const c = hexAt(after, x, y); if (['c6c6c6ff', '8b8b8bff', '373737ff', '555555ff', 'ffffffff', '000000ff'].includes(c)) left.add(c); }
+      const vanilla = ['c6c6c6ff', '8b8b8bff', '373737ff', '555555ff', 'ffffffff', '000000ff', '686868ff'];
+      for (let y = 0; y < spec.h; y++) for (let x = 0; x < spec.w; x++) { const c = hexAt(after, x, y); if (vanilla.includes(c)) left.add(c); }
+      for (const s of spec.sprites || []) for (let y = s.rect[1]; y < s.rect[3]; y++) for (let x = s.rect[0]; x < s.rect[2]; x++) { const c = hexAt(after, x, y); if (vanilla.includes(c)) left.add('sprite ' + c); }
       assert.deepEqual([...left], [], texture + ' still has vanilla colours');
       assert.equal(hexAt(after, 2, 1), P.frameHi.slice(1).toLowerCase() + 'ff', 'the frame highlight starts at 2,1 as in the vanilla texture');
     }
@@ -120,26 +131,51 @@ test('textures: the survival window keeps its 46 slot cells, each a dark top/lef
   assert.equal(hexAt(img, 144, 168), hexAt(before, 144, 168));
 });
 
+test('textures: containers keep their drawings readable (a furnace: unlit outlines bronze, lit sprites cream and orange; slots as sockets)', {skip: !hasEpk}, () => {
+  const [, bytes] = liveTextures().find(([t]) => t === 'container/furnace.png');
+  const img = theme.retheme(png.decode(bytes), 'container/furnace.png');
+  const px = (x, y) => '#' + hexAt(img, x, y).slice(0, 6), want = n => P[n].toLowerCase();
+  assert.equal(px(90, 42), want('frameShade'), 'the unlit arrow outline');
+  assert.equal(px(60, 34), want('body'), 'the window body');
+  assert.equal(px(56, 17), want('slot'), 'a slot (the fuel slot)');
+  assert.equal(px(178, 21), want('label'), 'the lit arrow sprite is cream');
+  assert.equal(px(177, 0), '#d84c45', 'the flame keeps its own colours');
+  assert.equal(px(190, 28), want('body'), 'the sprite background is the window body, so a lit sprite blends in');
+  // Windows with a recess draw a night scene in it (the horse), the beacon has its dark panel.
+  const horse = theme.retheme(png.decode(liveTextures().find(([t]) => t === 'container/horse.png')[1]), 'container/horse.png');
+  assert.notEqual(hexAt(horse, 40, 40), '000000ff', 'the horse recess is no longer black');
+  const beacon = theme.retheme(png.decode(liveTextures().find(([t]) => t === 'container/beacon.png')[1]), 'container/beacon.png');
+  assert.equal('#' + hexAt(beacon, 60, 60).slice(0, 6), want('panel'), 'the beacon panel');
+});
+
 // ---------------------------------------------------------------------------------------------------- the client
 const hasLive = fs.existsSync(LIVE);
-test('stage: two title colours and the gear column block, nothing else; reversible byte for byte and stable', {skip: !hasLive}, () => {
+test('stage: the window titles and the gear column block, nothing else; reversible byte for byte and stable', {skip: !hasLive}, () => {
   const raw = fs.readFileSync(LIVE, 'latin1');
   const built = stage.build(raw);
   assert.equal(stage.strip(built.result), built.base);
   assert.equal(stage.apply(stage.strip(built.result)), built.result);
   assert.equal(stage.build(built.result).result, built.result, 'building on a client that already carries the stage changes nothing');
-  assert.equal(built.result.split(stage.JT).length - 1, 2, 'two marked edits');
-  assert.equal(built.result.split(String(stage.LABEL)).length - 1 >= 2, true);
+  assert.equal(built.result.split(stage.JT).length - 1, stage.EDITS.reduce((n, e) => n + e[3], 0), 'one marked edit per title');
+  assert.equal(stage.EDITS.length, 13, 'thirteen title-drawing functions');
   const body = name => { const i = built.result.indexOf('\nfunction ' + name + '(') + 1; return built.result.slice(i, built.result.indexOf('\nfunction ', i + 5)); };
   assert.ok(body('E3x').includes('g=97;b=8;c=' + stage.JT + stage.LABEL + ';$p=2;case 2:Efa(d,e,g,b,c);'), '"Crafting" in the survival inventory');
   assert.ok(body('Gzj').includes('g=8;b=6;c=' + stage.JT + stage.LABEL + ';$p=6;case 6:Efa(f,e,g,b,c);'), 'the tab name in the creative inventory');
+  assert.ok(body('CNC').includes('g=28;b=6;c=' + stage.JT + stage.LABEL + ';$p=2;') && body('CNC').includes('g=' + stage.JT + stage.LABEL + ';$p=4;'), 'the crafting table: its title and "Inventory"');
+  assert.ok(body('F84').includes('g=60;b=6;c=' + stage.JT + stage.LABEL + ';'), 'the anvil');
+  // Every container window's title is cream now; the one dark title left in the client is the advancements screen (not a container).
+  const dark = built.result.split('\nfunction ').slice(1).filter(b => b.includes('4210752')).map(b => b.slice(0, b.indexOf('(')));
+  assert.deepEqual(dark, ['CDJ'], 'only the advancements screen keeps the dark title colour');
   assert.equal(built.result.split(stage.GEAR_TO).length - 1, 1, 'the gear column colours');
   assert.equal(built.base.split(stage.GEAR_FROM).length - 1 + built.base.split(stage.GEAR_TO).length - 1, 1);
-  // The size of the change is the two literals and the block: nothing else moved.
+  for (const [from, to, what] of stage.BLOCKS) {
+    assert.equal(built.result.split(to).length - 1, 1, what + ': themed once');
+    assert.equal(built.base.split(from).length - 1 + built.base.split(to).length - 1, 1, what + ': one place in the unthemed client');
+    assert.equal(built.result.split(from).length - 1, 0, what + ': the old text is gone');
+  }
+  // The size of the change is the literals and the block: nothing else moved.
   const added = Buffer.byteLength(built.result, 'latin1') - Buffer.byteLength(built.base, 'latin1');
-  assert.ok(added > 0 && added < 400, 'added ' + added + ' bytes');
-  // Every other window keeps the dark title colour.
-  assert.ok(built.result.split('4210752').length - 1 >= 12, 'chests, furnaces ... keep their dark titles');
+  assert.ok(added > 0 && added < 600, 'added ' + added + ' bytes');
 });
 
 test('stacking: every other stage still rebuilds on a client that carries this one, and the stages commute', {skip: !hasLive}, () => {

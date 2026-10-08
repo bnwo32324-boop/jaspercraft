@@ -254,10 +254,10 @@ test('Sort button: beside the box, sends "sort <window id>" on jaspr:sort, keeps
   const button = CS.of(chest.gui).sort;
   assert.ok(ops.some(o => o.op === 'text' && o.s === 'Sort'), 'labelled');
   const at = {x: chest.gui.is + button.x + 5, y: chest.gui.l7 + button.y + 5};
-  // hovered: white border
+  // hovered: cream border (the JasperCraft look; it was white)
   log.length = 0; CS.of(chest.gui).scanAt = 0;
   ctx.JasprChestSearchDraw(chest.gui, at.x, at.y, chest.inv);
-  assert.ok(log.some(o => o.op === 'rect' && o.color === 0xFFFFFFFF && o.w === button.w + 2), 'hover');
+  assert.ok(log.some(o => o.op === 'rect' && o.color === 0xFFF4E6BC && o.w === button.w + 2), 'hover');
   sent.length = 0; log.length = 0;
   const before = RB.sorts | 0;
   ctx.JasprRecipeBookClick(chest.gui, at.x, at.y, 0);

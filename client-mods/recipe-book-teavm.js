@@ -353,8 +353,8 @@ var JasprRecipeBook = (function () {
     // Search box, drawn rather than borrowed: a native text field is several more suspending
     // calls per frame for a rectangle, a caret and a string.
     book.searchBox = {x: xOffset, y: y, w: book.textBoxSize, h: SIZE};
-    rects.push({x: xOffset, y: y, w: book.textBoxSize, h: SIZE, color: book.focused ? 0xFF303030 : 0xFF1A1A1A});
-    rects.push({x: xOffset + 1, y: y + 1, w: book.textBoxSize - 2, h: SIZE - 2, color: 0xFF000000});
+    rects.push({x: xOffset, y: y, w: book.textBoxSize, h: SIZE, color: book.focused ? 0xFF3C8791 : 0xFF0E4450});
+    rects.push({x: xOffset + 1, y: y + 1, w: book.textBoxSize - 2, h: SIZE - 2, color: 0xFF04141A});
     var shown = book.search || (book.focused ? "" : "Search\u2026");
     if (book.focused && ((Date.now() / 500) | 0) % 2 === 0) shown += "_";
     texts.push({s: shown, x: xOffset + 4, y: y + 6, color: book.search ? 0xFFFFFF : 0x808080});
@@ -1179,10 +1179,10 @@ var JasprChestSearch = (function () {
           rects.push({x: x + 16, y: y, w: 1, h: 16, color: 0xFFFFC000});
         }
       }
-      var border = st.focused ? 0xFFFFFFFF : 0xFF8B8B8B;
+      var border = st.focused ? 0xFFF4E6BC : 0xFF3C8791;
       if (active) border = st.found ? 0xFFFFC000 : 0xFFFF5555;
       rects.push({x: b.x - 1, y: b.y - 1, w: b.w + 2, h: b.h + 2, color: border});
-      rects.push({x: b.x, y: b.y, w: b.w, h: b.h, color: 0xFF000000});
+      rects.push({x: b.x, y: b.y, w: b.w, h: b.h, color: 0xFF04141A});
       var count = active ? String(st.found) : "";
       var room = Math.max(1, ((b.w - 4 - (count ? 6 * count.length + 3 : 0)) / 6) | 0) - (st.focused ? 1 : 0);
       var shown = st.search || (st.focused ? "" : "Search\u2026");
@@ -1191,8 +1191,8 @@ var JasprChestSearch = (function () {
       texts.push({s: shown, x: b.x + 2, y: b.y + 2, color: st.search ? 0xFFFFFF : 0x808080});
       if (count) texts.push({s: count, x: b.x + b.w - 2 - 6 * count.length, y: b.y + 2, color: st.found ? 0xFFC000 : 0xFF5555});
       var sb = st.sort, hot = inside(sb, mouseX, mouseY), pressed = Date.now() - st.sortAt < 400;
-      rects.push({x: sb.x - 1, y: sb.y - 1, w: sb.w + 2, h: sb.h + 2, color: hot ? 0xFFFFFFFF : 0xFF8B8B8B});
-      rects.push({x: sb.x, y: sb.y, w: sb.w, h: sb.h, color: pressed ? 0xFF2E5A2E : hot ? 0xFF4A4A6A : 0xFF373737});
+      rects.push({x: sb.x - 1, y: sb.y - 1, w: sb.w + 2, h: sb.h + 2, color: hot ? 0xFFF4E6BC : 0xFFF0B552});
+      rects.push({x: sb.x, y: sb.y, w: sb.w, h: sb.h, color: pressed ? 0xFF5E3D14 : hot ? 0xFFC58A35 : 0xFFA9772C});
       texts.push({s: "Sort", x: sb.x + 2, y: sb.y + 2, color: pressed ? 0x55FF55 : 0xFFFFFF});
       return {rects: rects, texts: texts};
     } catch (error) { return die("plan", error); }

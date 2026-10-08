@@ -2,14 +2,16 @@
 /* The JasperCraft look of the inventory, client half (owner, 2026-10-07: "make the whole inventory fit the theme of Jasper Craft ...
  * a thematic, superficial change. Don't change any of the logic."). The inventory textures are recoloured in the resource archive
  * (scripts/build-theme-pack.cjs) and the widened window, the gear column and the Field Journal draw in the same palette from their own
- * modules. What is left is the title text of the two recoloured windows, drawn dark grey (4210752) on the old light grey body: it
- * becomes cream (0xF4E6BC) on the new teal one. Two literals, nothing else:
- *   E3x  GuiInventory.drawGuiContainerForegroundLayer  "Crafting" at 97, 8
- *   Gzj  GuiContainerCreative.drawGuiContainerForegroundLayer  the tab's name at 8, 6
- * Every other window (chests, crafting table, furnace ...) keeps its own grey look and its dark text.
- * The gear column's colours (client-mods/gear-teavm.js, a fenced module inside classes.js that is built from a catalogue file the gear
- * builder keeps outside the repository) are recoloured here as one exact text block inside that module instead of rebuilding the
- * stage: strip() puts the old block back, and a gear stage rebuilt from the changed module already carries the new one.
+ * modules. What is left is the title text of the recoloured windows, drawn dark grey (4210752) on the old light grey body: it becomes
+ * cream (0xF4E6BC) on the new teal one. One literal in each of these functions (every container window has its own), nothing else:
+ *   E3x survival inventory ("Crafting"), Gzj creative (the tab's name), CNC crafting table (+ "Inventory"), DUK / D2Q chests and shulker
+ *   boxes, C9e / FdZ hoppers and horses, CND / DRC / FQN / D1r furnace, brewing stand, dispenser and the villager's trade window, FZh the
+ *   enchanting table, F84 the anvil. The advancements screen (CDJ) is not a container window and keeps its dark title.
+ * Colours inside two fenced modules are swapped here as exact text blocks instead of rebuilding their stages: the gear column
+ * (client-mods/gear-teavm.js, built from a catalogue file the gear builder keeps outside the repository) and the Easier Crafting /
+ * Chest Finder search boxes and Sort button (client-mods/recipe-book-teavm.js; its stage sits under the wide-inventory one, which has to
+ * be taken off before it could be rebuilt). strip() puts the old blocks back, and a stage rebuilt from the changed module already
+ * carries the new ones.
  * Each edit names its function and how often its anchor occurs there; each patched text carries the marker JTHEME, so strip() restores the
  * input byte for byte. The result must parse and a rebuild must be stable.
  *
@@ -23,10 +25,10 @@ const sha = s => crypto.createHash('sha256').update(Buffer.from(s, 'latin1')).di
 
 function count(haystack, needle) { let n = 0, i = -1; while ((i = haystack.indexOf(needle, i + 1)) !== -1) n++; return n; }
 
+/** The title-drawing functions and how many dark title colours (4210752) each draws: the window's title and "Inventory". */
+const TITLE_SITES = [['E3x', 1], ['Gzj', 1], ['CNC', 2], ['DUK', 2], ['D2Q', 2], ['C9e', 2], ['FdZ', 2], ['CND', 2], ['DRC', 2], ['FQN', 2], ['D1r', 2], ['FZh', 2], ['F84', 1]];
 /** [function, vanilla, patched, occurrences in that function]. */
-const EDITS = [
-  ['E3x', 'g=97;b=8;c=4210752;$p=2;case 2:Efa(d,e,g,b,c);', 'g=97;b=8;c=' + JT + LABEL + ';$p=2;case 2:Efa(d,e,g,b,c);', 1],
-  ['Gzj', 'g=8;b=6;c=4210752;$p=6;case 6:Efa(f,e,g,b,c);', 'g=8;b=6;c=' + JT + LABEL + ';$p=6;case 6:Efa(f,e,g,b,c);', 1]];
+const EDITS = TITLE_SITES.map(([fn, n]) => [fn, '4210752', JT + LABEL, n]);
 
 /** The plan() lines of the gear column that choose colours, before and after (client-mods/gear-teavm.js). */
 const GEAR_FROM = [
@@ -53,6 +55,22 @@ const GEAR_TO = [
   '        r(sx, sy + 16, 17, 1, 0xFF3C8791); r(sx + 16, sy, 1, 17, 0xFF3C8791);',
   '        r(sx, sy, 16, 16, 0xFF0B2F37);'].join('\n');
 
+/** The search boxes and the Sort button of the Easier Crafting / Chest Finder module (client-mods/recipe-book-teavm.js): exact lines
+ * before and after. They draw in near-black and grey, which sits oddly on the teal windows. */
+const RB_FROM_TO = [
+  [['    rects.push({x: xOffset, y: y, w: book.textBoxSize, h: SIZE, color: book.focused ? 0xFF303030 : 0xFF1A1A1A});',
+    '    rects.push({x: xOffset + 1, y: y + 1, w: book.textBoxSize - 2, h: SIZE - 2, color: 0xFF000000});'].join('\n'),
+  ['    rects.push({x: xOffset, y: y, w: book.textBoxSize, h: SIZE, color: book.focused ? 0xFF3C8791 : 0xFF0E4450});',
+    '    rects.push({x: xOffset + 1, y: y + 1, w: book.textBoxSize - 2, h: SIZE - 2, color: 0xFF04141A});'].join('\n')],
+  ['      var border = st.focused ? 0xFFFFFFFF : 0xFF8B8B8B;', '      var border = st.focused ? 0xFFF4E6BC : 0xFF3C8791;'],
+  ['      rects.push({x: b.x, y: b.y, w: b.w, h: b.h, color: 0xFF000000});', '      rects.push({x: b.x, y: b.y, w: b.w, h: b.h, color: 0xFF04141A});'],
+  [['      rects.push({x: sb.x - 1, y: sb.y - 1, w: sb.w + 2, h: sb.h + 2, color: hot ? 0xFFFFFFFF : 0xFF8B8B8B});',
+    '      rects.push({x: sb.x, y: sb.y, w: sb.w, h: sb.h, color: pressed ? 0xFF2E5A2E : hot ? 0xFF4A4A6A : 0xFF373737});'].join('\n'),
+  ['      rects.push({x: sb.x - 1, y: sb.y - 1, w: sb.w + 2, h: sb.h + 2, color: hot ? 0xFFF4E6BC : 0xFFF0B552});',
+    '      rects.push({x: sb.x, y: sb.y, w: sb.w, h: sb.h, color: pressed ? 0xFF5E3D14 : hot ? 0xFFC58A35 : 0xFFA9772C});'].join('\n')]];
+/** Every text block of the client that is swapped as a whole: [before, after, what]. */
+const BLOCKS = [[GEAR_FROM, GEAR_TO, 'the gear column colours'], ...RB_FROM_TO.map(([from, to], i) => [from, to, 'search box / Sort button colours #' + i])];
+
 function fnRange(text, name) {
   const head = '\nfunction ' + name + '(';
   const at = text.indexOf(head);
@@ -69,11 +87,13 @@ function editIn(text, name, from, to, expected, label) {
 
 function strip(text) {
   let out = text;
-  if (count(out, GEAR_TO) > 1) throw new Error('gear colour block occurs more than once');
-  if (count(out, GEAR_TO) === 1) out = out.split(GEAR_TO).join(GEAR_FROM);
+  for (const [from, to, what] of BLOCKS) {
+    if (count(out, to) > 1) throw new Error(what + ': the block occurs more than once');
+    if (count(out, to) === 1) out = out.split(to).join(from);
+  }
   for (let i = EDITS.length - 1; i >= 0; i--) {
-    const [fn, from, to, n] = EDITS[i];
-    if (count(out, to) > 0) out = editIn(out, fn, to, from, n, 'strip#' + i);
+    const [fn, from, to, n] = EDITS[i], [s, e] = fnRange(out, fn);
+    if (count(out.slice(s, e), to) > 0) out = editIn(out, fn, to, from, n, 'strip#' + i);
   }
   if (out.includes(JT)) throw new Error('theme residue after strip');
   return out;
@@ -81,10 +101,12 @@ function strip(text) {
 function apply(base) {
   let out = base;
   EDITS.forEach(([fn, from, to, n], i) => { out = editIn(out, fn, from, to, n, 'edit#' + i); });
-  const gear = count(out, GEAR_FROM);
-  if (gear > 1) throw new Error('gear colour block occurs more than once');
-  if (gear === 1) out = out.split(GEAR_FROM).join(GEAR_TO);
-  else if (count(out, GEAR_TO) !== 1) throw new Error('the gear column colour block was not found (is the gear stage in the client?)');
+  for (const [from, to, what] of BLOCKS) {
+    const n = count(out, from);
+    if (n > 1) throw new Error(what + ': the block occurs more than once');
+    if (n === 1) out = out.split(from).join(to);
+    else if (count(out, to) !== 1) throw new Error(what + ': the block was not found (is its stage in the client?)');
+  }
   return out;
 }
 function build(raw) {
@@ -114,4 +136,4 @@ if (require.main === module) {
       addedBytes: Buffer.byteLength(result, 'latin1') - Buffer.byteLength(base, 'latin1')}, null, 2));
   }
 }
-module.exports = {build, strip, apply, EDITS, JT, LABEL, GEAR_FROM, GEAR_TO};
+module.exports = {build, strip, apply, EDITS, BLOCKS, JT, LABEL, GEAR_FROM, GEAR_TO, RB_FROM_TO};
