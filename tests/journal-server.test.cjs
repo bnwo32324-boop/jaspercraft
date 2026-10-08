@@ -106,7 +106,11 @@ test('armament armour: the number the armour bar adds counts exactly the pieces 
   // The Journal asks through reflection, tells the client the points ("ab") and a change in them is a change worth sending.
   const sources = read(SRC + 'JournalSources.java'), rules = read(SRC + 'JournalRules.java'), plugin = read(SRC + 'JournalPlugin.java');
   assert.match(sources, /loadClass\("chat\.jaspr\.rpg\.RpgApi"\)[^]*getDeclaredMethod\("armamentArmor", org\.bukkit\.entity\.Player\.class\)/);
-  assert.match(plugin, /s\.armor = sources\.armor\(player\);/);
+  // Protection counts too (owner 2026-10-08): the armaments' points plus one per Protection level of the worn armour, read only.
+  assert.match(plugin, /s\.armor = JournalRules\.armorBonus\(sources\.armor\(player\), JournalRules\.protectionPoints\(protectionLevels\(player\)\)\);/);
+  assert.match(plugin, /piece\.getEnchantmentLevel\(org\.bukkit\.enchantments\.Enchantment\.PROTECTION_ENVIRONMENTAL\)/, 'Protection itself, not the one-kind protections');
+  assert.match(plugin, /player\.getInventory\(\)\.getArmorContents\(\)/, 'the worn armour only');
+  assert.match(rules, /MAX_PROTECTION_POINTS = 20;/, 'vanilla\'s cap on enchantment protection');
   assert.match(rules, /if \(armor > 0\) b\.append\(",\\"ab\\":"\)\.append\(Math\.min\(MAX_ARMOR_BONUS, armor\)\);/);
   assert.match(plugin, /armorFail=/);
 });
@@ -137,7 +141,7 @@ test('wire format: channel, hello, bounded decode, payload only on change or hea
   // Logs: counts and names of sources only.
   for (const m of plugin.matchAll(/getLogger\(\)\.[a-z]+\(([^;]*)\);/g)) assert.doesNotMatch(m[1], /getName|getAddress|getUniqueId|password|token|cookie|ip\b/i, m[1].slice(0, 90));
   const yml = read('server/custom-plugins/JasprJournal/resources/plugin.yml');
-  assert.match(yml, /^version: 1\.0\.2$/m);
+  assert.match(yml, /^version: 1\.0\.3$/m);
   assert.match(yml, /softdepend: \[JasprApocalypse, JasprRPG, JasprInvasions, JasprDisasters, JasprGear\]/);
 });
 

@@ -101,7 +101,7 @@ public final class JournalProbe extends JavaPlugin implements Listener {
             }
             journal=plugin("JasprJournal");
             actor=new Actor("anon_0707");
-            check(journal.getDescription().getVersion().equals("1.0.2"),"Journal version");
+            check(journal.getDescription().getVersion().equals("1.0.3"),"Journal version (Protection on the armour bar)");
             check(plugin("JasprRPG").getDescription().getVersion().equals("1.3.4"),"RPG version (the armament armour door, every weapon an armament)");
         });
         if(actor==null){finish();return;}
@@ -113,6 +113,7 @@ public final class JournalProbe extends JavaPlugin implements Listener {
         phase("silent-item-effects",this::effects);
         phase("worn-trinkets",this::trinkets);
         phase("armament-armour-for-the-armour-bar",this::armamentArmour);
+        phase("protection-armour-for-the-armour-bar",this::protectionArmour);
         phase("hello-handshake-and-bounds",this::hello);
         phase("a-missing-plugin-hides-only-its-row",this::missing);
         phase("no-source-failed",()->{
@@ -379,6 +380,58 @@ public final class JournalProbe extends JavaPlugin implements Listener {
         }finally{Arrays.fill(actor.armor,null);}
         check(!panel().has("ab")&&(Integer)door.invoke(null,actor.player)==0,"everything taken off: no key, no points");
         check(door.invoke(null,new Object[]{null}).equals(0),"asking about nobody is 0");
+    }
+
+    /**
+     * The owner's report 2026-10-08 (an Emerald Helmet with Protection III, a Rare armament): "Overloaded armor bar needs to take
+     * protection enchantments into account ... This change needs to be universal." The Journal now adds one point per Protection level of
+     * every worn piece (vanilla stops enchantment protection at 20 for all pieces together) on top of the armaments' points.
+     */
+    @SuppressWarnings({"unchecked","rawtypes"})
+    private void protectionArmour() throws Exception {
+        Plugin rpg=plugin("JasprRPG");
+        ClassLoader loader=rpg.getClass().getClassLoader();
+        Class<?> armament=loader.loadClass("chat.jaspr.rpg.Armament"),rarity=loader.loadClass("chat.jaspr.rpg.Rarity");
+        Method enhance=armament.getDeclaredMethod("enhance",ItemStack.class,rarity);enhance.setAccessible(true);
+        check(!panel().has("ab"),"nothing worn: no armour key");
+        try{
+            ItemStack helmet=new ItemStack(Material.DIAMOND_HELMET);helmet.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.PROTECTION_ENVIRONMENTAL,3);
+            actor.armor[3]=helmet;
+            check(panel().has("ab")&&panel().get("ab").getAsInt()==3,"a plain helmet with Protection III adds 3: "+panel());
+            // One-kind protections guard against fire, blasts, arrows or falls only: they add nothing.
+            ItemStack boots=new ItemStack(Material.DIAMOND_BOOTS);
+            boots.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.PROTECTION_FIRE,4);boots.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.PROTECTION_FALL,4);
+            ItemStack legs=new ItemStack(Material.DIAMOND_LEGGINGS);
+            legs.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.PROTECTION_EXPLOSIONS,4);legs.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.PROTECTION_PROJECTILE,4);
+            actor.armor[0]=boots;actor.armor[1]=legs;
+            check(panel().get("ab").getAsInt()==3,"Fire, Blast, Projectile Protection and Feather Falling add nothing: "+panel());
+            // Every piece counts, any material (a leather chestplate with Protection IV).
+            ItemStack chest=new ItemStack(Material.LEATHER_CHESTPLATE);chest.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.PROTECTION_ENVIRONMENTAL,4);
+            actor.armor[2]=chest;
+            check(panel().get("ab").getAsInt()==7,"and a leather chestplate's Protection IV: 3 + 4 = 7: "+panel());
+            // The owner's case: an armament with Protection. Ancient boots (4 armour x .40 = 1.6) with Protection IV: the armament's 2 and 4 more.
+            Arrays.fill(actor.armor,null);
+            ItemStack ancient=armourPiece(Material.DIAMOND_BOOTS,"feet",4.0);ancient.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.PROTECTION_ENVIRONMENTAL,4);
+            ancient=(ItemStack)enhance.invoke(null,ancient,rarityOf(rarity,"ANCIENT"));
+            check(ancient.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.PROTECTION_ENVIRONMENTAL)==4,"the armament keeps its Protection IV");
+            actor.armor[0]=ancient;
+            check(panel().get("ab").getAsInt()==6,"Ancient boots with Protection IV: 2 + 4 = 6: "+panel());
+            // Vanilla's cap: enchantment protection stops at 20 for all pieces together.
+            Arrays.fill(actor.armor,null);
+            Material[] types={Material.DIAMOND_BOOTS,Material.DIAMOND_LEGGINGS,Material.DIAMOND_CHESTPLATE,Material.DIAMOND_HELMET};
+            for(int i=0;i<4;i++){ItemStack p=new ItemStack(types[i]);p.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.PROTECTION_ENVIRONMENTAL,10);actor.armor[i]=p;}
+            check(panel().get("ab").getAsInt()==20,"four pieces with Protection X: 40 levels, 20 points: "+panel());
+            // A change worth sending at once: the change key moves when Protection comes off.
+            String withIt=panel().toString();actor.armor[3]=new ItemStack(Material.DIAMOND_HELMET);
+            check(panel().get("ab").getAsInt()==20,"three pieces with Protection X still reach the cap (30 levels)");
+            actor.armor[2]=null;actor.armor[1]=null;
+            check(panel().get("ab").getAsInt()==10&&!panel().toString().equals(withIt),"one piece with Protection X: 10, a change worth sending: "+panel());
+            // Reading changes nothing.
+            String before=CraftItemStack.asNMSCopy(actor.armor[0]).getTag().toString();
+            panel();
+            check(CraftItemStack.asNMSCopy(actor.armor[0]).getTag().toString().equals(before),"the worn piece is untouched by asking");
+        }finally{Arrays.fill(actor.armor,null);}
+        check(!panel().has("ab"),"everything taken off: no key");
     }
 
     private void hello() throws Exception {

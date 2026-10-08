@@ -140,6 +140,21 @@ public final class JournalPlugin extends JavaPlugin implements Listener, PluginM
         }
     }
 
+    /** The Protection level of each piece of armour the player wears (0 for an empty slot or none); read only, nothing changes. */
+    static int[] protectionLevels(Player player) {
+        try {
+            org.bukkit.inventory.ItemStack[] worn = player.getInventory().getArmorContents();
+            int[] levels = new int[worn.length];
+            for (int i = 0; i < worn.length; i++) {
+                org.bukkit.inventory.ItemStack piece = worn[i];
+                levels[i] = piece == null ? 0 : piece.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.PROTECTION_ENVIRONMENTAL);
+            }
+            return levels;
+        } catch (RuntimeException unsupported) {
+            return new int[0];
+        }
+    }
+
     /** The payload as it would be sent to this player (what the real-server test inspects; nothing is sent). */
     public String panelJson(Player player) { return snapshot(player).json(true); }
 
@@ -162,7 +177,7 @@ public final class JournalPlugin extends JavaPlugin implements Listener, PluginM
         s.level = Math.max(0, Math.min(9999, player.getLevel()));
         s.xp = Math.max(0, Math.min(40, Math.round(player.getExp() * 40f)));
         s.rpg = sources.stats(id, player.getLevel());
-        s.armor = sources.armor(player);
+        s.armor = JournalRules.armorBonus(sources.armor(player), JournalRules.protectionPoints(protectionLevels(player)));
         List<String[]> worn = sources.gear(player);
         if (worn != null) for (String[] row : worn) if (row != null && row.length > 0) s.gear(row[0], JournalRules.headline(row));
         for (PotionEffect effect : player.getActivePotionEffects()) {

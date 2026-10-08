@@ -88,3 +88,35 @@ bounds, freshness), `journal-server.test.cjs` (the door is the same test the dam
 boots 1.6 -> 2, four rarities 5.09 -> 5, vanilla armour, another slot's modifier, a sword, the 200 cap, nothing written) and, in the
 real client against the real server, `journal-browser.cjs`: leather pieces with 14 + 4 = 18 armour draw nine white icons and an empty
 outline, the same boots as an Ancient armament draw ten, taking the armament off draws nine again.
+
+## Protection counts (2026-10-08)
+
+Owner, with a screenshot of an Emerald Helmet (Rare armament, Level 6, "+11% protection") that also carried **Protection III**:
+"Overloaded armor bar needs to take protection enchantments into account and update the player's armor bar accordingly. It's not doing
+so with the emerald items I have equipped. This change needs to be universal."
+
+Protection is not an armour attribute either, so the bar ignored it. **Now** the Field Journal (JasprJournal 1.0.3) adds **one armour
+point per level of Protection on every worn piece of armour**, of any material, armament or not, on top of the armaments' points:
+
+| Worn | Points added |
+| --- | --- |
+| a helmet with Protection III | 3 |
+| a full set with Protection IV | 16 |
+| Protection X on every piece | 20 (the cap) |
+| Ancient boots (4 armour) with Protection IV | 2 (armament) + 4 = 6 |
+
+Why a level is a point: in 1.12 each level of Protection is one point of enchantment protection, which turns aside 4% of any damage, the
+same 4% an armour point is worth; the game stops enchantment protection at 20 points (80%) for all worn pieces together, so the
+bar's extra from Protection stops at 20 too. **Fire, Blast and Projectile Protection and Feather Falling are not counted**: each guards
+against one kind of damage only, and the bar would overstate what they do against everything else. Only the **worn armour** counts (the
+helmet, chestplate, leggings and boots slots), never the item in hand. The Thorns III on the owner's chestplate is not protection and adds
+nothing.
+
+**Display only**, like the armaments' points: what a blow does is still decided by the game. `ab` carries the sum
+(`JournalRules.armorBonus`, bounded to 200), so **no client change is needed**: the bar, the Journal's client module and the cache key are
+as before. Putting Protection on or taking it off shows within about a second.
+
+Tests: `JournalRulesTest` (the points and the cap, never negative, the sum bounded), `journal-server.test.cjs` (wiring: Protection itself,
+the worn armour only, the cap), and the real-Paper `journal-smoke.cjs` (`protection-armour-for-the-armour-bar`: a plain helmet with
+Protection III adds 3; Fire/Blast/Projectile/Feather Falling add nothing; a leather chestplate's Protection IV; Ancient boots with
+Protection IV = 6; four pieces with Protection X = 20; reading changes nothing).

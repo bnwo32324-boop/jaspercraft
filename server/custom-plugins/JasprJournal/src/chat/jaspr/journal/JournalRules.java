@@ -20,8 +20,10 @@ final class JournalRules {
     static final int MAX_EFFECTS = 12;
     /** Most worn trinkets sent (the gear column has seven slots). */
     static final int MAX_GEAR = 8;
-    /** Most armour points the worn armaments add to the armour bar (what the stat plugin may report and the client accepts). */
+    /** Most armour points the worn armaments and Protection add to the armour bar (what the stat plugin may report and the client accepts). */
     static final int MAX_ARMOR_BONUS = 200;
+    /** Most points Protection adds: vanilla stops the enchantment protection of all worn armour together at 20 (80% less damage). */
+    static final int MAX_PROTECTION_POINTS = 20;
     /** Effects kept alive by an item are refreshed every second as a 70 tick effect; anything shorter than this is "while worn". */
     static final int MAINTAINED_TICKS = 100;
 
@@ -118,6 +120,27 @@ final class JournalRules {
         return ticksLeft <= MAINTAINED_TICKS ? 0 : Math.min(3599, ticksLeft / 20);
     }
 
+    // ------------------------------------------------------------------------------------------------- Protection armour
+    /**
+     * The armour points the Protection enchantment on the worn armour adds to the armour bar (owner, 2026-10-08: "Overloaded armor bar
+     * needs to take protection enchantments into account ... This change needs to be universal"): one point per level. In 1.12 each
+     * Protection level is one point of enchantment protection, 4% less damage of every kind (all worn pieces together stop at 20 points,
+     * 80%), and an armour point is worth the same 4%, so the bar shows a level as a point. Fire, Blast and Projectile Protection and
+     * Feather Falling guard against one kind of damage only and are not counted. {@code levels}: the Protection level of each worn piece.
+     */
+    static int protectionPoints(int[] levels) {
+        if (levels == null) return 0;
+        long sum = 0L;
+        for (int level : levels) if (level > 0) sum += level;
+        return (int) Math.min(MAX_PROTECTION_POINTS, sum);
+    }
+
+    /** What the armour bar gets on top of the armour attribute: the armaments' points and Protection's, bounded. */
+    static int armorBonus(int armamentPoints, int protectionPoints) {
+        long sum = (long) Math.max(0, armamentPoints) + Math.max(0, protectionPoints);
+        return (int) Math.min(MAX_ARMOR_BONUS, sum);
+    }
+
     // ----------------------------------------------------------------------------------------------------- the payload
     /** What one player's panel shows. Absent parts are null and are left out of the payload (the client hides their rows). */
     static final class Snapshot {
@@ -130,7 +153,7 @@ final class JournalRules {
         int level;
         int xp;                   // 0..40: how full the experience bar is
         int[] rpg;                // {ranks, raised, total, affordable, cheapest}
-        int armor;                // armour points the worn armaments add to the armour bar (0: none, and the key is left out)
+        int armor;                // armour points the worn armaments and Protection add to the armour bar (0: none, and the key is left out)
         final List<String> effectNames = new ArrayList<String>();
         final List<Integer> effectSeconds = new ArrayList<Integer>();
         /** The trinkets worn in the gear column: {title, headline effect}. */

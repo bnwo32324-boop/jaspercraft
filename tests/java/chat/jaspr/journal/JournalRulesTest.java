@@ -180,6 +180,15 @@ public final class JournalRulesTest {
         armedWorn.armor = 2; armedWorn.gear("Rebreather", "");
         String aw = armedWorn.json(true);
         check(aw.indexOf("\"ab\"") > 0 && aw.indexOf("\"ab\"") < aw.indexOf("\"gw\""), "the armour comes before the trinkets: " + aw);
+        // Protection (owner 2026-10-08): one point per level of every worn piece, the vanilla cap of 20 for all of them together.
+        check(JournalRules.protectionPoints(new int[] {0, 0, 0, 3}) == 3, "an Emerald Helmet with Protection III: 3");
+        check(JournalRules.protectionPoints(new int[] {4, 4, 4, 4}) == 16, "a full Protection IV set: 16");
+        check(JournalRules.protectionPoints(new int[] {10, 10, 0, 0}) == 20 && JournalRules.protectionPoints(new int[] {32767, 32767, 32767, 32767}) == 20, "stops at 20, as vanilla's enchantment protection");
+        check(JournalRules.protectionPoints(new int[] {-5, 2, 0, 0}) == 2 && JournalRules.protectionPoints(null) == 0 && JournalRules.protectionPoints(new int[0]) == 0, "never negative, nothing worn is 0");
+        // Both together on top of the armour attribute, bounded.
+        check(JournalRules.armorBonus(2, 3) == 5, "an Ancient armament's 2 points and Protection III: 5");
+        check(JournalRules.armorBonus(0, 0) == 0 && JournalRules.armorBonus(-4, 3) == 3 && JournalRules.armorBonus(3, -1) == 3, "never negative");
+        check(JournalRules.armorBonus(200, 20) == JournalRules.MAX_ARMOR_BONUS && JournalRules.armorBonus(Integer.MAX_VALUE, Integer.MAX_VALUE) == JournalRules.MAX_ARMOR_BONUS, "bounded");
         System.out.println("SAMPLE " + a);
     }
 }

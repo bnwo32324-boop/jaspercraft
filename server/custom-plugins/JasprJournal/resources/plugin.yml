@@ -1,5 +1,5 @@
 name: JasprJournal
-version: 1.0.2
+version: 1.0.3
 main: chat.jaspr.journal.JournalPlugin
 author: Jaspr
 description: The Field Journal panel in the wide inventory - event forecast, character summary and the effects items keep on you.
