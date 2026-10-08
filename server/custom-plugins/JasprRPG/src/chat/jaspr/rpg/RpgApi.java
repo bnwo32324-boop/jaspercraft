@@ -1,6 +1,11 @@
 package chat.jaspr.rpg;
 
 import java.util.UUID;
+import net.minecraft.server.v1_12_R1.AttributeModifier;
+import net.minecraft.server.v1_12_R1.EnumItemSlot;
+import org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 /**
  * The little other plugins may ask of the stat sheet (called through reflection, so nobody needs this plugin at
@@ -8,6 +13,11 @@ import java.util.UUID;
  */
 public final class RpgApi {
     private static volatile RpgPlugin plugin;
+
+    /** The worn pieces in the order Bukkit lists them (boots, leggings, chestplate, helmet) and the slot each one sits in. */
+    private static final EnumItemSlot[] WORN = {EnumItemSlot.FEET, EnumItemSlot.LEGS, EnumItemSlot.CHEST, EnumItemSlot.HEAD};
+    /** Most armour points the armaments can add to the bar (the client reads a small whole number). */
+    private static final long MAX_ARMOUR_BONUS = 200L;
 
     private RpgApi() {}
 
@@ -44,6 +54,41 @@ public final class RpgApi {
             if (xpLevels >= cost) affordable++;
         }
         return new int[] {ranks, raised, total, affordable, cheapest};
+    }
+
+    /**
+     * The armour points the worn armaments add to the armour bar (the Field Journal sends them to the client, whose Overloaded
+     * Armor Bar counts them): every worn, enhanced piece of armour counts its own armour value once more by its rarity's
+     * protection bonus, so "+40% protection" on a piece with 4 armour is 1.6 points; the sum is rounded to whole points (0..200).
+     * A display value only: how much damage a piece turns aside is still decided by {@link ArmamentListener#onHurt}, exactly as
+     * before. Never changes anything; call it on the server thread.
+     */
+    public static int armamentArmor(Player player) {
+        if (player == null) return 0;
+        try {
+            ItemStack[] worn = player.getInventory().getArmorContents();
+            double extra = 0.0d;
+            for (int i = 0; i < worn.length && i < WORN.length; i++) {
+                ItemStack piece = worn[i];
+                if (!Armament.isEnhanced(piece) || !Armament.isArmour(piece)) continue;
+                double bonus = Armament.rarity(piece).bonus;
+                if (bonus > 0.0d) extra += bonus * armourOf(piece, WORN[i]);
+            }
+            return (int) Math.max(0L, Math.min(MAX_ARMOUR_BONUS, Math.round(extra)));
+        } catch (RuntimeException | LinkageError unsupported) {
+            return 0;
+        }
+    }
+
+    /** The armour points an item gives in a slot: its own armour modifiers (add operation), or the vanilla ones when it has none. */
+    static double armourOf(ItemStack piece, EnumItemSlot slot) {
+        net.minecraft.server.v1_12_R1.ItemStack nms = CraftItemStack.asNMSCopy(piece);
+        if (nms == null) return 0.0d;
+        double sum = 0.0d;
+        for (AttributeModifier modifier : nms.a(slot).get("generic.armor")) {
+            if (modifier.c() == 0) sum += modifier.d();
+        }
+        return Math.max(0.0d, sum);
     }
 
     /** Damage multiplier a player's sentry turrets get from Engineering (1.0 without it). */

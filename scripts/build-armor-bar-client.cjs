@@ -9,6 +9,11 @@
  * height (GuiIngame's own, which already allows for every row of hearts; the mod clamps health to one row for health-bar
  * mods this client does not have). The mod's Lava Waders charm overlay belongs to another mod and is not ported.
  *
+ * Armaments (owner 2026-10-07: two identical Emerald Boots, one an Ancient armament with "+40% protection", drew the same bar): the
+ * armour drawn is the client's armour attribute plus JasprJournal.armorBonus(), the whole armour points the worn armaments add (the
+ * server counts every enhanced piece's own armour once more by its rarity's protection bonus and sends the sum with the Field Journal's
+ * data; 0 without fresh data, and without the Journal stage the bar is exactly what it was). Display only: damage is unchanged.
+ *
  * Hooks GuiIngame.renderPlayerStats (DJ1): both entries into vanilla's ten-icon armour loop (with and without the
  * Regeneration bob) jump to one new state, 90, which calls JasprArmorBarDraw(gui, xStart, y, armour) and continues at
  * state 20 (the hearts). n is xStart, w the armour row's y, y the total armour value; the loop's old states stay in place
@@ -38,7 +43,14 @@ const MODULE = BEGIN + '\n' + String.raw`var JasprArmorBar = (function () {
   // (notice: client-mods/armor-bar/THIRD_PARTY_NOTICES.txt). Colours in wrap order: 2nd row orange, 3rd gold ... last repeats.
   var COLORS = [[1, 1, 1], [1, 0x55 / 255, 0], [1, 0xC7 / 255, 0x47 / 255], [0x27 / 255, 1, 0xE3 / 255], [0, 1, 0], [0x7F / 255, 0, 1]];
   var SHOW_EMPTY = true;           // vanilla's empty outlines while the bar has not wrapped (the mod's option, off there)
-  var lastArmor = -1, lastOps = null, stats = {draws: 0, wrapped: 0, recalcs: 0};
+  var lastArmor = -1, lastOps = null, stats = {draws: 0, wrapped: 0, recalcs: 0, boosted: 0};
+  // The armour the worn armaments add (owner 2026-10-07: an Ancient piece with "+40% protection" showed the same bar as the plain
+  // one). The server counts each enhanced piece's own armour once more by its rarity's bonus and the Field Journal (JasprJournal)
+  // hands the whole-point sum over; it is 0 without fresh data (an older server, the plugin off), so the bar is then vanilla's.
+  function extra() {
+    try { return typeof JasprJournal !== "undefined" && JasprJournal && typeof JasprJournal.armorBonus === "function" ? JasprJournal.armorBonus() | 0 : 0; }
+    catch (error) { return 0; }
+  }
   function op(c, dx, u, w) { return {r: c[0], g: c[1], b: c[2], dx: dx, u: u, w: w}; }
   // ArmorBar.calculateArmorIcons + OverlayEventHandler.renderArmorBar: what to draw for this armour value.
   function ops(armor) {
@@ -59,7 +71,9 @@ const MODULE = BEGIN + '\n' + String.raw`var JasprArmorBar = (function () {
   return {
     stats: stats,
     ops: ops,
+    extra: extra,
     frame: function (armor) {
+      if (armor > 0) { var more = extra(); if (more > 0) { armor += more; stats.boosted++; } }
       if (armor !== lastArmor) { lastArmor = armor; lastOps = ops(armor); stats.recalcs++; }
       if (lastOps !== null) { stats.draws++; if (armor > 20) stats.wrapped++; }
       return lastOps;

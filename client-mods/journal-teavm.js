@@ -9,6 +9,9 @@
  * Every number comes from the server (plugin JasprJournal) on the plugin channel jaspr:journal as one JSON string: the client
  * says "hello 1" when it joins, the server then sends the panel whenever it changes and at least every ten seconds. Nothing
  * else about the game is read here and nothing is sent back but the hello and the "/stats" command a button press stands for.
+ * The same message carries one more number for another part of the client: "ab", the armour points the worn armaments add (a piece
+ * with an armament counts its own armour once more by its rarity's protection bonus), which the Overloaded Armor Bar adds to the
+ * armour it draws (JasprJournal.armorBonus(); 0 while there is no fresh data, so an older server changes nothing).
  * Without data (an older server, the plugin off) the panel is simply not drawn; on phones in the contracted inventory view
  * there is no widened window, so no panel either (Expand brings both back). Nothing is hover-only: a tab, the Open Stats button
  * (its tap target runs to the bottom of the panel) and any other spot on the panel are plain taps (a spot turns the page of a
@@ -84,7 +87,7 @@ var JasprJournal = (function () {
     try { o = JSON.parse(json); } catch (error) { return null; }
     if (!o || typeof o !== "object" || o.v !== 1) return null;
     var d = {day: int(o.d, 0, 99999999, 0), phase: text(o.ph, 8) || "Morning", level: int(o.lv, 0, 9999, 0), xp: int(o.xp, 0, 40, 0),
-      moon: null, invasion: null, disaster: null, rpg: null, gear: [], fx: []};
+      moon: null, invasion: null, disaster: null, rpg: null, armor: int(o.ab, 0, 200, 0), gear: [], fx: []};
     if (o.bm !== undefined) d.moon = int(o.bm, -2, 99999, -1);
     if (o.iv instanceof Array && o.iv.length === 2) d.invasion = [int(o.iv[0], 0, 3, 0), int(o.iv[1], 0, 99999999, 0)];
     if (o.dz instanceof Array && o.dz.length === 2) d.disaster = [int(o.dz[0], 0, 2, 0), text(o.dz[1], 24)];
@@ -378,6 +381,8 @@ var JasprJournal = (function () {
   return {
     channel: function () { return $rt_str(CHANNEL); }, helloText: function () { return $rt_str(HELLO); },
     receive: receive, parse: parse, plan: plan, click: click, takeCommand: takeCommand, helloTarget: helloTarget, sent: sent,
+    // The armour points the worn armaments add (JasprRPG's protection bonus per rarity), for the Overloaded Armor Bar; 0 without fresh data.
+    armorBonus: function () { return data !== null && fresh() ? data.armor | 0 : 0; },
     tab: function () { return TABS[tab].id; }, setTab: setTab,
     status: function () { return {tab: TABS[tab].id, page: page, fresh: fresh(), hasData: data !== null, lastError: lastError, stats: JSON.parse(JSON.stringify(stats))}; }
   };

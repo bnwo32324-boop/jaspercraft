@@ -126,7 +126,7 @@ const payload = (o = {}) => JSON.stringify(Object.assign({v: 1, d: 12, ph: 'Dusk
 test('parse: a good payload is read, anything else is refused or bounded', () => {
   const {api} = load();
   const good = api.JasprJournal.parse(payload());
-  assert.deepEqual(good, {day: 12, phase: 'Dusk', level: 37, xp: 20, moon: 2, invasion: [1, 15], disaster: [1, ''], rpg: [14, 9, 45, 3, 11], gear: [],
+  assert.deepEqual(good, {day: 12, phase: 'Dusk', level: 37, xp: 20, moon: 2, invasion: [1, 15], disaster: [1, ''], rpg: [14, 9, 45, 3, 11], armor: 0, gear: [],
     fx: [{name: 'Water Breathing', seconds: 0}, {name: 'Haste II', seconds: 23}]});
   for (const bad of [null, undefined, '', '{', '[]', '"x"', 'null', '{"v":2}', '{"v":"1"}', JSON.stringify({d: 1}), 'x'.repeat(5000), payload().slice(0, 40)]) {
     assert.equal(api.JasprJournal.parse(bad), null, String(bad).slice(0, 30));
@@ -151,6 +151,24 @@ test('parse: a good payload is read, anything else is refused or bounded', () =>
   // Parts that are not sent stay null so their rows are not drawn.
   const bare = api.JasprJournal.parse('{"v":1,"d":3,"ph":"Night","lv":0,"xp":0,"fx":[]}');
   assert.deepEqual([bare.moon, bare.invasion, bare.disaster, bare.rpg], [null, null, null, null]);
+  assert.equal(bare.armor, 0, 'an older server sends no armament armour');
+  // The armour the worn armaments add (the armour bar reads it): a whole number of points, bounded, anything else is none.
+  assert.equal(api.JasprJournal.parse(payload({ab: 7})).armor, 7);
+  assert.equal(api.JasprJournal.parse(payload({ab: 7.9})).armor, 7, 'whole points');
+  for (const odd of [-3, 'x', null, [], {}, 1e12]) assert.equal(api.JasprJournal.parse(payload({ab: odd})).armor, odd === 1e12 ? 200 : 0, 'odd value ' + JSON.stringify(odd));
+});
+
+test('armour bonus: the armour bar gets the points of the armaments only while the data is fresh', () => {
+  const t = load();
+  assert.equal(t.api.JasprJournal.armorBonus(), 0, 'no data yet');
+  t.api.JasprJournal.receive(payload({ab: 4}));
+  assert.equal(t.api.JasprJournal.armorBonus(), 4);
+  t.tick(59000); assert.equal(t.api.JasprJournal.armorBonus(), 4, 'still fresh at 59 s');
+  t.tick(2000); assert.equal(t.api.JasprJournal.armorBonus(), 0, 'stale: back to the plain bar');
+  t.api.JasprJournal.receive(payload({ab: 2})); assert.equal(t.api.JasprJournal.armorBonus(), 2, 'a new packet brings it back (and changes it)');
+  t.api.JasprJournal.receive(payload()); assert.equal(t.api.JasprJournal.armorBonus(), 0, 'taking the armament off: the key is gone');
+  t.api.JasprJournal.receive(payload({ab: 5})); t.api.JasprJournal.receive('{"v":2}'); assert.equal(t.api.JasprJournal.armorBonus(), 5, 'a refused packet changes nothing');
+  t.api.JasprJournal.helloTarget(null); assert.equal(t.api.JasprJournal.armorBonus(), 0, 'a new connection starts without data');
 });
 
 function open(t, data, overrides) {

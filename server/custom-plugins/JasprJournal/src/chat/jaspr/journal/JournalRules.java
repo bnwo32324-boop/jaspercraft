@@ -20,6 +20,8 @@ final class JournalRules {
     static final int MAX_EFFECTS = 12;
     /** Most worn trinkets sent (the gear column has seven slots). */
     static final int MAX_GEAR = 8;
+    /** Most armour points the worn armaments add to the armour bar (what the stat plugin may report and the client accepts). */
+    static final int MAX_ARMOR_BONUS = 200;
     /** Effects kept alive by an item are refreshed every second as a 70 tick effect; anything shorter than this is "while worn". */
     static final int MAINTAINED_TICKS = 100;
 
@@ -128,6 +130,7 @@ final class JournalRules {
         int level;
         int xp;                   // 0..40: how full the experience bar is
         int[] rpg;                // {ranks, raised, total, affordable, cheapest}
+        int armor;                // armour points the worn armaments add to the armour bar (0: none, and the key is left out)
         final List<String> effectNames = new ArrayList<String>();
         final List<Integer> effectSeconds = new ArrayList<Integer>();
         /** The trinkets worn in the gear column: {title, headline effect}. */
@@ -159,6 +162,7 @@ final class JournalRules {
                 for (int i = 0; i < rpg.length; i++) b.append(i == 0 ? "" : ",").append(rpg[i]);
                 b.append(']');
             }
+            if (armor > 0) b.append(",\"ab\":").append(Math.min(MAX_ARMOR_BONUS, armor));
             if (!gear.isEmpty()) {
                 b.append(",\"gw\":[");
                 for (int i = 0; i < gear.size(); i++) {

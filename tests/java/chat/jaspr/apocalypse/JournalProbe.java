@@ -10,6 +10,7 @@ import java.util.*;
 import net.minecraft.server.v1_12_R1.AxisAlignedBB;
 import net.minecraft.server.v1_12_R1.NBTCompressedStreamTools;
 import net.minecraft.server.v1_12_R1.NBTTagCompound;
+import net.minecraft.server.v1_12_R1.NBTTagList;
 import org.bukkit.*;
 import org.bukkit.attribute.*;
 import org.bukkit.block.Block;
@@ -100,7 +101,8 @@ public final class JournalProbe extends JavaPlugin implements Listener {
             }
             journal=plugin("JasprJournal");
             actor=new Actor("anon_0707");
-            check(journal.getDescription().getVersion().equals("1.0.1"),"Journal version");
+            check(journal.getDescription().getVersion().equals("1.0.2"),"Journal version");
+            check(plugin("JasprRPG").getDescription().getVersion().equals("1.3.3"),"RPG version (the armament armour door)");
         });
         if(actor==null){finish();return;}
         phase("payload-basics",this::basics);
@@ -110,6 +112,7 @@ public final class JournalProbe extends JavaPlugin implements Listener {
         phase("stat-summary-matches-an-independent-computation",this::stats);
         phase("silent-item-effects",this::effects);
         phase("worn-trinkets",this::trinkets);
+        phase("armament-armour-for-the-armour-bar",this::armamentArmour);
         phase("hello-handshake-and-bounds",this::hello);
         phase("a-missing-plugin-hides-only-its-row",this::missing);
         phase("no-source-failed",()->{
@@ -291,6 +294,91 @@ public final class JournalProbe extends JavaPlugin implements Listener {
         Map<?,?> loaded=(Map<?,?>)field(gear,"profiles");int before=loaded.size();
         String json=(String)journal.getClass().getMethod("panelJson",Player.class).invoke(journal,stranger.player);
         check(!json.contains("\"gw\"")&&loaded.size()==before,"asking about a player with no loaded profile loads nothing");
+    }
+
+    /** An armour item whose own NBT says how much armour it gives in a slot, like the realm armoury pieces (Emerald Boots: 4). */
+    private static ItemStack armourPiece(Material type,String slot,double armour){
+        net.minecraft.server.v1_12_R1.ItemStack nms=CraftItemStack.asNMSCopy(new ItemStack(type));
+        NBTTagCompound tag=new NBTTagCompound();NBTTagList mods=new NBTTagList();
+        NBTTagCompound m=new NBTTagCompound();
+        m.setString("AttributeName","generic.armor");m.setString("Name","Armor modifier");m.setDouble("Amount",armour);m.setInt("Operation",0);
+        UUID id=UUID.nameUUIDFromBytes(("probe-armour-"+slot).getBytes());m.setLong("UUIDMost",id.getMostSignificantBits());m.setLong("UUIDLeast",id.getLeastSignificantBits());
+        m.setString("Slot",slot);
+        mods.add(m);tag.set("AttributeModifiers",mods);nms.setTag(tag);
+        return CraftItemStack.asBukkitCopy(nms);
+    }
+    @SuppressWarnings({"unchecked","rawtypes"})
+    private static Object rarityOf(Class<?> rarity,String name){return Enum.valueOf((Class)rarity,name);}
+
+    /**
+     * The owner's report 2026-10-07: two identical Emerald Boots, one an Ancient armament ("+40% protection"), drew the same armour bar.
+     * The Journal now sends the armour points the worn armaments add: every enhanced piece counts its own armour once more by its
+     * rarity's bonus, rounded as a sum. Display only: nothing on the player or the items changes.
+     */
+    @SuppressWarnings({"unchecked","rawtypes"})
+    private void armamentArmour() throws Exception {
+        Plugin rpg=plugin("JasprRPG");
+        ClassLoader loader=rpg.getClass().getClassLoader();
+        Class<?> api=loader.loadClass("chat.jaspr.rpg.RpgApi"),armament=loader.loadClass("chat.jaspr.rpg.Armament"),rarity=loader.loadClass("chat.jaspr.rpg.Rarity");
+        Method enhance=armament.getDeclaredMethod("enhance",ItemStack.class,rarity);enhance.setAccessible(true);
+        Method door=api.getDeclaredMethod("armamentArmor",Player.class);door.setAccessible(true);
+        check(!panel().has("ab"),"nothing worn: no armament armour key");
+        try{
+            // The same boots twice: plain and Ancient (+40% protection of 4 armour = 1.6 points, shown as 2).
+            ItemStack plain=armourPiece(Material.DIAMOND_BOOTS,"feet",4.0);
+            actor.armor[0]=plain;
+            check((Integer)door.invoke(null,actor.player)==0,"plain boots add nothing");
+            check(!panel().has("ab"),"and the payload carries no key: "+panel());
+            ItemStack ancient=(ItemStack)enhance.invoke(null,plain.clone(),rarityOf(rarity,"ANCIENT"));
+            check(ancient.getItemMeta().getLore().toString().contains("+40% protection"),"the lore says +40% protection: "+ancient.getItemMeta().getLore());
+            actor.armor[0]=ancient;
+            check((Integer)door.invoke(null,actor.player)==2,"Ancient boots (4 armour) add 1.6, whole points: 2");
+            check(panel().has("ab")&&panel().get("ab").getAsInt()==2,"the Journal sends it: "+panel());
+            check(panel().toString().length()<600,"still a small payload");
+            // The change key moves when the armament comes off (the next send is not the heartbeat's).
+            String withIt=panel().toString();actor.armor[0]=plain;
+            check(!panel().toString().equals(withIt),"taking the armament off changes the payload");
+            actor.armor[0]=ancient;
+            // Several pieces, several rarities: boots 4 x .40, chestplate 9 x .28, leggings 7 x .11, helmet 4 x .05 = 1.6 + 2.52 + 0.77 + 0.2 = 5.09.
+            actor.armor[2]=(ItemStack)enhance.invoke(null,armourPiece(Material.DIAMOND_CHESTPLATE,"chest",9.0),rarityOf(rarity,"LEGENDARY"));
+            check((Integer)door.invoke(null,actor.player)==4,"boots and chestplate: 1.6 + 2.52 = 4.12 -> 4");
+            actor.armor[1]=(ItemStack)enhance.invoke(null,armourPiece(Material.DIAMOND_LEGGINGS,"legs",7.0),rarityOf(rarity,"RARE"));
+            actor.armor[3]=(ItemStack)enhance.invoke(null,armourPiece(Material.DIAMOND_HELMET,"head",4.0),rarityOf(rarity,"UNCOMMON"));
+            check((Integer)door.invoke(null,actor.player)==5&&panel().get("ab").getAsInt()==5,"all four: 5.09 -> 5: "+panel());
+            // The sum is rounded once, not per piece (three Uncommon 4-armour pieces are 0.6, not three zeros).
+            Arrays.fill(actor.armor,null);
+            for(int i:new int[]{0,1,2}){String slot=i==0?"feet":i==1?"legs":"chest";Material m=i==0?Material.DIAMOND_BOOTS:i==1?Material.DIAMOND_LEGGINGS:Material.DIAMOND_CHESTPLATE;
+                actor.armor[i]=(ItemStack)enhance.invoke(null,armourPiece(m,slot,10.0),rarityOf(rarity,"RARE"));}
+            check((Integer)door.invoke(null,actor.player)==3,"three Rare 10-armour pieces: 3 x 1.1 = 3.3 -> 3");
+            // A piece without armour modifiers of its own counts the item's vanilla armour (diamond chestplate: 8); rarities without a bonus add nothing.
+            Arrays.fill(actor.armor,null);
+            actor.armor[2]=(ItemStack)enhance.invoke(null,new ItemStack(Material.DIAMOND_CHESTPLATE),rarityOf(rarity,"ULTRA_RARE"));
+            check((Integer)door.invoke(null,actor.player)==1,"a vanilla diamond chestplate: 8 x .18 = 1.44 -> 1");
+            actor.armor[2]=(ItemStack)enhance.invoke(null,new ItemStack(Material.DIAMOND_CHESTPLATE),rarityOf(rarity,"BASIC"));
+            check((Integer)door.invoke(null,actor.player)==0,"a Basic armament has no protection bonus");
+            // Only real armour counts: a piece whose armour modifier belongs to another slot gives no armour in this one, and so adds nothing.
+            actor.armor[0]=(ItemStack)enhance.invoke(null,armourPiece(Material.DIAMOND_BOOTS,"head",4.0),rarityOf(rarity,"ANCIENT"));
+            check((Integer)door.invoke(null,actor.player)==0,"an armour modifier for another slot adds nothing");
+            // An enhanced thing that is not armour never counts (a sword in the boots slot).
+            actor.armor[0]=(ItemStack)enhance.invoke(null,new ItemStack(Material.DIAMOND_SWORD),rarityOf(rarity,"ANCIENT"));
+            check((Integer)door.invoke(null,actor.player)==0,"a sword is not armour");
+            // Bounded: four Ancient pieces of absurd armour.
+            Arrays.fill(actor.armor,null);
+            Material[] types={Material.DIAMOND_BOOTS,Material.DIAMOND_LEGGINGS,Material.DIAMOND_CHESTPLATE,Material.DIAMOND_HELMET};String[] slots={"feet","legs","chest","head"};
+            for(int i=0;i<4;i++)actor.armor[i]=(ItemStack)enhance.invoke(null,armourPiece(types[i],slots[i],500.0),rarityOf(rarity,"ANCIENT"));
+            check((Integer)door.invoke(null,actor.player)==200&&panel().get("ab").getAsInt()==200,"never more than 200 points: "+panel());
+            // Reading changes nothing: the items are what they were.
+            Arrays.fill(actor.armor,null);
+            ItemStack kept=(ItemStack)enhance.invoke(null,armourPiece(Material.DIAMOND_BOOTS,"feet",4.0),rarityOf(rarity,"ANCIENT"));
+            actor.armor[0]=kept;String before=CraftItemStack.asNMSCopy(kept).getTag().toString();
+            door.invoke(null,actor.player);panel();
+            check(CraftItemStack.asNMSCopy(actor.armor[0]).getTag().toString().equals(before),"the worn piece is untouched by asking");
+            // The damage handler still sees the same piece: it is enhanced armour with the same rarity bonus (0.40 of the blow is not the display's business).
+            Object r=call(armament,"rarity",new Class<?>[]{ItemStack.class},kept);
+            check(((Double)field(r,"bonus"))==0.40d,"Ancient bonus is 0.40");
+        }finally{Arrays.fill(actor.armor,null);}
+        check(!panel().has("ab")&&(Integer)door.invoke(null,actor.player)==0,"everything taken off: no key, no points");
+        check(door.invoke(null,new Object[]{null}).equals(0),"asking about nobody is 0");
     }
 
     private void hello() throws Exception {

@@ -17,7 +17,7 @@ import org.bukkit.plugin.Plugin;
  * that fails is counted and reported once, and never throws into the caller.
  */
 final class JournalSources {
-    enum Source { SIEGE, INVASIONS, DISASTERS, RPG, GEAR }
+    enum Source { SIEGE, INVASIONS, DISASTERS, RPG, GEAR, ARMOR }
 
     private final Logger log;
     private final Map<Source, Integer> failures = new EnumMap<Source, Integer>(Source.class);
@@ -29,7 +29,7 @@ final class JournalSources {
     private Field invActive, invSettings, invStore, invDays, invEnabled, progressId, progressSlept;
     private Method storeAll;
     // Disasters and the stat sheet: small public methods added for this panel.
-    private Method disasterState, rpgSummary, gearWorn;
+    private Method disasterState, rpgSummary, gearWorn, rpgArmor;
 
     JournalSources(Logger log) { this.log = log; }
 
@@ -47,6 +47,7 @@ final class JournalSources {
             case INVASIONS: invActive = null; storeAll = null; break;
             case DISASTERS: disasterState = null; break;
             case GEAR: gearWorn = null; break;
+            case ARMOR: rpgArmor = null; break;
             default: rpgSummary = null; break;
         }
     }
@@ -154,6 +155,25 @@ final class JournalSources {
         } catch (Throwable error) {
             fail(Source.RPG, error);
             return null;
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------ armament armour
+    /** The armour points a player's worn armaments add to the armour bar (JasprRPG RpgApi.armamentArmor, display only); 0 when the stat plugin is not running. */
+    int armor(org.bukkit.entity.Player player) {
+        try {
+            Plugin plugin = enabled("JasprRPG");
+            if (plugin == null) return 0;
+            if (rpgArmor == null) {
+                Class<?> api = plugin.getClass().getClassLoader().loadClass("chat.jaspr.rpg.RpgApi");
+                rpgArmor = api.getDeclaredMethod("armamentArmor", org.bukkit.entity.Player.class);
+                rpgArmor.setAccessible(true);
+            }
+            Object result = rpgArmor.invoke(null, player);
+            return result instanceof Integer ? Math.max(0, Math.min(JournalRules.MAX_ARMOR_BONUS, ((Integer) result).intValue())) : 0;
+        } catch (Throwable error) {
+            fail(Source.ARMOR, error);
+            return 0;
         }
     }
 

@@ -75,7 +75,10 @@ function strip(text) {
     const [fn, from, to, n] = EDITS[i];
     if (count(out, to) > 0) out = editIn(out, fn, to, from, n, 'strip#' + i);
   }
-  if (out.includes(JJ) || out.includes('JasprJournal') || out.includes(BEGIN)) throw new Error('journal residue after strip');
+  // The Overloaded Armor Bar's block asks the Journal for the armour the worn armaments add (when this stage is in the client), so
+  // that block may name it; nothing else may.
+  const outside = out.replace(/\/\* JASPR_ARMORBAR_BEGIN \*\/[^]*?\/\* JASPR_ARMORBAR_END \*\//, '');
+  if (out.includes(JJ) || outside.includes('JasprJournal') || out.includes(BEGIN)) throw new Error('journal residue after strip');
   return out;
 }
 

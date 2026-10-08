@@ -29,6 +29,7 @@ command a button press stands for. Only information a player could already get:
 * **Disaster**: only `quiet`, `brewing` (due within a Minecraft day, no more precise) or the kind while it runs. The exact time stays
   an administrator's secret (`/<disaster> status`), and the journal has no way to see it.
 * **You**: the player's own level and stat sheet summary.
+* **Armour for the armour bar** (1.0.2): `ab`, the whole armour points the worn armaments add (each enhanced piece counts its own armour once more by its rarity's protection bonus, so an Ancient armament with +40% protection on boots with 4 armour adds 1.6, shown as 2). Left out when 0. The panel does not show it; the Overloaded Armor Bar (`OVERLOADED_ARMOR_BAR.md`) adds it to the armour it draws. From `RpgApi.armamentArmor(Player)` (JasprRPG 1.3.3), read-only.
 * **Perks**: the trinkets the player wears (title and headline effect, as their tooltip lists them) and their own effects that are ambient and particle-less.
 
 Bounds: at most 8 trinkets and 12 effects, texts reduced to plain ASCII and capped, at most 6 incoming messages a second per player (any message

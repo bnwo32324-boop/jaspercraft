@@ -46,3 +46,45 @@ colour from screenshots. All 12 checks pass: no row at 0, three white and a half
 orange at 22, orange plus an orange/white half icon at 23, five orange at 30, no page or server exceptions.
 
     TANK_PREVIEW_ROOT=<checkout with candidate/tanks and candidate/tank-client> ARMOR_BAR_CLASSES=<live classes.js> ARMOR_BAR_ASSETS=<live assets.epk> node tests/armor-bar-browser.cjs [out-dir]
+
+## Armaments count (2026-10-07)
+
+Owner, with a screenshot of two identical Emerald Boots, one an Ancient armament (Level 1, "+40% protection") and one plain: "Both of
+them have the same armor stats in the overloaded armor bar. This needs to be corrected because the one with 40% more protection needs
+to see and update the armor bar in accordance with that."
+
+The bar used to draw the client's armour attribute only, and an armament's protection is not an attribute: it is a rarity bonus that
+`ArmamentListener.onHurt` applies to the damage of every worn, enhanced piece (`damage x (1 - min(0.55, bonus x 0.55))`), and that the
+lore states as "+N% protection" (Uncommon 5, Rare 11, Ultra Rare 18, Legendary 28, Ancient 40). Nothing told the client.
+
+**Now:** the bar draws the armour attribute **plus the armour points the worn armaments add**. Every worn, enhanced piece of armour
+counts **its own armour once more by its rarity's bonus**, and the sum is rounded to whole points once:
+
+| Worn | Armour of the piece | Bonus | Points added |
+| --- | --- | --- | --- |
+| Ancient Emerald Boots | 4 | 40% | 1.6 |
+| Legendary Emerald Chestplate | 9 | 28% | 2.52 |
+| Rare Emerald Leggings | 7 | 11% | 0.77 |
+| Uncommon Emerald Helmet | 4 | 5% | 0.2 |
+| **all four** | | | 5.09, shown as **5** |
+
+So 22 armour with the plain boots is a white row and one orange icon, and the same boots as an Ancient armament make it 24: two
+orange icons. A piece with no armament, or a rarity without a bonus (Default, Basic), adds nothing; a piece's armour is read the way
+the game reads it (the item's own modifiers for that slot, or the vanilla ones when it has none), so a modifier that belongs to
+another slot adds nothing, exactly as it gives no real armour.
+
+**Display only.** How much damage a piece turns aside is unchanged (and is not the same arithmetic: Ancient turns aside 22% of a
+blow, whatever the armour bar says). Only the bar moved.
+
+How it travels: `RpgApi.armamentArmor(Player)` (JasprRPG 1.3.3, read-only) -> the Field Journal (JasprJournal 1.0.2) sends it in its
+once-a-second change check as `ab` (left out when 0, bounded to 200) -> the Journal's client module keeps it (`armorBonus()`, 0 once the
+data is a minute old or there is none) -> `JasprArmorBar.frame()` adds it to the attribute it draws. An older server sends no `ab` and
+the bar is what it was; a client without the Journal stage ignores the bar's extra. A change shows within about a second of putting a
+piece on or taking it off.
+
+Tests: `armor-bar-client.test.cjs` (the module with and without a Journal, garbage, the cache), `journal-client.test.cjs` (parse,
+bounds, freshness), `journal-server.test.cjs` (the door is the same test the damage handler applies, read-only, wire format),
+`JournalRulesTest` (payload), the real-Paper `journal-smoke.cjs` (`armament-armour-for-the-armour-bar`: the real RPG jar, Ancient
+boots 1.6 -> 2, four rarities 5.09 -> 5, vanilla armour, another slot's modifier, a sword, the 200 cap, nothing written) and, in the
+real client against the real server, `journal-browser.cjs`: leather pieces with 14 + 4 = 18 armour draw nine white icons and an empty
+outline, the same boots as an Ancient armament draw ten, taking the armament off draws nine again.

@@ -27,13 +27,14 @@ test('armour bar stage: both loop entries, exact, reversible, stable, parses', {
 });
 
 /** Runs JasprArmorBarDraw with stand-ins; returns the draws as "colour:x:u:w" strings and the final colour. */
-function harness() {
+function harness(journal) {
   const calls = [];
   let color = 'ffffff';
   const hex = v => Math.round(v * 255).toString(16).padStart(2, '0');
   const ctx = {FX: () => false, B: () => false, Ds: () => ({l() {}, s() {}}), FT: () => { throw new Error('FT'); },
     CFh: (r, g, b) => { color = hex(r) + hex(g) + hex(b); },
     FYu: (gui, x, y, u, v, w, h) => { assert.equal(v, 9); assert.equal(h, 9); assert.equal(y, 200); calls.push(color + ':' + x + ':' + u + ':' + w); }};
+  if (journal !== undefined) ctx.JasprJournal = journal;      // the Field Journal stage's module, when the client has it
   vm.createContext(ctx);
   const m = stage.MODULE;
   vm.runInContext(m + '\nthis.draw = JasprArmorBarDraw; this.bar = JasprArmorBar;', ctx);
@@ -63,6 +64,37 @@ test('armour bar: the mod\'s icons for every case', () => {
   const r = draw(23);
   assert.equal(r.color, W, 'the colour is reset to white afterwards');
   assert.ok(r.bar.stats.recalcs >= 10 && r.bar.stats.wrapped > 0);
+});
+
+test('armour bar: the armour the worn armaments add is drawn (owner 2026-10-07: two identical boots, one with +40% protection, drew the same bar)', () => {
+  // Without the Journal module, with one that has no data, and with garbage: the bar is exactly vanilla's, whatever the armour.
+  for (const journal of [undefined, null, {}, {armorBonus: 5}, {armorBonus: () => 0}, {armorBonus: () => -4}, {armorBonus: () => { throw new Error('boom'); }}]) {
+    const draw = harness(journal), plain = harness();
+    for (const armor of [0, 7, 20, 22, 23, 30]) assert.deepEqual(draw(armor).calls, plain(armor).calls, 'no bonus: ' + JSON.stringify(journal) + ' armour ' + armor);
+  }
+  // The bonus is whole points added to the armour attribute: 22 + 2 draws what 24 does, 22 + 9 what 31 does, 7 + 3 what 10 does.
+  const plain = harness();
+  for (const [armor, bonus] of [[22, 2], [22, 9], [7, 3], [20, 1], [30, 10], [1, 1]]) {
+    const boosted = harness({armorBonus: () => bonus})(armor);
+    assert.deepEqual(boosted.calls, plain(armor + bonus).calls, `${armor} + ${bonus}`);
+    assert.equal(boosted.bar.stats.boosted, 1);
+  }
+  // A string or a fraction from the Journal is cut to whole points (the Journal sends integers; this is only a guard).
+  assert.deepEqual(harness({armorBonus: () => '3'})(20).calls, plain(23).calls);
+  assert.deepEqual(harness({armorBonus: () => 2.9})(20).calls, plain(22).calls);
+  // No armour, no bar: a bonus alone never draws one (an armament piece always has armour of its own).
+  assert.deepEqual(harness({armorBonus: () => 6})(0).calls, [], 'no armour, no bar');
+  // A change of the bonus changes the bar on the next frame (the cache follows the sum, not the attribute).
+  let bonus = 0;
+  const live = harness({armorBonus: () => bonus});
+  const before = live(22).calls.join();
+  bonus = 4;
+  const after = live(22);
+  assert.notEqual(after.calls.join(), before, 'putting the armament on changes the bar');
+  assert.deepEqual(after.calls, plain(26).calls);
+  bonus = 0;
+  assert.equal(live(22).calls.join(), before, 'taking it off changes it back');
+  assert.equal(typeof after.bar.extra, 'function');
 });
 
 test('armour bar: the port follows the mod source', () => {

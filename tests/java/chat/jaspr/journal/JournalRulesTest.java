@@ -164,5 +164,22 @@ public final class JournalRulesTest {
         for (int i = 0; i < 40; i++) many.effect("E" + i, 0);
         check(many.effectNames.size() == JournalRules.MAX_EFFECTS, "bounded");
         check(many.json(true).length() < 1024, "small payload");
+        // Armament armour: the whole points the worn armaments add to the armour bar; left out when none, bounded, never negative, and
+        // part of the change key (putting an armament on or taking it off is a change worth sending at once).
+        JournalRules.Snapshot armed = new JournalRules.Snapshot();
+        armed.rpg = new int[] {1, 1, 45, 0, 5}; armed.armor = 4;
+        String a = armed.json(true);
+        check(a.contains("\"rp\":[1,1,45,0,5],\"ab\":4,\"fx\":[]"), a);
+        check(armed.json(false).contains("\"ab\":4"), "the change key includes the armour");
+        check(!new JournalRules.Snapshot().json(true).contains("\"ab\""), "no armament, no key");
+        armed.armor = 99999;
+        check(armed.json(true).contains("\"ab\":" + JournalRules.MAX_ARMOR_BONUS + ","), "bounded");
+        armed.armor = -3;
+        check(!armed.json(true).contains("\"ab\""), "never negative");
+        JournalRules.Snapshot armedWorn = new JournalRules.Snapshot();
+        armedWorn.armor = 2; armedWorn.gear("Rebreather", "");
+        String aw = armedWorn.json(true);
+        check(aw.indexOf("\"ab\"") > 0 && aw.indexOf("\"ab\"") < aw.indexOf("\"gw\""), "the armour comes before the trinkets: " + aw);
+        System.out.println("SAMPLE " + a);
     }
 }

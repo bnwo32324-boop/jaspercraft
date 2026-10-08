@@ -13,7 +13,7 @@
  *
  *   node tests/journal-browser.cjs [out-dir] [--mobile]
  * Needs candidate/deploy/classes.js (the client with the journal stage: node scripts/assemble-journal-client.cjs) and assets.epk,
- * server/plugins/JasprJournal.jar and candidate/jars/{JasprRPG,JasprDisasters}.jar (scripts/build-journal-plugin.cjs and
+ * server/plugins/JasprJournal.jar and server/plugins/{JasprRPG,JasprDisasters}.jar (scripts/build-journal-plugin.cjs and
  * scripts/patch-plugin-jars.cjs), candidate/browser-fixture/{jaspr-paper-wide.jar,TrinketProbe.jar}, candidate/tanks/JasprTanks.jar and
  * candidate/tank-client/ (borrowed by the fixture).
  */
@@ -79,7 +79,7 @@ function buildStandIn() {
   } finally { fs.rmSync(dir, {recursive: true, force: true}); }
 }
 
-for (const f of ['candidate/deploy/classes.js', 'candidate/deploy/assets.epk', 'server/plugins/JasprJournal.jar', 'candidate/jars/JasprRPG.jar', 'candidate/jars/JasprDisasters.jar',
+for (const f of ['candidate/deploy/classes.js', 'candidate/deploy/assets.epk', 'server/plugins/JasprJournal.jar', 'server/plugins/JasprRPG.jar', 'server/plugins/JasprDisasters.jar',
   'candidate/browser-fixture/jaspr-paper-wide.jar', 'candidate/browser-fixture/TrinketProbe.jar', 'server/plugins/JasprInvasions.jar']) {
   if (!fs.existsSync(path.join(ROOT, f))) throw new Error('missing fixture input: ' + f);
 }
@@ -87,8 +87,9 @@ for (const f of ['candidate/deploy/classes.js', 'candidate/deploy/assets.epk', '
 const classesPath = path.join(out, 'classes.test.js');
 const candidate = fs.readFileSync(path.join(ROOT, 'candidate', 'deploy', 'classes.js'), 'latin1');
 if (!candidate.includes('$rt_globals.JasprWideBridge = {') || !candidate.includes('JASPR_JOURNAL_BEGIN')) throw new Error('candidate lacks the wide inventory or the journal stage');
+if (!candidate.includes('JASPR_ARMORBAR_BEGIN') || !candidate.includes('JasprJournal.armorBonus()')) throw new Error('candidate lacks the armour bar stage that counts the armaments (node scripts/assemble-armor-bonus-client.cjs)');
 fs.writeFileSync(classesPath, Buffer.from(candidate.replace('$rt_globals.JasprWideBridge = {',
-  '$rt_globals.__wideMc = function () { return HEH; }; $rt_globals.__journal = function () { return JasprJournal; };' +
+  '$rt_globals.__wideMc = function () { return HEH; }; $rt_globals.__journal = function () { return JasprJournal; }; $rt_globals.__armorBar = function () { return JasprArmorBar; };' +
   ' $rt_globals.__isPlayerInventory = function () { var g = HEH && HEH.cj; return !!g && g.h2 instanceof A2Z; };' +
   ' $rt_globals.__plan = function () { var g = HEH && HEH.cj, p = g ? JasprJournal.plan(g) : null; return p ? {texts: p.texts.map(function (t) { return {s: $rt_ustr(t.s), x: t.x, y: t.y}; }, this), hits: p.hits, rects: p.rects} : null; };' +
   ' $rt_globals.__width = function (s) { return CA(HEH.cj.J, $rt_str(s)); };' +
@@ -106,7 +107,7 @@ function stopAll() {
 
 (async () => {
   const standIn = buildStandIn();
-  const plugins = ['server/plugins/JasprJournal.jar', 'candidate/jars/JasprRPG.jar', 'candidate/jars/JasprDisasters.jar', 'server/plugins/JasprInvasions.jar', path.relative(ROOT, standIn)].join(',');
+  const plugins = ['server/plugins/JasprJournal.jar', 'server/plugins/JasprRPG.jar', 'server/plugins/JasprDisasters.jar', 'server/plugins/JasprInvasions.jar', path.relative(ROOT, standIn)].join(',');
   fixture = spawn(process.execPath, [path.join(ROOT, 'scripts', 'tank-preview.cjs')], {cwd: ROOT, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
     env: Object.assign({}, process.env, {TANK_PREVIEW_CLASSES: classesPath, TANK_PREVIEW_ASSETS: path.join(ROOT, 'candidate', 'deploy', 'assets.epk'), TANK_PREVIEW_PLUGINS: plugins,
       TANK_PREVIEW_COPY: 'candidate/browser-fixture/jaspr-paper-wide.jar=>paper.jar;candidate/browser-fixture/TrinketProbe.jar=>plugins/TrinketProbe.jar'})});
@@ -191,7 +192,7 @@ function stopAll() {
     await cmd('time set 0');
     await sleep(2500);
     const log = await getText(webPort, '/log').catch(() => '');
-    check(/JOURNAL_READY version=1\.0\.1 channel=jaspr:journal/.test(log + fxOut), 'the Journal plugin is up');
+    check(/JOURNAL_READY version=1\.0\.2 channel=jaspr:journal/.test(log + fxOut), 'the Journal plugin is up');
     check(/JOURNAL_CLIENT_HELLO clients=1/.test(log + fxOut), 'the server received the client\'s hello on jaspr:journal');
     let st = await status();
     check(st && st.hasData && st.fresh && st.stats.packets >= 1 && st.stats.hellos === 1, 'the panel data arrived over the plugin channel', st && st.stats);
@@ -293,6 +294,55 @@ function stopAll() {
     st = await status();
     check(st.stats.errors === 0 && st.stats.rejected === 0, 'the panel counted no errors and rejected no packets', st.stats);
     await key('Escape', 27, 'Escape');
+
+    // ---- the armour bar counts the armaments ---------------------------------------------------------------------------------
+    // Owner 2026-10-07: two identical Emerald Boots, one an Ancient armament ("+40% protection"), drew the same Overloaded Armor Bar.
+    // The server sends the points the worn armaments add (the Journal's "ab"), the bar adds them: 14 + 4 = 18 armour is nine white icons
+    // and an empty outline; the same boots as an Ancient armament add 1.6 points (4 x 0.40), shown as 2, which fills the tenth icon. (Leather
+    // items, because a diamond set earns the Cover Me With Diamonds advancement and its chat line hides the armour row for ten seconds.)
+    if (!mobile) {
+      const armourNbt = (slot, amount, id, armament) => '{AttributeModifiers:[{AttributeName:"generic.armor",Name:"Armor modifier",Amount:' + amount + 'd,Operation:0,UUIDMost:7L,UUIDLeast:' + id + 'L,Slot:"' + slot + '"}]'
+        + (armament ? ',JasprArmament:{Level:1,Exp:0,Tokens:0,Rarity:"ANCIENT",Abilities:{}}' : '') + '}';
+      const wear = (slot, item, amount, id, armament) => cmd('replaceitem entity ' + NAME + ' slot.armor.' + slot + ' ' + item + ' 1 0 ' + armourNbt(slot, amount, id, armament));
+      const bonusIs = async (want, ms) => { const end = Date.now() + ms; let v; while (Date.now() < end) { v = await evaluate('__journal().armorBonus()'); if (v === want) return v; await sleep(400); } return v; };
+      const armorBar = () => evaluate('JSON.stringify((function(){var b=__armorBar();return {stats:b.stats,extra:b.extra()};})())').then(t => (t ? JSON.parse(t) : null));
+      // The armour row in GUI pixels: ten icons 8 px apart from the hotbar's left edge, one row above the hearts (20 health, one row).
+      const X0 = W / sc.k / 2 - 91, Y0 = H / sc.k - 39 - 10;
+      const kindOf = (img, i) => {
+        let orange = 0, white = 0, dark = 0;
+        for (let y = Math.round(Y0 * sc.k); y < Math.round((Y0 + 9) * sc.k); y++) for (let x = Math.round((X0 + i * 8) * sc.k); x < Math.round((X0 + i * 8 + 9) * sc.k); x++) {
+          const [r, g, b] = img.rgb(x, y), hi = Math.max(r, g, b), lo = Math.min(r, g, b);
+          if (hi < 70 && hi - lo < 25) dark++; else if (r > 140 && g > 30 && g < 125 && b < 60 && r > 1.6 * g) orange++; else if (lo > 140 && hi - lo < 45) white++;
+        }
+        if (orange >= 4 && white < 3) return 'orange';
+        if (white >= 4 && orange < 3) return 'white';
+        if (orange + white < 3) return dark >= 4 ? 'empty' : 'none';
+        return 'mixed';
+      };
+      const row = img => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => kindOf(img, i));
+      const plainWant = [...Array(9).fill('white'), 'empty'], ancientWant = Array(10).fill('white');
+      await wear('chest', 'leather_chestplate', 14, 101, false);
+      await wear('feet', 'leather_boots', 4, 102, false);
+      check((await bonusIs(0, 8000)) === 0, 'plain boots and chestplate: the server reports no armament armour');
+      await sleep(2500);
+      const plainRow = row(await shot('armor-plain'));
+      check(JSON.stringify(plainRow) === JSON.stringify(plainWant), 'plain boots (4) and chestplate (14) = 18 armour: nine white icons and an empty outline', plainRow);
+      await wear('feet', 'leather_boots', 4, 102, true);
+      const got = await bonusIs(2, 12000);
+      check(got === 2, 'the same boots as an Ancient armament (+40% of 4 armour = 1.6 points) report 2 armament armour points', got);
+      await sleep(1800);
+      const ancientRow = row(await shot('armor-ancient'));
+      check(JSON.stringify(ancientRow) === JSON.stringify(ancientWant), 'and the armour bar shows them: ten white icons (18 + 2 = 20)', ancientRow);
+      const counted = await armorBar();
+      check(counted && counted.extra === 2 && counted.stats.boosted > 0, 'the real bar counted the bonus', counted);
+      await wear('feet', 'leather_boots', 4, 102, false);
+      check((await bonusIs(0, 12000)) === 0, 'taking the armament off takes the points away');
+      await sleep(1800);
+      const backRow = row(await shot('armor-plain-again'));
+      check(JSON.stringify(backRow) === JSON.stringify(plainWant), 'and the bar is the plain one again', backRow);
+      await cmd('replaceitem entity ' + NAME + ' slot.armor.chest air');
+      await cmd('replaceitem entity ' + NAME + ' slot.armor.feet air');
+    }
 
     // ---- phones: the same panel in portrait ---------------------------------------------------------------------------
     if (mobile) {

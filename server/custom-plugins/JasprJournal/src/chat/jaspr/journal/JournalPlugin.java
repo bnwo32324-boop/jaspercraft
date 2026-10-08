@@ -116,7 +116,7 @@ public final class JournalPlugin extends JavaPlugin implements Listener, PluginM
                     + " rejected=" + rejected + " sendFailures=" + sendFailures
                     + " siegeFail=" + sources.failures(JournalSources.Source.SIEGE) + " invasionFail=" + sources.failures(JournalSources.Source.INVASIONS)
                     + " disasterFail=" + sources.failures(JournalSources.Source.DISASTERS) + " rpgFail=" + sources.failures(JournalSources.Source.RPG)
-                    + " gearFail=" + sources.failures(JournalSources.Source.GEAR));
+                    + " gearFail=" + sources.failures(JournalSources.Source.GEAR) + " armorFail=" + sources.failures(JournalSources.Source.ARMOR));
         }
     }
 
@@ -162,6 +162,7 @@ public final class JournalPlugin extends JavaPlugin implements Listener, PluginM
         s.level = Math.max(0, Math.min(9999, player.getLevel()));
         s.xp = Math.max(0, Math.min(40, Math.round(player.getExp() * 40f)));
         s.rpg = sources.stats(id, player.getLevel());
+        s.armor = sources.armor(player);
         List<String[]> worn = sources.gear(player);
         if (worn != null) for (String[] row : worn) if (row != null && row.length > 0) s.gear(row[0], JournalRules.headline(row));
         for (PotionEffect effect : player.getActivePotionEffects()) {
