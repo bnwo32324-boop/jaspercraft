@@ -102,7 +102,7 @@ public final class JournalProbe extends JavaPlugin implements Listener {
             journal=plugin("JasprJournal");
             actor=new Actor("anon_0707");
             check(journal.getDescription().getVersion().equals("1.0.2"),"Journal version");
-            check(plugin("JasprRPG").getDescription().getVersion().equals("1.3.3"),"RPG version (the armament armour door)");
+            check(plugin("JasprRPG").getDescription().getVersion().equals("1.3.4"),"RPG version (the armament armour door, every weapon an armament)");
         });
         if(actor==null){finish();return;}
         phase("payload-basics",this::basics);

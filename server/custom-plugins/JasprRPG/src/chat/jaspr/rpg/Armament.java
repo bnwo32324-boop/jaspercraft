@@ -252,22 +252,23 @@ final class Armament {
         int level = tag.getInt(LEVEL);
         int tokens = tag.getInt(TOKENS);
 
-        List<String> lore = new ArrayList<String>();
-        // A gun's own lines (magazine, damage, range...) belong to the Arsenal and are rewritten on every shot;
-        // it keeps whatever follows them, so the armament block goes underneath instead of replacing them.
-        // A realm armoury piece's own lines (its set, its powers) belong to JasprGear the same way.
+        // The item's own lines stay on top and the armament block goes under a header beneath them: a gun's lines (magazine,
+        // damage, range...) belong to the Arsenal, which rewrites them on every shot and keeps whatever follows; a realm armoury
+        // piece's lines belong to JasprGear; and any other item may carry lines of its own (a Dungeon Dimension weapon says where it
+        // was recovered), which must not be lost when it becomes an armament. Our block starts at the header or, on an item
+        // decorated before that (a plain weapon's lore was all ours), at the rarity line.
         boolean gun = isGun(item);
         boolean armory = !gun && isArmory(item);
-        String header = gun ? GUN_HEADER : armory ? ARMORY_HEADER : null;
-        if (header != null && (armory || meta.hasLore())) {
-            if (meta.hasLore()) {
-                for (String line : meta.getLore()) {
-                    if (header.equals(line)) break;
-                    lore.add(line);
-                }
+        String header = gun ? GUN_HEADER : ARMORY_HEADER;
+        List<String> own = new ArrayList<String>();
+        if (meta.hasLore()) {
+            for (String line : meta.getLore()) {
+                if (GUN_HEADER.equals(line) || ARMORY_HEADER.equals(line) || isRarityLine(line)) break;
+                own.add(line);
             }
-            lore.add(header);
         }
+        List<String> lore = new ArrayList<String>(own);
+        if (armory || !own.isEmpty()) lore.add(header);
         lore.add(rarity.coloured() + ChatColor.GRAY + "  Level " + ChatColor.WHITE + level);
         if (rarity.bonus > 0.0d) {
             int percent = (int) Math.round(rarity.bonus * 100.0d);
@@ -293,6 +294,13 @@ final class Armament {
         return item;
     }
 
+    /** The first line of our own block: "<Rarity>  Level N" as {@link #decorate} writes it. */
+    static boolean isRarityLine(String line) {
+        if (line == null) return false;
+        for (Rarity rarity : Rarity.values()) if (line.startsWith(rarity.coloured() + ChatColor.GRAY + "  Level ")) return true;
+        return false;
+    }
+
     private static String roman(int value) {
         switch (value) {
             case 1: return "I";
@@ -303,21 +311,18 @@ final class Armament {
         }
     }
 
-    /** Rolls whether a freshly acquired item becomes enhanced at all. */
-    static ItemStack maybeEnhance(ItemStack item, RpgConfig settings, Random random) {
-        return maybeEnhance(item, settings, random, settings.enchantChance);
-    }
-
     /**
-     * As above, but with the roll chance supplied - creative uses its own. Realm armoury pieces always become armaments
-     * (owner, 2026-10-02: they "should also work with the upgrade system"), and never below Uncommon.
+     * Every eligible item is an armament (owner, 2026-10-08: a Vermilion diamond sword from the Dungeon Dimension earned no
+     * points "yet it works on other weapons, particularly vanilla weapons. Fix this globally"). It used to be a 35% roll when an
+     * item was crafted or picked up, and loot taken out of a chest never rolled at all, so most weapons could never level. Now an
+     * eligible item that is not an armament yet becomes one however it turns up - crafted, picked up, taken from a chest or an
+     * output slot, handed over by a plugin, held, worn or used - with its rarity rolled once, as before (half of them Basic, which
+     * carries no bonus of its own); realm armoury pieces are never below Uncommon. Returns the same item when there is nothing to do.
      */
-    static ItemStack maybeEnhance(ItemStack item, RpgConfig settings, Random random, double chance) {
+    static ItemStack ensure(ItemStack item, RpgConfig settings, Random random) {
         if (!isEligible(item) || isEnhanced(item)) return item;
         if (isArmour(item) && !settings.armorEnabled) return item;
-        boolean armory = isArmory(item);
-        if (!armory && chance < 1.0d && random.nextDouble() > chance) return item;
-        Rarity rarity = armory ? Rarity.rollAtLeast(random, Rarity.UNCOMMON) : Rarity.roll(random);
+        Rarity rarity = isArmory(item) ? Rarity.rollAtLeast(random, Rarity.UNCOMMON) : Rarity.roll(random);
         if (rarity == Rarity.DEFAULT) return item;
         return enhance(item, rarity);
     }

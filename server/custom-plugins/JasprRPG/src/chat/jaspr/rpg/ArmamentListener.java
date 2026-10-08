@@ -30,9 +30,44 @@ final class ArmamentListener implements Listener {
     private final RpgPlugin plugin;
     private final Random random = new Random();
 
+    /** Items that became armaments here (any path), for RPG_METRICS. */
+    long made;
+
     ArmamentListener(RpgPlugin plugin) { this.plugin = plugin; }
 
     private RpgConfig settings() { return plugin.settings(); }
+
+    /** The item as an armament (Armament.ensure: every eligible item is one), counted when it just became one. */
+    ItemStack made(ItemStack item) {
+        ItemStack out = Armament.ensure(item, settings(), random);
+        if (out != item) made++;
+        return out;
+    }
+
+    /**
+     * Whatever a player holds in the main hand or wears becomes an armament if it is not one yet (run every second from the plugin's
+     * loop), so gear that arrived by a path no event covers - a chest, a plugin's reward, an old save - starts levelling at once.
+     * Only while the player looks at their own inventory or none, so an item under a container window is not swapped under them.
+     */
+    void ensureCarried(Player player) {
+        org.bukkit.inventory.InventoryView view = player.getOpenInventory();
+        if (view != null && view.getType() != org.bukkit.event.inventory.InventoryType.CRAFTING
+                && view.getType() != org.bukkit.event.inventory.InventoryType.CREATIVE) return;
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        ItemStack handMade = made(hand);
+        if (handMade != hand) player.getInventory().setItemInMainHand(handMade);
+        ItemStack[] worn = player.getInventory().getArmorContents();
+        boolean changed = false;
+        for (int i = 0; i < worn.length; i++) {
+            ItemStack piece = worn[i];
+            if (piece == null || !Armament.isArmour(piece)) continue;
+            ItemStack pieceMade = made(piece);
+            if (pieceMade != piece) { worn[i] = pieceMade; changed = true; }
+        }
+        if (changed) player.getInventory().setArmorContents(worn);
+    }
+
+    String metrics() { return "armamentsMade=" + made; }
 
     RpgPlugin plugin() { return plugin; }
 
@@ -46,7 +81,14 @@ final class ArmamentListener implements Listener {
 
         ItemStack weapon = attacker.getInventory().getItemInMainHand();
         boolean gun = Armament.isGun(weapon);
-        if (!Armament.isEnhanced(weapon) || (!Armament.isWeapon(weapon) && !gun)) return;
+        if (!Armament.isWeapon(weapon) && !gun) return;
+        if (!Armament.isEnhanced(weapon)) {
+            // A weapon that is not an armament yet becomes one with its first blow (and this blow already counts).
+            ItemStack fresh = made(weapon);
+            if (fresh == weapon) return;
+            attacker.getInventory().setItemInMainHand(fresh);
+            weapon = fresh;
+        }
 
         LivingEntity victim = (LivingEntity) event.getEntity();
         Rarity rarity = Armament.rarity(weapon);
@@ -174,7 +216,14 @@ final class ArmamentListener implements Listener {
 
         for (int slot = 0; slot < armour.length; slot++) {
             ItemStack piece = armour[slot];
-            if (!Armament.isEnhanced(piece) || !Armament.isArmour(piece)) continue;
+            if (!Armament.isArmour(piece)) continue;
+            if (!Armament.isEnhanced(piece)) {
+                // A piece that is not an armament yet becomes one with the first blow it takes.
+                ItemStack fresh = made(piece);
+                if (fresh == piece) continue;
+                armour[slot] = piece = fresh;
+                changed = true;
+            }
             Rarity rarity = Armament.rarity(piece);
             double scale = rarity.effect;
 
@@ -187,6 +236,7 @@ final class ArmamentListener implements Listener {
             if (hardened > 0 && random.nextInt(100) < hardened * 4 * scale) {
                 event.setCancelled(true);
                 player.playSound(player.getLocation(), org.bukkit.Sound.ITEM_SHIELD_BLOCK, 0.9f, 1.0f);
+                if (changed) player.getInventory().setArmorContents(armour);   // pieces that just became armaments stay ones
                 return;
             }
 
@@ -280,28 +330,28 @@ final class ArmamentListener implements Listener {
         if (!(event.getEntity() instanceof Player)) return;
         ItemStack item = event.getItem().getItemStack();
         if (!Armament.isEligible(item) || Armament.isEnhanced(item)) return;
-        ItemStack rolled = Armament.maybeEnhance(item, settings(), random);
-        if (rolled != item) event.getItem().setItemStack(rolled);
+        ItemStack fresh = made(item);
+        if (fresh != item) event.getItem().setItemStack(fresh);
     }
 
     /**
      * Pulling gear out of the creative menu is a creation like any other.
      *
      * The cursor is what the player is about to be holding, so it is replaced in place rather than
-     * chased down a tick later, which is what stopped this working before. Creative gets its own
-     * roll chance, defaulting to certain, because creative is where gear is spawned to be tested.
+     * chased down a tick later, which is what stopped this working before.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCreative(org.bukkit.event.inventory.InventoryCreativeEvent event) {
         ItemStack item = event.getCursor();
         if (!Armament.isEligible(item) || Armament.isEnhanced(item)) return;
-        ItemStack rolled = Armament.maybeEnhance(item, settings(), random, settings().creativeChance);
-        if (rolled != item) event.setCursor(rolled);
+        ItemStack fresh = made(item);
+        if (fresh != item) event.setCursor(fresh);
     }
 
     /**
-     * Realm armoury pieces are always armaments (JasprGear 5.0.0); the ones found in a chest become enhanced the moment
-     * the chest is opened, so loot reaches the player already levelling, like a piece that was picked up or crafted.
+     * Gear in a chest, a dungeon's loot or any other container becomes an armament the moment the container is opened, so loot
+     * reaches the player already levelling, like a piece that was picked up or crafted. (Until 2026-10-08 only realm armoury
+     * pieces were, so a weapon taken out of a chest - the Dungeon Dimension's loot included - could never level.)
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onOpenContainer(org.bukkit.event.inventory.InventoryOpenEvent event) {
@@ -309,9 +359,9 @@ final class ArmamentListener implements Listener {
         if (top == null || top.getType() == org.bukkit.event.inventory.InventoryType.PLAYER || top.getType() == org.bukkit.event.inventory.InventoryType.CRAFTING) return;
         for (int slot = 0; slot < top.getSize(); slot++) {
             ItemStack item = top.getItem(slot);
-            if (item == null || !Armament.isEligible(item) || Armament.isEnhanced(item) || !Armament.isArmory(item)) continue;
-            ItemStack rolled = Armament.maybeEnhance(item, settings(), random);
-            if (rolled != item) top.setItem(slot, rolled);
+            if (item == null || !Armament.isEligible(item) || Armament.isEnhanced(item)) continue;
+            ItemStack fresh = made(item);
+            if (fresh != item) top.setItem(slot, fresh);
         }
     }
 
@@ -322,16 +372,16 @@ final class ArmamentListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player)) return;
         final ItemStack item = event.getCurrentItem();
         if (!Armament.isEligible(item) || Armament.isEnhanced(item)) return;
-        final ItemStack rolled = Armament.maybeEnhance(item, settings(), random);
-        if (rolled != item) event.setCurrentItem(rolled);
+        final ItemStack fresh = made(item);
+        if (fresh != item) event.setCurrentItem(fresh);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCraft(CraftItemEvent event) {
         final ItemStack result = event.getCurrentItem();
         if (!Armament.isEligible(result) || Armament.isEnhanced(result)) return;
-        ItemStack rolled = Armament.maybeEnhance(result, settings(), random);
-        if (rolled != result) event.setCurrentItem(rolled);
+        ItemStack fresh = made(result);
+        if (fresh != result) event.setCurrentItem(fresh);
     }
 
     // ------------------------------------------------------------------ levelling

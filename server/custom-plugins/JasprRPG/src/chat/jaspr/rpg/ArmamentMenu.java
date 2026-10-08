@@ -57,6 +57,11 @@ final class ArmamentMenu implements Listener {
             player.sendMessage(ChatColor.RED + "Hold a weapon, a piece of armour or a realm tool to inspect it.");
             return false;
         }
+        if (!Armament.isEnhanced(held) && plugin.armaments() != null) {
+            // Every eligible item is an armament: one that is not yet becomes one now, so its sheet shows its level and progress.
+            ItemStack fresh = plugin.armaments().made(held);
+            if (fresh != held) { player.getInventory().setItemInMainHand(fresh); held = fresh; }
+        }
         Inventory inventory = Bukkit.createInventory(null, 36, Armament.isGun(held) ? GUN_TITLE : TITLE);
         render(player, inventory, held);
         player.openInventory(inventory);
@@ -177,11 +182,11 @@ final class ArmamentMenu implements Listener {
         ItemMeta meta = summary.getItemMeta();
         meta.setDisplayName(ChatColor.GRAY + "Ordinary " + (gun ? "gun" : Armament.isWeapon(held) ? "weapon" : Armament.isTool(held) ? "tool" : "armour"));
         List<String> lore = new ArrayList<String>();
-        lore.add(ChatColor.GRAY + "This one has no spark in it yet.");
+        // Every eligible item is an armament (Armament.ensure); the one thing that keeps an item ordinary is armaments.armor: false.
+        lore.add(ChatColor.GRAY + "This one has no spark in it.");
         lore.add("");
-        lore.add(ChatColor.DARK_GRAY + "Enhanced gear turns up when it is crafted");
-        lore.add(ChatColor.DARK_GRAY + "or picked up. Once enhanced it levels through");
-        lore.add(ChatColor.DARK_GRAY + "use and earns tokens to spend here.");
+        lore.add(ChatColor.DARK_GRAY + "Armour armaments are switched off");
+        lore.add(ChatColor.DARK_GRAY + "on this server (armaments.armor).");
         meta.setLore(lore);
         summary.setItemMeta(meta);
         inventory.setItem(31, summary);

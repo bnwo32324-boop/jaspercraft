@@ -99,7 +99,8 @@ test('armament armour: the number the armour bar adds counts exactly the pieces 
   assert.doesNotMatch(door, /\.set\w*\(|\.add\w*\(|\.remove\w*\(|\.put\(/, 'nothing is written');
   // The damage handler is untouched by the display: it still scales the damage by (1 - min(0.55, bonus * 0.55)) per enhanced piece.
   const listener = read('server/custom-plugins/JasprRPG/src/chat/jaspr/rpg/ArmamentListener.java');
-  assert.match(listener, /if \(!Armament\.isEnhanced\(piece\) \|\| !Armament\.isArmour\(piece\)\) continue;[^]*?event\.setDamage\(event\.getDamage\(\) \* \(1\.0d - Math\.min\(0\.55d, rarity\.bonus \* 0\.55d\)\)\);/);
+  // (Since JasprRPG 1.3.4 a worn piece that is not an armament yet becomes one with the first blow it takes, and every second it is worn.)
+  assert.match(listener, /if \(!Armament\.isArmour\(piece\)\) continue;\n\s*if \(!Armament\.isEnhanced\(piece\)\) \{[^]*?event\.setDamage\(event\.getDamage\(\) \* \(1\.0d - Math\.min\(0\.55d, rarity\.bonus \* 0\.55d\)\)\);/);
   // The lore says "+N% protection" with N the same bonus.
   assert.match(read('server/custom-plugins/JasprRPG/src/chat/jaspr/rpg/Armament.java'), /int percent = \(int\) Math\.round\(rarity\.bonus \* 100\.0d\);/);
   // The Journal asks through reflection, tells the client the points ("ab") and a change in them is a change worth sending.
@@ -141,7 +142,7 @@ test('wire format: channel, hello, bounded decode, payload only on change or hea
 });
 
 test('versions of the plugins that gained a door are bumped', () => {
-  assert.match(read('server/custom-plugins/JasprRPG/resources/plugin.yml'), /^version: 1\.3\.3$/m);
+  assert.match(read('server/custom-plugins/JasprRPG/resources/plugin.yml'), /^version: 1\.3\.4$/m);
   assert.match(read('server/custom-plugins/JasprDisasters/resources/plugin.yml'), /^version: 1\.4\.1$/m);
   assert.match(read('server/custom-plugins/JasprGear/resources/plugin.yml'), /^version: 5\.0\.3$/m);
 });

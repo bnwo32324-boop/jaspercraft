@@ -18,8 +18,6 @@ final class RpgConfig {
     final int level1Experience;
     final double experienceMultiplier;
     final int tokensPerLevel;
-    final double enchantChance;
-    final double creativeChance;
     final boolean armorEnabled;
     /** Which tools can be armaments: "realm" (realm armoury tools, the default), "all" or "off". */
     final String toolsMode;
@@ -37,10 +35,8 @@ final class RpgConfig {
         this.level1Experience = clamp(config.getInt("armaments.level-1-experience", 50), 1, 100000, 50);
         this.experienceMultiplier = ratio(config.getDouble("armaments.experience-multiplier", 1.6d), 1.01d, 10.0d, 1.6d);
         this.tokensPerLevel = clamp(config.getInt("armaments.tokens-per-level", 1), 0, 10, 1);
-        this.enchantChance = ratio(config.getDouble("armaments.enhance-chance", 0.35d), 0.0d, 1.0d, 0.35d);
-        // Creative is where gear gets spawned for testing, so by default everything pulled from
-        // the creative menu is enhanced rather than rolled.
-        this.creativeChance = ratio(config.getDouble("armaments.enhance-chance-creative", 1.0d), 0.0d, 1.0d, 1.0d);
+        // armaments.enhance-chance and armaments.enhance-chance-creative are no longer read: every eligible item is an armament
+        // (Armament.ensure, 2026-10-08). An old config that still has them is harmless.
         this.armorEnabled = config.getBoolean("armaments.armor", true);
         String tools = String.valueOf(config.getString("armaments.tools", "realm")).toLowerCase(java.util.Locale.ROOT);
         this.toolsMode = tools.equals("all") || tools.equals("off") ? tools : "realm";

@@ -40,12 +40,9 @@ armaments:
   # accept, so this is what paces the whole system.
   tokens-per-level: 1
 
-  # Chance that an eligible item is enhanced when crafted or picked up.
-  enhance-chance: 0.35
-
-  # Chance for gear pulled out of the creative menu. Defaults to certain, so spawning a weapon in
-  # creative always gives you something enhanced to test with.
-  enhance-chance-creative: 1.0
+  # Every weapon, piece of armour, gun and realm tool is an armament: it becomes one however it turns up (crafted, picked
+  # up, taken from a chest, handed over by a plugin, held, worn or used) and levels from then on; only its rarity is rolled.
+  # (The old enhance-chance settings are no longer read.)
 
   # Whether armour can be enhanced as well as weapons.
   armor: true

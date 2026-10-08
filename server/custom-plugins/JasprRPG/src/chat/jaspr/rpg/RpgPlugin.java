@@ -77,7 +77,8 @@ public final class RpgPlugin extends JavaPlugin {
 
     @Override public void onDisable() {
         RpgApi.bind(null);
-        if (effects != null) getLogger().info("RPG_METRICS " + effects.metrics() + (tools != null ? " " + tools.metrics() : ""));
+        if (effects != null) getLogger().info("RPG_METRICS " + effects.metrics() + (tools != null ? " " + tools.metrics() : "")
+                + (armaments != null ? " " + armaments.metrics() : ""));
         if (loop != null) loop.cancel();
         if (saver != null) saver.cancel();
         if (store != null) store.save();
@@ -88,6 +89,8 @@ public final class RpgPlugin extends JavaPlugin {
     StatStore stats() { return store; }
 
     StatEffects effects() { return effects; }
+
+    ArmamentListener armaments() { return armaments; }
 
     // ---------------------------------------------------------------- loop
 
@@ -102,6 +105,7 @@ public final class RpgPlugin extends JavaPlugin {
                 if (slow) effects.refresh(player);
             }
             if (settings.armamentsEnabled && slow) armaments.tickArmour(player);
+            if (settings.armamentsEnabled && ticks % 20L == 0L) armaments.ensureCarried(player);
         }
     }
 
