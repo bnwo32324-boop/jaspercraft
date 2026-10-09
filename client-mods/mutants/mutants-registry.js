@@ -193,6 +193,8 @@
     M.registerParticleTypes();
     M.defineEntities();
     M.registerEntities();
+    M.installModelAliases();
+    M.defineModels();
     if (M.defineItems) { M.defineItems(); M.registerItems(); }
     M.initVanillaItems();
     M.installed = true;

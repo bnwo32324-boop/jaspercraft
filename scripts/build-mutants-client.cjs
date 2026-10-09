@@ -26,7 +26,10 @@ const hooks = [
   // EntityPlayerSP.isRidingHorse: IJumpingMount.canJump of the spider pig (TeaVM devirtualised the call to AbstractHorse)
   ['EQy', 'if(c&&Cm(b,AP8)){', 'if(c&&b!==null&&b.$jmJumpingMount)return b.canJump()?1:0;if(c&&Cm(b,AP8)){'],
   // EntityPlayerSP.onLivingUpdate: IJumpingMount.setJumpPower (devirtualised to AbstractHorse.setJumpPower)
-  ['F4A', 'case 45:Gy9(n,b);if(B()){break _;}', 'case 45:if(n.$jmJumpingMount)n.setJumpPower(b);else Gy9(n,b);if(B()){break _;}']
+  ['F4A', 'case 45:Gy9(n,b);if(B()){break _;}', 'case 45:if(n.$jmJumpingMount)n.setJumpPower(b);else Gy9(n,b);if(B()){break _;}'],
+  // ModelRenderer.render: ScalableModelRenderer.render(scale) = push, scale(s), super.render(scale), pop. Children are
+  // rendered with direct E7Q calls, so the override must sit in E7Q itself (entry, before the resume check)
+  ['E7Q', 'function E7Q(a,b){var c,d,e,f,g,h,i,$p,$z;$p=0;', 'function E7Q(a,b){var c,d,e,f,g,h,i,$p,$z;$p=0;if(a.$jmS!==undefined&&a.$jmS!==1&&!FX()){JasprMutants.scaledRender(a,b);return;}']
 ];
 const EXTRA_HOOKS = [];                                      // added by later parts (renderers, items, gui)
 function allHooks() { return hooks.concat(EXTRA_HOOKS); }
@@ -102,6 +105,8 @@ function engineNames(src) {
     if (!isId(t) || JS_GLOBALS.has(t)) continue;
     if (toks[i - 1] === '.') continue;                                   // property access
     if ((toks[i - 1] === '{' || toks[i - 1] === ',') && toks[i + 1] === ':') continue;   // object key
+    if (toks[i - 1] === 'break' || toks[i - 1] === 'continue') continue;              // label reference
+    if ((toks[i - 1] === ';' || toks[i - 1] === '}') && toks[i + 1] === ':') continue;   // statement label
     used.add(t);
   }
   return [...used].filter(n => !declaredHere.has(n)).sort();

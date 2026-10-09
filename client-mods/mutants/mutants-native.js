@@ -54,6 +54,8 @@ var JasprMutants = (function () {
   M.listGet = function (l, i) { return l.c4(i); };
   M.listAdd = function (l, x) { Y(l, x); };
   M.listRemoveAt = function (l, i) { return HB(l, i); };
+  M.listRemove = function (l, o) { return !!l.F0(o); };      // List.remove(Object)
+  M.listClear = function (l) { l.oC(); };                   // List.clear() (AbstractList: removeRange(0, size()))
   M.listToArray = function (l) { if (!l) return []; if (l.qN && typeof l.g === "number") return Array.prototype.slice.call(l.qN.data, 0, l.g); var n = l.bl(), a = []; for (var i = 0; i < n; i++) a.push(l.c4(i)); return a; };
 
   // ================================================================ readable aliases on engine prototypes
@@ -249,14 +251,14 @@ var JasprMutants = (function () {
     var C = function () { P.call(this); if (fieldsFn) fieldsFn(this); };
     $rt_metadata([C, spec.name, -1, P, spec.ifaces || [], 0, 3, 0, 0, 0]);
     C.$jm = { name: spec.name, parent: P };
-    if (spec.methods) M.override(C, spec.methods, spec.group);
+    if (spec.methods) M.override(C, spec.methods, spec.group, spec.nonVirtual);
     if (spec.virtuals) for (var v in spec.virtuals) C.prototype[v] = spec.virtuals[v];
     return C;
   };
   // installs overrides under the virtual name (engine dispatch) and the readable name (translated code)
-  M.override = function (C, methods, group) {
+  M.override = function (C, methods, group, nonVirtual) {
     for (var k in methods) {
-      var fn = methods[k], v = vnameOf(k, group);
+      var fn = methods[k], v = nonVirtual && nonVirtual.indexOf(k) >= 0 ? null : vnameOf(k, group);
       Object.defineProperty(C.prototype, k, { value: fn, writable: true, enumerable: false, configurable: true });
       if (v) C.prototype[v] = fn;
     }

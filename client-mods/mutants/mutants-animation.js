@@ -19,7 +19,11 @@
     M2: { textureWidth: "bdO", textureHeight: "bby", textureOffsetX: "bH9", textureOffsetY: "bH$", rotationPointX: "cD",
       rotationPointY: "bs", rotationPointZ: "bA", rotateAngleX: "A", rotateAngleY: "bb", rotateAngleZ: "bX",
       cubeList: "a6Y", childModels: "OS", offsetX: "bot", offsetY: "bcS", offsetZ: "bcR", boxName: "dI3" },
-    DQ: { swingProgress: "v5", boxList: "cJ9", textureWidth: "vI", textureHeight: "vd" }
+    DQ: { swingProgress: "v5", boxList: "cJ9", textureWidth: "vI", textureHeight: "vd" },
+    // ModelCreeper (G8M) and ModelBiped (AB4) public parts used by CreeperMinionModel / MutantSkeletonArmorModel
+    DR9: { head: "cfP", creeperArmor: "dWX", body: "cSR", leg1: "cgs", leg2: "cgr", leg3: "cgu", leg4: "cgt" },
+    OB: { bipedHead: "lA", bipedHeadwear: "Ea", bipedBody: "k_", bipedRightArm: "gM", bipedLeftArm: "f3", bipedRightLeg: "mD",
+      bipedLeftLeg: "nc", leftArmPose: "a2N", rightArmPose: "a6t" }
   };
   // ModelRenderer(model) / ModelRenderer(model, u, v) / JointModelRenderer / ScalableModelRenderer
   M.MR = function (model, u, v) { return arguments.length >= 3 ? BX(model, u, v) : H7(model); };
@@ -55,7 +59,8 @@
       setModelAttributes: function (m, other) { if (typeof m.bpZ === "function") m.bpZ(other); else AAt(m, other); }
     }
   };
-  M.registerVirtuals("model", { render: "ha", setRotationAngles: "i3", setLivingAnimations: "Lo", postRenderArm: "cD2" });
+  // ModelBase virtuals a translated model may override (ModelBiped.postRenderArm is not overridden by any mod model)
+  M.registerVirtuals("model", { render: "ha", setRotationAngles: "i3", setLivingAnimations: "Lo" });
   M.installModelAliases = function () {
     var p = M2.prototype;
     ["mirror", "showModel", "isHidden"].forEach(function (k, i) { if (!Object.getOwnPropertyDescriptor(p, k)) Object.defineProperty(p, k, flagAlias(["i$", "eT", "cIT"][i])); });
@@ -75,10 +80,11 @@
   };
 
   // ---------------------------------------------------------------- ModelBase subclasses
-  // spec: { name, extend (DQ by default), init(model) = engine constructor of the parent, fields(self), ctor(self, args) = Java body, methods }
+  // spec: { name, extend (DQ by default), init(model, args) = engine constructor of the parent, fields(self), ctor = Java body,
+  //   methods, nonVirtual = readable names that are Java overloads (not overrides) of a ModelBase virtual }
   M.defineModel = function (spec) {
     var P = spec.extend || DQ;
-    var C = M.defineClass({ name: spec.name, extend: P, fields: spec.fields, methods: spec.methods, group: "model" });
+    var C = M.defineClass({ name: spec.name, extend: P, fields: spec.fields, methods: spec.methods, group: "model", nonVirtual: spec.nonVirtual });
     C.create = function () {
       var m = new C();
       if (spec.init) spec.init(m, arguments); else Gs(m);
