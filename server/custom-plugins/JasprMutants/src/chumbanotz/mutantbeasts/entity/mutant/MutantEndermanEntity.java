@@ -124,7 +124,7 @@ public class MutantEndermanEntity extends EntityMob implements IEntityAdditional
         this.getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE).setBaseValue(MBConfig.ENTITIES.mutantEndermanKnockbackResistance);
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(MBConfig.ENTITIES.mutantEndermanMaxHealth);
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(MBConfig.ENTITIES.mutantEndermanMovementSpeed);
-        this.getEntityAttribute(SWIM_SPEED).setBaseValue(MBConfig.ENTITIES.mutantEndermanSwimSpeed);
+        chat.jaspr.mutants.compat.ForgeLiving.swimSpeed(this) /* JasperCraft port: Forge's EntityLivingBase.SWIM_SPEED */.setBaseValue(MBConfig.ENTITIES.mutantEndermanSwimSpeed);
     }
 
     protected void entityInit() {
@@ -1256,5 +1256,21 @@ public class MutantEndermanEntity extends EntityMob implements IEntityAdditional
             this.bukkitEntity = chat.jaspr.mutants.wrappers.MutantWrappers.create(this);
         }
         return this.bukkitEntity;
+    }
+
+    // JasperCraft port: Forge's EntityLivingBase applies SWIM_SPEED in moveRelative (in water or lava) and in handleJumpWater/Lava.
+    @Override
+    public void moveRelative(float strafe, float up, float forward, float friction) {
+        chat.jaspr.mutants.compat.ForgeLiving.moveRelative(this, strafe, up, forward, friction);
+    }
+
+    @Override
+    protected void handleJumpWater() {
+        chat.jaspr.mutants.compat.ForgeLiving.jumpInLiquid(this);
+    }
+
+    @Override
+    protected void handleJumpLava() {
+        chat.jaspr.mutants.compat.ForgeLiving.jumpInLiquid(this);
     }
 }

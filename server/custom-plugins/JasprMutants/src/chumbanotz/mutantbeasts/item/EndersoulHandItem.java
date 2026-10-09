@@ -66,7 +66,7 @@ public class EndersoulHandItem extends Item {
         if (!EndersoulHandItem.canCarry(worldIn, pos, blockState)) {
             return EnumActionResult.FAIL;
         }
-        if (!worldIn.canMineBlockBody(player, pos)) {
+        if (!worldIn.isBlockModifiable(player, pos)) { // JasperCraft port: Forge's World.canMineBlockBody; on WorldServer it is vanilla isBlockModifiable (spawn protection, world border)
             return EnumActionResult.FAIL;
         }
         if (!player.canPlayerEdit(pos, facing, player.getHeldItem(hand))) {

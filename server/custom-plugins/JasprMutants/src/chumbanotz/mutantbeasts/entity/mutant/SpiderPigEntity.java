@@ -110,7 +110,7 @@ public class SpiderPigEntity extends EntityTameable implements IJumpingMount {
         this.getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE).setBaseValue(MBConfig.ENTITIES.spiderPigKnockbackResistance);
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(MBConfig.ENTITIES.spiderPigMaxHealth);
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(MBConfig.ENTITIES.spiderPigMovementSpeed);
-        this.getEntityAttribute(SWIM_SPEED).setBaseValue(MBConfig.ENTITIES.spiderPigSwimSpeed);
+        chat.jaspr.mutants.compat.ForgeLiving.swimSpeed(this) /* JasperCraft port: Forge's EntityLivingBase.SWIM_SPEED */.setBaseValue(MBConfig.ENTITIES.spiderPigSwimSpeed);
     }
 
     protected void entityInit() {
@@ -545,5 +545,21 @@ public class SpiderPigEntity extends EntityTameable implements IJumpingMount {
             this.bukkitEntity = chat.jaspr.mutants.wrappers.MutantWrappers.create(this);
         }
         return this.bukkitEntity;
+    }
+
+    // JasperCraft port: Forge's EntityLivingBase applies SWIM_SPEED in moveRelative (in water or lava) and in handleJumpWater/Lava.
+    @Override
+    public void moveRelative(float strafe, float up, float forward, float friction) {
+        chat.jaspr.mutants.compat.ForgeLiving.moveRelative(this, strafe, up, forward, friction);
+    }
+
+    @Override
+    protected void handleJumpWater() {
+        chat.jaspr.mutants.compat.ForgeLiving.jumpInLiquid(this);
+    }
+
+    @Override
+    protected void handleJumpLava() {
+        chat.jaspr.mutants.compat.ForgeLiving.jumpInLiquid(this);
     }
 }

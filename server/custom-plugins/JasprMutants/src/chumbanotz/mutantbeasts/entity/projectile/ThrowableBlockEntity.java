@@ -234,7 +234,7 @@ IThrowableEntity {
                 entity.attackEntityFrom(DamageSource.causeIndirectDamage(this, this.thrower), 4.0f + (float) MBConfig.ENTITIES.mutantSnowGolemIceChunkDamage);
             }
             if (!this.world.isRemote) {
-                this.playSound(chat.jaspr.mutants.compat.ForgeAccess.getSoundType(this.blockState.getBlock(), this.blockState, this.world, this.getPosition(), this).getBreakSound() /* JasperCraft port: Forge's Block.getSoundType(state, world, pos, entity) */, 0.8f, (this.rand.nextFloat() - this.rand.nextFloat()) * 0.2f + 0.8f);
+                this.playSound(chat.jaspr.mutants.compat.ForgeAccess.getBreakSound(chat.jaspr.mutants.compat.ForgeAccess.getSoundType(this.blockState.getBlock(), this.blockState, this.world, this.getPosition(), this)) /* JasperCraft port: Forge's Block.getSoundType(state, world, pos, entity); SoundType.getBreakSound is client-only in the server jar */, 0.8f, (this.rand.nextFloat() - this.rand.nextFloat()) * 0.2f + 0.8f);
                 this.world.setEntityState(this, (byte)3);
                 this.setDead();
             }

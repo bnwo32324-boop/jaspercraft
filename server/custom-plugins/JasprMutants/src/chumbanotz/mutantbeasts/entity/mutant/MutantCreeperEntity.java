@@ -92,7 +92,7 @@ public class MutantCreeperEntity extends EntityCreeper implements IEntityAdditio
         this.getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE).setBaseValue(MBConfig.ENTITIES.mutantCreeperKnockbackResistance);
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(MBConfig.ENTITIES.mutantCreeperMaxHealth);
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(MBConfig.ENTITIES.mutantCreeperMovementSpeed);
-        this.getEntityAttribute(SWIM_SPEED).setBaseValue(MBConfig.ENTITIES.mutantCreeperSwimSpeed);
+        chat.jaspr.mutants.compat.ForgeLiving.swimSpeed(this) /* JasperCraft port: Forge's EntityLivingBase.SWIM_SPEED */.setBaseValue(MBConfig.ENTITIES.mutantCreeperSwimSpeed);
     }
 
     @Override
@@ -556,5 +556,11 @@ public class MutantCreeperEntity extends EntityCreeper implements IEntityAdditio
             this.bukkitEntity = chat.jaspr.mutants.wrappers.MutantWrappers.create(this);
         }
         return this.bukkitEntity;
+    }
+
+    // JasperCraft port: Forge's EntityLivingBase applies SWIM_SPEED in moveRelative (in water or lava); this class has its own handleJumpWater/Lava.
+    @Override
+    public void moveRelative(float strafe, float up, float forward, float friction) {
+        chat.jaspr.mutants.compat.ForgeLiving.moveRelative(this, strafe, up, forward, friction);
     }
 }

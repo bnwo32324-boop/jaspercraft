@@ -105,7 +105,7 @@ extends WalkNodeProcessor {
         IBlockState iblockstate = blockaccessIn.getBlockState(blockpos);
         Block block = iblockstate.getBlock();
         Material material = iblockstate.getMaterial();
-        PathNodeType forgeType = block.getAiPathNodeType(iblockstate, blockaccessIn, blockpos);
+        PathNodeType forgeType = null; // JasperCraft port: Forge's Block.getAiPathNodeType(state, world, pos) is isBurning ? DAMAGE_FIRE : null, and no vanilla block is burning (Block.isBurning is false and no Forge block overrides it)
         if (forgeType != null) {
             return forgeType;
         }

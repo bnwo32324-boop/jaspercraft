@@ -116,6 +116,44 @@ public final class ForgeAccess {
         }
     }
 
+    /**
+     * ItemStack.interactWithEntity with Forge's ItemShears.itemInteractionForEntity (vanilla Paper's shears have none):
+     * on an IShearable target that isShearable, onSheared's drops are dropped with Forge's random motion and the shears
+     * take 1 damage; the interaction counts as handled for any IShearable. CraftBukkit holds a living entity's drops
+     * back for its death event unless forceDrops is set, as it does for sheep shearing, and plugins can veto the shearing
+     * with PlayerShearEntityEvent as for vanilla sheep.
+     */
+    public static boolean interactWithEntity(net.minecraft.item.ItemStack stack, EntityPlayer player, net.minecraft.entity.EntityLivingBase target, net.minecraft.util.EnumHand hand) {
+        if (!(stack.getItem() instanceof net.minecraft.item.ItemShears) || !(target instanceof net.minecraftforge.common.IShearable)) {
+            return stack.interactWithEntity(player, target, hand);
+        }
+        if (target.world.isRemote) return false;
+        net.minecraftforge.common.IShearable shearable = (net.minecraftforge.common.IShearable) target;
+        BlockPos pos = new BlockPos(target.posX, target.posY, target.posZ);
+        if (shearable.isShearable(stack, target.world, pos)) {
+            org.bukkit.event.player.PlayerShearEntityEvent event = new org.bukkit.event.player.PlayerShearEntityEvent(
+                    (org.bukkit.entity.Player) player.getBukkitEntity(), target.getBukkitEntity());
+            org.bukkit.Bukkit.getPluginManager().callEvent(event);
+            if (event.isCancelled()) return false;
+            java.util.List<net.minecraft.item.ItemStack> drops = shearable.onSheared(stack, target.world, pos, EnchantmentHelper.getEnchantmentLevel(Enchantments.FORTUNE, stack));
+            java.util.Random rand = new java.util.Random();
+            boolean old = setForceDrops(target, true);
+            try {
+                for (net.minecraft.item.ItemStack drop : drops) {
+                    net.minecraft.entity.item.EntityItem ent = target.entityDropItem(drop, 1.0F);
+                    if (ent == null) continue;
+                    ent.motionY += (double) (rand.nextFloat() * 0.05F);
+                    ent.motionX += (double) ((rand.nextFloat() - rand.nextFloat()) * 0.1F);
+                    ent.motionZ += (double) ((rand.nextFloat() - rand.nextFloat()) * 0.1F);
+                }
+            } finally {
+                setForceDrops(target, old);
+            }
+            stack.damageItem(1, target);
+        }
+        return true;
+    }
+
     /** Forge's Entity.isAddedToWorld(): true between World.onEntityAdded and onEntityRemoved (CraftBukkit: Entity.valid). */
     public static boolean isAddedToWorld(Entity entity) {
         return EntityLifecycle.isAddedToWorld(entity);
@@ -130,6 +168,22 @@ public final class ForgeAccess {
     /** Forge's Block.getSoundType(state, world, pos, entity): the block's sound type unless a block overrides it. */
     public static SoundType getSoundType(Block block, IBlockState state, World world, BlockPos pos, Entity entity) {
         return block.getSoundType();
+    }
+
+    private static Field breakSound;
+
+    /** SoundType.getBreakSound(): @SideOnly(CLIENT) in vanilla (Forge removes that); the field is SoundEffectType.o on Paper. */
+    public static SoundEvent getBreakSound(SoundType type) {
+        try {
+            if (breakSound == null) {
+                Field f = SoundType.class.getDeclaredField("o"); // Spigot name of SoundType.breakSound
+                f.setAccessible(true);
+                breakSound = f;
+            }
+            return (SoundEvent) breakSound.get(type);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("SoundType.breakSound", e);
+        }
     }
 
     /** Forge's Block.getExplosionResistance(world, pos, exploder, explosion): defaults to the vanilla getExplosionResistance(exploder). */

@@ -93,7 +93,7 @@ public class MutantSnowGolemEntity extends EntityGolem implements IRangedAttackM
         this.getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE).setBaseValue(MBConfig.ENTITIES.mutantSnowGolemKnockbackResistance);
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(MBConfig.ENTITIES.mutantSnowGolemMaxHealth);
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(MBConfig.ENTITIES.mutantSnowGolemMovementSpeed);
-        this.getEntityAttribute(SWIM_SPEED).setBaseValue(MBConfig.ENTITIES.mutantSnowGolemSwimSpeed);
+        chat.jaspr.mutants.compat.ForgeLiving.swimSpeed(this) /* JasperCraft port: Forge's EntityLivingBase.SWIM_SPEED */.setBaseValue(MBConfig.ENTITIES.mutantSnowGolemSwimSpeed);
     }
 
     protected void entityInit() {
@@ -283,7 +283,7 @@ public class MutantSnowGolemEntity extends EntityGolem implements IRangedAttackM
 
     protected boolean processInteract(EntityPlayer player, EnumHand hand) {
         ItemStack itemStack = player.getHeldItem(hand);
-        if (itemStack.interactWithEntity(player, this, hand)) {
+        if (chat.jaspr.mutants.compat.ForgeAccess.interactWithEntity(itemStack, player, this, hand)) { // JasperCraft port: Forge's ItemShears.itemInteractionForEntity shears an IShearable; Paper's shears have no entity interaction
             return true;
         }
         if ((this.getOwnerId() == null || player == this.getOwner()) && itemStack.getItem() != Items.SNOWBALL) {
@@ -469,5 +469,21 @@ public class MutantSnowGolemEntity extends EntityGolem implements IRangedAttackM
             this.bukkitEntity = chat.jaspr.mutants.wrappers.MutantWrappers.create(this);
         }
         return this.bukkitEntity;
+    }
+
+    // JasperCraft port: Forge's EntityLivingBase applies SWIM_SPEED in moveRelative (in water or lava) and in handleJumpWater/Lava.
+    @Override
+    public void moveRelative(float strafe, float up, float forward, float friction) {
+        chat.jaspr.mutants.compat.ForgeLiving.moveRelative(this, strafe, up, forward, friction);
+    }
+
+    @Override
+    protected void handleJumpWater() {
+        chat.jaspr.mutants.compat.ForgeLiving.jumpInLiquid(this);
+    }
+
+    @Override
+    protected void handleJumpLava() {
+        chat.jaspr.mutants.compat.ForgeLiving.jumpInLiquid(this);
     }
 }
