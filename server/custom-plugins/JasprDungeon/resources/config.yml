@@ -6,7 +6,7 @@
 # the previous one's identity and room journals move intact to plugins/JasprDungeon/archive/, and its world folder is
 # left untouched.
 enabled: true
-world-name: jaspr_dungeon6
+world-name: jaspr_dungeon7
 # Identity only since generation 6; every run draws its own random seed.
 seed-salt: 709327916
 # Friends who step through the same gate within this many seconds of a run's start share that run. Whoever has left a

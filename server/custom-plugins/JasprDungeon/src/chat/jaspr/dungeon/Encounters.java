@@ -25,11 +25,32 @@ public final class Encounters implements Listener {
     private final Map<String,RoomStore> stores=new HashMap<>();
     private final Map<UUID,Shot> shots=new HashMap<>();private boolean spawning,restoring;private long ticks;
     private Player impactPlayer;private boolean impactAccepted;
-    static final String TAG="jaspr_penitent";
+    static final String TAG="jaspr_penitent",SCALE_TAG="jpd_scale:",SPECIES_TAG="jpd_species:",VIGOR_TAG="jpd_vigor:",STAND_IN_TAG="jpd_standin";
+    /** Generation 7: Paper caps max health (spigot.yml attribute.maxHealth.max, 2048 by default) and refuses more, yet the owner
+     *  wants "some bosses legitimately incredibly powerful". A body keeps at most the cap and takes proportionally less damage
+     *  (its vigor), so its effective health is the planned one; bars and phase thresholds read the same fractions. */
+    public static void vigor(LivingEntity e,double hp){double cap=Math.max(20,org.spigotmc.SpigotConfig.maxHealth-1),body=Math.max(1,Math.min(hp,cap));
+        e.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(body);e.setHealth(body);e.getScoreboardTags().removeIf(t->t.startsWith(VIGOR_TAG));
+        if(hp>body)e.addScoreboardTag(VIGOR_TAG+Math.round(hp/body*1000));}
+    /** The damage divisor of a body (1 when it has none). */
+    public static double vigorOf(Entity e){for(String t:e.getScoreboardTags())if(t.startsWith(VIGOR_TAG))try{return Math.max(1,Integer.parseInt(t.substring(VIGOR_TAG.length()))/1000.0);}catch(NumberFormatException x){return 1;}return 1;}
+    @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true) public void vigor(EntityDamageEvent e){if(!(e.getEntity() instanceof LivingEntity)||!plugin.inside(e.getEntity().getWorld()))return;double v=vigorOf(e.getEntity());if(v>1)e.setDamage(e.getDamage()/v);}
+    /** Generation 7: absolved rooms per run world (room ids), which open that floor's Descent or Throne. */
+    private final Map<String,Set<String>> clears=new HashMap<>();
+    /** How many rooms of this world are absolved (refuges never count). */
+    public int clears(World world){Set<String> c=world==null?null:clears.get(world.getName());return c==null?0:c.size();}
+    /** Every slot of a room killed: its killed set full. */
+    static long full(Layout.Room r){int n=r.mobCount();return n>=64?-1L:(1L<<n)-1;}
+    /** A room fills in over a few passes (ten ticks each): at most this many spawns per pass. */
+    static final int SPAWNS_PER_PASS=10;
     public static final class Run {
         public final Layout.Room room;public final RoomStore.State state;public final Map<Integer,LivingEntity> mobs=new HashMap<>();
         public final World world;public final String key;
-        final Set<UUID> players=new HashSet<>();long lastSeen,windup,nextAttack;Location warning;BossBar bar;double bossMax;
+        /** Generation 7: runtime adds in this room (boss summons, bestiary spawns, secrets): never slots, never counted for the clear. */
+        public final List<LivingEntity> adds=new ArrayList<>();
+        final Set<UUID> players=new HashSet<>();boolean populated;long lastSeen,windup,nextAttack;Location warning;BossBar bar;double bossMax;
+        /** Owner 2026-10-08: the room's mobs drawn into the fight (Watch); the others hold their stations. */
+        final Set<UUID> alert=new HashSet<>();
         EncounterCatalog.Pattern pattern;UUID warnedPlayer,warningBoss;List<double[]> marks=Collections.emptyList();
         public EncounterCatalog.Pattern warningPattern(){return pattern;}
         /** Detached legacy fixture only; live activation always supplies its world and realm key. */
@@ -50,13 +71,13 @@ public final class Encounters implements Listener {
         if(world==null)return;String name=world.getName();
         Iterator<Run> it=active.values().iterator();while(it.hasNext()){Run a=it.next();if(a.world!=null&&a.world.getName().equals(name)){sleep(a);it.remove();}}
         Iterator<Shot> shot=shots.values().iterator();while(shot.hasNext()){Shot s=shot.next();if(s.entity.getWorld().getName().equals(name)){s.entity.remove();shot.remove();}}
-        stores.remove(name);
+        stores.remove(name);clears.remove(name);if(plugin.descents!=null)plugin.descents.forget(name);
     }
     public Run activate(World world,Layout.Room r){
         if(world==null||!plugin.inside(world))return null;
         String key=plugin.roomKey(world,r);Run a=active.get(key);if(a!=null)return a;
         if(active.size()>=Math.max(1,plugin.getConfig().getInt("max-active-rooms",32)))return null;
-        try{a=new Run(world,r,store(world).load(r),key);active.put(key,a);if(r.mobCount()==0&&!a.state.cleared){a.state.cleared=true;if(!save(a)){active.remove(key);return null;}}return a;}catch(Exception ex){plugin.getLogger().severe("DUNGEON_ROOM_LOCKED journal="+key+" "+ex.getMessage());return null;}
+        try{a=new Run(world,r,store(world).load(r),key);active.put(key,a);if(r.mobCount()==0&&!a.state.cleared){a.state.cleared=true;if(!save(a)){active.remove(key);return null;}}remember(a);return a;}catch(Exception ex){plugin.getLogger().severe("DUNGEON_ROOM_LOCKED journal="+key+" "+ex.getMessage());return null;}
     }
     public void tick(){
         ticks++;
@@ -70,59 +91,165 @@ public final class Encounters implements Listener {
             Iterator<Run> it=active.values().iterator();while(it.hasNext()){
                 Run a=it.next();if(a.players.isEmpty()&&ticks-a.lastSeen>20*Math.max(5,plugin.getConfig().getInt("room-sleep-seconds",30))){sleep(a);it.remove();continue;}
                 // Treasure and shrine guardians stay dormant until someone opens the room chest.
-                if(!a.players.isEmpty()&&!a.state.cleared&&(!a.room.dormant()||a.state.triggered)){if(a.state.killed==((1<<a.room.mobCount())-1))complete(a);else for(int slot=0;slot<a.room.mobCount();slot++)if((a.state.killed&(1<<slot))==0){LivingEntity e=a.mobs.get(slot);if(e==null||!e.isValid())spawn(a,slot);}}
+                if(!a.players.isEmpty()&&!a.state.cleared&&(!a.room.dormant()||a.state.triggered)){if(a.state.killed==full(a.room))complete(a);else{int budget=SPAWNS_PER_PASS;for(int slot=0;slot<a.room.mobCount()&&budget>0;slot++)if((a.state.killed&(1L<<slot))==0){LivingEntity e=a.mobs.get(slot);if(e==null||!e.isValid()){if(e!=null&&blown.remove(e.getUniqueId())){fell(a,slot,e);continue;}spawn(a,slot);budget--;}}}}
                 if(a.bar!=null){a.bar.removeAll();for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(present(p,a))a.bar.addPlayer(p);}LivingEntity boss=a.mobs.get(0);if(boss!=null&&boss.isValid()&&!boss.isDead())a.bar.setProgress(Math.max(0,Math.min(1,boss.getHealth()/a.bossMax)));}
             }
         }
         for(Run a:active.values()){
+            // Adds: gone when dead or out of their room; otherwise they hunt the nearest eligible player like the room's own mobs.
+            Iterator<LivingEntity> add=a.adds.iterator();
+            while(add.hasNext()){LivingEntity e=add.next();
+                if(!e.isValid()||e.isDead()){add.remove();continue;}
+                if(!contained(a,e,e.getLocation())){e.remove();add.remove();continue;}
+                if(e instanceof Creature&&ticks%10==0){Player nearest=null;double distance=Double.MAX_VALUE;for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(!eligible(p,a))continue;double d=p.getLocation().distanceSquared(e.getLocation());if(d<distance){distance=d;nearest=p;}}((Creature)e).setTarget(nearest);}
+            }
             for(Map.Entry<Integer,LivingEntity> mob:a.mobs.entrySet()){
                 LivingEntity e=mob.getValue();if(!e.isValid()||e.isDead())continue;
-                if(!contained(a,e,e.getLocation())){cancelWarning(a);restoring=true;try{Location to=safe(a.world,a.room,mob.getKey());if(to!=null){if(!e.teleport(to))e.remove();else{e.setFallDistance(0);e.setVelocity(new Vector());}}else e.remove();}finally{restoring=false;}}
-                if(e.isValid()&&contained(a,e,e.getLocation())&&e instanceof Creature){Player nearest=null;double distance=Double.MAX_VALUE;for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(!eligible(p,a))continue;double d=p.getLocation().distanceSquared(e.getLocation());if(d<distance){distance=d;nearest=p;}}((Creature)e).setTarget(nearest);}
+                if(!contained(a,e,e.getLocation())){cancelWarning(a);restoring=true;try{Scaling.Body body=bodyOf(e);Location to=safe(a.world,a.room,mob.getKey(),body.width,body.height);if(to!=null){if(!e.teleport(to))e.remove();else{e.setFallDistance(0);e.setVelocity(new Vector());}}else e.remove();}finally{restoring=false;}}
+                if(e.isValid()&&contained(a,e,e.getLocation())&&e instanceof Creature)hunt(a,mob.getKey(),(Creature)e);
             }
-            if(a.room.kind==Layout.Kind.BOSS)boss(a);
+            if(a.room.bossRoom()){boss(a);if(plugin.kits!=null)plugin.kits.tick(a,ticks);}
+            if(plugin.bestiary!=null)plugin.bestiary.tick(a,ticks);
         }
         Iterator<Shot> shotIt=shots.values().iterator();while(shotIt.hasNext()){Shot s=shotIt.next();if(!s.entity.isValid()){shotIt.remove();continue;}if(ticks-s.birth>200||!plugin.inside(s.entity.getWorld())||!s.room.equals(plugin.roomKey(s.entity.getLocation()))){s.entity.remove();shotIt.remove();}}
         if(ticks%20==0)plugin.relics.tick();
         if(plugin.hazards!=null)plugin.hazards.tick(active);
     }
-    Location safe(World world,Layout.Room r,int slot){
+    /**
+     * Owner 2026-10-08 ("mobs should be more spread out ... clustered in the center of giant rooms"): a room mob hunts the nearest
+     * eligible player once it is in the fight (Watch: near, seen within range, struck, or called by a neighbour; at once in a boss
+     * room or among woken guardians). Until then it holds its station, the cell Layout.Stations spread it to, and walks back
+     * there when it strays.
+     */
+    private void hunt(Run a,int slot,Creature e){
+        boolean all=Watch.allAtOnce(a.room,a.state.triggered),alert=all||a.alert.contains(e.getUniqueId()),look=!alert&&ticks%10==0;
+        Player nearest=null;double distance=Double.MAX_VALUE;
+        for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(!eligible(p,a))continue;double d=p.getLocation().distanceSquared(e.getLocation());
+            if(look&&!alert&&Watch.notices(a.room.floor,d,Watch.looks(a.room.floor,d)&&e.hasLineOfSight(p)))alert=true;
+            if(d<distance){distance=d;nearest=p;}}
+        if(alert){if(!all&&nearest!=null&&a.alert.add(e.getUniqueId())){alarm(a,e);watchNoticed++;}e.setTarget(nearest);return;}
+        if(e.getTarget()!=null)e.setTarget(null);
+        if(ticks%40==Math.floorMod(slot,40)){double[] at=EncounterCatalog.spawnPoint(a.room,slot);Location l=e.getLocation();double dx=l.getX()-at[0],dz=l.getZ()-at[2];
+            if(Watch.astray(dx*dx+dz*dz)){walk(e,at[0],at[1],at[2]);watchReturns++;}}
+    }
+    /** A mob drawn into the fight calls its room-mates within Watch.CALL into it. */
+    private void alarm(Run a,LivingEntity from){Location l=from.getLocation();for(LivingEntity m:a.mobs.values())if(m!=from&&m.isValid()&&!m.isDead()&&m.getWorld().equals(l.getWorld())&&Watch.called(m.getLocation().distanceSquared(l))&&a.alert.add(m.getUniqueId()))watchCalled++;}
+    /** Path an idle mob back to its station at walking pace (NMS navigation; a mob that cannot path simply stays). */
+    private static void walk(Creature e,double x,double y,double z){try{((org.bukkit.craftbukkit.v1_12_R1.entity.CraftCreature)e).getHandle().getNavigation().a(x,y,z,1.0D);}catch(RuntimeException|LinkageError ignored){}}
+    /** A room mob still holding its station (not in the fight): its own AI may not pick a player yet. Adds always hunt. */
+    private boolean idle(Entity mob,Entity target){
+        if(!(target instanceof Player)||!(mob instanceof Creature))return false;
+        Run a=owner(mob);if(a==null||Watch.allAtOnce(a.room,a.state.triggered)||a.alert.contains(mob.getUniqueId()))return false;
+        return a.mobs.containsValue(mob);
+    }
+    /** For the live probe and the metrics line: how many mobs noticed a player, were called by a neighbour, walked back to their station. */
+    long watchNoticed,watchCalled,watchReturns;
+    public boolean alerted(LivingEntity e){Run a=owner(e);return a!=null&&(Watch.allAtOnce(a.room,a.state.triggered)||a.alert.contains(e.getUniqueId()));}
+    Location safe(World world,Layout.Room r,int slot,double width,double height){
         if(world==null||!plugin.inside(world)||r.kind==Layout.Kind.REFUGE)return null;
-        EncounterCatalog.Species species=EncounterCatalog.entry(r.theme).species(slot,r.motif,r.kind==Layout.Kind.BOSS);
         EncounterCatalog.Blocks blocks=new EncounterCatalog.Blocks(){
             public boolean air(int x,int y,int z){return world.getBlockAt(x,y,z).getType()==Material.AIR;}
             public boolean floor(int x,int y,int z){Block b=world.getBlockAt(x,y,z);Material m=b.getType();return m.isOccluding()&&m!=Material.MAGMA&&m!=Material.CACTUS&&m!=Material.SOUL_SAND;}
         };
         // Try canonical clear-lane positions only. Never carve blocks or spawn inside a chest.
-        for(int n=0;n<14;n++){double[] p=EncounterCatalog.spawnPoint(r,slot+n);if(EncounterCatalog.fits(r,species,r.kind==Layout.Kind.BOSS,p[0],p[1],p[2],blocks))return new Location(world,p[0],p[1],p[2]);}
+        for(int n=0;n<14;n++){double[] p=EncounterCatalog.spawnPoint(r,slot+n);if(EncounterCatalog.fits(r,width,height,p[0],p[1],p[2],blocks))return new Location(world,p[0],p[1],p[2]);}
         return null;
     }
-    public static EntityType type(Layout.Room r,int slot){
-        return EntityType.valueOf(EncounterCatalog.entry(r.theme).species(slot,r.motif,r.kind==Layout.Kind.BOSS).name());
+    public static EntityType type(Layout.Room r,int slot){return type(EncounterCatalog.entry(r.theme).species(slot,r.motif,r.bossSlot(slot)));}
+    /** The vanilla entity a species stands on: itself, its custom base, or a mutant's fallback. */
+    public static EntityType type(EncounterCatalog.Species s){return EntityType.valueOf(s.vanilla()?s.name():s.fallback);}
+    /** A spawned mob's species, from its journal tag (generation 7), else its vanilla type. */
+    static EncounterCatalog.Species speciesOf(LivingEntity e){
+        for(String tag:e.getScoreboardTags())if(tag.startsWith(SPECIES_TAG)){try{return EncounterCatalog.Species.valueOf(tag.substring(SPECIES_TAG.length()));}catch(IllegalArgumentException ignored){}}
+        try{return EncounterCatalog.Species.valueOf(e.getType().name());}catch(IllegalArgumentException ex){return EncounterCatalog.Species.ZOMBIE;}
+    }
+    /** A spawned mob's body, read from its journal tag (scale) or its slime size. */
+    Scaling.Body bodyOf(LivingEntity e){
+        double scale=1;for(String tag:e.getScoreboardTags())if(tag.startsWith(SCALE_TAG)){try{scale=Integer.parseInt(tag.substring(SCALE_TAG.length()))/100.0;}catch(NumberFormatException ignored){}}
+        if(e.getScoreboardTags().contains(STAND_IN_TAG))return Scaling.knownStandIn(Scaling.standInSize(speciesOf(e).fallback),scale);
+        return Scaling.known(speciesOf(e),scale,e instanceof Slime?((Slime)e).getSize():0);
     }
     void spawn(Run a,int slot){
-        Location at=safe(a.world,a.room,slot);if(at==null)return;
+        boolean boss=a.room.bossSlot(slot);
+        EncounterCatalog.Entry entry=EncounterCatalog.entry(a.room.theme);
+        EncounterCatalog.Species species=entry.species(slot,a.room.motif,boss);
+        // Generation 7: the ported mutants turn up on every floor, more and stronger deeper; some boss rooms crown one.
+        EncounterCatalog.Species mutant=boss?MutantPresence.boss(a.room):MutantPresence.ordinary(a.room,slot);
+        if(mutant!=null)species=mutant;
+        int tier=EncounterCatalog.threat(a.room.tier);
+        double danger=danger(a.world);
+        // Generation 7: every floor is harder, and so is the way to its Descent; a floor's guardian and the Throne far more.
+        double depth=Floors.depth(a.room),floorHp=Floors.health(a.room.floor)*(1+.5*depth);
+        double finale=!boss?1:a.room.kind==Layout.Kind.THRONE?10:a.room.kind==Layout.Kind.DESCENT?3.5+1.5*a.room.floor:1;
+        double hp=boss?(a.room.kind==Layout.Kind.BOSS?125+tier*40:90+tier*30)*finale*floorHp*Math.max(.2,Math.min(5,plugin.getConfig().getDouble("boss-health-multiplier",1)*danger)):(12+tier*5+(slot%3)*3)*danger*floorHp;
+        // A mutant has the mod's own health; a mutant boss is never weaker than the boss it stands in for (a floor guardian keeps its thousands).
+        if(species.mutant()){double mutantHp=MutantPresence.health(species,a.room,boss)*danger;hp=boss?Math.max(hp,mutantHp):mutantHp;}
+        // Owner 2026-10-05: a mob's size follows its room and its health; placement must clear the whole scaled body.
+        // Without JasprMutants a mutant stands in as its vanilla fallback: it then looks and measures like that mob, scaled like any other.
+        boolean standIn=species.mutant()&&(plugin.mutants==null||!plugin.mutants.available());
+        Scaling.Body body=standIn?Scaling.standIn(a.room,Scaling.standInSize(species.fallback),boss,hp):Scaling.body(a.room,species,boss,hp);
+        Location at=safe(a.world,a.room,slot,body.width,body.height);if(at==null)return;
         LivingEntity created=null;spawning=true;try{
-            LivingEntity e=(LivingEntity)a.world.spawnEntity(at,type(a.room,slot));created=e;if(!e.isValid())return;
-            e.addScoreboardTag(TAG);e.addScoreboardTag("jpd_room:"+a.key);e.addScoreboardTag("jpd_slot:"+slot);e.setRemoveWhenFarAway(false);e.setCanPickupItems(false);
-            boolean boss=a.room.kind==Layout.Kind.BOSS;
-            if(e instanceof Zombie)((Zombie)e).setBaby(false);if(e instanceof Slime)((Slime)e).setSize(boss?4:2);
-            int tier=EncounterCatalog.threat(a.room.tier);
-            double danger=danger(a.world);
-            double hp=boss?(90+tier*30)*Math.max(.2,Math.min(5,plugin.getConfig().getDouble("boss-health-multiplier",1)*danger)):(12+tier*5+(slot%3)*3)*danger;
-            e.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(hp);e.setHealth(hp);
-            if(e.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE)!=null)e.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue((boss?5+tier:2+tier*.65)*danger);
-            EncounterCatalog.Entry entry=EncounterCatalog.entry(a.room.theme);
-            e.setCustomName((boss?ChatColor.DARK_RED:ChatColor.GRAY)+(boss?entry.bossName:entry.themeName+" Penitent"));e.setCustomNameVisible(boss);
+            // A mutant comes from JasprMutants (the ported mod); without it, or if it refuses, the species' vanilla fallback stands in.
+            LivingEntity e=species.mutant()&&plugin.mutants!=null?plugin.mutants.spawn(species,at):null;
+            boolean ported=e!=null;
+            if(e==null)e=(LivingEntity)a.world.spawnEntity(at,type(species));
+            created=e;if(!e.isValid())return;
+            e.addScoreboardTag(TAG);if(standIn&&!ported)e.addScoreboardTag(STAND_IN_TAG);e.addScoreboardTag("jpd_room:"+a.key);e.addScoreboardTag("jpd_slot:"+slot);e.addScoreboardTag(SPECIES_TAG+species.name());e.setRemoveWhenFarAway(false);e.setCanPickupItems(false);
+            if(e instanceof Zombie)((Zombie)e).setBaby(false);if(e instanceof Slime)((Slime)e).setSize(body.size);
+            vigor(e,hp);
+            // A mutant keeps the mod's own blows (JasprMutants set them), made harder by the floor.
+            if(e.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE)!=null){if(ported)e.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(e.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).getBaseValue()*Floors.damage(a.room.floor)*danger);
+                else e.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue((boss?(a.room.kind==Layout.Kind.BOSS?6+tier*1.25:5+tier):2+tier*.65)*danger*Floors.damage(a.room.floor)*(boss&&a.room.finale()?1.5:1));}
+            if(body.scale>1.0001)e.addScoreboardTag(SCALE_TAG+Math.round(body.scale*100));
+            plugin.bodies.grow(e,body);
+            String bossName=a.room.finale()?Guardians.name(a.room):entry.bossName;
+            e.setCustomName((boss?ChatColor.DARK_RED:ChatColor.GRAY)+(boss?bossName:entry.themeName+" Penitent"));e.setCustomNameVisible(boss);
+            if(plugin.bestiary!=null)plugin.bestiary.dress(e,species,a,slot,boss);
             EntityEquipment eq=e.getEquipment();if(eq!=null){eq.setHelmetDropChance(0);eq.setChestplateDropChance(0);eq.setLeggingsDropChance(0);eq.setBootsDropChance(0);eq.setItemInMainHandDropChance(0);eq.setItemInOffHandDropChance(0);}
-            a.mobs.put(slot,e);if(boss){cancelWarning(a);a.nextAttack=ticks+entry.cooldown(tier,false);a.bossMax=hp;if(a.bar==null)a.bar=Bukkit.createBossBar(entry.bossName,BarColor.RED,BarStyle.SEGMENTED_10);}
+            a.mobs.put(slot,e);
+            if(!a.populated){a.populated=true;plugin.getLogger().info("DUNGEON_ROOM_POPULATED id="+a.key+" kind="+a.room.kind+" tiles="+a.room.tiles()+" mobs="+a.room.mobCount()+" tier="+a.room.tier);}
+            if(boss){plugin.getLogger().info("DUNGEON_BOSS_SPAWNED room="+a.key+" theme="+a.room.theme+" type="+species+" scale="+Math.round(body.scale*100)+" size="+body.size+" width="+Math.round(body.width*100)+" height="+Math.round(body.height*100)+" hp="+Math.round(hp)+" vigor="+vigorOf(e));cancelWarning(a);a.nextAttack=ticks+entry.cooldown(tier,false);a.bossMax=e.getMaxHealth();if(a.bar==null)a.bar=Bukkit.createBossBar(bossName,a.room.finale()?BarColor.PURPLE:BarColor.RED,BarStyle.SEGMENTED_10);if(plugin.kits!=null)plugin.kits.attach(a,e);}
         }catch(RuntimeException ex){if(created!=null){a.mobs.remove(slot,created);created.remove();}plugin.getLogger().warning("DUNGEON_SPAWN_RETRY room="+a.key+" slot="+slot+" "+ex.getMessage());}finally{spawning=false;}
+    }
+    /**
+     * Generation 7: a runtime add in a room (a boss's summons, a bestiary spawn, a secret's surprise). It stands on the cell
+     * nearest to near that fits its body, or on a free lane station; it is tagged to the room like the room's mobs (so it
+     * fights only there), carries no slot (it never counts for the clear) and goes when the room sleeps. Null when the room is
+     * not live or no cell fits. hp and damage are final values (the caller scales them).
+     */
+    public LivingEntity summon(Run a,EncounterCatalog.Species species,Location near,double hp,double damage,String name){
+        if(a==null||a.world==null||species==null||a.state.cleared&&a.room.kind!=Layout.Kind.REFUGE&&near==null)return null;
+        boolean standIn=species.mutant()&&(plugin.mutants==null||!plugin.mutants.available());
+        Scaling.Body body=standIn?Scaling.standIn(a.room,Scaling.standInSize(species.fallback),false,hp):Scaling.body(a.room,species,false,hp);Location at=null;
+        EncounterCatalog.Blocks blocks=new EncounterCatalog.Blocks(){
+            public boolean air(int x,int y,int z){return a.world.getBlockAt(x,y,z).getType()==Material.AIR;}
+            public boolean floor(int x,int y,int z){Block b=a.world.getBlockAt(x,y,z);Material m=b.getType();return m.isOccluding()&&m!=Material.MAGMA&&m!=Material.CACTUS&&m!=Material.SOUL_SAND;}
+        };
+        if(near!=null&&near.getWorld()!=null&&near.getWorld().equals(a.world))
+            outer:for(int r=0;r<=4;r++)for(int dx=-r;dx<=r;dx++)for(int dz=-r;dz<=r;dz++){if(Math.max(Math.abs(dx),Math.abs(dz))!=r)continue;
+                double x=near.getBlockX()+dx+.5,z=near.getBlockZ()+dz+.5;if(!sheltered(new Location(a.world,x,65,z))&&EncounterCatalog.fits(a.room,body.width,body.height,x,Layout.FLOOR+1,z,blocks)){at=new Location(a.world,x,Layout.FLOOR+1,z);break outer;}}
+        if(at==null){int start=(int)Math.floorMod(ticks+a.adds.size()*7,Math.max(1,a.room.mobCount()+10));for(int n=0;n<24&&at==null;n++){double[] p=EncounterCatalog.spawnPoint(a.room,start+n);if(EncounterCatalog.fits(a.room,body.width,body.height,p[0],p[1],p[2],blocks))at=new Location(a.world,p[0],p[1],p[2]);}}
+        if(at==null)return null;
+        LivingEntity created=null;spawning=true;try{
+            LivingEntity e=species.mutant()&&plugin.mutants!=null?plugin.mutants.spawn(species,at):null;
+            if(e==null)e=(LivingEntity)a.world.spawnEntity(at,type(species));created=e;if(!e.isValid())return null;
+            e.addScoreboardTag(TAG);if(standIn)e.addScoreboardTag(STAND_IN_TAG);e.addScoreboardTag("jpd_room:"+a.key);e.addScoreboardTag("jpd_summon");e.addScoreboardTag(SPECIES_TAG+species.name());e.setRemoveWhenFarAway(false);e.setCanPickupItems(false);
+            if(e instanceof Zombie)((Zombie)e).setBaby(false);if(e instanceof Slime)((Slime)e).setSize(body.size);
+            vigor(e,Math.max(1,hp));
+            if(e.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE)!=null)e.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(Math.max(0,damage));
+            if(body.scale>1.0001)e.addScoreboardTag(SCALE_TAG+Math.round(body.scale*100));plugin.bodies.grow(e,body);
+            if(name!=null){e.setCustomName(name);e.setCustomNameVisible(false);}
+            EntityEquipment eq=e.getEquipment();if(eq!=null){eq.setHelmetDropChance(0);eq.setChestplateDropChance(0);eq.setLeggingsDropChance(0);eq.setBootsDropChance(0);eq.setItemInMainHandDropChance(0);eq.setItemInOffHandDropChance(0);}
+            if(plugin.bestiary!=null)plugin.bestiary.dress(e,species,a,-1,false);
+            a.adds.add(e);a.lastSeen=ticks;return e;
+        }catch(RuntimeException ex){if(created!=null)created.remove();plugin.getLogger().warning("DUNGEON_SUMMON_FAILED room="+a.key+" species="+species+" "+ex.getMessage());return null;}finally{spawning=false;}
     }
     private boolean present(Player p,Run a){return p!=null&&p.isOnline()&&!p.isDead()&&p.getWorld().equals(a.world)&&plugin.inside(p.getWorld())&&a.key.equals(plugin.roomKey(p.getLocation()));}
     private double danger(World world){return Math.max(1,Math.min(1.45,plugin.dangerMultiplier(world)));}
     private boolean sheltered(Location l){return plugin.sanctuary!=null&&plugin.sanctuary.contains(l);}
     private boolean eligible(Player p,Run a){return present(p,a)&&!sheltered(p.getLocation())&&(p.getGameMode()==GameMode.SURVIVAL||p.getGameMode()==GameMode.ADVENTURE);}
-    private boolean contained(Run a,LivingEntity e,Location l){return l!=null&&l.getWorld()!=null&&l.getWorld().equals(a.world)&&plugin.inside(l.getWorld())&&EncounterCatalog.bodyInside(a.room,EncounterCatalog.Species.valueOf(e.getType().name()),a.room.kind==Layout.Kind.BOSS,l.getX(),l.getY(),l.getZ());}
+    private boolean contained(Run a,LivingEntity e,Location l){if(l==null||l.getWorld()==null||!l.getWorld().equals(a.world)||!plugin.inside(l.getWorld()))return false;Scaling.Body body=bodyOf(e);return EncounterCatalog.bodyInside(a.room,body.width,body.height,l.getX(),l.getY(),l.getZ());}
     void cancelWarning(Run a){a.warning=null;a.pattern=null;a.warnedPlayer=null;a.warningBoss=null;a.windup=0;a.marks=Collections.emptyList();a.nextAttack=ticks+EncounterCatalog.entry(a.room.theme).cooldown(a.room.tier,false);}
 
     /** Also used by the test-only runtime audit; the live tick uses this exact warning path. */
@@ -187,9 +314,16 @@ public final class Encounters implements Listener {
     private boolean refuge(Entity entity){return entity!=null&&sheltered(entity.getLocation());}
     /** Weapon preflight only: callers must still use victim.damage(amount, player) for Bukkit policy. */
     public boolean canTargetInRoom(Player player,LivingEntity victim){return player!=null&&victim!=null&&player!=victim&&player.isOnline()&&!player.isDead()&&!victim.isDead()&&victim.isValid()&&plugin.inside(player.getWorld())&&plugin.inside(victim.getWorld())&&canHarm(player,victim);}
-    @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void natural(CreatureSpawnEvent e){if(plugin.inside(e.getLocation().getWorld())&&!spawning&&!(e.getEntity() instanceof ArmorStand))e.setCancelled(true);}
+    @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void natural(CreatureSpawnEvent e){if(plugin.inside(e.getLocation().getWorld())&&!spawning&&!(e.getEntity() instanceof ArmorStand)&&!e.getEntity().getScoreboardTags().contains(Secrets.TAG))e.setCancelled(true);}
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void split(SlimeSplitEvent e){if(plugin.inside(e.getEntity().getWorld()))e.setCancelled(true);}
-    @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void target(EntityTargetLivingEntityEvent e){if(e.getTarget()!=null&&!canHarm(e.getEntity(),e.getTarget()))e.setCancelled(true);}
+    @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void target(EntityTargetLivingEntityEvent e){if(e.getTarget()!=null&&(!canHarm(e.getEntity(),e.getTarget())||idle(e.getEntity(),e.getTarget())))e.setCancelled(true);}
+    /** A blow from a player draws its victim into the fight, and the victim calls its neighbours (Watch). */
+    @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void struck(EntityDamageByEntityEvent e){
+        if(!(e.getEntity() instanceof LivingEntity)||!(shooter(e.getDamager()) instanceof Player))return;
+        Run a=owner(e.getEntity());if(a==null||Watch.allAtOnce(a.room,a.state.triggered)||!a.mobs.containsValue(e.getEntity()))return;
+        if(a.alert.add(e.getEntity().getUniqueId())){alarm(a,(LivingEntity)e.getEntity());watchStruck++;}
+    }
+    long watchStruck;
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void teleport(EntityTeleportEvent e){
         if(restoring||e.getEntity() instanceof Player)return;
         Run a=owner(e.getEntity());
@@ -211,17 +345,28 @@ public final class Encounters implements Listener {
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void ignite(BlockIgniteEvent e){if(e.getIgnitingEntity()!=null&&taggedRoom(shooter(e.getIgnitingEntity()))!=null)e.setCancelled(true);}
     @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void shot(ProjectileLaunchEvent e){if(plugin.inside(e.getEntity().getWorld())){String room=origin(e.getEntity());if(refuge(e.getEntity())||room==null||!room.equals(plugin.roomKey(e.getEntity().getLocation()))){e.setCancelled(true);return;}shots.put(e.getEntity().getUniqueId(),new Shot(e.getEntity(),room,ticks));}}
     @EventHandler(priority=EventPriority.HIGHEST) public void died(EntityDeathEvent e){
-        if(!e.getEntity().getScoreboardTags().contains(TAG))return;e.getDrops().clear();e.setDroppedExp(0);Run a=owner(e.getEntity());if(a==null)return;
+        if(!e.getEntity().getScoreboardTags().contains(TAG))return;e.getDrops().clear();e.setDroppedExp(0);blown.remove(e.getEntity().getUniqueId());Run a=owner(e.getEntity());if(a==null)return;
         int slot=-1;for(Map.Entry<Integer,LivingEntity> m:a.mobs.entrySet())if(m.getValue().getUniqueId().equals(e.getEntity().getUniqueId())){slot=m.getKey();break;}if(slot<0)return;
-        if(slot==0&&a.room.kind==Layout.Kind.BOSS)cancelWarning(a);a.mobs.remove(slot);int before=a.state.killed;a.state.killed|=1<<slot;
+        fell(a,slot,e.getEntity());
+    }
+    /** A room mob of this slot is gone for good: the boss kit hears it, the slot counts as killed, perhaps the room is absolved. */
+    private void fell(Run a,int slot,LivingEntity dead){
+        if(slot==0&&a.room.bossRoom()){cancelWarning(a);if(plugin.kits!=null)plugin.kits.died(a,dead);}a.mobs.remove(slot);long before=a.state.killed;a.state.killed|=1L<<slot;
         if(!save(a)){a.state.killed=before;return;}
-        if(a.state.killed==((1<<a.room.mobCount())-1))complete(a);
+        if(a.state.killed==full(a.room))complete(a);
     }
+    /** Generation 7: dungeon creepers (and creeper minions, ported or fallback) that blow themselves up die without a death event;
+     *  their explosion is remembered so the tick counts the vanished body as killed instead of spawning it again. */
+    private final Set<UUID> blown=new HashSet<>();
+    @EventHandler(priority=EventPriority.MONITOR) public void blew(EntityExplodeEvent e){if(e.getEntity()==null||!e.getEntity().getScoreboardTags().contains(TAG))return;if(blown.size()>4096)blown.clear();blown.add(e.getEntity().getUniqueId());}
     private void complete(Run a){cancelWarning(a);if(!a.state.cleared){a.state.cleared=true;if(!save(a)){a.state.cleared=false;return;}if(a.bar!=null){a.bar.removeAll();a.bar=null;}String stilled=HazardCatalog.seizingNames(a.room);
-            for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(present(p,a)){p.sendTitle(ChatColor.GOLD+"Room absolved",ChatColor.GRAY+"The reliquary chest is unsealed",5,40,10);if(!stilled.isEmpty())p.sendMessage(ChatColor.GRAY+"The room's "+stilled+" falls still.");plugin.relics.onClear(p);p.giveExp(a.room.tier*5);}}
-            plugin.getLogger().info("DUNGEON_ROOM_CLEARED id="+a.key+" threat="+a.room.tier);
+            for(UUID id:a.players){Player p=Bukkit.getPlayer(id);if(present(p,a)){p.sendTitle(ChatColor.GOLD+"Room absolved",ChatColor.GRAY+"The reliquary chest is unsealed",5,40,10);if(!stilled.isEmpty())p.sendMessage(ChatColor.GRAY+"The room's "+stilled+" falls still.");plugin.relics.onClear(p);p.giveExp(Rewards.experience(a.room));}}
+            plugin.getLogger().info("DUNGEON_ROOM_CLEARED id="+a.key+" threat="+a.room.tier+" floor="+a.room.floor);
         }
+        if(a.world!=null&&a.room.kind!=Layout.Kind.REFUGE&&clears.computeIfAbsent(a.world.getName(),k->new HashSet<>()).add(a.room.id())&&plugin.descents!=null)plugin.descents.cleared(a);
     }
+    /** A room whose journal says it was absolved before (it slept and woke again) still counts. */
+    void remember(Run a){if(a.world!=null&&a.state.cleared&&a.room.kind!=Layout.Kind.REFUGE)clears.computeIfAbsent(a.world.getName(),k->new HashSet<>()).add(a.room.id());}
     // ---------------------------------------------------------------- owner 2026-10-03: every chest opens like a normal chest
     private static boolean reliquary(Layout.Room r,Block b){return b.getX()==r.cx()&&b.getY()==65&&b.getZ()==r.cz()+4;}
     private static Block chestOf(Run a){return a.world.getBlockAt(a.room.cx(),65,a.room.cz()+4);}
@@ -317,11 +462,12 @@ public final class Encounters implements Listener {
         if(!back.isEmpty())p.sendMessage(ChatColor.GRAY+"The Last Candle keeps nothing. Your items were returned.");
     }
     @EventHandler(priority=EventPriority.MONITOR) public void chunkLoad(ChunkLoadEvent e){if(plugin.inside(e.getWorld()))for(Entity entity:e.getChunk().getEntities())if(entity.getScoreboardTags().contains(TAG)){Run a=owner(entity);if(a!=null)cancelWarning(a);entity.remove();}}
-    void sleep(Run a){cancelWarning(a);for(LivingEntity e:a.mobs.values())if(e.isValid())e.remove();a.mobs.clear();if(a.bar!=null){a.bar.removeAll();a.bar=null;}Iterator<Shot> it=shots.values().iterator();while(it.hasNext()){Shot s=it.next();if(s.room.equals(a.key)){s.entity.remove();it.remove();}}if(plugin.hazards!=null)plugin.hazards.sleep(a.key);}
+    void sleep(Run a){for(LivingEntity e:a.adds)if(e.isValid())e.remove();a.adds.clear();if(plugin.kits!=null)plugin.kits.sleep(a);if(plugin.bestiary!=null)plugin.bestiary.sleep(a);if(plugin.perils!=null)plugin.perils.sleep(a);if(plugin.secrets!=null)plugin.secrets.sleep(a);cancelWarning(a);for(LivingEntity e:a.mobs.values())if(e.isValid())e.remove();a.mobs.clear();if(a.bar!=null){a.bar.removeAll();a.bar=null;}Iterator<Shot> it=shots.values().iterator();while(it.hasNext()){Shot s=it.next();if(s.room.equals(a.key)){s.entity.remove();it.remove();}}if(plugin.hazards!=null)plugin.hazards.sleep(a.key);}
     public void close(){
         // Return anything left in an open Last Candle chest before the plugin unloads. Bukkit no longer delivers events to a
         // plugin inside onDisable, so the return runs directly; the close that follows then finds the chest already empty.
         for(Player p:Bukkit.getOnlinePlayers())if(p.getOpenInventory().getTopInventory().getHolder() instanceof Candle){candleClosed(new InventoryCloseEvent(p.getOpenInventory()));p.closeInventory();}
         for(Run a:active.values())sleep(a);active.clear();for(Shot s:shots.values())s.entity.remove();shots.clear();if(plugin.hazards!=null)plugin.hazards.close();
+        plugin.getLogger().info("DUNGEON_WATCH_METRICS noticed="+watchNoticed+" called="+watchCalled+" struck="+watchStruck+" returns="+watchReturns);
     }
 }

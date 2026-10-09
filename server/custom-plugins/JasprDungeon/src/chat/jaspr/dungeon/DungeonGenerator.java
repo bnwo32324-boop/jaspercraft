@@ -52,19 +52,36 @@ public class DungeonGenerator extends ChunkGenerator {
     };
 
     @Override public ChunkData generateChunkData(World world,Random random,int cx,int cz,BiomeGrid biomes){
-        ChunkData out=createChunkData(world);
+        ChunkData out=createChunkData(world);int bottom=shellBottom(layout.floor),top=shellTop(layout.floor);
         for(int x=0;x<16;x++)for(int z=0;z<16;z++){
             int wx=cx*16+x,wz=cz*16+z;Layout.Room r=layout.at(wx,wz);biomes.setBiome(x,z,org.bukkit.block.Biome.PLAINS);
-            for(int y=62;y<=84;y++){int b=block(r,wx,y,wz);if(b!=0)out.setBlock(x,y,z,b&4095,(byte)(b>>>12));}
+            for(int y=bottom;y<=top;y++){int b=block(r,wx,y,wz);if(b!=0)out.setBlock(x,y,z,b&4095,(byte)(b>>>12));}
         }
         return out;
     }
-    /** Packed legacy block ID/data; shared by generation and the worldless exact-geometry audit. */
+    /** Generation 7: Floor I lives between bedrock at y 62 and y 84; Floors II and III between y 56 and y 100. */
+    public static int shellBottom(int floor){return floor==1?62:56;}
+    public static int shellTop(int floor){return floor==1?84:100;}
+    /** A Floor I theme's palette: generation 6's 36, then the new themes' own (FloorOneExtra). */
+    static int[] palette(int theme){if(theme>=0&&theme<PALETTES.length)return PALETTES[theme];int[] p=FloorOneExtra.palette(theme);return p!=null?p:PALETTES[Math.floorMod(theme,PALETTES.length)];}
+    /** Packed legacy block ID/data; shared by generation and the worldless exact-geometry audit. Generation 7: by floor. */
     public static int block(Layout.Room r,int x,int y,int z){
-        if(y<62||y>84)return 0;
-        if(y==62||y==84)return 7;
-        if(y==63)return 1;
-        int[] palette=PALETTES[r.theme];int wall=palette[0],floor=palette[1],trim=palette[2];
+        if(r.floor==2)return FloorTwo.block(r,x,y,z);
+        if(r.floor==3)return FloorThree.block(r,x,y,z);
+        return classic(r,x,y,z,palette(r.theme),62,84);
+    }
+    /**
+     * The House of Mercy's rooms (generations 4-6): bedrock shell, stone underfloor, patterned floor at y 64, walls with their
+     * barred doorways, coffered ceilings, the reliquary chest, the arrival portal, bays and furnishings. Generation 7 lets a
+     * floor reuse them with its own palette and shell.
+     */
+    public static int classic(Layout.Room r,int x,int y,int z,int[] palette,int bottom,int top){
+        if(y<bottom||y>top)return 0;
+        if(y==bottom||y==top)return 7;
+        // Generation 7 hook: Floor I's new themes (and the perils of a few older ones) draw their own set pieces and perils; -1 leaves the House as it was.
+        if(r.floor==1&&FloorOneExtra.draws(r)){int e=FloorOneExtra.block(r,x,y,z,palette);if(e>=0)return e;}
+        if(y<64)return 1;
+        int wall=palette[0],floor=palette[1],trim=palette[2];
         if(r.theme==0){long h=Layout.mix(r.hash^(x*73428767L)^(z*912367L));wall=floor=data(98,(int)Math.floorMod(h,3));}
         if(y==64)return floor(r,x,z,palette,floor);
         if(y>=r.roof())return y==r.roof()?ceiling(r,x,z,wall,trim):1;

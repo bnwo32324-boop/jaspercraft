@@ -80,7 +80,7 @@ test('dungeon guns: the same rule for the Dungeon armoury', () => {
 
 test('plugin versions are bumped so the deployer can tell the update went live', () => {
   assert.match(read('server/custom-plugins/JasprApocalypse/resources/plugin.yml'), /^version: 3\.7\.3$/m);
-  assert.match(read('server/custom-plugins/JasprDungeon/resources/plugin.yml'), /^version: 6\.0\.[2-9]$/m);   // 6.0.3: dungeon deaths wake at spawn
+  assert.match(read('server/custom-plugins/JasprDungeon/resources/plugin.yml'), /^version: (6\.0\.[2-9]|7\.\d+\.\d+)$/m);   // 6.0.3: dungeon deaths wake at spawn; 7.0.0: generation 7
 });
 
 test('audit: nothing in the changed paths logs secrets, tokens or addresses', () => {

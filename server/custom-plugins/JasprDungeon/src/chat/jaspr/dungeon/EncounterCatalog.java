@@ -11,13 +11,46 @@ public final class EncounterCatalog {
     public static final double EXIT_MARGIN = 4, REACH = 12;
 
     // Conservative adult bounds, including a fully open shulker and sized slimes.
+    /**
+     * Generation 7: a species is a vanilla mob (its own base), a custom mob drawn on a vanilla base (Bestiary dresses and
+     * drives it), or a ported Mutant Creatures mob ("@" base: spawned through JasprMutants, with the named vanilla fallback
+     * when that plugin is missing). Bounds are the body before scaling.
+     */
     public enum Species {
         ZOMBIE(.7,2), SPIDER(1.5,1), SILVERFISH(.5,.4), SKELETON(.7,2.1),
         HUSK(.7,2), WITHER_SKELETON(.8,2.5), WITCH(.7,2), SLIME(1.1,1.1),
         CAVE_SPIDER(.8,.6), BLAZE(.7,2), MAGMA_CUBE(1.1,1.1),
-        ENDERMAN(.7,3), SHULKER(2,2), ENDERMITE(.5,.4), VINDICATOR(.7,2), STRAY(.7,2.1);
+        ENDERMAN(.7,3), SHULKER(2,2), ENDERMITE(.5,.4), VINDICATOR(.7,2), STRAY(.7,2.1),
+        // Generation 7, vanilla bases the dungeon did not use before
+        EVOKER(.7,2), VEX(.5,.9), ZOMBIE_VILLAGER(.7,2), POLAR_BEAR(1.4,1.5), IRON_GOLEM(1.5,2.8), GHAST(4.1,4.1), PIG_ZOMBIE(.7,2),
+        // Generation 7 custom mobs (Bestiary dresses and drives them on their vanilla base). Floor I:
+        FLAGELLANT(.7,2,"ZOMBIE"), CANDLE_WISP(.5,.9,"VEX"), OSSUARY_CRAWLER(.5,.4,"SILVERFISH"), CHOIR_BANSHEE(.7,2,"WITCH"),
+        MIRE_LEECH(.8,.6,"CAVE_SPIDER"), GRAVEBOUND_KNIGHT(.8,2.5,"WITHER_SKELETON"),
+        // Floor II (TUNNEL_GUNNER carries a gun):
+        MAGMA_LURKER(1.1,1.1,"MAGMA_CUBE"), TUNNEL_GUNNER(.7,2.1,"SKELETON"), CEILING_STALKER(1.5,1,"SPIDER"), DEEP_MINER(.7,2,"HUSK"),
+        RUST_GOLEM(1.5,2.8,"IRON_GOLEM"), GNAWER_SWARM(.5,.4,"ENDERMITE"),
+        // Floor III (ABYSSAL_GUNSLINGER and SQUAD_CAPTAIN carry guns):
+        ABYSSAL_GUNSLINGER(.7,2.1,"STRAY"), HELLFORGED_SENTINEL(.8,2.5,"WITHER_SKELETON"), VOID_WRAITH(.7,3,"ENDERMAN"),
+        BLOOD_TEMPLAR(.7,2,"VINDICATOR"), DOOM_HERALD(.7,2,"EVOKER"), SQUAD_CAPTAIN(.7,2,"PIG_ZOMBIE"),
+        // Surprises (Secrets): a reliquary that bites, and a thief who runs with the loot
+        MIMIC(.7,2,"ZOMBIE"), GILDED_THIEF(.7,2,"ZOMBIE"),
+        // Mutant Creatures (JasprMutants); sizes are the mod's own (setSize)
+        MUTANT_ZOMBIE(1.8,3.2,"@mutant_zombie","ZOMBIE"), MUTANT_SKELETON(1.2,3.6,"@mutant_skeleton","SKELETON"),
+        MUTANT_CREEPER(1.98,2.8,"@mutant_creeper","CREEPER"), MUTANT_ENDERMAN(1.2,4.2,"@mutant_enderman","ENDERMAN"),
+        CREEPER_MINION(.3,.84,"@creeper_minion","CREEPER"), SPIDER_PIG(1.4,.9,"@spider_pig","SPIDER"),
+        MUTANT_SNOW_GOLEM(1.1,2.2,"@mutant_snow_golem","SNOWMAN");
         public final double width, height;
-        Species(double width,double height){this.width=width;this.height=height;}
+        /** The entity this species is: its own name for vanilla mobs, a vanilla base for custom ones, "@kind" for mutants. */
+        public final String base;
+        /** For a mutant: the vanilla entity used when JasprMutants is not installed. Otherwise the base. */
+        public final String fallback;
+        Species(double width,double height){this(width,height,null,null);}
+        Species(double width,double height,String base){this(width,height,base,base);}
+        Species(double width,double height,String base,String fallback){this.width=width;this.height=height;this.base=base==null?name():base;this.fallback=fallback==null?this.base:fallback;}
+        public boolean mutant(){return base.startsWith("@");}
+        public boolean vanilla(){return base.equals(name());}
+        /** The mutant kind without its "@" (JasprMutants' id), or null. */
+        public String mutantKind(){return mutant()?base.substring(1):null;}
         public double width(boolean boss){return boss&&(this==SLIME||this==MAGMA_CUBE)?2.1:width;}
         public double height(boolean boss){return boss&&(this==SLIME||this==MAGMA_CUBE)?2.1:height;}
     }
@@ -40,7 +73,7 @@ public final class EncounterCatalog {
         public final Status status;
         public final int statusTicks, windupTicks, cooldownTicks, pulses, pulseTicks;
         public final boolean bossCentered;
-        private Entry(int theme,String themeName,String bossName,Species boss,Species[] pool,
+        Entry(int theme,String themeName,String bossName,Species boss,Species[] pool,
                       Shape shape,Status status,int statusTicks,boolean bossCentered,
                       int windupTicks,int cooldownTicks,int pulses,int pulseTicks,String cue){
             this.theme=theme;this.themeName=themeName;this.bossName=bossName;this.boss=boss;this.pool=pool.clone();
@@ -99,7 +132,7 @@ public final class EncounterCatalog {
         new Entry(13,"Salt Cathedral","The Salt Prelate",Species.HUSK,pool(Species.HUSK,Species.STRAY,Species.SILVERFISH),Shape.SALT_SWEEP,Status.SLOW,30,true,44,190,3,28,"Salt breakers: three bands advance away from the prelate!"),
         new Entry(14,"Sunken Reliquary","The Drowned Custodian",Species.WITCH,pool(Species.WITCH,Species.SLIME,Species.WITHER_SKELETON),Shape.RELIQUARY_TIDES,Status.SLOW,30,false,44,180,2,32,"Receding tide: the outer ring strikes, then the inner ring!"),
         new Entry(15,"Gallows Refectory","The Last Host",Species.VINDICATOR,pool(Species.VINDICATOR,Species.ZOMBIE,Species.SPIDER),Shape.GALLOWS_BAR,Status.BLINDNESS,20,false,36,145,1,0,"Gallows beam: move forward or back out of the crosswise band!"),
-        new Entry(16,"Starless Observatory","The Unseeing Astronomer",Species.SHULKER,pool(Species.SHULKER,Species.STRAY,Species.ENDERMITE),Shape.STARLESS_FALL,Status.BLINDNESS,20,false,44,175,1,0,"Falling stars: leave the six small marked impact discs!"),
+        new Entry(16,"Starless Observatory","The Unseeing Astronomer",Species.ENDERMAN,pool(Species.SHULKER,Species.STRAY,Species.ENDERMITE),Shape.STARLESS_FALL,Status.BLINDNESS,20,false,44,175,1,0,"Falling stars: leave the six small marked impact discs!"),
         new Entry(17,"Thorn Sanctuary","The Briar Abbess",Species.WITCH,pool(Species.WITCH,Species.CAVE_SPIDER,Species.HUSK),Shape.THORN_CROWN,Status.SLOW,40,false,42,165,1,0,"Thorn crown: use the four gaps or stay inside the ring!"),
         new Entry(18,"Wax Sepulchre","The Tallow Saint",Species.HUSK,pool(Species.HUSK,Species.SLIME,Species.SILVERFISH,Species.SKELETON),Shape.WAX_SPIRAL,Status.SLOW,36,false,52,210,3,38,"Wax spiral: three curved ribbons turn; cross into the unmarked gaps!"),
         new Entry(19,"Sanguine Cloister","The Vein Cantor",Species.VINDICATOR,pool(Species.VINDICATOR,Species.WITCH,Species.CAVE_SPIDER,Species.ZOMBIE),Shape.SANGUINE_HOURGLASS,Status.WEAKNESS,40,false,50,195,2,38,"Blood hourglass: opposite wedges fill, then the side wedges; switch axes!"),
@@ -107,10 +140,10 @@ public final class EncounterCatalog {
         new Entry(21,"Fungal Hospice","The Spore Matron",Species.SLIME,pool(Species.SLIME,Species.ZOMBIE,Species.CAVE_SPIDER,Species.ENDERMITE),Shape.FUNGAL_BLOOM,Status.HUNGER,40,false,52,215,3,38,"Spore bloom: four caps grow outward in three steps; keep to diagonal gaps!"),
         new Entry(22,"Iron Inquisition","The Rack Warden",Species.VINDICATOR,pool(Species.VINDICATOR,Species.WITHER_SKELETON,Species.HUSK,Species.SILVERFISH),Shape.IRON_JAWS,Status.SLOW_DIGGING,40,true,50,200,3,38,"Iron jaws: two bars close in three steps; follow the gap or step past the ends!"),
         new Entry(23,"Velvet Catacomb","The Seamstress of Mourning",Species.WITCH,pool(Species.WITCH,Species.SPIDER,Species.ENDERMAN,Species.ZOMBIE),Shape.VELVET_SEAM,Status.WEAKNESS,36,false,52,195,2,38,"Velvet seam: a winding stitch reverses its bends; follow each fresh warning!"),
-        new Entry(24,"Amber Baptistry","The Preserved Deacon",Species.SHULKER,pool(Species.SHULKER,Species.SILVERFISH,Species.SLIME,Species.HUSK),Shape.AMBER_LATTICE,Status.SLOW,32,false,54,215,2,40,"Amber lattice: diagonal lines shift half a cell; move between clear diamonds!"),
+        new Entry(24,"Amber Baptistry","The Preserved Deacon",Species.HUSK,pool(Species.SHULKER,Species.SILVERFISH,Species.SLIME,Species.HUSK),Shape.AMBER_LATTICE,Status.SLOW,32,false,54,215,2,40,"Amber lattice: diagonal lines shift half a cell; move between clear diamonds!"),
         new Entry(25,"Silent Belfry","The Voiceless Ringer",Species.STRAY,pool(Species.STRAY,Species.ENDERMAN,Species.SKELETON,Species.ENDERMITE),Shape.SILENT_ECHO,Status.NONE,0,true,52,210,3,38,"Silent echoes: three oval waves expand; step behind each spent wave!"),
         new Entry(26,"Carrion Conservatory","The Carrion Curator",Species.HUSK,pool(Species.HUSK,Species.SPIDER,Species.WITHER_SKELETON,Species.ENDERMITE),Shape.CARRION_ORBIT,Status.HUNGER,40,false,54,215,3,40,"Carrion orbit: three curved wings turn around a safe center; follow the gaps!"),
-        new Entry(27,"Opaline Sepulcher","The Many-Faced Mourner",Species.SHULKER,pool(Species.SHULKER,Species.STRAY,Species.WITCH,Species.SILVERFISH),Shape.OPAL_PRISM,Status.NONE,0,false,54,220,3,40,"Opal prism: a triangular frame contracts in three steps; cross a spent edge!"),
+        new Entry(27,"Opaline Sepulcher","The Many-Faced Mourner",Species.WITCH,pool(Species.SHULKER,Species.STRAY,Species.WITCH,Species.SILVERFISH),Shape.OPAL_PRISM,Status.NONE,0,false,54,220,3,40,"Opal prism: a triangular frame contracts in three steps; cross a spent edge!"),
         new Entry(28,"Sunless Foundry","The Cold Crucible",Species.MAGMA_CUBE,pool(Species.MAGMA_CUBE,Species.BLAZE,Species.VINDICATOR,Species.SKELETON),Shape.FOUNDRY_PISTONS,Status.SLOW_DIGGING,40,true,50,205,3,36,"Cold pistons: staggered hammer blocks switch lanes; leave the next marked block!"),
         new Entry(29,"Pale Menagerie","The Ivory Beastkeeper",Species.SPIDER,pool(Species.SPIDER,Species.CAVE_SPIDER,Species.SLIME,Species.ENDERMITE),Shape.PALE_HOOFPRINTS,Status.NONE,0,true,50,195,3,36,"Pale stampede: paired hoofprints march forward; dodge sideways out of their path!"),
         new Entry(30,"Flooded Scriptorium","The Drowned Illuminator",Species.WITCH,pool(Species.WITCH,Species.SLIME,Species.STRAY,Species.SKELETON),Shape.SCRIPTORIUM_GLYPHS,Status.SLOW,32,false,54,215,3,40,"Drowned script: corner brackets turn around an open center; leave the marked corners!"),
@@ -120,8 +153,21 @@ public final class EncounterCatalog {
         new Entry(34,"Mourning Labyrinth","The Lost Procession",Species.VINDICATOR,pool(Species.VINDICATOR,Species.ENDERMITE,Species.SPIDER,Species.STRAY),Shape.MOURNING_MAZE,Status.SLOW,32,false,56,220,3,42,"Mourning maze: square walls contract as their gate turns; follow the gap or escape outside!"),
         new Entry(35,"Last Absolution","The Final Penitent",Species.WITHER_SKELETON,pool(Species.WITHER_SKELETON,Species.WITCH,Species.HUSK,Species.SHULKER),Shape.LAST_ABSOLUTION,Status.NONE,0,false,56,220,3,42,"Last absolution: a clear island circles inside the marked disc; follow it or leave the disc!")
     };
-    public static Entry entry(int theme){if(theme<0||theme>=COUNT)throw new IllegalArgumentException("theme "+theme);return ENTRIES[theme];}
+    /** Generation 7: themes 36..53 (Floor I's new ones), 54..77 (Floor II) and 78..101 (Floor III) have their own catalogues. */
+    public static Entry entry(int theme){
+        if(theme>=0&&theme<COUNT)return ENTRIES[theme];
+        Entry e=theme<Floors.FLOOR_TWO_BASE?FloorOneExtra.entry(theme):theme<Floors.FLOOR_THREE_BASE?FloorTwo.entry(theme):theme<Floors.THEME_TOTAL?FloorThree.entry(theme):null;
+        if(e==null)throw new IllegalArgumentException("theme "+theme);return e;
+    }
+    /** Generation 6's 36 entries (themes 0..35). */
     public static List<Entry> entries(){List<Entry> out=new ArrayList<>();Collections.addAll(out,ENTRIES);return Collections.unmodifiableList(out);}
+    /** Every entry that exists, all floors. */
+    public static List<Entry> allEntries(){
+        List<Entry> out=new ArrayList<>(entries());
+        for(int t=COUNT;t<Floors.THEME_TOTAL;t++){if(t>=Floors.floorOneThemes()&&t<Floors.FLOOR_TWO_BASE)continue;out.add(entry(t));}
+        return Collections.unmodifiableList(out);
+    }
+    static Species[] pool(Entry e){return e.pool.clone();}
 
     /** A frozen warning: moving a boss or target never moves an already advertised impact. */
     public static final class Pattern {
@@ -217,19 +263,28 @@ public final class EncounterCatalog {
         return r.kind!=Layout.Kind.REFUGE&&x>=r.x+EXIT_MARGIN&&x<r.x+r.w-EXIT_MARGIN&&z>=r.z+EXIT_MARGIN&&z<r.z+r.d-EXIT_MARGIN&&y>=Layout.FLOOR+1&&y<Math.min(r.roof()-1,Layout.FLOOR+5);
     }
     public static boolean bodyInside(Layout.Room r,Species species,boolean boss,double x,double y,double z){
-        double half=species.width(boss)/2+.05;
-        return x-half>=r.x+2&&x+half<r.x+r.w-2&&z-half>=r.z+2&&z+half<r.z+r.d-2&&y>=Layout.FLOOR+1&&y+species.height(boss)<r.roof();
+        return bodyInside(r,species.width(boss),species.height(boss),x,y,z);
+    }
+    /** A body of any (scaled) width and height: clear of the walls by two cells and under the roof. */
+    public static boolean bodyInside(Layout.Room r,double width,double height,double x,double y,double z){
+        double half=width/2+.05;
+        return x-half>=r.x+2&&x+half<r.x+r.w-2&&z-half>=r.z+2&&z+half<r.z+r.d-2&&y>=Layout.FLOOR+1&&y+height<r.roof();
     }
     public interface Blocks {boolean air(int x,int y,int z);boolean floor(int x,int y,int z);}
     public static boolean fits(Layout.Room r,Species species,boolean boss,double x,double y,double z,Blocks blocks){
-        if(!bodyInside(r,species,boss,x,y,z))return false;
-        double half=species.width(boss)/2+.05;
-        int lowY=(int)Math.floor(y),highY=(int)Math.ceil(y+species.height(boss))-1;
+        return fits(r,species.width(boss),species.height(boss),x,y,z,blocks);
+    }
+    /** Floor under the whole footprint and air through the whole body, for a body of any (scaled) width and height. */
+    public static boolean fits(Layout.Room r,double width,double height,double x,double y,double z,Blocks blocks){
+        if(!bodyInside(r,width,height,x,y,z))return false;
+        double half=width/2+.05;
+        int lowY=(int)Math.floor(y),highY=(int)Math.ceil(y+height)-1;
         for(int bx=(int)Math.floor(x-half);bx<=(int)Math.floor(x+half);bx++)for(int bz=(int)Math.floor(z-half);bz<=(int)Math.floor(z+half);bz++){
             if(!blocks.floor(bx,lowY-1,bz))return false;
             for(int by=lowY;by<=highY;by++)if(!blocks.air(bx,by,bz))return false;
         }
         return true;
     }
+    /** The cell of a slot and its fallbacks: see Layout.Room.Stations. */
     public static double[] spawnPoint(Layout.Room r,int slot){return new double[]{r.spawnX(slot)+.5,Layout.FLOOR+1,r.spawnZ(slot)+.5};}
 }

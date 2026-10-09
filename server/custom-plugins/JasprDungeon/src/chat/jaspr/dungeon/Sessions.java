@@ -44,14 +44,14 @@ public final class Sessions implements Listener {
     /** One run: its worlds (its own and up to three rifts), seed, members, and the players who left it for good. */
     public static final class Session {
         public final long id,seed,started;public final String root,gate;public final int theme;public final File data;
-        private final String[] names=new String[RiftCatalog.COUNT+1];
-        final DungeonGenerator[] generators=new DungeonGenerator[RiftCatalog.COUNT+1];final World[] worlds=new World[RiftCatalog.COUNT+1];
+        private final String[] names=new String[Floors.SLOTS];
+        final DungeonGenerator[] generators=new DungeonGenerator[Floors.SLOTS];final World[] worlds=new World[Floors.SLOTS];
         final Set<UUID> members=new LinkedHashSet<>(),left=new LinkedHashSet<>();
         RiftStore rifts;long emptySince=-1,ms;int unloaded,deferred;boolean closed;
         Session(long id,String base,long seed,String gate,long started,File data){
             this.id=id;root=root(base,id);this.seed=seed;this.gate=gate;this.started=started;this.data=data;
-            for(int realm=0;realm<=RiftCatalog.COUNT;realm++){names[realm]=RiftCatalog.worldName(root,realm);
-                generators[realm]=realm==0?new DungeonGenerator(seed):new DungeonGenerator(RiftCatalog.seed(seed,realm),realm);}
+            for(int realm=0;realm<Floors.SLOTS;realm++){names[realm]=Floors.worldName(root,realm);
+                generators[realm]=realm==0?new DungeonGenerator(seed):new DungeonGenerator(Floors.seed(seed,realm),realm);}
             theme=generators[0].layout.at(16,16).theme;
         }
         public String name(int realm){return names[realm];}
@@ -92,7 +92,8 @@ public final class Sessions implements Listener {
     /** Folder names of this base's runs, <base>_s<n> and <base>_s<n>_rift_<realm>; never the base itself or anything else. */
     public static Pattern pattern(String base){
         StringBuilder realms=new StringBuilder();for(RiftCatalog.Realm r:RiftCatalog.Realm.values()){if(realms.length()>0)realms.append('|');realms.append(r.suffix);}
-        return Pattern.compile("^"+Pattern.quote(base)+"_s\\d+(_rift_("+realms+"))?$");
+        // Generation 7: a run's floors are <base>_s<n>_f2 and _f3.
+        return Pattern.compile("^"+Pattern.quote(base)+"_s\\d+(_rift_("+realms+")|_f[23])?$");
     }
     public static boolean leftover(String base,String name){return base!=null&&name!=null&&base.startsWith(PREFIX)&&pattern(base).matcher(name).matches();}
     /** Startup cleanup: deletes every leftover run folder of this base that is not a loaded world; names any it could not delete. */
@@ -188,7 +189,7 @@ public final class Sessions implements Listener {
         // A fresh number never names an existing folder; should one exist anyway, the number is skipped, never adopted.
         for(int tries=1;taken(container,id);tries++){if(tries>=64)throw new IOException("No free run name");id=reserve(counter);}
         Session s=new Session(id,plugin.worldName,seed(avoid),gate,System.currentTimeMillis(),new File(journals,root(plugin.worldName,id)));
-        live.put(s.id,s);for(int realm=0;realm<=RiftCatalog.COUNT;realm++)byWorld.put(s.name(realm),s);
+        live.put(s.id,s);for(int realm=0;realm<Floors.SLOTS;realm++)byWorld.put(s.name(realm),s);
         try{
             World w=new WorldCreator(s.root).environment(World.Environment.NORMAL).seed(s.seed).generateStructures(false).generator(s.generator(0)).createWorld();
             if(w==null||w.getSeed()!=s.seed||!(w.getGenerator() instanceof DungeonGenerator)||((DungeonGenerator)w.getGenerator()).layout.seed!=s.seed)throw new IllegalStateException("Run world failed to load: "+s.root);
@@ -199,9 +200,28 @@ public final class Sessions implements Listener {
             s.ms=(System.nanoTime()-t0)/1000000L;plugin.getLogger().info("DUNGEON_WORLD_LOADED "+s.root);return s;
         }catch(RuntimeException ex){close(s,"failed");throw ex;}
     }
+    /**
+     * Generation 7: a floor's world (2 or 3) of this run, made the first time someone descends into it, set up like the run's
+     * own world (keepInventory, frozen weather and time, no natural mobs, its own return gate home at the arrival).
+     */
+    public World floorWorld(Session s,int floor){
+        if(s==null||s.closed)throw new IllegalStateException("This dungeon run has ended");
+        int realm=Floors.slot(floor);if(realm==0)return s.world(0);
+        World w=s.world(realm);if(w!=null)return w;
+        String name=s.name(realm);DungeonGenerator g=s.generator(realm);long t0=System.nanoTime();
+        w=Bukkit.getWorld(name);
+        if(w==null)w=new WorldCreator(name).environment(World.Environment.NORMAL).seed(g.layout.seed).generateStructures(false).generator(g).createWorld();
+        if(w==null||!(w.getGenerator() instanceof DungeonGenerator)||((DungeonGenerator)w.getGenerator()).layout.seed!=g.layout.seed||((DungeonGenerator)w.getGenerator()).layout.realm!=realm)
+            throw new IllegalStateException("Floor world identity mismatch: "+name);
+        s.worlds[realm]=w;w.setKeepSpawnInMemory(false);w.setSpawnLocation(16,65,16);w.setDifficulty(floor>=3?Difficulty.HARD:Difficulty.NORMAL);w.setTime(18000);w.setStorm(false);w.setThundering(false);
+        for(String rule:new String[]{"doDaylightCycle","doWeatherCycle","doMobSpawning","doFireTick","mobGriefing"})w.setGameRuleValue(rule,"false");
+        w.setGameRuleValue("keepInventory","true");plugin.gates.installReturnGate(w);
+        plugin.getLogger().info("DUNGEON_FLOOR_WORLD_LOADED run="+s.id+" floor="+floor+" world="+name+" ms="+(System.nanoTime()-t0)/1000000L);
+        return w;
+    }
     private boolean taken(File container,long id){
         String root=root(plugin.worldName,id);
-        for(int realm=0;realm<=RiftCatalog.COUNT;realm++){String name=RiftCatalog.worldName(root,realm);if(new File(container,name).exists()||Bukkit.getWorld(name)!=null)return true;}
+        for(int realm=0;realm<Floors.SLOTS;realm++){String name=Floors.worldName(root,realm);if(new File(container,name).exists()||Bukkit.getWorld(name)!=null)return true;}
         return new File(journals,root).exists();
     }
 
@@ -252,7 +272,7 @@ public final class Sessions implements Listener {
      */
     boolean close(Session s,String reason){
         if(s.closed)return true;List<World> worlds=new ArrayList<>();
-        for(int realm=RiftCatalog.COUNT;realm>=0;realm--){World w=Bukkit.getWorld(s.name(realm));if(w!=null)worlds.add(w);}
+        for(int realm=Floors.SLOTS-1;realm>=0;realm--){World w=Bukkit.getWorld(s.name(realm));if(w!=null)worlds.add(w);}
         for(World w:worlds)for(Player p:new ArrayList<>(w.getPlayers()))if(p.isDead()||!home(p,s,"closed")){deferred(s,w,"occupied");return false;}
         // Rifts first, the run's own world last. A world's rooms and gates go just before its own unload; if the server
         // refuses that unload the run lives on, so its return gate is put back (its rooms wake again from their journals).
@@ -261,9 +281,9 @@ public final class Sessions implements Listener {
             if(!Bukkit.unloadWorld(w,false)){World own=Bukkit.getWorld(s.name(0));if(own!=null&&plugin.gates!=null)plugin.gates.installReturnGate(own);deferred(s,w,"unload");return false;}
             s.unloaded++;int n=s.realm(w.getName());if(n>=0)s.worlds[n]=null;
         }
-        s.closed=true;live.remove(s.id);for(int realm=0;realm<=RiftCatalog.COUNT;realm++)byWorld.remove(s.name(realm),s);
+        s.closed=true;live.remove(s.id);for(int realm=0;realm<Floors.SLOTS;realm++)byWorld.remove(s.name(realm),s);
         final long age=(System.currentTimeMillis()-s.started)/1000L;final int unloaded=s.unloaded;
-        List<File> folders=new ArrayList<>();for(int realm=0;realm<=RiftCatalog.COUNT;realm++)folders.add(new File(Bukkit.getWorldContainer(),s.name(realm)));folders.add(s.data);
+        List<File> folders=new ArrayList<>();for(int realm=0;realm<Floors.SLOTS;realm++)folders.add(new File(Bukkit.getWorldContainer(),s.name(realm)));folders.add(s.data);
         erase(folders,1,0,deleted->plugin.getLogger().info("DUNGEON_SESSION_CLOSED id="+s.id+" ageSeconds="+age+" worlds="+unloaded+" deleted="+deleted+" reason="+reason));
         return true;
     }

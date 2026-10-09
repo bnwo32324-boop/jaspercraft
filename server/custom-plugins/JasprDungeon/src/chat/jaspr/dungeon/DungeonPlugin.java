@@ -14,15 +14,19 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
 public final class DungeonPlugin extends JavaPlugin implements Listener {
-    public static final int GENERATION_VERSION=6;
+    public static final int GENERATION_VERSION=7;
     /** Outside the dungeon a fixed neutral plan answers room lookups, as the shared world's plan did before generation 6; callers check inside() first. */
     private static final DungeonGenerator OUTSIDE=new DungeonGenerator(0);
     public String worldName;public Encounters encounters;public Hazards hazards;public Gates gates;public Relics relics;public Sanctuary sanctuary;
-    public Arsenal arsenal;public CreativeCatalog creative;public Rifts rifts;public Sessions sessions;
+    public Arsenal arsenal;public CreativeCatalog creative;public Rifts rifts;public Sessions sessions;public Bodies bodies;
+    /** Generation 7: floors (Descents), boss kits, custom mobs, physical perils, secrets and the ported mutants. */
+    public Descents descents;public BossKits kits;public Bestiary bestiary;public Perils perils;public Secrets secrets;MutantBridge mutants;
+    /** Generation 7 items: the Floor Guardians' trophies and the victor's reward (Descents awards them). */
+    public Trophies trophies;
     private final Map<UUID,Long> doorCooldown=new HashMap<>();private final Map<UUID,String> lastRoom=new HashMap<>();
     @Override public void onEnable(){
         saveDefaultConfig();if(!getConfig().getBoolean("enabled",true))return;
-        worldName=getConfig().getString("world-name","jaspr_dungeon6");
+        worldName=getConfig().getString("world-name","jaspr_dungeon7");
         // Generation 6: every run world is <world-name>_s<n>, and JasprDaylight exempts only the jaspr_dungeon prefix.
         if(!worldName.matches("[a-z0-9_-]+")||!worldName.startsWith(Sessions.PREFIX)||Bukkit.getWorlds().isEmpty()||worldName.equals(Bukkit.getWorlds().get(0).getName()))throw new IllegalStateException("Unsafe dungeon world name");
         long seed=Bukkit.getWorlds().get(0).getSeed()^getConfig().getLong("seed-salt",709327916L);
@@ -36,15 +40,19 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
         // Generation 6: no shared world. Every gate entry is a run in its own new world; no run survives a restart, so leftover
         // run worlds and journals are deleted here, before anything loads.
         sessions=new Sessions(this);
-        encounters=new Encounters(this);hazards=new Hazards(this);gates=new Gates(this);relics=new Relics(this);sanctuary=new Sanctuary(this);
+        encounters=new Encounters(this);bodies=new Bodies(this);hazards=new Hazards(this);gates=new Gates(this);relics=new Relics(this);sanctuary=new Sanctuary(this);
         arsenal=new Arsenal(this);creative=new CreativeCatalog(this);rifts=new Rifts(this);
+        descents=new Descents(this);kits=new BossKits(this);bestiary=new Bestiary(this);perils=new Perils(this);secrets=new Secrets(this);mutants=new MutantBridge(this);
         Bukkit.getPluginManager().registerEvents(this,this);Bukkit.getPluginManager().registerEvents(encounters,this);Bukkit.getPluginManager().registerEvents(hazards,this);Bukkit.getPluginManager().registerEvents(gates,this);Bukkit.getPluginManager().registerEvents(relics,this);
-        Bukkit.getPluginManager().registerEvents(sanctuary,this);
+        Bukkit.getPluginManager().registerEvents(sanctuary,this);Bukkit.getPluginManager().registerEvents(secrets,this);
+        Bukkit.getPluginManager().registerEvents(perils,this);
+        Bukkit.getPluginManager().registerEvents(bestiary,this);
         Bukkit.getPluginManager().registerEvents(arsenal,this);Bukkit.getPluginManager().registerEvents(creative,this);Bukkit.getPluginManager().registerEvents(rifts,this);Bukkit.getPluginManager().registerEvents(sessions,this);
         sessions.orphans();
+        trophies=new Trophies(this);Bukkit.getPluginManager().registerEvents(trophies,this);
         try{creative.export(new File(getDataFolder(),"creative-catalog.json"));}catch(Exception ex){throw new IllegalStateException("Cannot export dungeon item catalogue",ex);}
-        Bukkit.getScheduler().runTaskTimer(this,()->{gates.tick();encounters.tick();sanctuary.tick();arsenal.tick();rifts.tick();sessions.tick();},1,1);
-        getLogger().info("DUNGEON_READY world="+worldName+" generation="+GENERATION_VERSION+" hazards="+HazardCatalog.Type.values().length+" traps=some seizing=rare chests=normal portal=stone-bricks sessions=perEntry death=spawn");
+        Bukkit.getScheduler().runTaskTimer(this,()->{gates.tick();encounters.tick();bodies.tick();descents.tick();perils.tick(encounters.active.values());secrets.tick(encounters.active.values());sanctuary.tick();arsenal.tick();rifts.tick();sessions.tick();},1,1);
+        getLogger().info("DUNGEON_READY world="+worldName+" generation="+GENERATION_VERSION+" hazards="+HazardCatalog.Type.values().length+" traps=some seizing=rare chests=normal portal=stone-bricks sessions=perEntry death=spawn population=bySize watch=stations bodies=scaled floors=3 themes="+(Floors.floorOneThemes()+Floors.FLOOR_TWO_THEMES+Floors.FLOOR_THREE_THEMES)+" mutants="+(mutants.available()?"JasprMutants":"fallback"));
     }
     /** A new world-name starts a new dimension. The old one's identity and journals move intact to archive/; nothing is deleted. */
     private void archive(org.bukkit.configuration.file.YamlConfiguration old) throws java.io.IOException {
@@ -57,7 +65,7 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
         getLogger().warning("DUNGEON_GENERATION_ARCHIVED from="+from+" version="+version+" to="+worldName+" archive=archive/"+target.getName());
     }
     /** Run worlds still loaded at shutdown are saved by the server and deleted by the next start; nothing else to do here. */
-    @Override public void onDisable(){if(sessions!=null)sessions.stop();if(encounters!=null)encounters.close();if(gates!=null)gates.saveQuietly();if(arsenal!=null)arsenal.close();if(rifts!=null)rifts.close();}
+    @Override public void onDisable(){if(sessions!=null)sessions.stop();if(encounters!=null)encounters.close();if(kits!=null)kits.close();if(bestiary!=null)bestiary.close();if(perils!=null)perils.close();if(secrets!=null)secrets.close();if(gates!=null)gates.saveQuietly();if(arsenal!=null)arsenal.close();if(rifts!=null)rifts.close();}
     /** A world of a live run: its own world or one of its rifts. */
     public boolean inside(World w){return w!=null&&sessions!=null&&sessions.of(w)!=null;}
     public DungeonGenerator generator(World w){return sessions==null?null:sessions.generator(w);}
@@ -66,8 +74,13 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
     public String roomKey(World w,Layout.Room r){return w==null?r.id():w.getName()+"/"+r.id();}
     public String roomKey(Location l){return roomKey(l.getWorld(),room(l));}
     public int realm(World w){return sessions==null?0:Math.max(0,sessions.realm(w));}
-    public double rewardMultiplier(World w){return Math.max(.1,Math.min(3,getConfig().getDouble("loot-multiplier",1)))*(1+.20*realm(w));}
-    public double dangerMultiplier(World w){return 1+.15*realm(w);}
+    /** Generation 7: 1, 2 or 3 (a rift belongs to Floor I). */
+    public int floor(World w){return Floors.floor(realm(w));}
+    /** How deep a rift pocket is (1..3), 0 on a floor. */
+    public int riftDepth(World w){int n=realm(w);return Floors.rift(n)?n:0;}
+    public double rewardMultiplier(World w){return Math.max(.1,Math.min(3,getConfig().getDouble("loot-multiplier",1)))*(1+.20*riftDepth(w))*Floors.loot(floor(w));}
+    /** Rift pockets add their own danger; a floor's own (Floors.health and damage) is applied by Encounters. */
+    public double dangerMultiplier(World w){return 1+.15*riftDepth(w);}
     /** Every loaded world of every live run. */
     public Collection<World> dungeonWorlds(){return sessions==null?Collections.<World>emptyList():sessions.worlds();}
     @EventHandler public void init(WorldInitEvent e){if(inside(e.getWorld())){e.getWorld().setKeepSpawnInMemory(false);((org.bukkit.craftbukkit.v1_12_R1.CraftWorld)e.getWorld()).getHandle().spigotConfig.randomLightUpdates=true;}}
@@ -81,6 +94,8 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
         if((dx!=0||dz!=0)&&l.getY()>=65&&l.getY()<69){
             Location to=l.clone();if(dx!=0)to.setX(dx<0?r.x-3.5:r.x+r.w+3.5);else to.setZ(dz<0?r.z-3.5:r.z+r.d+3.5);to.setY(65);
             if(Math.abs(to.getX())>29999000||Math.abs(to.getZ())>29999000)return;
+            // Generation 7: a floor's Descent (or the Throne) stays sealed until enough of the floor is absolved.
+            Layout.Room next=room(to);if(descents!=null&&descents.sealed(l.getWorld(),next)&&p.getGameMode()!=GameMode.CREATIVE){descents.refuse(p,next);return;}
             // Replacing the event destination lets CraftBukkit perform the transition. Cancelling
             // and teleporting inside this callback would make CraftBukkit teleport back afterward.
             e.setTo(to);p.setFallDistance(0);doorCooldown.put(p.getUniqueId(),System.currentTimeMillis()+900);return;
@@ -90,7 +105,9 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
     public void announce(Player p,Layout.Room r){
         if(roomKey(p.getWorld(),r).equals(lastRoom.put(p.getUniqueId(),roomKey(p.getWorld(),r))))return;
         String dangers=r.hazards.length==0?"No traps":HazardCatalog.names(r);
-        p.sendTitle(ChatColor.DARK_RED+r.title(),ChatColor.GRAY+"Threat "+r.tier+"/5 | "+dangers,5,45,12);
+        String hint=descents==null||rifts.contains(p.getWorld())?"":descents.hint(p.getWorld(),r);
+        p.sendTitle(ChatColor.DARK_RED+r.title(),ChatColor.GRAY+(r.floor>1?"Floor "+Floors.numeral(r.floor)+" | ":"")+"Threat "+r.tier+"/5 | "+dangers,5,45,12);
+        if(!hint.isEmpty())p.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR,net.md_5.bungee.api.chat.TextComponent.fromLegacyText(ChatColor.LIGHT_PURPLE+hint));
         p.sendMessage(ChatColor.DARK_GRAY+"[Dungeon Dimension] "+r.title()+" | "+HazardCatalog.summary(r)+" | "+r.w+" x "+r.d+" | Threat "+r.tier+"/5. Walk into barred doorways to leave."+(r.dormant()?" Its guardians wake when the chest is opened.":""));
     }
     @EventHandler public void quit(PlayerQuitEvent e){doorCooldown.remove(e.getPlayer().getUniqueId());lastRoom.remove(e.getPlayer().getUniqueId());gates.forget(e.getPlayer());}
@@ -118,18 +135,19 @@ public final class DungeonPlugin extends JavaPlugin implements Listener {
     @EventHandler public void joined(PlayerJoinEvent e){Player p=e.getPlayer();if(inside(p.getWorld())&&sanctuary.contains(p.getLocation())&&!Sanctuary.safeFloor(p.getLocation())){Location safe=sanctuary.arrival(p.getWorld());if(safe==null)safe=gates.returnLocation(p);if(safe==null)p.kickPlayer("Dungeon refuge and return exit are obstructed. Ask an administrator to restore a safe landing.");else move(p,safe);}}
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args){
         if(encounters==null){sender.sendMessage("The dungeon is disabled.");return true;}
-        if(args.length>0&&args[0].equalsIgnoreCase("status")){sender.sendMessage("DUNGEON_READY world="+worldName+" sessions="+sessions.live()+" worlds="+dungeonWorlds().size()+" activeRooms="+encounters.active.size()+" generation="+GENERATION_VERSION+" hazards="+HazardCatalog.Type.values().length+" themes="+Layout.THEMES.length+" motifs="+Layout.MOTIF_COUNT+" bosses="+EncounterCatalog.COUNT+" baubles="+Relics.Type.values().length);return true;}
+        if(args.length>0&&args[0].equalsIgnoreCase("status")){sender.sendMessage("DUNGEON_READY world="+worldName+" sessions="+sessions.live()+" worlds="+dungeonWorlds().size()+" activeRooms="+encounters.active.size()+" generation="+GENERATION_VERSION+" hazards="+HazardCatalog.Type.values().length+" themes="+(Floors.floorOneThemes()+Floors.FLOOR_TWO_THEMES+Floors.FLOOR_THREE_THEMES)+" motifs="+Layout.MOTIF_COUNT+" bosses="+EncounterCatalog.allEntries().size()+" floors=3 baubles="+Relics.Type.values().length+" mutants="+(mutants.available()?"JasprMutants":"fallback"));return true;}
         if(!(sender instanceof Player)){sender.sendMessage("Use dungeon status; player travel requires a player.");return true;}Player p=(Player)sender;
         if(args.length>0&&args[0].equalsIgnoreCase("baubles")){relics.open(p);return true;}
         if(args.length>0&&args[0].equalsIgnoreCase("items")){int page=0;try{if(args.length>1)page=Integer.parseInt(args[1])-1;}catch(NumberFormatException ignored){}creative.open(p,page);return true;}
         if(args.length>0&&args[0].equalsIgnoreCase("leave")){if(inside(p.getWorld())){if(!rifts.leave(p))gates.leave(p,"command");}else p.sendMessage("You are not in the dungeon.");return true;}
         if(args.length>0&&args[0].equalsIgnoreCase("where")){if(!inside(p.getWorld())){p.sendMessage("Outside the Dungeon Dimension.");return true;}Layout.Room r=room(p.getLocation());
-            p.sendMessage("Run #"+sessions.of(p.getWorld()).id+" | "+(rifts.contains(p.getWorld())?rifts.displayName(p.getWorld()):"The Dungeon Dimension")+" | "+r.title()+" | "+roomKey(p.getLocation())+" | "+Layout.MOTIFS[r.motif]+" | Threat "+r.tier+"/5 | "+HazardCatalog.summary(r));return true;}
+            p.sendMessage("Run #"+sessions.of(p.getWorld()).id+" | "+rifts.displayName(p.getWorld())+" | "+r.title()+" | "+roomKey(p.getLocation())+(r.floor==1?" | "+Layout.MOTIFS[r.motif]:"")+" | Threat "+r.tier+"/5 | "+HazardCatalog.summary(r));
+            if(!rifts.contains(p.getWorld()))p.sendMessage(ChatColor.LIGHT_PURPLE+"Floor "+Floors.numeral(r.floor)+" ("+Floors.title(r.floor)+") | absolved rooms "+encounters.clears(p.getWorld())+"/"+Floors.clearsRequired(r.floor)+" | "+descents.hint(p.getWorld(),r));return true;}
         if(args.length==3&&args[0].equalsIgnoreCase("visit")){
             if(p.getGameMode()!=GameMode.CREATIVE||!p.hasPermission("jaspr.dungeon.admin")){p.sendMessage("Inspection travel requires a Creative administrator.");return true;}
             // Inside the administrator's own run; from outside, a new run begins for them (no gate, so nobody joins it).
             try{int x=Integer.parseInt(args[1]),z=Integer.parseInt(args[2]);if(Math.abs((long)x)>900000||Math.abs((long)z)>900000)throw new NumberFormatException();World w=sessions.runFor(p);if(w==null)return true;Layout.Room r=generator(w).layout.at(x*32,z*32);move(p,new Location(w,r.cx()+.5,65,r.cz()+.5));}catch(Exception ex){p.sendMessage("Usage: /dungeon visit <roomX> <roomZ>");getLogger().warning("DUNGEON_VISIT_FAILED "+ex.getMessage());}return true;
         }
-        p.sendMessage(ChatColor.GOLD+"The Dungeon Dimension: build a 4 x 5 stone-brick frame (2 x 3 opening), light it with flint and steel, and step inside. Every entry is a new run with rooms never seen before; leaving, dying or /dungeon leave ends it. Some rooms are trapped; clearing a room stills its gravity well and the like. /dungeon where | /dungeon leave");return true;
+        p.sendMessage(ChatColor.GOLD+"The Dungeon Dimension: build a 4 x 5 stone-brick frame (2 x 3 opening), light it with flint and steel, and step inside. Every entry is a new run with rooms never seen before; leaving, dying or /dungeon leave ends it. Three floors: absolve enough rooms, defeat the floor's guardian at its Descent and go deeper. Some rooms are trapped; clearing a room stills its gravity well and the like. /dungeon where | /dungeon leave");return true;
     }
 }

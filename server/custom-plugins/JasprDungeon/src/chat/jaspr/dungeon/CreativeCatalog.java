@@ -30,11 +30,13 @@ public final class CreativeCatalog implements Listener {
             final int chapter=theme;final LootCatalog.Profile profile=LootCatalog.profile(theme);
             add("lore_"+theme,"artifact",()->Rewards.lore(chapter));
             for(LootCatalog.Gear family:profile.gear)for(boolean fine:new boolean[]{false,true}){
-                final boolean quality=fine;
-                add("gear_"+theme+"_"+family.name().toLowerCase(Locale.ROOT)+(quality?"_exalted":"_pilgrim"),"gear",()->Rewards.gear(profile,family,quality?5:2,quality,quality));
+                final boolean quality=fine;final int floor=Floors.floorOfTheme(theme);
+                add("gear_"+theme+"_"+family.name().toLowerCase(Locale.ROOT)+(quality?"_exalted":"_pilgrim"),"gear",()->Rewards.gear(profile,family,quality?5:2,quality,quality,floor));
             }
         }
         for(ArmoryCatalog.Type type:ArmoryCatalog.Type.values())add("armory_"+type.name().toLowerCase(Locale.ROOT),type.kind==ArmoryCatalog.Kind.GUN?"gun":"melee",()->Arsenal.create(type));
+        // Generation 7: the Floor Guardians' trophy weapons (the victor's laurel is a bauble, listed with them above).
+        for(TrophyCatalog.Trophy trophy:TrophyCatalog.Trophy.values())if(trophy.weapon())add("trophy_"+trophy.name().toLowerCase(Locale.ROOT),"melee",()->Trophies.create(trophy));
     }
     private void add(String id,String category,Supplier<ItemStack> factory){id="penitent_"+id;if(entries.containsKey(id))throw new IllegalStateException("Duplicate dungeon creative id "+id);entries.put(id,new Entry(id,category,factory));}
     public List<Entry> entries(){return Collections.unmodifiableList(new ArrayList<>(entries.values()));}

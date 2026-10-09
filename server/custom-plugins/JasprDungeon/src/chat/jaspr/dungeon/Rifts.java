@@ -34,11 +34,12 @@ public final class Rifts implements Listener {
     private int sourceRealm(World world){return world==null||plugin.sessions==null?-1:plugin.sessions.realm(world);}
     /** Run and unrelated worlds use multiplier zero; travel checks use the stricter sourceRealm. */
     public int realm(World world){return Math.max(0,sourceRealm(world));}
-    public boolean contains(World world){return realm(world)>0;}
+    /** A rift pocket (slots 1..3); generation 7's Floors II and III (slots 4, 5) are not rifts. */
+    public boolean contains(World world){return Floors.rift(sourceRealm(world));}
     public DungeonGenerator generator(World world){return contains(world)?plugin.sessions.generator(world):null;}
     /** Every loaded rift world of every live run. */
     public Collection<World> worlds(){List<World> out=new ArrayList<>();if(plugin.sessions!=null)for(World w:plugin.sessions.worlds())if(contains(w))out.add(w);return Collections.unmodifiableList(out);}
-    public String displayName(World world){int n=sourceRealm(world);return n>0?RiftCatalog.get(n).title:n==0?"The Dungeon Dimension":world==null?"Outside the dungeon":world.getName();}
+    public String displayName(World world){int n=sourceRealm(world);return Floors.rift(n)?RiftCatalog.get(n).title:n==0?"The Dungeon Dimension":n>0?"Floor "+Floors.numeral(Floors.floor(n))+": "+Floors.title(Floors.floor(n)):world==null?"Outside the dungeon":world.getName();}
     /** A run's rift identity and journals, checked against its root name, seed and generation; made on first use. */
     public RiftStore store(Sessions.Session run) throws Exception {
         if(run==null||!run.alive())throw new IllegalStateException("This dungeon run has ended");
@@ -79,7 +80,7 @@ public final class Rifts implements Listener {
     private static boolean near(double x,double z,double cx,double cz){return Math.abs(x-cx)<2&&Math.abs(z-cz)<2;}
     private boolean outsideCracks(World world,Location at,Layout.Room room){
         if(RiftCatalog.selected(realm(world),room)&&near(at.getX(),at.getZ(),RiftCatalog.forwardX(room),RiftCatalog.forwardZ(room)))return false;
-        return realm(world)<=0||!near(at.getX(),at.getZ(),RiftCatalog.RETURN_X,RiftCatalog.RETURN_Z);
+        return !Floors.rift(sourceRealm(world))||!near(at.getX(),at.getZ(),RiftCatalog.RETURN_X,RiftCatalog.RETURN_Z);
     }
     public Location safeArrival(World world){
         if(sourceRealm(world)<0)return null;

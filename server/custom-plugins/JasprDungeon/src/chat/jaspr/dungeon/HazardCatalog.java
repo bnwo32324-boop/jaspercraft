@@ -42,14 +42,20 @@ public final class HazardCatalog {
     static final int WELL_IN_1000=40,SEIZING_IN_1000=80;
     static final Type[] NONE={};
     /** Per theme: its favoured ordinary dangers, its favoured seizing dangers other than the well, and whether it favours the well. */
-    private static final Type[][] ORDINARY=new Type[FAVOURED.length][],SEIZING=new Type[FAVOURED.length][];
-    private static final boolean[] WELLS=new boolean[FAVOURED.length];
+    private static final Type[][] ORDINARY=new Type[Floors.THEME_TOTAL][],SEIZING=new Type[Floors.THEME_TOTAL][];
+    private static final boolean[] WELLS=new boolean[Floors.THEME_TOTAL];
     /** The ten ordinary dangers, in enum order: a gauntlet's second danger is one of these. */
     private static final Type[] ORDINARY_ALL;
+    /** Generation 7: themes 36 and up name their favoured dangers in their own floor's catalogue. */
+    static Type[] favoured(int theme){
+        if(theme<FAVOURED.length)return FAVOURED[theme];
+        Type[] t=theme<Floors.FLOOR_TWO_BASE?FloorOneExtra.favoured(theme):theme<Floors.FLOOR_THREE_BASE?FloorTwo.favoured(theme):FloorThree.favoured(theme);
+        return t==null||t.length==0?new Type[]{VENTS,DARTS,MASONRY}:t;
+    }
     static{
-        for(int theme=0;theme<FAVOURED.length;theme++){
+        for(int theme=0;theme<Floors.THEME_TOTAL;theme++){
             java.util.List<Type> ordinary=new java.util.ArrayList<>(),seizing=new java.util.ArrayList<>();
-            for(Type t:FAVOURED[theme]){if(t==WELL)WELLS[theme]=true;else if(seizes(t))seizing.add(t);else ordinary.add(t);}
+            for(Type t:favoured(theme)){if(t==WELL)WELLS[theme]=true;else if(seizes(t))seizing.add(t);else ordinary.add(t);}
             // Every theme favours at least one ordinary danger (audited); an all-seizing trio would fall back to all ten.
             ORDINARY[theme]=ordinary.toArray(NONE);SEIZING[theme]=seizing.toArray(NONE);
         }
@@ -69,6 +75,8 @@ public final class HazardCatalog {
             case TREASURE: return 600;
             case SHRINE: return 400;
             case BOSS: return 250;
+            // Generation 7: the Descent and the Throne fight with their guardian's own powers and the floor's perils.
+            case DESCENT: case THRONE: return 0;
             default: return 300;
         }
     }

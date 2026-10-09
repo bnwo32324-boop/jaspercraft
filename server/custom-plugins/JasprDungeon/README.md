@@ -2,6 +2,10 @@
 
 Source of truth for `JasprDungeon` (Paper 1.12.2), the live JasperCraft plugin. Generation 4 renamed the dimension from The Penitent Below to **the Dungeon Dimension**; generation 5 (world `jaspr_dungeon5`, 2026-10-03) traps only some rooms, makes the seizing traps rare and stills them in a conquered room; **generation 6** (2026-10-04, base name `jaspr_dungeon6`) makes **every entry a fresh run** in its own new world. Design: [RUNS_DESIGN.md](RUNS_DESIGN.md). Deployment record: [DEPLOYED-2026-10-03.md](DEPLOYED-2026-10-03.md). Architecture and verification limits: [ADVENTURE_CHECKPOINT.md](ADVENTURE_CHECKPOINT.md). Generated content list: [build/CONTENT_CATALOG.md](build/CONTENT_CATALOG.md).
 
+## Generation 7 (2026-10-08, 7.0.0)
+
+Three floors (The House of Mercy, The Underworks, The Abyssal Citadel), each with its own worlds, themes and a sealed Descent (Floor III: the Throne) whose guardian opens the way down; bosses with ability kits, phases and summons; crowds spread over the whole room that hold their posts until engaged; 20 new species, gunners, physical perils, secrets and 115 new relics. Source of truth: the dungeon sandbox, branch generation7. See DUNGEON_GEN7_UPDATE.md in the repository root.
+
 ## Getting there
 
 Build a Nether-portal-shaped **stone-brick frame**, **4 wide × 5 high**, with an empty **2 × 3** opening (corners optional, either orientation). Light a frame block with **flint and steel** and stand in the portal for a second. Every entry begins a **new run** (see below). You arrive in **The Last Candle**, a four-room refuge with no enemies; only the candle-lit arrival circle around its portal is free of danger. Its stone-brick portal takes you back to where you entered; each player's return point is saved. Arrival and return check for solid ground, headroom and nearby hazards, and refuse travel rather than carve blocks.
