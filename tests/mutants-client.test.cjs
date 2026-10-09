@@ -159,7 +159,7 @@ test('SPAWN: a hand-encoded mutant_zombie message (protocol section 2) creates t
   assert.equal(out.added, true);
   deepEqual(out.pos, [10.5, 64, -3.25]);
   deepEqual(out.ser, [10.5 * 4096, 64 * 4096, -3.25 * 4096]);
-  deepEqual(out.rot, [90, 0, -180, -180]);              // angles are signed bytes, as SPacketSpawnMob/FML read them
+  deepEqual(out.rot, [90, 0, -180, 0]);                 // signed byte angles; FML sets only EntityLiving.rotationYawHead (renderYawOffset stays 0)
   deepEqual(out.motion, [0.1, -0.2, 0]);
   assert.equal(out.health, 77.5);
   assert.equal(out.lives, 2);
@@ -226,7 +226,9 @@ test('SPAWN: every type round-trips its data keys and IEntityAdditionalSpawnData
     const own = { body_part: 5, chemical_x: 5, endersoul_clone: 11, creeper_minion: 17, creeper_minion_egg: 6, endersoul_fragment: 6, mutant_arrow: 10,
       mutant_creeper: 15, mutant_enderman: 13, mutant_skeleton: 11, mutant_snow_golem: 13, mutant_zombie: 13, skull_spirit: 6, spider_pig: 15, throwable_block: 6 }[t.name];
     deepEqual(chk.keys, Array.from({ length: own + 1 }, (_, i) => i), t.name + ' key ids');
-    assert.equal(chk.yaw, 45, t.name + ' yaw');
+    // FML's EntitySpawnHandler calls setVelocity after setLocationAndAngles for an IThrowableEntity; EntityThrowable.setVelocity
+    // (client) recomputes the yaw from the motion while prevRotationYaw is still 0 (setLocationAndAngles leaves it), here 0.
+    assert.equal(chk.yaw, t.name === 'throwable_block' ? 0 : 45, t.name + ' yaw');
     const expect = {
       mutant_zombie: { lives: 1, sd: [1, 2, 3, 4, 5, 6] }, mutant_skeleton: { sd: [4, 9] }, mutant_creeper: { status: [true, false, true], sd: [7, 8] },
       mutant_enderman: { arm: 2, clone: true, size: [0.6000000238418579, 2.9000000953674316], sd: [4, 11, 0, 10, 20], tp: [5, 70, 9] },
@@ -339,23 +341,92 @@ test('sounds 1000-1042 and particles 100/101 are registered under the protocol i
   deepEqual(p, [['mutantbeasts:endersoul', 100, 1, 0, true, true], ['mutantbeasts:skull_spirit', 101, 1, 0, true, true]]);
 });
 
-test('jaspr:scale: the table is parsed, applied once per change to the hitbox from the base size, and cleared', { skip }, () => {
+test('jaspr:scale is left to JASPR_BIGMOBS: the Mutants payload hook does not consume it', { skip }, () => {
   const { ev } = H.load();
-  const world = H.fakeWorld(ev);
-  const r = ev(`(function(w){
-    var M = JasprMutants, z = new Iw(); B3z(z, w); z.setEntityId(900); w.$added.push(z); Y(w.gw, z);
-    var base = [z.bI, z.bZ];
-    M.applyScaleText('900:250,901:150,bad,902:0');
-    M.updateScaledEntities(w);
-    var scaled = [z.bI, z.bZ, M.renderScaleOf(z), M.scaleTable.size];
-    M.updateScaledEntities(w);
-    M.applyScaleText('');
-    M.updateScaledEntities(w);
-    return { base: base, scaled: scaled, cleared: [z.bI, z.bZ, M.renderScaleOf(z)] };
-  })`)(world);
-  deepEqual(r.scaled.slice(2), [2.5, 2]);
-  assert.ok(Math.abs(r.scaled[0] - r.base[0] * 2.5) < 1e-9 && Math.abs(r.scaled[1] - r.base[1] * 2.5) < 1e-9);
-  deepEqual(r.cleared, [r.base[0], r.base[1], 1]);
+  const r = ev(`(function(){ var pb = new Iu(); Lg(pb, Fru()); return JasprMutantsBridge.payload({ S$: $rt_str('jaspr:scale'), Wm: pb }); })()`);
+  assert.equal(r, false);
+  deepEqual(ev('JasprMutants.CHANNELS'), ['jaspr:mutants', 'mutantbeasts']);
+});
+
+test('items: ids 4000-4014 with registry keys, translation keys, stack sizes, rarity, durability and model variants', { skip }, () => {
+  const { ev, M } = H.load();
+  const r = ev(`(function(){
+    var M = JasprMutants, out = [];
+    for (var i = 0; i < M.ITEM_NAMES.length; i++) {
+      var it = WY(HEO, 4000 + i), n = M.ITEM_NAMES[i];
+      out.push({ n: n, same: it === M.ITEMS_MB[n.toUpperCase()], key: M.ustr(it.bPx()), max: it.i8, dmg: it.bzP,
+        variants: M.listToArray(it.$jmVariants).map(function (s) { return M.ustr(s); }), rarity: it.cMA === Cl.prototype.cMA ? 'COMMON' : M.enumName(it.cMA(null)) });
+    }
+    return out;
+  })()`);
+  assert.equal(r.length, 15);
+  assert.ok(r.every(x => x.same), 'registry ids resolve to the stage items');
+  assert.ok(r.every(x => x.key === 'item.mutantbeasts.' + x.n), 'translation keys');
+  const by = Object.fromEntries(r.map(x => [x.n, x]));
+  deepEqual([by.chemical_x.max, by.creeper_shard.max, by.creeper_shard.dmg, by.endersoul_hand.dmg, by.hulk_hammer.dmg], [1, 1, 32, 240, 64]);
+  deepEqual(by.endersoul_hand.variants, ['minecraft:jaspr_mutants/endersoul_hand_model', 'minecraft:jaspr_mutants/endersoul_hand_gui']);
+  deepEqual(by.mutant_skeleton_skull.variants, ['minecraft:jaspr_mutants/mutant_skeleton_skull']);
+  deepEqual([by.chemical_x.rarity, by.creeper_shard.rarity, by.endersoul_hand.rarity, by.hulk_hammer.rarity, by.mutant_skeleton_boots.rarity, by.mutant_skeleton_rib.rarity],
+    ['EPIC', 'UNCOMMON', 'EPIC', 'UNCOMMON', 'UNCOMMON', 'COMMON']);
+  // ModelBakery.getVariantNames returns the stage's variants for its items and the registry name for vanilla ones
+  const v = ev(`(function(){ var mb = { gs: { Ai: { data: [null] } } }; var a = Fbv(mb, JasprMutants.ITEMS_MB.HULK_HAMMER); FM(); var b = Fbv(mb, WY(HEO, 1)); return [JasprMutants.listToArray(a).map($rt_ustr), JasprMutants.listToArray(b).map($rt_ustr)]; })()`);
+  deepEqual(v, [['minecraft:jaspr_mutants/hulk_hammer'], ['minecraft:stone']]);
+  // armour: material ordinal 2 (drawn like IRON), texture name, protection per slot
+  const arm = ev(`(function(){ var M = JasprMutants, s = M.ITEMS_MB.MUTANT_SKELETON_CHESTPLATE; return [s.GZ.d, M.ustr(s.GZ.dZ1), s.cng, M.enumName(s.a6G), M.ITEMS_MB.MUTANT_SKELETON_SKULL.cng]; })()`);
+  deepEqual(arm, [2, 'jaspr_mutants_mutant_skeleton', 6, 'CHEST', 2]);
+});
+
+test('late install: every texture the renderers, particles and screen draw is preloaded (minecraft domain, packed)', { skip }, () => {
+  const { ev } = H.load();
+  const list = ev('JasprMutantsBridge.preloadList().map(function (r) { return JasprMutants.rlString(r); })');
+  assert.ok(list.length >= 20, 'textures listed: ' + list.length);
+  assert.ok(list.every(p => p.startsWith('minecraft:textures/')), 'minecraft domain only');
+  for (const p of ['minecraft:textures/entity/jaspr_mutants/mutant_zombie.png', 'minecraft:textures/entity/creeper/creeper_armor.png',
+    'minecraft:textures/particle/jaspr_mutants/skull_spirit.png', 'minecraft:textures/gui/jaspr_mutants/creeper_minion_tracker.png',
+    'minecraft:textures/entity/jaspr_mutants/endersoul_hand.png']) assert.ok(list.includes(p), p);
+  // each one exists in the asset pack the deploy adds (vanilla ones excepted)
+  const PACK = path.join(__dirname, '..', 'candidate', 'mutants-pack', 'assets');
+  if (fs.existsSync(PACK)) for (const p of list.filter(x => x.includes('jaspr_mutants'))) {
+    assert.ok(fs.existsSync(path.join(PACK, p.replace(':', '/'))), 'packed: ' + p);
+  }
+  assert.equal(ev('JasprMutants.lateDone === true'), false, 'nothing registered before the binds');
+});
+
+test('tracker screen: buttons, owner gate, toggles send CreeperMinionTrackerPacket, Float.toString formatting', { skip }, () => {
+  const { ev } = H.load();
+  deepEqual(ev('[10, 7.5, 0.1, 2.5, 100, 3.3, -0].map(function (x) { return JasprMutants.jfloat(x); })'), ['10.0', '7.5', '0.1', '2.5', '100.0', '3.3', '-0.0']);
+  const r = ev(`(function(){
+    var M = JasprMutants, w = { r: 1, R: null, b4: { lE: function () { return { v0: 0 }; } } };
+    var m = M.T.CreeperMinionEntity.create(w); m.setEntityId(77);
+    var me = {}, other = {};
+    Object.defineProperty(m, 'isOwner', { value: function (p) { return p === me; } });
+    var savedFormat = GWe; GWe = function (key) { return key; };   // the harness has no client Locale (I18n.format)
+    try {
+    var Screen = M.defineGui(), s = new Screen(); BGm(s);
+    s.creeperMinion = m; s.j = { v: other, bE: null }; s.q = 400; s.L = 300;
+    s.ee();
+    var buttons = M.listToArray(s.be);
+    var before = buttons.map(function (b) { return [b.bF, b.eh, b.d$, b.fg, b.i2, b.bS, M.ustr(b.dd)]; });
+    var s2 = new Screen(); BGm(s2); s2.creeperMinion = m; s2.j = { v: me, bE: null }; s2.q = 400; s2.L = 300; s2.ee();
+    var b2 = M.listToArray(s2.be);
+    while (M.takeOutgoing() !== null) {}
+    s2.eB(b2[0]); s2.eB(b2[2]); s2.eB(b2[2]);
+    var sent = []; for (var o; (o = M.takeOutgoing()) !== null;) sent.push(Array.from(o.bytes));
+    return { before: before, ownerEnabled: b2.map(function (b) { return b.bS; }), sent: sent, text0: M.ustr(b2[0].dd), text2: M.ustr(b2[2].dd), pause: s2.T7() };
+    } finally { GWe = savedFormat; }
+  })()`);
+  assert.equal(r.before.length, 3);
+  deepEqual(r.before.map(b => b.slice(0, 5)), [[0, 120, 155, 160, 20], [1, 120, 179, 160, 20], [2, 120, 203, 160, 20]]);
+  deepEqual(r.before.map(b => b[5]), [0, 0, 0], 'not the owner: every button disabled');
+  deepEqual(r.ownerEnabled, [1, 1, 1]);
+  // a new minion destroys blocks (setDestroyBlocks(true) in its constructor): the first toggle turns it off
+  deepEqual(r.sent, [[0, 0, 0, 0, 77, 0, 0], [0, 0, 0, 0, 77, 2, 1], [0, 0, 0, 0, 77, 2, 0]]);
+  assert.equal(r.text0, 'gui.mutantbeasts.creeper_minion_tracker.destroys_blocksoptions.off');
+  assert.equal(r.text2, 'gui.mutantbeasts.creeper_minion_tracker.can_ride_on_shoulderoptions.off');
+  assert.equal(r.pause, 0);
+  // openGui queues the screen for the next tick (displayGuiScreen runs in the resumable tick)
+  const q = ev(`(function(){ var M = JasprMutants, w = { r: 1, R: null, b4: { lE: function () { return { v0: 0 }; } } }; var m = M.T.CreeperMinionEntity.create(w); M.openGui(0, m); var s = JasprMutantsBridge.takeScreen({ cj: null }); return [s instanceof M.CreeperMinionTrackerScreen, s.creeperMinion === m, JasprMutantsBridge.takeScreen({ cj: null }) === null, s instanceof CO]; })()`);
+  deepEqual(q, [true, true, true, true]);
 });
 
 test('failure isolation: an exception disables only that part and reports one bounded jaspercraft.mutants.error', { skip }, () => {
@@ -380,4 +451,94 @@ test('failure isolation: an exception disables only that part and reports one bo
   assert.ok(errors[0].events[0].details.error.length <= 180);
   assert.equal(errors[0].events[0].details.part, 'spawn');
   assert.ok(r.status.disabled.spawn);
+});
+
+test('guards: a throwing entity tick removes only that twin; a throwing renderer/item override returns the vanilla fallback', { skip }, () => {
+  const { ev } = H.load({ fresh: true });
+  const world = H.fakeWorld(ev);
+  const r = ev(`(function(w){
+    var M = JasprMutants, z = M.T.MutantZombieEntity.create(w), v = M.vname('onUpdate');
+    z.W7 = function () { this.$dead = true; };
+    var saved = z.world; z.world = { r: 1 };                    // a world the tick cannot use: it throws inside
+    var threw = false; try { z[v](); } catch (e) { threw = true; }
+    z.world = saved;
+    var entities = M.enabled('entities');
+    // item override: the hulk hammer's rarity throws -> Item.getRarity (vanilla) answers, "items" switches off
+    var hammer = M.ITEMS_MB.HULK_HAMMER, raw = M.guardVirtual('items', 'cMA', function () { throw new Error('boom'); }, function () { return 'vanilla'; });
+    var fromFallback = raw.call(hammer, null), items = M.enabled('items');
+    return { threw: threw, dead: !!z.$dead, entities: entities, fromFallback: fromFallback, items: items, render: M.enabled('render') };
+  })`)(world);
+  deepEqual(r, { threw: false, dead: true, entities: false, fromFallback: 'vanilla', items: false, render: true });
+});
+
+// TeaVM $rt_metadata records: cls, name (0 or "Name" followed by a flags number), parent, [ifaces], mods, access, x, clinit, [vtable]
+function metadata(src) {
+  function items(from) {
+    const out = []; let depth = 0, cur = '', str = false;
+    for (let i = from; i < src.length; i++) {
+      const c = src[i];
+      if (str) { cur += c; if (c === '\\') { cur += src[++i]; continue; } if (c === '"') str = false; continue; }
+      if (c === '"') { str = true; cur += c; continue; }
+      if (c === '[' || c === '(' || c === '{') { depth++; cur += c; continue; }
+      if (c === ']' || c === ')' || c === '}') { if (depth === 0) { out.push(cur); return out; } depth--; cur += c; continue; }
+      if (c === ',' && depth === 0) { out.push(cur); cur = ''; continue; }
+      cur += c;
+    }
+    return out;
+  }
+  const recs = {};
+  for (let s = src.indexOf('$rt_metadata(['); s >= 0; s = src.indexOf('$rt_metadata([', s + 10)) {
+    const list = items(s + '$rt_metadata(['.length).map(x => x.trim());
+    for (let i = 0; i < list.length;) {
+      const r = {cls: list[i], name: list[i + 1]};
+      let j = i + 2;
+      if (r.name !== '0') j++;
+      r.parent = list[j]; r.vt = list[j + 6];
+      if (/^[A-Za-z_$][\w$]*$/.test(r.cls)) recs[r.cls] = r;
+      i = j + 7;
+    }
+  }
+  return recs;
+}
+function vtableOf(vt) {
+  const out = [];
+  if (!vt || vt === '0') return out;
+  const re = /"([^"]+)",\s*(?:Hz[\w$]*\(([A-Za-z_$][\w$]*)\)|function\([^)]*\)\{(?:return )?([A-Za-z_$][\w$]*)\(this)/g;
+  let m; while ((m = re.exec(vt))) out.push([m[1], m[2] || m[3]]);
+  return out;
+}
+
+test('abstract methods: every this-call in the engine methods a stage class inherits resolves on that class', { skip }, () => {
+  const { ev, built } = H.load();
+  const src = built.output, recs = metadata(src);
+  const fnBody = name => { const s = src.indexOf('\nfunction ' + name + '('); return s < 0 ? '' : src.slice(s, src.indexOf('\nfunction ', s + 10)); };
+  const info = ev(`(function(names){
+    var M = JasprMutants, res = {}, classes = {};
+    M.defineRenderers(); M.defineParticles(); M.defineGui();
+    for (var k in M.T) classes['entity ' + k] = M.T[k];
+    for (var k2 in M.RENDERERS) classes['render ' + k2] = M.RENDERERS[k2];
+    for (var k3 in M.ITEM_CLASSES) classes['item ' + k3] = M.ITEM_CLASSES[k3];
+    classes['particle Endersoul'] = M.EndersoulParticle; classes['particle SkullSpirit'] = M.SkullSpiritParticle;
+    classes['gui Tracker'] = M.CreeperMinionTrackerScreen;
+    var byFn = new Map(); names.forEach(function (n) { try { var f = eval(n); if (typeof f === 'function') byFn.set(f, n); } catch (e) {} });
+    for (var c in classes) {
+      var C = classes[c], engine = null, own = {};
+      for (var q = C; q; q = q.$jm ? q.$jm.parent : null) { if (!q.$jm) { engine = byFn.get(q) || null; break; } }
+      for (var p = C.prototype; p && p !== Object.prototype; p = Object.getPrototypeOf(p)) Object.getOwnPropertyNames(p).forEach(function (n) { try { if (typeof p[n] === 'function') own[n] = 1; } catch (e) {} });
+      res[c] = { engine: engine, has: own };
+    }
+    return res;
+  })`)(Object.keys(recs));
+  const problems = [];
+  assert.equal(Object.keys(info).length, 37, 'classes scanned (15 entities, 14 renderers, 5 items, 2 particles, 1 screen)');
+  for (const [cls, {engine, has}] of Object.entries(info)) {
+    if (!engine) { problems.push(cls + ': engine parent not found'); continue; }
+    const impls = new Map();
+    for (let c = engine; c && recs[c]; c = recs[c].parent) for (const [v, impl] of vtableOf(recs[c].vt)) if (!impls.has(v)) impls.set(v, impl);
+    const calls = new Set();
+    for (const impl of new Set(impls.values())) for (const m of fnBody(impl).matchAll(/[^\w$.]a\.([A-Za-z_$][\w$]*)\(/g)) calls.add(m[1]);
+    const miss = [...calls].filter(v => !has[v]);
+    if (miss.length) problems.push(cls + ' (' + engine + '): ' + miss.join(', '));
+  }
+  deepEqual(problems, []);
 });

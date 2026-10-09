@@ -145,6 +145,8 @@ function hello() {
     check(await until(() => Object.keys(TYPES).every(k => seen.spawns.some(s => s.id === ids[k] && s.type === TYPES[k])), 8000),
       'The client gets a SPAWN message with the protocol type id for each', JSON.stringify(seen.spawns.map(s => s.id + ':' + s.type)));
     check(await until(() => Object.values(ids).every(id => seen.metadata.has(id)), 5000), 'and their metadata follows', [...seen.metadata].join(','));
+    const hurt = (await cmd('mprobe hurtall ' + NAME, /PROBE_HURTALL/)).line;
+    check(+field(hurt, 'n') >= 8 && field(hurt, 'ok') === field(hurt, 'n') && !/failed=\S/.test(hurt), 'Every living kind takes hits (plain and from a player) without an exception (Paper resets a tameable\'s sit goal)', hurt);
 
     // Natural spawning: the mod's biome entries, used only in the main overworld.
     const bio = (await cmd('mprobe biomes', /PROBE_BIOMES/)).line;

@@ -164,11 +164,10 @@ with ids 100/101 (they degrade to barrier particles, harmless but ugly). The ser
 packets with mod sound ids, and mod particle packets, for players that have not sent HELLO (Netty outbound filter per
 player; counter in the status line). Everything else is sent as is.
 
-## 6. Big Mobs (dungeon) scale table - also implemented by the client stage
-Existing channel `jaspr:scale` from JasprDungeon `Bodies.java`: a String "entityId:hundredths,..." (empty = clear),
-sent about once a second while it changes. Client: draw that entity scaled by hundredths/100 about its feet and set its
-client hitbox once per change (`setSize(width*s, height*s)` from the entity's base size); never for mod entities (the
-dungeon does not resize them).
+## 6. Big Mobs (dungeon) scale table
+Channel `jaspr:scale` (JasprDungeon `Bodies.java`) belongs to the JASPR_BIGMOBS client stage, which is live; the Mutants
+stage does not consume it (its payload hook returns the message to the client untouched). A scaled mutant is drawn and
+sized by Big Mobs like any other mob.
 
 ## 7. Diagnostics (both sides; privacy rules of AGENTS.md)
 Server: `MUTANTS_READY entities=15 items=15 sounds=43 particles=2 recipes=.. brewing=.. lootTables=.. spawns=..`,

@@ -1,0 +1,9 @@
+client-mods/mutants/assets/mutantbeasts: textures, models, language files, sounds.json and sounds of Mutant Creatures Legacy
+(https://github.com/Elite-Modding-Team/MutantCreaturesLegacy, Elite Modding Team and the original authors of Mutant Creatures /
+Mutant Beasts). They are the mod's original assets, licensed under the GNU Affero General Public License v3 (see LICENSE in this
+folder and server/custom-plugins/JasprMutants/LICENSE).
+
+Not included: the newer Mutant Skeleton sounds (sounds/entity/mutant_skeleton/*.ogg outside legacy/), which the mod's
+LICENSE_ASSETS keeps All Rights Reserved. The JasperCraft client uses the mod's legacy Mutant Skeleton sounds (the mod's own
+"Mutant Skeleton Legacy ... Sound" options) and vanilla stand-ins for bite, bow draw, bow shoot, jump and punch
+(MUTANTS_PROTOCOL.md 1.4).

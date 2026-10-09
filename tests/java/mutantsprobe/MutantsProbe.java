@@ -361,6 +361,18 @@ public final class MutantsProbe extends JavaPlugin implements Listener {
                 main.createExplosion(l.getX(), l.getY(), l.getZ(), 3.0F, false, false);
                 Bukkit.getScheduler().runTaskLater(this, () -> this.out("PROBE_SHARD shard=" + shard.isValid() + " dirt=" + dirt.isValid()), 3L);
             }, 10L);
+        } else if ("hurtall".equals(op)) {
+            // every living mutant takes a plain hit and a hit from the player (Paper's damageEntity paths), none may throw
+            Player p = this.player(a[1]);
+            int n = 0, ok = 0;
+            StringBuilder failed = new StringBuilder();
+            for (org.bukkit.entity.Entity e : new java.util.ArrayList<>(main.getEntities())) {
+                if (!(e instanceof LivingEntity) || !MutantsApi.isMutant(e)) continue;
+                n++;
+                try { ((LivingEntity) e).damage(1.0); ((LivingEntity) e).damage(1.0, p); ok++; }
+                catch (Throwable x) { failed.append(MutantsApi.kindOf(e)).append(':').append(x.getClass().getSimpleName()).append(','); }
+            }
+            this.out("PROBE_HURTALL n=" + n + " ok=" + ok + " failed=" + failed);
         } else if ("victim".equals(op)) {
             Player p = this.player(a[1]);
             org.bukkit.util.Vector dir = p.getLocation().getDirection().setY(0).normalize();

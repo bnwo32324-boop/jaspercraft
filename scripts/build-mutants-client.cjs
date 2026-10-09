@@ -17,12 +17,10 @@ const MODULES = ['mutants-native.js', 'mutants-config.js', 'mutants-registry.js'
 const hooks = [
   // Bootstrap.register, after the vanilla registries (Forge's RegistryEvent.Register point)
   ['Fga', 'case 14:Dc8();if(B()){break _;}return;', 'case 14:Dc8();if(B()){break _;}JasprMutantsBridge.registry();return;'],
-  // NetHandlerPlayClient.handleCustomPayload: channels jaspr:mutants, mutantbeasts, jaspr:scale
+  // NetHandlerPlayClient.handleCustomPayload: channels jaspr:mutants and mutantbeasts (jaspr:scale stays with JASPR_BIGMOBS)
   ['Cyr', 'c=C(1771);d=b.S$;$p=1;case 1:', 'if(JasprMutantsBridge.payload(b))return;c=C(1771);d=b.S$;$p=1;case 1:'],
-  // Minecraft.runTick: HELLO, queued messages (resumable state 3105), Big Mobs hitboxes
+  // Minecraft.runTick: late install (texture binds), tracker screen, HELLO and queued messages (resumable state 3105)
   ['CHq', 'if(b>0)a.bTh=b-1|0;if(!a.cp){c=a.da;$p=3;continue _;}', 'if(b>0)a.bTh=b-1|0;$p=3105;case 3105:JasprMutantsTick(a);if(B()){break _;}if(!a.cp){c=a.da;$p=3;continue _;}'],
-  // RenderLivingBase.doRender, after renderLivingAt: Big Mobs render scale about the feet
-  ['DWR', 'case 17:try{a.dqK(b,c,d,e);if(B()){break _;}$p=18;continue _;}', 'case 17:try{a.dqK(b,c,d,e);if(B()){break _;}JasprMutantsBridge.scaleRender(b);$p=18;continue _;}'],
   // EntityPlayerSP.isRidingHorse: IJumpingMount.canJump of the spider pig (TeaVM devirtualised the call to AbstractHorse)
   ['EQy', 'if(c&&Cm(b,AP8)){', 'if(c&&b!==null&&b.$jmJumpingMount)return b.canJump()?1:0;if(c&&Cm(b,AP8)){'],
   // EntityPlayerSP.onLivingUpdate: IJumpingMount.setJumpPower (devirtualised to AbstractHorse.setJumpPower)
@@ -31,7 +29,17 @@ const hooks = [
   // rendered with direct E7Q calls, so the override must sit in E7Q itself (entry, before the resume check)
   ['E7Q', 'function E7Q(a,b){var c,d,e,f,g,h,i,$p,$z;$p=0;', 'function E7Q(a,b){var c,d,e,f,g,h,i,$p,$z;$p=0;if(a.$jmS!==undefined&&a.$jmS!==1&&!FX()){JasprMutants.scaledRender(a,b);return;}']
 ];
-const EXTRA_HOOKS = [];                                      // added by later parts (renderers, items, gui)
+const EXTRA_HOOKS = [
+  // ModelBakery.getVariantNames(item): the items' models are minecraft:item/jaspr_mutants/<name> (ModelLoader's
+  // setCustomModelResourceLocation variants; the endersoul hand registers its 3D and GUI models)
+  ['Fbv', 'case 0:c=a.gs;$p=1;case 1:', 'case 0:if(b!==null&&b.$jmVariants!==undefined)return b.$jmVariants;c=a.gs;$p=1;case 1:'],
+  // ItemCameraTransforms.getTransform(type) (plain function): the perspective of the item being drawn, for the TEISR
+  ['AH1', 'function AH1(a,b){Hq1();', 'function AH1(a,b){JasprMutantsBridge.transform(b);Hq1();'],
+  // TileEntityItemStackRenderer.renderByItem(stack): MBTileEntityItemStackRenderer (endersoul hand)
+  ['F5U', 'case 0:c=1.0;$p=1;case 1:Dr3(a,b,c);', 'case 0:if(JasprMutantsBridge.teisr(b))return;c=1.0;$p=1;case 1:Dr3(a,b,c);'],
+  // LayerArmorBase.renderArmorLayer: Forge's getArmorModel hook (mutant skeleton skull) right after getModelFromSlot
+  ['D$Y', 'case 4:$z=E6n(a,j);if(B()){break _;}m=$z;n=a.bOZ;', 'case 4:$z=E6n(a,j);if(B()){break _;}m=JasprMutantsBridge.armorModel(b,k,j,$z);n=a.bOZ;']
+];
 function allHooks() { return hooks.concat(EXTRA_HOOKS); }
 function bounds(source, name) {
   const start = source.indexOf('function ' + name + '('), end = source.indexOf('\nfunction ', start + 10);

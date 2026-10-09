@@ -134,7 +134,7 @@ var JasprMutants = (function () {
       getEntityAttribute: EAj, setAIMoveSpeed: E4o, getHeldItem: CjH, getHeldItemMainhand: EZ5,
       getHeldItemOffhand: EjD, isPotionActive: CcO, getActivePotionEffect: DxM, getActivePotionEffects: F9x,
       isElytraFlying: EKz, isActiveItemStackBlocking: Ctq, getSwingProgress: C3W, getTotalArmorValue: Ez7,
-      dismountEntity: GdW, getRNG: DgT, knockBack: Cm7, handleJumpWater: DGp, getActiveItemStack: F6Q
+      dismountEntity: GdW, getRNG: Cr8, knockBack: Cm7, handleJumpWater: DGp, getActiveItemStack: F6Q
     },
     Gj: {
       initEntityAI: "lf", processInteract: "yS", canBeSteered: "cKU", canBeLeashedTo: "b1I", getMaxFallHeight: "ebg", setAttackTarget: "IL",
@@ -156,7 +156,7 @@ var JasprMutants = (function () {
       playTameEffect: EOK
     },
     Kw: { getCreeperFlashIntensity: C_j, hasIgnited: CmQ, getCreeperState: D77, setCreeperState: FuW, getPowered: CPF, ignite: EmM },
-    Vh: { getGravityVelocity: "cDw", setThrowableHeading: "dr9", getThrower: CVu },
+    Vh: { getGravityVelocity: "cDw", setThrowableHeading: "dr9", onImpact: "Xk", getThrower: CVu },   // onImpact: abstract in EntityThrowable (no vtable entry)
     Cb: { isCreative: "a58", isSpectator: "mH", getLeftShoulderEntity: Ec6, getRightShoulderEntity: Dcd, isAllowEdit: Gpw, getCooldownTracker: Dk6 }
   };
   // Super implementations whose TeaVM prototype resolution differs from Java (the method has no vtable entry in the
@@ -167,7 +167,8 @@ var JasprMutants = (function () {
     BfX: { et: FIi }
   };
   M.FIELDS = FIELDS; M.METHODS = METHODS; M.SUPER_IMPL = SUPER_IMPL;
-  var CLASSES = { Eg: Eg, Co: Co, Gj: Gj, N3: N3, H0: H0, Kw: Kw, AHO: AHO, AMR: AMR, KH: KH, S5: S5, BfX: BfX, Vh: Vh, Cb: Cb, Vf: Vf };
+  var CLASSES = { Eg: Eg, Co: Co, Gj: Gj, N3: N3, H0: H0, Kw: Kw, AHO: AHO, AMR: AMR, KH: KH, S5: S5, BfX: BfX, Vh: Vh, Cb: Cb, Vf: Vf,
+    TR: TR };                                                  // TR EntitySnowball: implements the abstract onImpact (Xk)
   M.engineClass = function (name) { return CLASSES[name]; };
   // TeaVM's minified member names in this client are at most 3 characters (virtual names) / 3-4 (fields): readable
   // aliases have at least 4 characters and may not shadow anything the engine already has on the prototype chain.
@@ -255,13 +256,42 @@ var JasprMutants = (function () {
     if (spec.virtuals) for (var v in spec.virtuals) C.prototype[v] = spec.virtuals[v];
     return C;
   };
-  // installs overrides under the virtual name (engine dispatch) and the readable name (translated code)
+  // Engine entry points of the entity twins (the world tick, status bytes, interaction, data watcher, movement). An
+  // exception there must not reach the engine (a client crash): it is reported once (part "entities") and the entity
+  // is removed from this client's world; the server keeps it. readSpawnData is not guarded: the SPAWN reader catches.
+  var ENTRY_GUARDS = { onUpdate: 1, onLivingUpdate: 1, handleStatusUpdate: 1, processInteract: 1, notifyDataManagerChange: 1,
+    travel: 1, onDeathUpdate: 1, updatePassenger: 1, onImpact: 1 };
+  function guardEntry(k, fn) {
+    return function () {
+      try { return fn.apply(this, arguments); }
+      catch (e) {
+        M.fail("entities", e);
+        try { if (this.world && this.world.r) this.W7(); } catch (_) {}   // setDead on a client world
+        return k === "processInteract" ? 0 : undefined;
+      }
+    };
+  }
+  // installs overrides under the virtual name (engine dispatch, guarded for entry points) and the readable name
+  // (translated code)
   M.override = function (C, methods, group, nonVirtual) {
     for (var k in methods) {
       var fn = methods[k], v = nonVirtual && nonVirtual.indexOf(k) >= 0 ? null : vnameOf(k, group);
       Object.defineProperty(C.prototype, k, { value: fn, writable: true, enumerable: false, configurable: true });
-      if (v) C.prototype[v] = fn;
+      if (v) C.prototype[v] = ENTRY_GUARDS[k] ? guardEntry(k, fn) : fn;
     }
+  };
+  // Renderer, layer, particle and item overrides: when their part is off, or throws, the engine gets the fallback
+  // (nothing drawn, vanilla item behaviour) instead of an exception.
+  M.guardVirtual = function (part, name, fn, fallback) {
+    return function () {
+      if (!M.enabled(part)) return fallback ? fallback.apply(this, arguments) : undefined;
+      try { return fn.apply(this, arguments); }
+      catch (e) {
+        if (part === "render") stats.renderErrors++;
+        M.fail(part, e);
+        return fallback ? fallback.apply(this, arguments) : undefined;
+      }
+    };
   };
   // super.<readable>(...) of Java: the nearest Java declaration in the parent chain
   M.superOf = function (P, group) {
@@ -354,7 +384,7 @@ var JasprMutants = (function () {
 
   // ================================================================ diagnostics and failure isolation
   var stats = { installs: 0, spawns: 0, spawnUnknown: 0, spawnErrors: 0, messages: 0, statusBytes: 0, renders: 0,
-    renderErrors: 0, binds: 0, particles: 0, sounds: 0, scaleTables: 0, errors: 0, hello: 0, disabled: 0 };
+    renderErrors: 0, binds: 0, particles: 0, sounds: 0, screens: 0, teisr: 0, armor: 0, errors: 0, hello: 0, disabled: 0 };
   var disabled = Object.create(null);                          // part -> reason
   var diag = { sent: 0, page: "mutants-" + Date.now().toString(36), lastError: "" };
   M.stats = stats;
@@ -379,6 +409,8 @@ var JasprMutants = (function () {
   M.fail = function (part, error) {
     stats.errors++;
     diag.lastError = shortError(error);
+    // local only (never sent): the first lines of the stack, for whoever reads JasprMutantsDiagnostics.status()
+    try { if (!diag.lastStack) diag.lastStack = (part + ": " + String(error && error.stack || error)).split("\n").slice(0, 10).join(" | ").slice(0, 1200); } catch (_) {}
     if (!disabled[part]) { disabled[part] = diag.lastError; stats.disabled++; }
     try { if ($rt_globals.console) $rt_globals.console.warn("[JasperCraft Mutants] " + part + ": " + diag.lastError); } catch (_) {}
     send("jaspercraft.mutants.error", { part: String(part).slice(0, 40), error: diag.lastError, stats: statsCopy() });
@@ -393,8 +425,9 @@ var JasprMutants = (function () {
     };
   };
   M.diagnostics = function () {
-    return { version: M.version, protocol: M.PROTOCOL_VERSION, installed: !!M.installed, stats: statsCopy(),
-      disabled: M.disabledParts(), lastError: diag.lastError, eventsSent: diag.sent };
+    return { version: M.version, protocol: M.PROTOCOL_VERSION, installed: !!M.installed, ready: !!M.lateDone,
+      textures: M.texturesReady ? M.texturesReady() : false, stats: statsCopy(),
+      disabled: M.disabledParts(), lastError: diag.lastError, firstStack: diag.lastStack || "", eventsSent: diag.sent };
   };
   try { $rt_globals.JasprMutantsDiagnostics = Object.freeze({ status: function () { return M.diagnostics(); } }); } catch (_) {}
 

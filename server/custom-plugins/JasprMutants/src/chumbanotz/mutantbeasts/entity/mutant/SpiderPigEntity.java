@@ -86,6 +86,10 @@ public class SpiderPigEntity extends EntityTameable implements IJumpingMount {
     }
 
     protected void initEntityAI() {
+        // JasperCraft port: Paper's EntityLivingBase.attackEntityFrom resets aiSit.setSitting(false) on every damaged
+        // EntityTameable (vanilla does it only in the classes that sit, behind a null check). The spider pig never sits:
+        // an inert goal, never added to the tasks, keeps every hit from throwing and changes nothing else.
+        this.aiSit = new net.minecraft.entity.ai.EntityAISit(this);
         this.tasks.addTask(0, new EntityAISwimming(this));
         this.tasks.addTask(1, new MBEntityAIAttackMelee(this, 1.1).setMaxAttackTick(15));
         this.tasks.addTask(2, new LeapAttackGoal());

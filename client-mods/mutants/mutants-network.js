@@ -3,15 +3,15 @@
  *    client half of FML's EntitySpawnHandler.spawnEntity,
  *  - channel "mutantbeasts": the mod's SimpleNetworkWrapper (discriminator byte + toBytes, big-endian):
  *    0 CreeperMinionTrackerPacket (sent by the tracker screen), 1 HeldBlockPacket, 2 SpawnParticlePacket,
- *    3 TeleportPacket (packet/*.java, Handler.onMessage translated),
- *  - channel "jaspr:scale": the dungeon's Big Mobs render scale table.
+ *    3 TeleportPacket (packet/*.java, Handler.onMessage translated).
+ * ("jaspr:scale", the dungeon's Big Mobs table, belongs to the JASPR_BIGMOBS stage and is left to it.)
  * Incoming payloads are read from the engine's PacketBuffer inside handleCustomPayload; outgoing ones are queued and
  * sent by the resumable JasprMutantsTick at the start of Minecraft.runTick. */
 (function (M) {
   "use strict";
   var R = M.R, W = M.W;
-  var CH_MUTANTS = "jaspr:mutants", CH_MOD = "mutantbeasts", CH_SCALE = "jaspr:scale";
-  M.CHANNELS = [CH_MUTANTS, CH_MOD, CH_SCALE];
+  var CH_MUTANTS = "jaspr:mutants", CH_MOD = "mutantbeasts";
+  M.CHANNELS = [CH_MUTANTS, CH_MOD];
   var unknownTypes = Object.create(null);
 
   // PacketBuffer readers (engine functions; each throws on underflow, which drops the message)
@@ -55,7 +55,7 @@
     entity.setUniqueId(m.uuid);
     Cbn(entity, m.x, m.y, m.z);                              // EntityTracker.updateServerPosition
     entity.setLocationAndAngles(m.x, m.y, m.z, m.yaw, m.pitch);
-    if (entity instanceof Co) { entity.rotationYawHead = m.headYaw; entity.renderYawOffset = m.headYaw; entity.prevRotationYawHead = m.headYaw; entity.prevRenderYawOffset = m.headYaw; }
+    if (entity instanceof Gj) entity.rotationYawHead = m.headYaw;   // FML: only EntityLiving's rotationYawHead
     entity.motionX = m.motionX; entity.motionY = m.motionY; entity.motionZ = m.motionZ;
     if (entity.$jmThrowable) {                               // IThrowableEntity
       var p = M.player(), thrower = null;
@@ -136,55 +136,13 @@
     M.queue(CH_MOD, u8(out));
   };
 
-  // ---------------------------------------------------------------- "jaspr:scale" (Big Mobs, protocol section 6)
-  var scaleTable = new Map();                                // entityId -> scale
-  M.scaleTable = scaleTable;
-  M.applyScaleText = function (text) {
-    scaleTable.clear();
-    if (text) {
-      var parts = String(text).split(",");
-      for (var i = 0; i < parts.length && i < 512; i++) {
-        var kv = parts[i].split(":");
-        if (kv.length !== 2) continue;
-        var id = parseInt(kv[0], 10), h = parseInt(kv[1], 10);
-        if (isFinite(id) && isFinite(h) && h > 0 && h <= 2000) scaleTable.set(id, h / 100.0);
-      }
-    }
-    M.stats.scaleTables++;
-  };
-  // hitbox once per change (Entity.setSize from the base size); never for the mod's own entities
-  M.updateScaledEntities = function (world) {
-    if (world === null) return;
-    var self = this;
-    scaleTable.forEach(function (s, id) {
-      var e = W.getEntityByID(world, id);
-      if (e === null || e.constructor.$jm) return;
-      if (e.$jmScale === s) return;
-      if (e.$jmBaseW === undefined) { e.$jmBaseW = e.width; e.$jmBaseH = e.height; }
-      e.$jmScale = s;
-      FET(e, e.$jmBaseW * s, e.$jmBaseH * s);
-      if (s > 1.0) e.ignoreFrustumCheck = 1;
-    });
-    // entities dropped from the table go back to their base size
-    var list = world.gw;
-    for (var i = 0; list && i < list.g; i++) {
-      var e = list.qN.data[i];
-      if (e && e.$jmScale !== undefined && !scaleTable.has(e.entityId)) {
-        FET(e, e.$jmBaseW, e.$jmBaseH);
-        e.$jmScale = undefined;
-      }
-    }
-  };
-  M.renderScaleOf = function (e) { var s = e.$jmScale; return s === undefined || e.constructor.$jm ? 1.0 : s; };
-
   // ---------------------------------------------------------------- dispatch from handleCustomPayload
   M.payload = function (packet) {
     var channel = M.ustr(packet.S$);
-    if (channel !== CH_MUTANTS && channel !== CH_MOD && channel !== CH_SCALE) return false;
+    if (channel !== CH_MUTANTS && channel !== CH_MOD) return false;
     if (!M.installed) return true;
     M.stats.messages++;
     var pb = packet.Wm, world = M.world();
-    if (channel === CH_SCALE) { M.applyScaleText(PB.string(pb, 32767)); return true; }
     if (world === null) return true;
     if (channel === CH_MUTANTS) {
       var op = PB.byte(pb);
