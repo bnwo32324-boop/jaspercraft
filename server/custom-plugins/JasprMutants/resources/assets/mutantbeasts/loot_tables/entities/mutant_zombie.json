@@ -1,0 +1,19 @@
+{
+  "pools": [
+    {
+      "name": "hulk_hammer",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "mutantbeasts:hulk_hammer"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "killed_by_player"
+        }
+      ]
+    }
+  ]
+}

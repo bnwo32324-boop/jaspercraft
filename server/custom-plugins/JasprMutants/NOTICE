@@ -1,0 +1,25 @@
+JasprMutants - Mutant Creatures Legacy on JasperCraft (Paper 1.12.2)
+
+This plugin contains the source code of Mutant Creatures Legacy (mod id "mutantbeasts", Forge 1.12.2,
+mod version 1.0.4, https://github.com/Elite-Modding-Team/MutantCreaturesLegacy) by ACGaming, IcarussOne and
+PessiMysterio (Elite Modding Team) - original mod by shcott21/thehippomaster21, initial port by Chumbanotz -
+licensed under the GNU Affero General Public License version 3 (see LICENSE). The whole plugin is
+distributed under the same licence.
+
+Origin of the files:
+- src/chumbanotz/mutantbeasts/...: the mod's common (server-side) classes, copied unchanged except where
+  Paper cannot run Forge code; every such change is marked "// JasperCraft port: <why>" in the source and
+  listed in PORT_NOTES.md. Client-only classes (rendering, models, GUI, particles) are not part of this
+  server plugin; the client stage JASPR_MUTANTS ports them.
+- resources/assets/mutantbeasts/{loot_tables,recipes,advancements,lang}: the mod's data files, unchanged.
+- src/net/minecraftforge/...: a JasperCraft shim with the subset of the Forge/FML API this mod uses,
+  written for this port (same API shape, Forge 1.12.2 behaviour, see the class comments).
+- src/chat/jaspr/mutants/...: JasperCraft glue (Paper registries, entity tracking and spawn message,
+  plugin channels, Bukkit event bridges, natural spawning, loot tables, recipes, brewing, advancements,
+  configuration, API for other plugins).
+
+Not included: the newer Mutant Skeleton sounds (sounds/entity/mutant_skeleton/*.ogg outside legacy/) are
+All Rights Reserved (the mod's LICENSE_ASSETS); this port defaults to the mod's legacy skeleton sounds.
+
+Players can obtain the complete corresponding source of this plugin from the JasperCraft repository
+(server/custom-plugins/JasprMutants) as required by AGPL-3.0 section 13.
