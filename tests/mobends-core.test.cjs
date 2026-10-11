@@ -31,7 +31,7 @@ function makeN(log) {
     motionX: e => e.mx, motionY: e => e.my, motionZ: e => e.mz, rotationYaw: e => e.yaw, prevRotationYaw: e => e.pyaw, rotationPitch: e => e.pitch, prevRotationPitch: e => e.ppitch,
     renderYawOffset: e => e.body, prevRenderYawOffset: e => e.pbody, rotationYawHead: e => e.head, prevRotationYawHead: e => e.phead,
     limbSwing: e => e.limbSwing, limbSwingAmount: e => e.limbSwingAmount, prevLimbSwingAmount: e => e.plimbSwingAmount,
-    getSwingProgress: e => e.swing, swingProgressField: e => e.swing, isSwingInProgress: e => e.swinging, ticksExisted: e => e.ticks, height: e => e.height,
+    getSwingProgress: e => e.swing, swingProgressField: e => e.swing, isSwingInProgress: e => e.swinging, swingOffHand: e => !!(e.swinging && e.swingOff), ticksExisted: e => e.ticks, height: e => e.height,
     hasWorld: e => e.world, isChild: e => e.child, isRiding: e => e.riding !== null, ridingEntity: e => e.riding, isLiving: x => !!(x && x.living),
     isSneaking: e => e.sneaking, isSprinting: e => e.sprinting, isInWater: e => e.water, isOnLadder: e => e.ladder,
     lookVec: e => { const y = e.yaw * Math.PI / 180, p = e.pitch * Math.PI / 180; return [-Math.sin(y) * Math.cos(p), -Math.sin(p), Math.cos(y) * Math.cos(p)]; },
@@ -212,4 +212,30 @@ test('MathHelper table sin/cos and wrapDegrees match vanilla semantics', () => {
   assert.equal(core.jint(-5.7), -5);
   assert.equal(core.jint(1e12), 2147483647);
   assert.equal(core.jint(NaN), 0);
+});
+
+test('dual wielding in third person: an off-hand attack swings the off arm with the off-hand item (JasperCraft)', () => {
+  const { core } = setup();
+  const swingWith = off => {
+    const p = makeEntity({ id: 21 }), data = new core.PlayerData(p);
+    const arms = { right: 0, left: 0 };
+    run(core, data, p, 4, e => { e.main = stack(SWORD); e.off = stack(SWORD); });
+    run(core, data, p, 8, (e, t) => {
+      e.swinging = t < 6; e.swingOff = off; e.swing = t / 6;
+      for (const side of ['right', 'left']) {
+        const q = data[side + 'Arm'].rotation.getSmooth();
+        arms[side] = Math.max(arms[side], 2 * Math.acos(Math.min(1, Math.abs(q.w))));
+      }
+    });
+    assertFinite(data, off ? 'off-hand attack' : 'main-hand attack');
+    return { arms, data };
+  };
+  const main = swingWith(false), off = swingWith(true);
+  assert.ok(main.arms.right > main.arms.left, 'a main-hand attack swings the right arm ' + JSON.stringify(main.arms));
+  assert.ok(off.arms.left > off.arms.right, 'an off-hand attack swings the left arm ' + JSON.stringify(off.arms));
+  assert.equal(off.data.offAttack, true);
+  // with an empty main hand, an off-hand sword attack is a sword attack, not a punch
+  const p = makeEntity({ id: 22 }), data = new core.PlayerData(p);
+  run(core, data, p, 8, (e, t) => { e.main = stack(AIR); e.off = stack(SWORD); e.swinging = t < 6; e.swingOff = true; e.swing = t / 6; });
+  assert.equal(data.getController().actionController.currentAttackActionType, 'sword');
 });

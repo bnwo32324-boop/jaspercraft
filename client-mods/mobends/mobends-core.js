@@ -345,7 +345,9 @@ function createJasprMoBendsCore(N) {
     if ((!calc && this.onGround) || (this.prevMotionY <= 0 && this.motionY - this.prevMotionY > 0.4 && this.ticksInAir > 2)) { this.onLiftoff(); this.onGround = false; }
     if (this.calcClimbing()) { this.climbingCycle += this.motionY * 2.6; this.climbing = true; } else this.climbing = false;
     if (N.entity.isSwingInProgress(this.entity)) {
-      if (!this.alreadyAttacked || this.ticksAfterAttack > 5) { this.onAttack(); this.alreadyAttacked = true; }
+      // JasperCraft: a swing of the other hand (Better Combat's off-hand attack) is a new attack even mid-swing
+      var off = !!(N.entity.swingOffHand && N.entity.swingOffHand(this.entity));
+      if (!this.alreadyAttacked || this.ticksAfterAttack > 5 || off !== !!this.offAttack) { this.onAttack(); this.alreadyAttacked = true; }
     } else this.alreadyAttacked = false;
   };
   LED.update = function (pt) {
@@ -435,13 +437,15 @@ function createJasprMoBendsCore(N) {
   };
 
   // shared helpers for the biped bits
+  // JasperCraft: the attack bits animate the arm of the hand that attacked (an off-hand attack swaps the arms)
   function hands(data) {
     var right = N.entity.primaryHandRight(data.getEntity());
+    if (data.offAttack) right = !right;
     return { right: right, dir: right ? 1 : -1, mainArm: right ? data.rightArm : data.leftArm, offArm: right ? data.leftArm : data.rightArm,
       mainForeArm: right ? data.rightForeArm : data.leftForeArm, offForeArm: right ? data.leftForeArm : data.rightForeArm,
       mainItemRotation: right ? data.renderRightItemRotation : data.renderLeftItemRotation };
   }
-  function holdsSword(e) { return N.item.isSword(N.entity.mainItem(e)); }
+  function holdsSword(e, data) { return N.item.isSword(data && data.offAttack ? N.entity.offItem(e) : N.entity.mainItem(e)); }
 
   // ---- goblinbob.mobends.standard.animation.bit.biped
   var StandAnimationBit = bit({
@@ -785,7 +789,7 @@ function createJasprMoBendsCore(N) {
     perform: function (data) {
       data.localOffset.slideToZero(0.3);
       var h = hands(data), dir = h.dir;
-      if (holdsSword(data.getEntity())) data.swordTrail.add(data, 0, 0, -10);
+      if (holdsSword(data.getEntity(), data)) data.swordTrail.add(data, 0, 0, -10);
       data.body.rotation.rotateY(20 * dir); data.head.rotation.rotateY(-20 * dir);
       h.mainArm.getRotation().orientZ(60 * dir); h.mainArm.getRotation().rotateY(60 * dir);
       h.offArm.getRotation().rotateZ(-30 * dir);
@@ -802,7 +806,7 @@ function createJasprMoBendsCore(N) {
     perform: function (data) {
       data.localOffset.slideToZero(0.3);
       var living = data.getEntity(), h = hands(data), dir = h.dir;
-      if (data.getTicksAfterAttack() < 4 && holdsSword(living)) data.swordTrail.add(data);
+      if (data.getTicksAfterAttack() < 4 && holdsSword(living, data)) data.swordTrail.add(data);
       var armSwing = Math.min(data.getTicksAfterAttack() / 10 * 3, 1);
       var bx = 20 - armSwing * 20, by = -70 * armSwing * dir;
       slashCommon(data, h, bx, by, true);
@@ -822,7 +826,7 @@ function createJasprMoBendsCore(N) {
       perform: function (data) {
         data.localOffset.slideToZero(0.3);
         var living = data.getEntity(), h = hands(data), dir = h.dir;
-        if (data.getTicksAfterAttack() < 4 && holdsSword(living)) data.swordTrail.add(data);
+        if (data.getTicksAfterAttack() < 4 && holdsSword(living, data)) data.swordTrail.add(data);
         var attackState = this.ticksPlayed / 10, armSwing = GUtil.clamp(attackState * 3, 0, 1);
         var bx = 20 - attackState * 20, by = (30 + 10 * attackState) * dir;
         slashCommon(data, h, bx, by, true);
@@ -846,7 +850,7 @@ function createJasprMoBendsCore(N) {
     perform: function (data) {
       data.localOffset.slideToZero(0.3);
       var living = data.getEntity(), h = hands(data), dir = h.dir;
-      if (data.getTicksAfterAttack() < 4 && holdsSword(living)) data.swordTrail.add(data);
+      if (data.getTicksAfterAttack() < 4 && holdsSword(living, data)) data.swordTrail.add(data);
       var armSwing = Math.min(data.getTicksAfterAttack() / 10 * 3, 1);
       var bx = 20 - armSwing * 20, by = -70 * armSwing * dir;
       slashCommon(data, h, bx, by, true);
@@ -977,7 +981,7 @@ function createJasprMoBendsCore(N) {
     perform: function (data) {
       var entity = data.getEntity();
       if (!N.entity.isSwingInProgress(entity)) return;
-      var headPitch = data.headPitch.get(), headYaw = data.headYaw.get(), right = this.actionHand === "right", side = right ? 1 : -1;
+      var headPitch = data.headPitch.get(), headYaw = data.headYaw.get(), right = (this.actionHand === "right") !== !!data.offAttack, side = right ? 1 : -1;
       var mainArm = right ? data.rightArm : data.leftArm;
       data.localOffset.slideToZero(0.3); data.centerRotation.setSmoothness(0.3).orientZero();
       var swing = data.swingProgress.get(), sq = MathHelper.sqrt(swing) * (PI * 2);
@@ -1019,7 +1023,7 @@ function createJasprMoBendsCore(N) {
       if (useType != null) { this.actionBit = new USE_ACTIONS[useType](activeHand); this.layerAction.playOrContinueBit(this.actionBit, data); }
       else { this.layerAction.clearAnimation(); this.currentAttackActionType = null; }
     }
-    var attackType = BipedActionController.getItemAttackAction(N.item.stackItem(mainStack));
+    var attackType = BipedActionController.getItemAttackAction(N.item.stackItem(data.offAttack ? offStack : mainStack));
     if (this.currentAttackActionType !== attackType) {
       this.currentAttackActionType = attackType;
       this.actionBit = new ATTACK_ACTIONS[attackType](primaryRight ? "right" : "left");
@@ -1453,8 +1457,10 @@ function createJasprMoBendsCore(N) {
   };
   PD.onLiftoff = function () { LED.onLiftoff.call(this); if (!this.sprintJumpLegSwitched) { this.sprintJumpLeg = !this.sprintJumpLeg; this.sprintJumpLegSwitched = true; } };
   PD.onAttack = function () {
-    if (N.item.isAir(N.entity.mainItem(this.entity))) { this.fistPunchArm = !this.fistPunchArm; this.ticksAfterAttack = 0; return; }
-    if (this.ticksAfterAttack <= 6) return;
+    var off = !!(N.entity.swingOffHand && N.entity.swingOffHand(this.entity)), switched = off !== !!this.offAttack;
+    this.offAttack = off;
+    if (N.item.isAir(off ? N.entity.offItem(this.entity) : N.entity.mainItem(this.entity))) { this.fistPunchArm = !this.fistPunchArm; this.ticksAfterAttack = 0; return; }
+    if (this.ticksAfterAttack <= 6 && !switched) return;
     switch (this.currentAttack) {
       case 1: this.currentAttack = 2; break;
       case 2: this.currentAttack = 3; break;

@@ -29,6 +29,8 @@ var JasprMoBendsBridge = (function () {
     getSwingProgress: function (e, pt) { return C3W(e, pt); },
     swingProgressField: function (e) { return e.bYC; },
     isSwingInProgress: function (e) { return !!e.G1; },
+    // the swing in progress is the off hand's (EntityLivingBase.swingingHand; Better Combat's off-hand attacks)
+    swingOffHand: function (e) { Hc(); return !!e.G1 && e.crX != null && e.crX !== HFd; },
     ticksExisted: function (e) { return e.cv; },
     height: function (e) { return e.bZ; },
     hasWorld: function (e) { return e.a != null; },
