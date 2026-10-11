@@ -1,5 +1,8 @@
 # First-person melee rework -- 2026-10-02
 
+Superseded on 2026-10-11 by the v5 motion (a moveset per weapon class, dual-wield choreography, impact effects): see
+MELEE_ANIMATION_V5.md. The build below (Mo' Bends taken off first) is the v4 procedure; v5 swaps only its module region.
+
 The owner asked for two things:
 
 - Third-person melee attacks should be Mo' Bends only, without the other agent's BetterCombat third-person rig.

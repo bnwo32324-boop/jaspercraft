@@ -24,12 +24,13 @@ var JasprMeleeDual = (function (C, MV) {
   // the second hand's move when it joins a strike already under way, by [first category][second category]:
   // a role of the second hand's class and an optional hold (ticks) so it lands after the first
   var JOINT = {
-    blade: { blade: ['diag', 0, 'X-cross'], heavy: ['opener', 0, 'cut then cleave'], light: ['stab', 0.6, 'cut and stab'], pole: ['stab', 0.4, 'cut and thrust'], tool: ['diag', 0, 'cut and hack'] },
-    heavy: { blade: ['flat', 1.0, 'blow then cut'], heavy: ['overhead', 0.4, 'double blow'], light: ['stab', 1.6, 'slam then jab'], pole: ['stab', 1.2, 'blow then thrust'], tool: ['opener', 0.8, 'blow then hack'] },
-    light: { blade: ['flat', 0, 'stab then cut'], heavy: ['opener', 0, 'jab then blow'], light: ['slash', 0, 'scissor'], pole: ['stab', 0, 'jab and thrust'], tool: ['opener', 0, 'jab then hack'] },
-    pole: { blade: ['diag', 0.6, 'thrust then cut'], heavy: ['opener', 0.6, 'thrust then blow'], light: ['stab', 0.8, 'thrust and jab'], pole: ['stab', 0.8, 'double thrust'], tool: ['opener', 0.6, 'thrust then hack'] },
-    tool: { blade: ['diag', 0, 'hack and cut'], heavy: ['opener', 0.4, 'hack then blow'], light: ['stab', 0.6, 'hack and stab'], pole: ['stab', 0.4, 'hack and thrust'], tool: ['opener', 0.3, 'double hack'] }
+    blade: { blade: ['diag', 0, 'crossing cuts'], heavy: ['opener', 0, 'a cut, then the heavy blow'], light: ['stab', 0.6, 'cut and stab'], pole: ['stab', 0.4, 'a cut, then the pole strikes'], tool: ['diag', 0, 'cut and hack'] },
+    heavy: { blade: ['flat', 1.0, 'the heavy blow, then a cut'], heavy: ['overhead', 0.4, 'two heavy blows'], light: ['stab', 1.6, 'the blow, then a quick jab'], pole: ['stab', 1.2, 'the blow, then the pole strikes'], tool: ['opener', 0.8, 'the blow, then a hack'] },
+    light: { blade: ['flat', 0, 'a jab, then a cut'], heavy: ['opener', 0, 'a jab, then the heavy blow'], light: ['slash', 0, 'scissor flurry'], pole: ['stab', 0, 'a jab, then the pole strikes'], tool: ['opener', 0, 'a jab, then a hack'] },
+    pole: { blade: ['diag', 0.6, 'the pole strikes, then a cut'], heavy: ['opener', 0.6, 'the pole strikes, then the heavy blow'], light: ['stab', 0.8, 'the pole strikes, then a jab'], pole: ['stab', 0.8, 'both poles strike'], tool: ['opener', 0.6, 'the pole strikes, then a hack'] },
+    tool: { blade: ['diag', 0, 'a hack, then a cut'], heavy: ['opener', 0.4, 'a hack, then the heavy blow'], light: ['stab', 0.6, 'hack and stab'], pole: ['stab', 0.4, 'a hack, then the pole strikes'], tool: ['opener', 0.3, 'two hacks'] }
   };
+
   // the class moves behind each role
   var ROLES = {
     sword: { diag: 'sword-diag', flat: 'sword-flat', stab: 'sword-thrust', slash: 'sword-flat', overhead: 'sword-cleave', opener: 'sword-diag' },

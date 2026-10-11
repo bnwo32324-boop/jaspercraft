@@ -305,3 +305,8 @@ test('3D model frames: identity at rest, the model blade follows the canonical b
   const drawn = C.qrot(cal.q, bladeM), canonical = C.qrot(pose.q, C.BLADE);
   assert.ok(C.dot(drawn, canonical) > 0.999, 'same blade direction');
 });
+
+test('MELEE_ANIMATION_V5.md lists the pair matrix exactly as the code defines it', () => {
+  const doc = require('node:fs').readFileSync(require('node:path').join(__dirname, '../MELEE_ANIMATION_V5.md'), 'utf8');
+  assert.ok(doc.includes(require('../scripts/melee-dual-matrix.cjs').table()), 'regenerate with node scripts/melee-dual-matrix.cjs');
+});
