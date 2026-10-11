@@ -18,11 +18,12 @@ import org.bukkit.plugin.Plugin;
 /**
  * AGPL-3.0 section 13: a modified program that people use over a network must prominently offer them its Corresponding
  * Source. Every player is told once, a few seconds after joining (so the line is not lost in the login chatter), where the
- * source of this port and of the original mod is: the licences page links to the public JasperCraft repository. Who was told
- * is kept in plugins/JasprMutants/source-offer.txt (one UUID a line). Logs MUTANTS_SOURCE_OFFERED with counts, never names.
+ * source of this port and of the original mod is: OPEN_SOURCE.md in the public JasperCraft repository (the jaspr.chat gateway
+ * serves only the game files). Who was told is kept in plugins/JasprMutants/source-offer-v2.txt (one UUID a line; v2 because
+ * 1.0.1 pointed at a page the gateway does not serve). Logs MUTANTS_SOURCE_OFFERED with counts, never names.
  */
 final class SourceOffer implements Listener {
-    static final String PAGE = "https://jaspr.chat/jaspercraft/licenses.html";
+    static final String PAGE = "https://github.com/bnwo32324-boop/jaspercraft/blob/main/OPEN_SOURCE.md";
     static final String LINE = "This server runs a port of Mutant Creatures Legacy (AGPL-3.0). Its source code and our changes: ";
     private static final int MAX_REMEMBERED = 100000;
     private final Plugin plugin;
@@ -32,7 +33,7 @@ final class SourceOffer implements Listener {
 
     SourceOffer(Plugin plugin) {
         this.plugin = plugin;
-        this.file = new File(plugin.getDataFolder(), "source-offer.txt");
+        this.file = new File(plugin.getDataFolder(), "source-offer-v2.txt");
         try {
             if (this.file.isFile()) for (String line : Files.readAllLines(this.file.toPath(), StandardCharsets.UTF_8)) {
                 String id = line.trim();

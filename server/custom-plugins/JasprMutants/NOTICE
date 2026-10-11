@@ -24,4 +24,4 @@ All Rights Reserved (the mod's LICENSE_ASSETS); this port defaults to the mod's 
 Players can obtain the complete corresponding source of this plugin from the public JasperCraft repository
 (https://github.com/bnwo32324-boop/jaspercraft, server/custom-plugins/JasprMutants; the client part in client-mods/mutants)
 as required by AGPL-3.0 section 13. The offer: every player is told once in chat (SourceOffer.java) about the page
-https://jaspr.chat/jaspercraft/licenses.html (site/licenses.html), which links to that source.
+https://github.com/bnwo32324-boop/jaspercraft/blob/main/OPEN_SOURCE.md, which links to that source.

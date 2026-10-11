@@ -123,7 +123,7 @@ function hello() {
     bot = await join();
     await cmd('op ' + NAME, /opped|Made|already/i); await cmd('gamemode creative ' + NAME, /game mode|gamemode/i);
     // AGPL-3.0 section 13: every player is told once where the source of the port is.
-    check(await until(() => seen.chat.some(m => m.includes('Mutant Creatures Legacy (AGPL-3.0)') && m.includes('https://jaspr.chat/jaspercraft/licenses.html')), 9000), 'A player is told where the AGPL source is', seen.chat.slice(-3).join(' | '));
+    check(await until(() => seen.chat.some(m => m.includes('Mutant Creatures Legacy (AGPL-3.0)') && m.includes('https://github.com/bnwo32324-boop/jaspercraft/blob/main/OPEN_SOURCE.md')), 9000), 'A player is told where the AGPL source is', seen.chat.slice(-3).join(' | '));
     check(/MUTANTS_SOURCE_OFFERED count=1 /.test(log), 'The source offer is logged with counts only', (log.match(/MUTANTS_SOURCE_OFFERED[^\n]*/) || [''])[0]);
     // Clients without the stage: the server drops mod sounds and particles (MUTANTS_PROTOCOL.md section 5).
     seen.sounds.length = 0;
@@ -261,7 +261,7 @@ function hello() {
     const chatMark = seen.chat.length;
     bot = await join();
     await cmd('tp ' + NAME + ' 0 5 0', /Teleported|teleport/i); await sleep(7000);
-    check(!seen.chat.slice(chatMark).some(m => m.includes('licenses.html')), 'A player already told is not told again, even after a restart', seen.chat.slice(chatMark).join(' | '));
+    check(!seen.chat.slice(chatMark).some(m => m.includes('OPEN_SOURCE.md')), 'A player already told is not told again, even after a restart', seen.chat.slice(chatMark).join(' | '));
     const after = (await cmd('mprobe count', /PROBE_COUNT/)).line;
     check(after.replace(/^.*PROBE_COUNT /, '') === before.replace(/^.*PROBE_COUNT /, ''), 'Every mutant is still there after the restart (registered before the worlds load)', before + ' -> ' + after);
     check(!/Skipping Entity with id mutantbeasts|Unknown entity|MUTANTS_HOOK_FAILED|MUTANTS_TRACKER_REFLECTION_FAILED|MUTANTS_LOOT_INJECT_FAILED|MUTANTS_ADVANCEMENTS_FAILED/.test(fs.readdirSync(RUN).filter(f => f.startsWith('phase-')).map(f => fs.readFileSync(path.join(RUN, f), 'utf8')).join('\n')), 'No skipped entity, hook, tracker, loot or advancement failure in any phase');

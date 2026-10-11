@@ -61,4 +61,5 @@ replaces its own fenced lang block and `jaspr.mutants.*` sound events, so it can
 
 AGPL-3.0 (`client-mods/mutants/assets/LICENSE`, `ASSETS_LICENSE.txt`; the plugin carries the same). Players can get the
 source: it is this public repository. The AGPL section 13 offer: every player is told once in chat (plugin
-`SourceOffer.java`, log `MUTANTS_SOURCE_OFFERED`) about https://jaspr.chat/jaspercraft/licenses.html (`site/licenses.html`).
+`SourceOffer.java`, log `MUTANTS_SOURCE_OFFERED`) about `OPEN_SOURCE.md` on GitHub
+(https://github.com/bnwo32324-boop/jaspercraft/blob/main/OPEN_SOURCE.md; the jaspr.chat gateway serves only the game files).
