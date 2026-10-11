@@ -118,7 +118,17 @@ var JasprMeleeCore = (function () {
     var w1 = 2 * h1 + h0, w2 = h1 + 2 * h0;
     return (w1 + w2) / (w1 / s0 + w2 / s1);
   }
-  function curveN3(points, ks, u) { return [curveN(points.map(function (p) { return p[0]; }), ks, u), curveN(points.map(function (p) { return p[1]; }), ks, u), curveN(points.map(function (p) { return p[2]; }), ks, u)]; }
+  // the x, y and z columns of a key list, split once per list (stroke keys are static data; no per-frame garbage on phones)
+  var COLUMNS = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function columns(points) {
+    var c = COLUMNS && COLUMNS.get(points);
+    if (c) return c;
+    c = [[], [], []];
+    for (var i = 0; i < points.length; i++) { c[0].push(points[i][0]); c[1].push(points[i][1]); c[2].push(points[i][2]); }
+    if (COLUMNS) COLUMNS.set(points, c);
+    return c;
+  }
+  function curveN3(points, ks, u) { var c = columns(points); return [curveN(c[0], ks, u), curveN(c[1], ks, u), curveN(c[2], ks, u)]; }
 
   // ---------------------------------------------------------------- planes and strokes
   // in-plane axes: yp is "up" seen in the plane ("forward" for a level plane), xp is to its right
@@ -135,10 +145,11 @@ var JasprMeleeCore = (function () {
   // pointing back out of the bottom of the fist (a reverse grip: the blade lies opposite the hand's direction).
   function strokeKeys(c) {
     if (c.ks) return c.ks;
-    var n = c.grip.length;
-    if (n === 3) return [0, c.contact == null ? 0.45 : c.contact, 1];
-    var ks = []; for (var i = 0; i < n; i++) ks.push(i / (n - 1));
-    return ks;
+    if (c.keyCache) return c.keyCache;
+    var n = c.grip.length, ks;
+    if (n === 3) ks = [0, c.contact == null ? 0.45 : c.contact, 1];
+    else { ks = []; for (var i = 0; i < n; i++) ks.push(i / (n - 1)); }
+    return (c.keyCache = ks);
   }
   function cutPose(c, u) {
     var pb = c.basis || (c.basis = planeBasis(planeNormal(c.plane))), n = pb.n, ks = strokeKeys(c);
