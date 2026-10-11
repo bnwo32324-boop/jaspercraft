@@ -41,7 +41,9 @@ function JasprCombatFXHand(a,b){
   if(!JasprCombatFX.on('trails')||typeof JasprMeleeMotion==='undefined'||!JasprMeleeMotion.trail)return;
   var mc=a.bu,p=mc?mc.v:null;if(!p)return;
   if(mc.G&&mc.G.QV===2)return;                                                     // particles: minimal
-  if(typeof JasprVideoState!=='undefined'&&JasprVideoState&&JasprVideoState.value('particleEffects')===false)return;   // the video settings' particle switch
+  // the video settings' particle switch (stored as 1 / 0, like the engine's own check); no video state yet: on
+  var pe=typeof JasprVideoState!=='undefined'&&JasprVideoState?JasprVideoState.value('particleEffects'):null;
+  if(pe!=null&&!pe)return;
   var T=p.cv+b,v=[];
   for(var h=0;h<2;h++)JasprCombatFX.trailVertices(JasprMeleeMotion.trail(h,T),v);
   if(!v.length)return;

@@ -98,6 +98,25 @@ test('the trail pass draws coloured quads in the hands\' matrices and restores t
   fn.FE$ = () => gl.push(['draw']);
   const sword = { rA: {}, bg_: 0, bV: null, bK: 0 };
   M.clear(); M.partial = 0;
+  // the video settings' particle switch is stored as 1 / 0: off (0) means no trail, as for the engine's own particles
+  const video = fn.JasprVideoState, strikes = M.status().strikes;
+  fn.JasprVideoState = { value: k => (k === 'particleEffects' ? 0 : 1) };
+  const quiet = [{ seq: 1, at: Date.now(), hand: 'M', kind: 'swing', item: 276, target: 77, ref: -1, tick: 279 }];
+  M._test.setFeed({ since: s => quiet.filter(e => e.seq > s) });
+  player.cv = 280;
+  M.mark(false, 276, Date.now(), 279);
+  let hidden = 0;
+  for (let t = 280; t < 286; t += 0.25) {
+    player.cv = Math.floor(t); M.partial = t - Math.floor(t);
+    fn.JasprCombatTransform(renderer, fn.Kua, 0, sword, 1);
+    verts.length = 0;
+    fn.JasprCombatFXHand(renderer, t - Math.floor(t));
+    hidden += verts.length;
+  }
+  assert.equal(hidden, 0, 'no trail while the particle effects are off');
+  assert.ok(M.status().strikes > strikes, 'the swing itself still plays');
+  fn.JasprVideoState = video;
+  M.clear(); M.partial = 0;
   // a swing aimed at entity 77 (feed), drawn through its stroke
   let seq = 0; const events = [];
   M._test.setFeed({ since: s => events.filter(e => e.seq > s) });

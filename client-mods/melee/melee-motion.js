@@ -22,7 +22,7 @@ var JasprMeleeMotion = (function (C, MV, IT, DU) {
   var MAX_EFFECTS = 16, MAX_FEED = 64;
 
   var knobs = { motion: true, hitstop: 1, amplitude: true, support: true, impacts: true, trails: true, dual: true, trailTicks: 1.8, trailSamples: 10 };
-  var stats = { draws: 0, marks: 0, observed: 0, merged: 0, strikes: 0, chained: 0, queued: 0, supports: 0, joint: 0, impacts: 0,
+  var stats = { draws: 0, marks: 0, observed: 0, merged: 0, strikes: 0, chained: 0, queued: 0, supports: 0, joint: 0, impacts: 0, eyeGuard: 0,
     stops: 0, late: 0, upgrades: 0, feedEvents: 0, polled: 0, effectsDropped: 0, dropped: 0, errors: 0, last: null, clips: {} };
 
   // ---------------------------------------------------------------- clips
@@ -140,9 +140,11 @@ var JasprMeleeMotion = (function (C, MV, IT, DU) {
   // Key poses come from melee-dual.js for the pair; they are timed to the leader's wind-up end, contact, stroke end and
   // end, and evaluated on the leader's own (hit-stop warped) clock, so the two hands stay locked together.
   function makeSupport(leader, style, cls, start, hi) {
-    var keys = [start ? { t: 0, g: start.g, q: start.q, v: start.v, w: start.w } : { t: 0, g: REST.g, q: REST.q, v: ZERO, w: ZERO }];
     var poses = DU.supportPoses(style, cls, leader.cls, leader.move);
     var times = [leader.tw + leader.th * 0.5, leader.contact, leader.strokeEnd + leader.tr * 0.25];
+    // the speed a taken-over stroke carries in is capped as for a strike (no overshoot toward the eye)
+    var h0 = Math.max(0.5, times[0]);
+    var keys = [start ? { t: 0, g: start.g, q: start.q, v: carry(start.v, h0, 0.25), w: carry(start.w, h0, 0.9) } : { t: 0, g: REST.g, q: REST.q, v: ZERO, w: ZERO }];
     for (var i = 0; i < poses.length && i < times.length; i++) if (poses[i]) { var p = poses[i]; keys.push({ t: times[i], g: p.g, q: p.q }); }
     keys.push({ t: leader.dur, g: REST.g, q: REST.q, v: ZERO, w: ZERO });
     // keys must increase in time
@@ -164,9 +166,24 @@ var JasprMeleeMotion = (function (C, MV, IT, DU) {
   var player = { sprint: false, ground: true, falling: false, at: -1e9 };
 
   function poseOfHand(h, T) {
-    if (clipActive(h.strike, T)) return clipAt(h.strike, T);
-    if (supportActive(h.support, T)) return supportAt(h.support, T);
+    if (clipActive(h.strike, T)) return offEye(clipAt(h.strike, T), true);
+    if (supportActive(h.support, T)) return offEye(supportAt(h.support, T), true);
     return null;
+  }
+  // The weapon never comes nearer the eye than EYE_NEAR (view depth of its grip, middle and tip): a pose that would is
+  // pushed straight back along the line of sight, continuously (nothing moves at the limit). The moves are authored to
+  // stay well clear; this is the guarantee for every pair, click timing and combo state (a support track taking over a
+  // fast stroke, two hands crossing).
+  var EYE_NEAR = 0.32, EYE_POINTS = [[0.22, 0.2, 0.5], [0.6, 0.6, 0.5], [0.93, 0.93, 0.5]];
+  function offEye(p, count) {
+    if (!p || !p.g || !p.q) return p;
+    var d = Infinity;
+    for (var i = 0; i < EYE_POINTS.length; i++) d = Math.min(d, -C.itemPoint(p, EYE_POINTS[i])[2]);
+    if (!(d < EYE_NEAR)) return p;
+    var o = {}; for (var k in p) o[k] = p[k];
+    o.g = [p.g[0], p.g[1], p.g[2] - (EYE_NEAR - d)];
+    if (count) stats.eyeGuard++;
+    return o;
   }
   // pose and velocity (per tick) of a hand right now: where a new strike or support track starts from
   function stateOf(h, T) {
@@ -346,6 +363,8 @@ var JasprMeleeMotion = (function (C, MV, IT, DU) {
     var style = DU.supportStyle(pair, h.index === 0 ? 'main' : 'off');
     if (!style) return;
     var os = stateOf(other, tick);
+    // the taken-over stroke still counts for that hand's combo (alternating hands continue both chains)
+    if (other.strike) other.lastEnd = Math.max(other.lastEnd, Math.min(tick, realTimeOf(other.strike, other.strike.strokeEnd)));
     retire(other, other.strike); other.strike = null; other.queued = null;
     other.support = makeSupport(clip, style, ocls.name, os, other.index);
   }
@@ -474,7 +493,7 @@ var JasprMeleeMotion = (function (C, MV, IT, DU) {
     var flash = c.impactFired && c.stop ? C.clamp(1.4 - (lt - c.stop.at) / 3, 1, 1.4) : 1;
     for (var i = 0; i <= N + 1; i++) {
       var tw = Math.min(lt - dt * (i - 1), to);
-      var pose = evalClip(c, Math.max(tw, 0));
+      var pose = offEye(evalClip(c, Math.max(tw, 0)), false);
       bases.push(C.framedPoint(pose, fr, a, local)); tips.push(C.framedPoint(pose, fr, b, local));
     }
     for (var j = 1; j <= N + 1; j++) {

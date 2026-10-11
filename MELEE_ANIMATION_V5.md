@@ -24,7 +24,13 @@ Visual only: damage, reach, cooldowns and packets stay Better Combat's (workstre
   back, counter-turns, flows with it, tucks in, braces, readies its point or ducks under); when the second hand clicks
   during the first hand's wind-up or stroke it joins with the pair's joint move (twin swords cross in an X, a dagger
   stabs through the opening a sword cut made, a light weapon jabs just after a heavy blow lands, twin axes chop
-  together). Every one of the 306 main x off pairs is defined below. The left hand plays the exact mirror image.
+  together). Every one of the 306 main x off pairs is defined below. The left hand plays the exact mirror image. When
+  the hands take turns, each hand goes on with its own combo (its stroke still counts when a support track takes over
+  its recovery): alternating twin swords cut diagonal, level, thrust on each side instead of repeating the opener.
+- **Off the camera, always.** Moves are authored to stay clear of the eye; in addition no pose (strike, support track or
+  trail sample) ever brings the weapon's grip, middle or tip nearer than 0.32 blocks of view depth: such a pose is
+  pushed straight back, continuously (in all 306 pairs at four click rhythms this touches 0.03% of frames, counted as
+  `eyeGuard` in the diagnostics).
 - **Impacts** (when the swing aimed at an entity, or the server confirms a hit): a short hit-stop at contact (25 ms for a
   dagger to 85 ms for a hammer, +25 ms on a crit; the clip still ends on schedule), a camera kick in the direction of
   the blow (a dagger barely nudges the view, a hammer slam dips it 1.8 degrees), sparks at the struck side of the target
@@ -470,8 +476,14 @@ node --test --test-concurrency=1 tests/melee-native.test.cjs        # loads the 
 node --test --test-concurrency=1 tests/melee-native-dual.test.cjs   # LIVE -> A's head -> melee -> COMBATFX
 ```
 Assembly (COMBAT_REWORK.md): LIVE -> `build-bettercombat-client.cjs` -> `build-melee-client.cjs` ->
-`build-combatfx-client.cjs` -> the gun stage. The melee builder needs no Mo' Bends unpatching (it only replaces its
-region and proves restore(build(x)) === x); the COMBATFX builder refuses to build under JASPR_GUNFX.
+`build-mobends-client.cjs --module` -> `build-combatfx-client.cjs` -> `build-gunfx-client.cjs`;
+`node scripts/assemble-combat-client.cjs` runs that chain one builder at a time into `candidate/combat-deploy/` (with a
+manifest of every step's sha256). The melee builder needs no Mo' Bends unpatching (it only replaces its region and
+proves restore(build(x)) === x); the COMBATFX builder refuses to build under JASPR_GUNFX.
+
+Real client: `tests/combat-browser.cjs` (one lean session against the loopback fixture; see its header) attacks a mob
+with each hand, alternates two dual pairs, trades with a villager, swings five classes and fires two guns, and reads
+the diagnostics (`JasprMeleeDiagnostics`, `JasprCombatFXDiagnostics`, `JasprGunFXDiagnostics`, the combat feed).
 
 ## Third person
 Mo' Bends plays third-person attacks. Before this change it played every attack with the primary arm and the

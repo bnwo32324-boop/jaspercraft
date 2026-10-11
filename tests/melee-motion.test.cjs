@@ -206,6 +206,26 @@ test('dual wielding: the waiting hand answers each strike, takes over smoothly, 
   }
 });
 
+test('alternating hands: each hand goes on with its own combo through the other hand\'s strikes; after a pause it starts over', () => {
+  const strikes = (frames, hi) => played(frames, hi).filter(n => !n.startsWith('support:'));
+  // the browser session's pace (a click every 380 ms, the hands taking turns): the waiting hand's recovery is taken over
+  // by its support track, and that stroke still counts for its combo
+  for (const [main, off] of [['sword', 'sword'], ['axe', 'dagger'], ['katana', 'katana'], ['sword', 'axe']]) {
+    const sim = S.play({ main: { cls: main }, off: { cls: off }, clicks: [{ hand: 'M', tick: 0 }, { hand: 'O', tick: 7.6 }, { hand: 'M', tick: 15.2 }, { hand: 'O', tick: 22.8 }], ticks: 50, step: 0.1 });
+    const pair = D.pair(main, off);
+    for (const [hi, cls, role] of [[0, main, 'main'], [1, off, 'off']]) {
+      const chain = D.chain(pair, role) || M.classes[cls].chain, got = strikes(sim.frames, hi);
+      assert.equal(got.length, 2, `${main}+${off} hand ${hi}: ${got}`);
+      assert.equal(got[0], chain[0], `${main}+${off} hand ${hi} opens its chain`);
+      assert.ok(got[1] !== got[0] && chain.includes(got[1]), `${main}+${off} hand ${hi}: the combo goes on (${got})`);
+    }
+    // (no pop check here: these clicks fall between ticks, and the simulator then shows the hand at rest until the next
+    // tick; in the game a click is handled before the player's tick count moves on, so the strike starts at once)
+  }
+  const pause = S.play({ main: { cls: 'sword' }, off: { cls: 'sword' }, clicks: [{ hand: 'M', tick: 0 }, { hand: 'O', tick: 7.6 }, { hand: 'M', tick: 60 }], ticks: 75, step: 0.25 });
+  assert.deepEqual(strikes(pause.frames, 0), ['sword-diag', 'sword-diag'], 'a pause starts the chain over');
+});
+
 // a native pose back in view space (the left hand mirrored back): grip and orientation of the canonical item
 function viewPose(n, right) {
   let t = [n.tx, n.ty, n.tz], axis = [n.rotation.x, n.rotation.y, n.rotation.z];
