@@ -474,6 +474,8 @@ Assembly (COMBAT_REWORK.md): LIVE -> `build-bettercombat-client.cjs` -> `build-m
 region and proves restore(build(x)) === x); the COMBATFX builder refuses to build under JASPR_GUNFX.
 
 ## Third person
-Mo' Bends plays every attack with the primary arm and the main-hand item's animation (Mo' Bends 1.2.2 reads only
-isSwingInProgress), so an off-hand attack shows as a main-arm swing in third person. See the report for the Mo' Bends
-change.
+Mo' Bends plays third-person attacks. Before this change it played every attack with the primary arm and the
+main-hand item's animation (Mo' Bends 1.2.2 reads only isSwingInProgress), so an off-hand attack showed as a main-arm
+swing. Mo' Bends now swings the arm of the hand that attacked, with that hand's item, and alternating attacks alternate
+the arms (MOBENDS_UPDATE.md, "Off-hand attacks"; install with `node scripts/build-mobends-client.cjs --module`, a
+module-only swap that needs no other stage taken off).

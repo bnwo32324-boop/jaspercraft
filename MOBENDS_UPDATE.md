@@ -66,3 +66,14 @@ keep headless runs short. The tests compare the JS math with the original Java
 (compiled from the mod's sources), run every controller through its states, and load the real client in Node to check
 that the bent player covers the vanilla player limb for limb in the rest pose, with the original UVs.
 Sources: `client-mods/mobends/` (core, TeaVM adapter, generated assets), notices in `THIRD_PARTY_NOTICES.txt` there.
+
+## Off-hand attacks (2026-10-11, combat rework)
+Better Combat's off-hand attacks set `swingingHand` to the off hand; Mo' Bends 1.2.2 read only `isSwingInProgress`, so
+an off-hand attack played as a main-arm swing in third person. Now (JasperCraft change, `mobends-core.js`,
+`mobends-teavm.js` accessor `swingOffHand`):
+- the attack bits and the tool swing animate the arm of the hand that attacked (the arms swap for an off-hand attack),
+  and the attack kind (sword, tool, fists) and the sword trail come from that hand's item;
+- a swing of the other hand mid-swing is a new attack, so alternating dual-wield attacks alternate the arms.
+Main-hand attacks, mobs and every other animation are unchanged. Install without touching the stages above Mo' Bends:
+`node scripts/build-mobends-client.cjs --module [classes.js]` replaces only the stage's module text (hooks untouched)
+and proves that the previous module gives the input back byte for byte.

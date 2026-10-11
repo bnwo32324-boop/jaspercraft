@@ -86,9 +86,33 @@ function build(input) {
   if (unpatch(s) !== base) throw Error('Reversibility check failed');
   return { output: s, base };
 }
+// Module-only update: replaces just the fenced module text of an installed Mo' Bends stage (hooks untouched), so it
+// works with any stages installed on top. Proves that putting the previous module back gives the input byte for byte.
+function swapModule(input) {
+  const start = input.indexOf(BEGIN), end = start < 0 ? -1 : input.indexOf(END, start);
+  if (start < 0 || end < 0 || input.indexOf(BEGIN, start + 1) >= 0) throw Error('expected exactly one installed Mo\' Bends stage');
+  for (const [fn, , to] of hooks) if (!input.includes(to)) throw Error('Mo\' Bends hook missing (' + fn + '): rebuild the stage instead');
+  const previous = input.slice(start + BEGIN.length + 1, end - 1), next = moduleSource();
+  const output = input.slice(0, start + BEGIN.length + 1) + next + input.slice(end - 1);
+  new vm.Script(output, { filename: 'classes.js' });
+  const back = output.slice(0, start + BEGIN.length + 1) + previous + output.slice(start + BEGIN.length + 1 + next.length);
+  if (back !== input) throw Error('module swap is not reversible');
+  return { output, previous };
+}
 if (require.main === module) {
   // Mo' Bends is the outermost client stage (its hooks sit next to gore's, the video stage's and Dynamic Surroundings'):
   // to rebuild another stage, take it out first with --unpatch, rebuild that stage, then run this builder again.
+  // --module [input]: update only the module text of the installed stage (works under other stages).
+  if (process.argv[2] === '--module') {
+    const inputPath = process.argv[3] || 'C:/Users/AM/Documents/Eaglercraft-1.12.2-Tailscale/site/classes.js';
+    const input = fs.readFileSync(inputPath, 'latin1'), { output, previous } = swapModule(input);
+    const dir = path.join(root, 'candidate/mobends-client');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'classes.js'), output, 'latin1');
+    fs.writeFileSync(path.join(dir, 'previous-module.js'), previous, 'latin1');
+    console.log('Module swap only: ' + path.join(dir, 'classes.js') + ' ' + JSON.stringify({ inputSHA256: sha(input), sha256: sha(output), previousSHA256: sha(previous) }));
+    process.exit(0);
+  }
   const unpatchOnly = process.argv[2] === '--unpatch';
   const inputPath = process.argv[unpatchOnly ? 3 : 2] || 'C:/Users/AM/Documents/Eaglercraft-1.12.2-Tailscale/site/classes.js';
   const input = fs.readFileSync(inputPath, 'latin1');
@@ -107,4 +131,4 @@ if (require.main === module) {
   fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log('Candidate only: ' + path.join(dir, 'classes.js') + '\n' + JSON.stringify(manifest));
 }
-module.exports = { build, unpatch, hooks, NATIVE, BEGIN, END, sha };
+module.exports = { build, unpatch, swapModule, moduleSource, hooks, NATIVE, BEGIN, END, sha };
