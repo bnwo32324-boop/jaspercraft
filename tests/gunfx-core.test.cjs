@@ -170,7 +170,7 @@ test('reloads: the Apocalypse reload sound starts one, rounds rising finishes it
   assert.equal(h.reload.dur, 48, 'the gun\'s own reload time');
   s.idle(12);
   const low = core.pose(0, core.ticks() + 0.5, false);
-  assert.ok(low.y < -0.08 && low.roll > 20, 'lowered and canted while reloading');
+  assert.ok(low.x < -0.06 && low.roll > 25 && low.climb > 5, 'brought in toward the middle, canted and muzzle up while reloading');
   s.idle(30); s.hold(apoc('rifle', 18));
   assert.ok(h.reload.done >= 0, 'finished by the rounds coming back');
   s.idle(20);
@@ -186,7 +186,12 @@ test('reloads: the Apocalypse reload sound starts one, rounds rising finishes it
   assert.equal(core._test.hands()[0].reload.why, 'late');
   assert.ok(core.pose(0, core.ticks() + 0.5, false), 'animating');
   // a shot ends a reload animation at once
-  const x = rig(); x.hold(apoc('rifle', 5)); x.tick({ reloadSound: true }); x.hold(apoc('rifle', 4)); assert.equal(core._test.hands()[0].reload, null);
+  const x = rig(); x.hold(apoc('rifle', 5)); x.tick({ reloadSound: true }); x.idle(8); x.hold(apoc('rifle', 4));
+  const cutAt = core.ticks(), xr = core._test.hands()[0].reload;
+  assert.ok(xr && xr.cut === cutAt, 'ended by the shot');
+  const eased = core.pose(0, cutAt + 1.5, false), lowered = core.RELOADS.mag.lower.roll;
+  assert.ok(eased.roll > 0 && eased.roll < lowered, 'eases out instead of snapping: ' + eased.roll);
+  x.idle(5); assert.equal(core._test.hands()[0].reload, null, 'gone a few ticks later');
 });
 
 test('dry fire: a use click on an empty gun twitches it; never with rounds loaded or while reloading', () => {

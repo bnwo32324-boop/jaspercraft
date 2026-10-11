@@ -106,11 +106,19 @@ function tri(c, a, b, d) {
     for (let k = 0; k < 3; k++) c.rgb[o * 3 + k] = Math.min(255, c.rgb[o * 3 + k] + 255 * al * (w0 * a.col[k] + w1 * b.col[k] + w2 * d.col[k]));
   }
 }
+// Dungeon armoury guns and casters are flat vanilla items (item/generated, the same first-person transform as tools).
+const SPRITES = { BAPTIST_NEEDLER: 'iron_horse_armor', BELFRY_REPEATER: 'iron_horse_armor', CARRION_SCATTERGUN: 'iron_horse_armor', OPALINE_RAIL: 'diamond_horse_armor',
+  FOUNDRY_CANNON: 'gold_horse_armor', MENAGERIE_DARTER: 'iron_horse_armor', SCRIPTORIUM_SIPHON: 'iron_horse_armor', VESPER_DRILL: 'gold_horse_armor',
+  PAUPERS_RICOCHET: 'iron_horse_armor', ASTRAL_ORRERY: 'diamond_horse_armor', LABYRINTH_DOUBLE: 'gold_horse_armor', LAST_ABSOLUTION: 'diamond_horse_armor',
+  CARRION_CENSER: 'blaze_rod', OPAL_PRISM: 'prismarine_shard', SUNLESS_BRAND: 'blaze_rod', PALE_LANTERN: 'ghast_tear' };
+const spriteMeshes = {};
+function spriteMesh(id) { return spriteMeshes[id] || (spriteMeshes[id] = R.itemMesh(R.decodePNG(fs.readFileSync(path.join(ASSETS, 'items', SPRITES[id] + '.png'))))); }
 function frame(id, pose, opts = {}) {
   const W = opts.width || 320, H = opts.height || 180, canvas = new R.Canvas(W, H);
   R.drawWorld(canvas, W / H);
   const proj = M.perspective(70, W / H, 0.05, 50), side = opts.left ? -1 : 1, hand = handMatrix(side, pose);
-  drawGun(canvas, proj, id, hand, side);
+  if (SPRITES[id]) R.drawItem(canvas, proj, spriteMesh(id), M.mul(hand, R.displayMatrix(R.HANDHELD, side < 0)));
+  else drawGun(canvas, proj, id, hand, side);
   if (pose && pose.flash) additive(canvas, proj, hand, flashQuads(pose.flash));
   R.crosshair(canvas);
   return canvas;
@@ -119,13 +127,15 @@ function frame(id, pose, opts = {}) {
 // ------------------------------------------------------------------ driving the stage's core with synthetic item data
 let stackSeq = 0;
 function apoc(id, rounds, serial) { return { item: 293, damage: 0, apoc: { id, serial: serial || 'S-' + id, rounds, speed: 0 }, dungeon: null }; }
+function dungeon(id, rounds, readyAt) { return { item: 417, damage: 0, apoc: null, dungeon: { kind: 'weapon', id, uuid: 'U-' + id, rounds, readyAt: readyAt || 0, reloadAt: 0 } }; }
 function sim(id, script, total, step, left) {
+  const make = SPRITES[id] ? (r, c) => dungeon(id, r, c && c.readyAt) : (r) => apoc(id, r);
   // script: list of [tick, change] where change = {rounds} | {reloadSound: true} | {overlay: '...'}
   core.clear();
   let rounds = 20, frames = [], times = [];
   const stack = () => ({ id: ++stackSeq });
   let main = stack();
-  core.tick({ main, mainDesc: apoc(id, rounds), off: null, offDesc: null, slot: 0, firstPerson: true, vfx: 0 });
+  core.tick({ main, mainDesc: make(rounds), off: null, offDesc: null, slot: 0, firstPerson: true, vfx: 0 });
   const base = core.ticks();
   for (let t = 0, si = 0; t <= total + 1e-9; t += step) {
     while (core.ticks() - base < Math.floor(t + 1e-9)) {
@@ -133,7 +143,7 @@ function sim(id, script, total, step, left) {
       const input = { main, mainDesc: undefined, off: null, offDesc: undefined, slot: 0, firstPerson: true, vfx: 0, click: false, overlay: null, reloadSound: false };
       while (si < script.length && script[si][0] <= now) {
         const c = script[si++][1];
-        if (c.rounds !== undefined) { rounds = c.rounds; main = stack(); input.main = main; input.mainDesc = apoc(id, rounds); }
+        if (c.rounds !== undefined || c.readyAt !== undefined) { if (c.rounds !== undefined) rounds = c.rounds; main = stack(); input.main = main; input.mainDesc = make(rounds, c); }
         if (c.reloadSound) input.reloadSound = true;
         if (c.overlay) input.overlay = c.overlay;
       }
@@ -183,6 +193,30 @@ function main() {
     const canv = frames.map(p => frame('portal_gun', p, { width: 200, height: 112 }));
     const file = path.join(OUT, 'portal.png');
     R.save(R.sheet(canv, 10, times.map(t => t / 24)), file); written.push(file);
+  }
+  if (run('trace')) for (const [id, every, n] of [['whisper', 5, 10], ['ironpsalm', 8, 10], ['pallbearer', 14, 8], ['rifle', 6, 10], ['magnum44', 18, 4],
+    ['lockjaw', 23, 3], ['gallows', 30, 2], ['railgun', 40, 2], ['tempest', 11, 3]]) {
+    // the pose channels over time: climb (red, degrees), back toward the eye (yellow, x100), roll (blue), yaw (green), flash (white)
+    const script = []; for (let i = 0; i < n; i++) script.push([1 + i * every, { rounds: 19 - i }]);
+    const total = 1 + n * every + 30, { frames, times } = sim(id, script, total, 0.1);
+    const W = 720, H = 220, c = new R.Canvas(W, H), mid = H * 0.62, sx = (W - 20) / total, sy = H * 0.5 / 30;
+    c.rgb.fill(22);
+    c.line(10, mid, W - 10, mid, [90, 90, 90]);
+    for (const [t] of script) c.line(10 + t * sx, 8, 10 + t * sx, H - 8, [60, 60, 70]);
+    const chan = [['climb', [235, 70, 60], 1], ['z', [235, 210, 60], 100], ['roll', [80, 140, 255], 1], ['yaw', [90, 210, 110], 1]];
+    for (const [key, col, k] of chan) {
+      let prev = null;
+      frames.forEach((p, i) => { const y = mid - (p ? p[key] * k : 0) * sy, x = 10 + times[i] * sx; if (prev) c.line(prev[0], prev[1], x, y, col); prev = [x, y]; });
+    }
+    frames.forEach((p, i) => { if (p && p.flash) c.dot(10 + times[i] * sx, 12, 1, [255, 255, 255]); });
+    const file = path.join(OUT, 'trace-' + id + '.png'); R.save(c, file); written.push(file);
+  }
+  if (run('sprites')) for (const [id, script, total] of [['BELFRY_REPEATER', [[1, { rounds: 17 }]], 34], ['FOUNDRY_CANNON', [[1, { rounds: 19 }]], 20],
+    ['OPAL_PRISM', [[1, { readyAt: 5000 }]], 20], ['SUNLESS_BRAND', [[1, { readyAt: 5000 }]], 20]]) {
+    const { frames, times } = sim(id, script, total, total / 19);
+    const canv = frames.map(p => frame(id, p, { width: 200, height: 112 }));
+    const file = path.join(OUT, 'sprite-' + id + '.png');
+    R.save(R.sheet(canv, 10, times.map(t => t / total)), file); written.push(file);
   }
   if (run('paths')) for (const id of ['sepulcher', 'magnum44', 'rifle', 'gallows', 'lockjaw', 'railgun', 'whisper']) {
     // the muzzle on screen at 0.25-tick steps (yellow: kick, red: return, blue: later)

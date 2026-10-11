@@ -29,7 +29,7 @@ var JasprGunFXCore = (function () {
       drift: { climb: 0.5, back: 0.004, T: 7, max: 4 }, shoulder: 0, cycle: { type: 'slide', at: 1.0, len: 1.8, amp: 0.014 }, reload: 'pistol',
       flash: { size: 0.11, len: 0.16, spikes: 5, style: 'gun', life: 1.3 }, casing: 'brass', smoke: 0, cam: { pitch: 0.7, yaw: 0.25, roll: 0.3, back: 0.01, ms: 140 } },
     mpistol: { kick: { back: 0.045, up: 0.01, side: 0.006, climb: 6, roll: 2.6, yaw: 1.6 }, a: 0.5, t: { w: 1.35, z: 0.6 }, r: { w: 1.1, z: 0.55 },
-      drift: { climb: 0.9, back: 0.006, T: 9, max: 6 }, shoulder: 0.1, cycle: { type: 'slide', at: 0.9, len: 1.4, amp: 0.01 }, reload: 'pistol',
+      drift: { climb: 1.2, back: 0.01, T: 9, max: 6 }, shoulder: 0.1, cycle: { type: 'slide', at: 0.9, len: 1.4, amp: 0.01 }, reload: 'pistol',
       flash: { size: 0.1, len: 0.14, spikes: 5, style: 'gun', life: 1.2 }, casing: 'brass', smoke: 0, cam: { pitch: 0.45, yaw: 0.25, roll: 0.2, back: 0.005, ms: 110 } },
     revolver: { kick: { back: 0.085, up: 0.025, side: 0.006, climb: 16, roll: 5, yaw: 1.8 }, a: 0.6, t: { w: 1.0, z: 0.55 }, r: { w: 0.8, z: 0.5 },
       drift: { climb: 0.4, back: 0.003, T: 8, max: 3 }, shoulder: 0, cycle: { type: 'hammer', at: 5, len: 5, amp: 1 }, reload: 'cylinder',
@@ -38,19 +38,19 @@ var JasprGunFXCore = (function () {
       drift: null, shoulder: 0, cycle: { type: 'hammer', at: 6, len: 5, amp: 1.3 }, reload: 'cylinder',
       flash: { size: 0.19, len: 0.28, spikes: 7, style: 'gun', life: 1.5 }, casing: null, smoke: 1, cam: { pitch: 2.0, yaw: 0.4, roll: 0.6, back: 0.03, ms: 230 } },
     smg: { kick: { back: 0.042, up: 0.008, side: 0.005, climb: 3.5, roll: 1.6, yaw: 1.2 }, a: 0.45, t: { w: 1.4, z: 0.65 }, r: { w: 1.15, z: 0.6 },
-      drift: { climb: 0.8, back: 0.006, T: 10, max: 6 }, shoulder: 0.3, cycle: null, reload: 'mag',
+      drift: { climb: 1.4, back: 0.012, T: 10, max: 6 }, shoulder: 0.3, cycle: null, reload: 'mag',
       flash: { size: 0.11, len: 0.2, spikes: 5, style: 'gun', life: 1.2 }, casing: 'brass', smoke: 0, cam: { pitch: 0.35, yaw: 0.2, roll: 0.15, back: 0.005, ms: 100 } },
     carbine: { kick: { back: 0.065, up: 0.012, side: 0.005, climb: 5.5, roll: 2, yaw: 1.2 }, a: 0.5, t: { w: 1.2, z: 0.6 }, r: { w: 0.95, z: 0.55 },
-      drift: { climb: 0.6, back: 0.005, T: 9, max: 5 }, shoulder: 0.35, cycle: null, reload: 'mag',
+      drift: { climb: 0.8, back: 0.007, T: 9, max: 5 }, shoulder: 0.35, cycle: null, reload: 'mag',
       flash: { size: 0.13, len: 0.24, spikes: 5, style: 'gun', life: 1.3 }, casing: 'brass', smoke: 0, cam: { pitch: 0.6, yaw: 0.2, roll: 0.2, back: 0.01, ms: 130 } },
     rifle: { kick: { back: 0.08, up: 0.015, side: 0.005, climb: 6.5, roll: 2.2, yaw: 1.2 }, a: 0.5, t: { w: 1.15, z: 0.6 }, r: { w: 0.9, z: 0.55 },
-      drift: { climb: 0.7, back: 0.006, T: 10, max: 5 }, shoulder: 0.4, cycle: null, reload: 'mag',
+      drift: { climb: 0.9, back: 0.008, T: 10, max: 5 }, shoulder: 0.4, cycle: null, reload: 'mag',
       flash: { size: 0.14, len: 0.28, spikes: 5, style: 'gun', life: 1.3 }, casing: 'brass', smoke: 0, cam: { pitch: 0.7, yaw: 0.2, roll: 0.25, back: 0.01, ms: 140 } },
     dmr: { kick: { back: 0.095, up: 0.018, side: 0.004, climb: 8.5, roll: 2.4, yaw: 1 }, a: 0.55, t: { w: 1.0, z: 0.58 }, r: { w: 0.8, z: 0.55 },
       drift: { climb: 0.4, back: 0.004, T: 9, max: 3 }, shoulder: 0.45, cycle: null, reload: 'mag',
       flash: { size: 0.15, len: 0.3, spikes: 6, style: 'gun', life: 1.4 }, casing: 'brass', smoke: 1, cam: { pitch: 1.0, yaw: 0.25, roll: 0.3, back: 0.015, ms: 170 } },
     burst: { kick: { back: 0.065, up: 0.012, side: 0.005, climb: 5, roll: 2, yaw: 1.3 }, a: 0.5, t: { w: 1.2, z: 0.6 }, r: { w: 0.95, z: 0.55 },
-      drift: { climb: 1.0, back: 0.006, T: 12, max: 5 }, shoulder: 0.35, cycle: null, reload: 'mag',
+      drift: { climb: 1.2, back: 0.008, T: 12, max: 5 }, shoulder: 0.35, cycle: null, reload: 'mag',
       flash: { size: 0.13, len: 0.26, spikes: 5, style: 'gun', life: 1.3 }, casing: 'brass', smoke: 0, cam: { pitch: 0.6, yaw: 0.25, roll: 0.2, back: 0.01, ms: 130 } },
     bolt: { kick: { back: 0.13, up: 0.025, side: 0.004, climb: 11, roll: 2.6, yaw: 1 }, a: 0.6, t: { w: 0.85, z: 0.55 }, r: { w: 0.7, z: 0.52 },
       drift: null, shoulder: 0.55, cycle: { type: 'bolt', at: 7, len: 14, amp: 1 }, reload: 'bolt',
@@ -68,10 +68,10 @@ var JasprGunFXCore = (function () {
       drift: { climb: 0.6, back: 0.006, T: 10, max: 4 }, shoulder: 0.45, cycle: null, reload: 'drum',
       flash: { size: 0.2, len: 0.3, spikes: 8, style: 'wide', life: 1.4 }, casing: 'shell', smoke: 1, cam: { pitch: 1.6, yaw: 0.4, roll: 0.5, back: 0.03, ms: 200 } },
     heavy: { kick: { back: 0.08, up: 0.015, side: 0.007, climb: 4, roll: 2, yaw: 1.5 }, a: 0.6, t: { w: 0.8, z: 0.65 }, r: { w: 0.65, z: 0.62 },
-      drift: { climb: 1.2, back: 0.012, T: 14, max: 7 }, shoulder: 0.7, cycle: { type: 'thump', at: 0.8, len: 2.4, amp: 1 }, reload: 'belt',
+      drift: { climb: 1.6, back: 0.016, T: 14, max: 8 }, shoulder: 0.7, cycle: { type: 'thump', at: 0.8, len: 2.4, amp: 1 }, reload: 'belt',
       flash: { size: 0.17, len: 0.32, spikes: 6, style: 'gun', life: 1.4 }, casing: 'brass', smoke: 1, cam: { pitch: 0.6, yaw: 0.3, roll: 0.25, back: 0.015, ms: 150 } },
     rotary: { kick: { back: 0.04, up: 0.007, side: 0.006, climb: 1.8, roll: 1.2, yaw: 1.4 }, a: 0.4, t: { w: 1.3, z: 0.6 }, r: { w: 1.1, z: 0.6 },
-      drift: { climb: 0.7, back: 0.008, T: 12, max: 5 }, shoulder: 0.6, cycle: { type: 'spin', at: 0, len: 6, amp: 0.006 }, reload: 'belt',
+      drift: { climb: 0.9, back: 0.012, T: 14, max: 6 }, shoulder: 0.6, cycle: { type: 'spin', at: 0, len: 6, amp: 0.006 }, reload: 'belt',
       flash: { size: 0.14, len: 0.26, spikes: 5, style: 'gun', life: 1.2 }, casing: 'brass', smoke: 0, cam: { pitch: 0.28, yaw: 0.25, roll: 0.15, back: 0.005, ms: 95 } },
     rail: { kick: { back: 0.16, up: 0.02, side: 0.003, climb: 7, roll: 1.5, yaw: 0.7 }, a: 1.3, t: { w: 0.6, z: 0.42 }, r: { w: 0.55, z: 0.45 },
       drift: null, shoulder: 0.5, cycle: { type: 'vent', at: 2, len: 12, amp: 2.5 }, reload: 'cell',
@@ -80,28 +80,30 @@ var JasprGunFXCore = (function () {
       drift: null, shoulder: 0.4, cycle: { type: 'vent', at: 1.5, len: 10, amp: 3 }, reload: 'cell',
       flash: { size: 0.16, len: 0.4, spikes: 6, style: 'plasma', life: 1.6 }, casing: null, smoke: 0, spark: 1, cam: { pitch: 1.2, yaw: 0.3, roll: 0.4, back: 0.03, ms: 240 } },
     pulse: { kick: { back: 0.07, up: 0.012, side: 0.004, climb: 5, roll: 2, yaw: 1.2 }, a: 0.7, t: { w: 1.0, z: 0.5 }, r: { w: 0.85, z: 0.5 },
-      drift: { climb: 1.0, back: 0.006, T: 12, max: 5 }, shoulder: 0.35, cycle: { type: 'vent', at: 1, len: 6, amp: 1.5 }, reload: 'cell',
+      drift: { climb: 1.2, back: 0.008, T: 12, max: 5 }, shoulder: 0.35, cycle: { type: 'vent', at: 1, len: 6, amp: 1.5 }, reload: 'cell',
       flash: { size: 0.13, len: 0.3, spikes: 5, style: 'plasma', life: 1.4 }, casing: null, smoke: 0, spark: 1, cam: { pitch: 0.7, yaw: 0.25, roll: 0.25, back: 0.01, ms: 140 } },
     portal: { kick: { back: 0.06, up: 0.012, side: 0.006, climb: 6, roll: 7, yaw: 1.8 }, a: 0.7, t: { w: 0.9, z: 0.4 }, r: { w: 0.75, z: 0.38 },
       drift: null, shoulder: 0.2, cycle: { type: 'vent', at: 1, len: 8, amp: 2 }, reload: null,
       flash: { size: 0.13, len: 0.22, spikes: 6, style: 'portal', life: 1.5 }, casing: null, smoke: 0, dust: 5, cam: { pitch: 0.5, yaw: 0.15, roll: 0.4, back: 0, ms: 150 } },
-    magic: { kick: { back: -0.14, up: 0.055, side: 0.005, climb: 12, roll: 6, yaw: 1.2 }, a: 1.6, t: { w: 0.7, z: 0.6 }, r: { w: 0.6, z: 0.55 },
+    magic: { kick: { back: -0.2, up: 0.06, side: 0.005, climb: 16, roll: 7, yaw: 1.5 }, a: 1.6, t: { w: 0.7, z: 0.6 }, r: { w: 0.6, z: 0.55 },
       drift: null, shoulder: 0, cycle: null, reload: null, flash: null, casing: null, smoke: 0, spell: 6, cam: { pitch: 0.4, yaw: 0, roll: 0.2, back: -0.02, ms: 160 } }
   };
 
   // ------------------------------------------------------------------------------------------------ reloads
   // lower: the pose while working (full envelope); work: a repeated motion while lowered; seat: the magazine / shell /
-  // cylinder going home; rack: the charging handle, slide, bolt or pump at the end. Same units as the kicks.
+  // cylinder going home; rack: the charging handle, slide, bolt or pump at the end. Same units as the kicks. The vanilla
+  // first-person gun already sits in the lower right corner, so a reload brings it in toward the middle and cants it
+  // (muzzle up, magazine well toward the eye) instead of dropping it out of sight.
   var RELOADS = {
-    pistol: { lower: { x: -0.04, y: -0.07, z: 0.04, climb: 6, roll: 22, yaw: 10 }, work: 'bob', seat: { y: 0.025, roll: -3 }, rack: { z: 0.03, climb: -2 } },
-    mag: { lower: { x: -0.06, y: -0.11, z: 0.05, climb: -10, roll: 30, yaw: 12 }, work: 'bob', seat: { y: 0.03, roll: -4 }, rack: { z: 0.045, roll: -4 } },
-    drum: { lower: { x: -0.07, y: -0.13, z: 0.05, climb: -8, roll: 38, yaw: 12 }, work: 'bob', seat: { y: 0.035, roll: -5 }, rack: { z: 0.04, roll: -3 } },
-    bolt: { lower: { x: -0.05, y: -0.08, z: 0.04, climb: -6, roll: 24, yaw: 8 }, work: 'bob', seat: { y: 0.03, roll: -3 }, rack: { z: 0.05, roll: 14 } },
-    shells: { lower: { x: -0.03, y: -0.07, z: 0.03, climb: 8, roll: -32, yaw: -6 }, work: 'shells', seat: null, rack: { z: 0.07, y: -0.015, roll: -5 } },
-    break: { lower: { x: -0.02, y: -0.05, z: 0.03, climb: -34, roll: 6, yaw: 4 }, work: 'bob', seat: null, rack: { climb: 6, y: 0.01 } },
-    cylinder: { lower: { x: -0.07, y: -0.03, z: 0.02, climb: 16, roll: 58, yaw: 14 }, work: 'spin', seat: null, rack: { roll: -10, climb: 2 } },
-    belt: { lower: { x: -0.04, y: -0.14, z: 0.07, climb: 10, roll: 22, yaw: 10 }, work: 'bob', seat: { y: -0.03, climb: -2 }, rack: { z: 0.05, roll: -3 } },
-    cell: { lower: { x: -0.05, y: -0.1, z: 0.05, climb: -14, roll: -24, yaw: -8 }, work: 'hum', seat: { y: 0.02, roll: 3 }, rack: { z: -0.03, climb: 2 } }
+    pistol: { lower: { x: -0.07, y: 0.02, z: 0.05, climb: 14, roll: 30, yaw: 18 }, work: 'bob', seat: { y: 0.025, roll: -4 }, rack: { z: 0.035, climb: -3 } },
+    mag: { lower: { x: -0.1, y: 0.0, z: 0.06, climb: 10, roll: 40, yaw: 16 }, work: 'bob', seat: { y: 0.03, roll: -5 }, rack: { z: 0.05, roll: -6 } },
+    drum: { lower: { x: -0.11, y: -0.01, z: 0.06, climb: 12, roll: 46, yaw: 16 }, work: 'bob', seat: { y: 0.035, roll: -6 }, rack: { z: 0.045, roll: -4 } },
+    bolt: { lower: { x: -0.08, y: 0.0, z: 0.05, climb: 8, roll: 30, yaw: 12 }, work: 'bob', seat: { y: 0.03, roll: -4 }, rack: { z: 0.05, roll: 14 } },
+    shells: { lower: { x: -0.04, y: -0.02, z: 0.04, climb: 10, roll: -34, yaw: -8 }, work: 'shells', seat: null, rack: { z: 0.07, y: -0.015, roll: -5 } },
+    break: { lower: { x: -0.08, y: 0.07, z: 0.08, climb: -10, roll: 18, yaw: 10 }, work: 'bob', seat: null, rack: { climb: 10, y: 0.015 } },
+    cylinder: { lower: { x: -0.07, y: 0.0, z: 0.03, climb: 16, roll: 58, yaw: 14 }, work: 'spin', seat: null, rack: { roll: -10, climb: 2 } },
+    belt: { lower: { x: -0.06, y: -0.04, z: 0.07, climb: 14, roll: 26, yaw: 12 }, work: 'bob', seat: { y: -0.03, climb: -2 }, rack: { z: 0.05, roll: -4 } },
+    cell: { lower: { x: -0.08, y: -0.02, z: 0.06, climb: 10, roll: -30, yaw: -10 }, work: 'hum', seat: { y: 0.02, roll: 3 }, rack: { z: -0.03, climb: 2 } }
   };
 
   // ------------------------------------------------------------------------------------------------ the guns
@@ -187,7 +189,7 @@ var JasprGunFXCore = (function () {
       def = DUNGEON[desc.dungeon.id]; extra = def[3] || {};
       g = { source: 'dungeon', id: desc.dungeon.id, serial: String(desc.dungeon.uuid || ''), rounds: desc.dungeon.rounds | 0,
         cost: Math.max(1, def[2] | 0), burst: Math.max(1, def[2] | 0), cls: def[0], reloadTicks: Math.round(def[1] / 50), extra: extra,
-        geo: geometry('$sprite'), portal: false, magic: def[0] === 'magic', readyAt: +desc.dungeon.readyAt || 0, reloadAt: +desc.dungeon.reloadAt || 0 };
+        geo: geometry(def[0] === 'magic' ? '$caster' : '$sprite'), portal: false, magic: def[0] === 'magic', readyAt: +desc.dungeon.readyAt || 0, reloadAt: +desc.dungeon.reloadAt || 0 };
     }
     if (g) g.ident = g.source + ':' + g.id + ':' + g.serial;
     return g;
@@ -201,7 +203,8 @@ var JasprGunFXCore = (function () {
     hand.events.push(e);
     while (hand.events.length > MAX_EVENTS) hand.events.shift();
     if (kind === 'shot' || kind === 'portal' || kind === 'cast') {
-      if (kind === 'shot') { stats.shots++; if (hand.reload) hand.reload = null; }
+      // a shot ends a reload animation (it cannot be reloading any more), easing out over a few ticks instead of snapping
+      if (kind === 'shot') { stats.shots++; if (hand.reload && hand.reload.cut === undefined) hand.reload.cut = ticks; }
       else if (kind === 'portal') stats.portal++; else stats.casts++;
       if (P.cam && out.firstPerson) {
         var j = 0.85 + 0.3 * rnd(e.seq, 21);
@@ -223,7 +226,7 @@ var JasprGunFXCore = (function () {
   }
   function startReload(h, dur, why) {
     var hand = hands[h];
-    if (hand.reload && ticks - hand.reload.t < 10) return;         // the same reload seen twice (sound and data)
+    if (reloading(hand) && ticks - hand.reload.t < 10) return;     // the same reload seen twice (sound and data)
     // shots still queued to spread out merged updates are cosmetic: the server does not reload while it is still firing
     for (var i = hand.pending.length - 1; i >= 0; i--) if (hand.pending[i].kind === 'shot') hand.pending.splice(i, 1);
     hand.reload = { t: ticks, t0: undefined, dur: Math.max(8, dur | 0), done: -1, why: why };
@@ -238,6 +241,8 @@ var JasprGunFXCore = (function () {
     }
   }
   function reset(hand) { hand.events = []; hand.pending = []; hand.reload = null; }
+  /** A reload animation that is still running (not ended by a shot). */
+  function reloading(hand) { return !!(hand.reload && hand.reload.cut === undefined); }
 
   function compare(h, a, b, out) {
     if (b.magic) { if (b.readyAt > a.readyAt) emit(h, 'cast', out); return; }
@@ -291,7 +296,7 @@ var JasprGunFXCore = (function () {
       else if (line.indexOf('Orange portal set.') === 0) emit(0, 'portal', out, { color: PORTAL_ORANGE });
       else if (line.indexOf('No surface in range.') === 0) emit(0, 'dry', out);
     }
-    if (main && input.click && !main.portal && !main.magic && main.rounds < main.cost && !hands[0].reload) emit(0, 'dry', out);
+    if (main && input.click && !main.portal && !main.magic && main.rounds < main.cost && !reloading(hands[0])) emit(0, 'dry', out);
     for (var h = 0; h < 2; h++) {
       var hand = hands[h];
       for (var i = 0; i < hand.pending.length; i++) {
@@ -304,7 +309,7 @@ var JasprGunFXCore = (function () {
       }
       while (hand.events.length && ticks - hand.events[0].t > EVENT_LIFE) hand.events.shift();
       var r = hand.reload;
-      if (r && ticks - r.t > Math.max(r.dur + 60, (r.done >= 0 ? r.done - r.t : 0) + 30)) hand.reload = null;
+      if (r && (ticks - r.t > Math.max(r.dur + 60, (r.done >= 0 ? r.done - r.t : 0) + 30) || (r.cut !== undefined && ticks - r.cut > 4))) hand.reload = null;
     }
     stats.kicks += out.kicks.length; stats.particles += out.particles.length;
     return out;
@@ -348,18 +353,20 @@ var JasprGunFXCore = (function () {
     var predicted = Math.max(lowerT, r.dur - 7), finish = r.done >= 0 ? Math.max(lowerT, Math.min(predicted, r.done - r.t)) : predicted;
     var v = (tau - finish) / 10;
     if (v >= 1) return false;
-    var E = smooth(tau / lowerT) * (v < 0.15 ? 1 : 1 - smooth((v - 0.15) / 0.65)), L = style.lower, k;
+    var cut = r.cut === undefined ? 1 : 1 - smooth((now - r.cut) / 3);
+    if (cut <= 0) return false;
+    var E = smooth(tau / lowerT) * (v < 0.15 ? 1 : 1 - smooth((v - 0.15) / 0.65)) * cut, L = style.lower, k;
     for (k in L) acc[k] += L[k] * E;
     if (tau > lowerT && v < 0.1) {
-      var w = tau - lowerT, f = smooth(w / 3) * (v < 0 ? 1 : 1 - v / 0.1);
+      var w = tau - lowerT, f = smooth(w / 3) * (v < 0 ? 1 : 1 - v / 0.1) * cut;
       if (style.work === 'bob') { acc.y += 0.008 * Math.sin(w * 0.55) * f; acc.roll += 1.5 * Math.sin(w * 0.37) * f; }
       else if (style.work === 'shells') { var ph = (w % 7) / 7, s = bump(ph / 0.45) * f; acc.y += 0.018 * s; acc.z -= 0.012 * s; acc.roll += 4 * s; }
       else if (style.work === 'spin') { acc.roll += 3 * Math.sin(w * 1.1) * f; }
       else if (style.work === 'hum') { acc.x += 0.0025 * Math.sin(w * 4.7) * f; acc.y += 0.0025 * Math.cos(w * 5.9) * f; }
     }
-    if (style.seat) { var sb = bump((v + 0.05) / 0.35); for (k in style.seat) acc[k] += style.seat[k] * sb; }
-    if (style.rack) { var rb = bump((v - 0.5) / 0.4); for (k in style.rack) acc[k] += style.rack[k] * rb; }
-    return true;
+    if (style.seat) { var sb = bump((v + 0.05) / 0.35) * cut; for (k in style.seat) acc[k] += style.seat[k] * sb; }
+    if (style.rack) { var rb = bump((v - 0.5) / 0.4) * cut; for (k in style.rack) acc[k] += style.rack[k] * rb; }
+    return Math.max(1e-6, E);
   }
   var LIMIT = { x: 0.3, y: 0.3, z: 0.35, climb: 50, roll: 70, yaw: 30 };
   /**
@@ -386,11 +393,12 @@ var JasprGunFXCore = (function () {
       addCycle(P.cycle, tau, amp, acc, e.seq);
       if (P.flash && (e.kind === 'shot' || e.kind === 'portal') && tau < P.flash.life) flash = { e: e, tau: tau };
     }
-    var reloading = addReload(hand, P, now, acc);
+    var reloading = addReload(hand, P, now, acc);   // the reload's envelope (0..1), false when none runs
     if (!live && !reloading) return null;
     if (P.drift) { acc.climb += soft(dc, P.drift.max); acc.z += soft(db, P.drift.max * 0.01); }
     for (var k in LIMIT) acc[k] = soft(acc[k], LIMIT[k]);
-    var sh = P.shoulder || 0, pv = [geo.pivot[0] + (geo.butt[0] - geo.pivot[0]) * sh, geo.pivot[1] + (geo.butt[1] - geo.pivot[1]) * sh,
+    // the kick turns about the grip or the shoulder; the hands work a reload about the grip
+    var sh = (P.shoulder || 0) * (1 - (reloading || 0)), pv = [geo.pivot[0] + (geo.butt[0] - geo.pivot[0]) * sh, geo.pivot[1] + (geo.butt[1] - geo.pivot[1]) * sh,
       geo.pivot[2] + (geo.butt[2] - geo.pivot[2]) * sh];
     var mirror = left ? -1 : 1;
     var out = { x: acc.x * mirror, y: acc.y, z: acc.z, climb: acc.climb, roll: acc.roll * mirror, yaw: acc.yaw * mirror, pivot: pv, axis: geo.axis, flash: null };
@@ -454,7 +462,7 @@ var JasprGunFXCore = (function () {
   // ------------------------------------------------------------------------------------------------ api
   function clear() { hands = [new Hand(), new Hand()]; }
   function handInfo(h) { var x = hands[h]; return { gun: x.gun ? x.gun.ident : null, cls: x.gun ? x.gun.cls : null, rounds: x.gun ? x.gun.rounds : null,
-    events: x.events.length, pending: x.pending.length, reloading: !!x.reload }; }
+    events: x.events.length, pending: x.pending.length, reloading: reloading(x) }; }
   return {
     VERSION: VERSION, CLASSES: CLASSES, RELOADS: RELOADS, APOC: APOC, DUNGEON: DUNGEON, CARRIERS: CARRIERS, FLASH: FLASH, LIMIT: LIMIT,
     tick: tick, pose: pose, identify: identify, clear: clear, stats: stats, handInfo: handInfo, flashQuads: flashQuads,
