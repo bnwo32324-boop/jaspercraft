@@ -1,7 +1,7 @@
 'use strict';
 // Prints the dual-wield choreography of every main x off-hand class pair as Markdown (the matrix in
-// MELEE_ANIMATION_V5.md is this output). Usage: node scripts/melee-dual-matrix.cjs [--check MELEE_ANIMATION_V5.md]
-const fs = require('node:fs');
+// MELEE_ANIMATION_V5.md is this output). Usage: node scripts/melee-dual-matrix.cjs [--check [MELEE_ANIMATION_V5.md]]
+const fs = require('node:fs'), path = require('node:path');
 const L = require('../client-mods/melee/melee-load.cjs').load(), D = L.JasprMeleeDual, M = L.JasprMeleeMotion;
 const STYLE_WORDS = { guard: 'guards', cock: 'cocks back', counter: 'counter-turns', flow: 'flows with it', tuck: 'tucks in', brace: 'braces', ready: 'readies its point', duck: 'ducks under' };
 function table() {
@@ -16,9 +16,10 @@ function table() {
 if (require.main === module) {
   const i = process.argv.indexOf('--check');
   if (i > 0) {
-    const doc = fs.readFileSync(process.argv[i + 1], 'utf8'), want = table();
+    const file = process.argv[i + 1] || path.join(__dirname, '..', 'MELEE_ANIMATION_V5.md');
+    const doc = fs.readFileSync(file, 'utf8'), want = table();
     const ok = doc.includes(want);
-    console.log(ok ? 'the matrix in ' + process.argv[i + 1] + ' matches the code' : 'the matrix in ' + process.argv[i + 1] + ' is STALE');
+    console.log(ok ? 'the matrix in ' + file + ' matches the code' : 'the matrix in ' + file + ' is STALE');
     process.exitCode = ok ? 0 : 1;
   } else process.stdout.write(table());
 }
