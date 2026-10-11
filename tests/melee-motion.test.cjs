@@ -206,6 +206,36 @@ test('dual wielding: the waiting hand answers each strike, takes over smoothly, 
   }
 });
 
+// a native pose back in view space (the left hand mirrored back): grip and orientation of the canonical item
+function viewPose(n, right) {
+  let t = [n.tx, n.ty, n.tz], axis = [n.rotation.x, n.rotation.y, n.rotation.z];
+  if (!right) { t = [-t[0], t[1], t[2]]; axis = [axis[0], -axis[1], -axis[2]]; }
+  const q = C.qaxis(axis, n.rotation.angle * C.DEG);
+  return { g: C.add(C.add(C.PIVOT, t), C.qrot(q, C.GRIP_LOCAL)), q };
+}
+test('every pair, both hands: support poses and strikes keep the blades off the camera', () => {
+  const classes = Object.keys(M.classes);
+  let worst = Infinity, where = '';
+  for (const style of Object.keys(D.STYLES)) for (const sup of classes) for (const lead of classes)
+    for (const p of D.supportPoses(style, sup, lead, M.moves[M.classes[lead].chain[0]]))
+      for (const ip of [[0.22, 0.2, 0.5], [0.6, 0.6, 0.5], [0.93, 0.93, 0.5]]) { const d = -C.itemPoint(p, ip)[2]; if (d < worst) { worst = d; where = style + ' ' + sup + ' by ' + lead; } }
+  assert.ok(worst >= 0.35, 'support pose within ' + worst.toFixed(3) + ' of the eye: ' + where);
+  for (const main of classes) for (const off of classes) {
+    if (off === 'claw') continue;
+    const sim = S.play({ main: { cls: main }, off: { cls: off }, clicks: [{ hand: 'M', tick: 0 }, { hand: 'O', tick: 6 }, { hand: 'M', tick: 13 }, { hand: 'O', tick: 15 }], ticks: 34, step: 0.5 });
+    for (const f of sim.frames) for (const hi of [0, 1]) {
+      const n = f.poses[hi]; if (!n) continue;
+      const cls = hi ? off : main;
+      if (M.classes[cls].trail === false) continue;   // swipe classes turn the whole resting item: covered per move
+      const vp = viewPose(n, hi === 0);
+      for (const ip of [[0.22, 0.2, 0.5], [0.6, 0.6, 0.5], [0.93, 0.93, 0.5]]) {
+        const d = -C.itemPoint(vp, ip)[2];
+        assert.ok(d >= 0.3, `${main}+${off} hand ${hi} at ${f.t}: ${d.toFixed(3)} from the eye (${f.names[hi]})`);
+      }
+    }
+  }
+});
+
 test('determinism: the same clicks give the same frames', () => {
   const script = { main: { cls: 'greatsword' }, off: { cls: 'dagger' }, clicks: [{ hand: 'M', tick: 0, target: 4, result: 'hit', crit: true }, { hand: 'O', tick: 3 }, { hand: 'O', tick: 11, result: 'hit' }], ticks: 30, step: 0.25 };
   const a = S.play(script), b = S.play(script);

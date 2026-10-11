@@ -79,10 +79,14 @@ var JasprMeleeMotion = (function (C, MV, IT, DU) {
     if (k.roll) f = C.rotateAbout(f, dir, k.roll * C.DEG);
     return C.freePose(k.grip, dir, f, k.reverse);
   }
+  // the speed a new move inherits from the weapon's current motion, capped so the carry-over curves into the new wind-up
+  // instead of overshooting (at most 0.25 blocks of drift and 0.9 radians of turn over the first segment)
+  function carry(vec, h, cap) { var l = C.len(vec) * h; return l > cap ? C.mul(vec, cap / l) : vec; }
   function windupKeys(clip) {
     if (clip.keysW) return clip.keysW;
     var from = clip.start, m = clip.move, first = cockedPose(clip), keys;
-    keys = [from ? { t: 0, g: from.g, q: from.q, v: from.v, w: from.w } : { t: 0, g: REST.g, q: REST.q, v: ZERO, w: ZERO }];
+    var h0 = Math.max(0.5, clip.tw * ((m.ready && m.ready.length && (!from || nearRest(from))) ? m.ready[0].at : 1));
+    keys = [from ? { t: 0, g: from.g, q: from.q, v: carry(from.v, h0, 0.25), w: carry(from.w, h0, 0.9) } : { t: 0, g: REST.g, q: REST.q, v: ZERO, w: ZERO }];
     (m.ready || []).forEach(function (k) { if (!from || k.always || nearRest(from)) keys.push(viaKey(clip, clip.tw * k.at, k)); });
     keys.push({ t: clip.tw, g: first.g, q: first.q, v: ZERO, w: ZERO });
     return (clip.keysW = keys);
@@ -185,7 +189,8 @@ var JasprMeleeMotion = (function (C, MV, IT, DU) {
       if (s.sources && !s.sources[o.source] && Math.abs((s.at || 0) - now) <= MERGE_MS) {
         s.sources[o.source] = true; stats.merged++;
         if (o.target != null && o.target >= 0) s.target = o.target;
-        if (o.source === 'mark' && Number.isFinite(o.tick) && s.tickFrom !== 'mark') { s.tickFrom = 'mark'; }
+        // the click's own tick (markSwing) is the most precise start of a swing that has not begun yet
+        if (o.source === 'mark' && Number.isFinite(o.tick) && s.tickFrom !== 'mark' && !s.move) { s.tick = o.tick; s.tickFrom = 'mark'; }
         return s;
       }
     }
@@ -458,7 +463,9 @@ var JasprMeleeMotion = (function (C, MV, IT, DU) {
     var h = hands[hi], c = h.strike;
     if (!knobs.trails || !clipActive(c, T)) return null;
     var cls = MV.classes[c.cls]; if (!cls || cls.trail === false) return null;
-    var lt = warp(c, T - c.tick), from = c.tw + c.th - 0.2, to = c.strokeEnd + c.tr * 0.45;
+    // the ribbon covers the stroke only: after it ends the tail catches up with the end of the follow-through and the
+    // trail is gone (no streaks on the way back to rest)
+    var lt = warp(c, T - c.tick), from = c.tw + c.th - 0.2, to = c.strokeEnd;
     if (lt < from || lt > to + knobs.trailTicks) return null;
     var tr = c.move.trail || cls.trail || {}, a = tr.from || [0.45, 0.45, 0.5], b = tr.to || [0.93, 0.93, 0.5];
     var fr = frameOf(h), local = !!fr;
