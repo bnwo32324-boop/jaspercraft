@@ -665,8 +665,17 @@ public final class Arsenal implements Listener {
         world.playSound(eye, energy ? Sound.ENTITY_FIREWORK_BLAST : Sound.ENTITY_GENERIC_EXPLODE,
                 suppressed ? 0.18f : 1.2f, gun == Gun.RIFLE || suppressed ? 1.8f : gun == Gun.SHOTGUN ? 1.2f : 0.6f);
         // Trace particles stay before the first wall and have no entity glow/full-bright effect.
-        if (tracer > 0.15) world.spawnParticle(Particle.SMOKE_NORMAL,
-                eye.clone().add(direction.clone().multiply(Math.min(0.65, tracer / 2))), 2, 0.025, 0.025, 0.025, 0);
+        // Combat rework 2026-10-11: the shooter's own muzzle flash, smoke and casing are drawn by the client (JASPR_GUNFX), so
+        // this smoke puff goes only to the other players, at the gun's muzzle (right hand, below the eye) - no longer a cloud
+        // 0.65 blocks in front of the shooter's eyes that covered the crosshair on every shot.
+        if (tracer > 0.15) {
+            org.bukkit.util.Vector side = new org.bukkit.util.Vector(-direction.getZ(), 0, direction.getX());
+            if (side.lengthSquared() < 1e-6) side = new org.bukkit.util.Vector(1, 0, 0); else side.normalize();
+            Location muzzle = eye.clone().add(direction.clone().multiply(Math.min(0.9, tracer / 2))).add(side.multiply(0.32)).add(0, -0.28, 0);
+            for (Player other : world.getPlayers())
+                if (other != player && other.getLocation().distanceSquared(eye) < 64 * 64)
+                    other.spawnParticle(Particle.SMOKE_NORMAL, muzzle, 2, 0.025, 0.025, 0.025, 0);
+        }
         int sparks = gun == Gun.RAILGUN || gun.pattern == Pattern.RAIL ? 10 : 3;
         for (int i = 1; i <= sparks; i++) {
             if (tracer <= 0.15) break;

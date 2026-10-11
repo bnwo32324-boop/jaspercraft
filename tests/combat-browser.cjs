@@ -27,7 +27,7 @@ const LIVE = (process.env.COMBAT_LIVE_ROOT || 'C:/Users/AM/Documents/Eaglercraft
 const FIXTURE_ROOT = path.resolve(process.env.TANK_PREVIEW_ROOT || ROOT);
 const CLASSES = path.resolve(process.env.COMBAT_CLASSES || path.join(ROOT, 'candidate', 'combat-deploy', 'classes.js'));
 const ASSETS = LIVE + '/site/assets.epk', LIVE_JAR = LIVE + '/server/jaspr-paper-clientbudget.jar';
-const PLUGINS = [path.join(ROOT, 'server', 'plugins', 'JasprBetterCombat.jar'), LIVE + '/server/plugins/JasprApocalypse.jar', LIVE + '/server/plugins/AuthMe.jar'];
+const PLUGINS = [path.join(ROOT, 'server', 'plugins', 'JasprBetterCombat.jar'), (process.env.COMBAT_APOCALYPSE_JAR || path.join(ROOT, 'server', 'plugins', 'JasprApocalypse.jar')), LIVE + '/server/plugins/AuthMe.jar'];
 const out = path.resolve(process.argv.slice(2).find(a => !a.startsWith('--')) || path.join(ROOT, 'candidate', 'combat-browser'));
 const NAME = 'CombatTester', W = 640, H = 360, CX = W / 2, CY = H / 2;
 fs.mkdirSync(out, {recursive: true});
