@@ -55,6 +55,29 @@ test('the gun table: every Apocalypse firearm, the Portal Gun, the dungeon armou
   assert.equal(core.carrier(276), false, 'a sword is never read');
 });
 
+test('the tables follow the server plugins (Arsenal.java guns and reload times, ArmoryCatalog types, bursts and kinds)', () => {
+  const fs = require('node:fs');
+  const arsenal = fs.readFileSync(path.join(__dirname, '../server/custom-plugins/JasprApocalypse/src/chat/jaspr/apocalypse/Arsenal.java'), 'utf8');
+  const re = /^\s+[A-Z_]+\("([a-z0-9_]+)", "[^"]+", ChatColor\.[A-Z_]+, \d+, \d+, \d+, [0-9.]+, [0-9.]+, \d+, \d+, [0-9.]+, (\d+), (\d+)/mg;
+  const guns = {}; let m;
+  while ((m = re.exec(arsenal))) guns[m[1]] = { cooldown: +m[2], reload: +m[3] };
+  assert.equal(Object.keys(guns).length, 40);
+  for (const [id, g] of Object.entries(guns)) assert.equal(core.APOC[id][1], g.reload, id + ' reload ms');
+  assert.deepEqual(Object.keys(core.APOC).filter(id => id !== 'portal_gun').sort(), Object.keys(guns).sort());
+  const catalog = fs.readFileSync(path.join(__dirname, '../server/custom-plugins/JasprDungeon/src/chat/jaspr/dungeon/ArmoryCatalog.java'), 'utf8');
+  const rt = /^\s+([A-Z_]+)\("[^"]+","[A-Z_]+",Kind\.([A-Z]+),Mechanic\.[A-Z]+,\d+,\d+,[0-9.]+,[0-9.]+,\d+,(\d+),\d+,[0-9.]+,\d+,\d+,(\d+),/mg;
+  let n = 0;
+  while ((m = rt.exec(catalog))) {
+    const [, id, kind, burst, reload] = m;
+    if (kind === 'MELEE') { assert.equal(core.DUNGEON[id], undefined, id + ' is melee'); continue; }
+    n++;
+    const d = core.DUNGEON[id]; assert.ok(d, id + ' in the table');
+    assert.equal(d[0] === 'magic', kind === 'MAGIC', id + ' kind');
+    if (kind === 'GUN') { assert.equal(d[1], +reload, id + ' reload ms'); assert.equal(d[2], +burst, id + ' burst'); }
+  }
+  assert.equal(n, 16, '12 guns and 4 casters');
+});
+
 test('the generated geometry matches the pack models (scripts/gunfx-data.cjs)', () => {
   assert.equal(data.render(data.generate()), require('node:fs').readFileSync(data.OUT, 'utf8').replace(/\r\n/g, '\n'));
   const rifle = JasprGunFXData.rifle.r;
