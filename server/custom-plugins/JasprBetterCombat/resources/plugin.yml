@@ -1,5 +1,5 @@
 name: JasprBetterCombat
-version: 1.5.6-port.4
+version: 1.5.6-port.5
 main: chat.jaspr.bettercombat.BetterCombatPlugin
 author: JasperCraft contributors
 description: Source-based Paper/browser port of Better Combat Rebirth 1.5.6

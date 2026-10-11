@@ -1,0 +1,7 @@
+name: CombatFixture
+main: chat.jaspr.bettercombat.test.CombatFixture
+version: 1
+depend: [JasprBetterCombat]
+commands:
+  bcfixture:
+    description: Console-only isolated combat fixture
