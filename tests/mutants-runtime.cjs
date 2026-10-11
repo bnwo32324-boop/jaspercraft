@@ -77,7 +77,7 @@ async function stop() {
 }
 
 // ---- the protocol client ----
-const seen = {names: {}, spawns: [], sounds: [], particles: [], status: [], metadata: new Set(), slots: new Set(), advancements: '', payloads: []};
+const seen = {chat: [], names: {}, spawns: [], sounds: [], particles: [], status: [], metadata: new Set(), slots: new Set(), advancements: '', payloads: []};
 function readVarInt(buf, at) { let n = 0, shift = 0, b; do { b = buf[at.i++]; n |= (b & 0x7f) << shift; shift += 7; } while (b & 0x80); return n; }
 function decodeSpawn(d) {
   const at = {i: 1}, id = readVarInt(d, at); at.i += 16; const type = readVarInt(d, at);
@@ -87,7 +87,7 @@ function decodeSpawn(d) {
 async function join() {
   return new Promise((resolve, reject) => {
     const b = mineflayer.createBot({host: '127.0.0.1', port: PORT, username: NAME, version: '1.12.2', auth: 'offline'});
-    b.on('error', reject); b.on('kicked', r => console.log('BOT_KICK ' + r));
+    b.on('error', reject); b.on('kicked', r => console.log('BOT_KICK ' + r)); b.on('messagestr', m => seen.chat.push(m));
     b._client.on('packet', (data, meta) => {
       seen.names[meta.name] = (seen.names[meta.name] || 0) + 1;
       if (meta.name === 'advancements') seen.advancementRaw = (seen.advancementRaw || 0) + 1;
@@ -122,6 +122,9 @@ function hello() {
 
     bot = await join();
     await cmd('op ' + NAME, /opped|Made|already/i); await cmd('gamemode creative ' + NAME, /game mode|gamemode/i);
+    // AGPL-3.0 section 13: every player is told once where the source of the port is.
+    check(await until(() => seen.chat.some(m => m.includes('Mutant Creatures Legacy (AGPL-3.0)') && m.includes('https://jaspr.chat/jaspercraft/licenses.html')), 9000), 'A player is told where the AGPL source is', seen.chat.slice(-3).join(' | '));
+    check(/MUTANTS_SOURCE_OFFERED count=1 /.test(log), 'The source offer is logged with counts only', (log.match(/MUTANTS_SOURCE_OFFERED[^\n]*/) || [''])[0]);
     // Clients without the stage: the server drops mod sounds and particles (MUTANTS_PROTOCOL.md section 5).
     seen.sounds.length = 0;
     await cmd('mprobe sound ' + NAME + ' 1039', /PROBE_SOUND/);
@@ -206,7 +209,9 @@ function hello() {
     const en = (await cmd('mprobe enchant ' + NAME, /PROBE_ENCHANT/, 20000)).line;
     const weapon = /(DAMAGE_ALL|DAMAGE_UNDEAD|DAMAGE_ARTHROPODS|KNOCKBACK|FIRE_ASPECT|LOOT_BONUS_MOBS):/;
     const part = k => (en.match(new RegExp(k + '\\[[^\\]]*\\]', 'g')) || ['']).join(' ');
-    check(weapon.test(part('MUTANTBEASTS_HULK_HAMMER')) && /done=true/.test(part('MUTANTBEASTS_HULK_HAMMER')) && !/SWEEPING/.test(part('MUTANTBEASTS_HULK_HAMMER')) && /clues=\d/.test(part('MUTANTBEASTS_HULK_HAMMER')),
+    // A clue per offer slot, -1 where that slot shows none; which slots show one depends on the player's random enchanting seed.
+    const clued = k => /clues=[-\d\/]*/.test(part(k)) && (part(k).match(/clues=([-\d\/]+)/) || ['', ''])[1].split('/').some(n => n !== '' && +n >= 0);
+    check(weapon.test(part('MUTANTBEASTS_HULK_HAMMER')) && /done=true/.test(part('MUTANTBEASTS_HULK_HAMMER')) && !/SWEEPING/.test(part('MUTANTBEASTS_HULK_HAMMER')) && clued('MUTANTBEASTS_HULK_HAMMER'),
       'The enchanting table offers and applies weapon enchantments to the Hulk Hammer (no Sweeping Edge), with clues', part('MUTANTBEASTS_HULK_HAMMER'));
     check(weapon.test(part('MUTANTBEASTS_ENDERSOUL_HAND')) && /done=true/.test(part('MUTANTBEASTS_ENDERSOUL_HAND')), 'and to the Endersoul Hand', part('MUTANTBEASTS_ENDERSOUL_HAND'));
     check(/done=true enchants=[A-Z_]+:/.test(part('DIAMOND_SWORD')), 'A vanilla sword still enchants at the same table', part('DIAMOND_SWORD'));
@@ -253,8 +258,10 @@ function hello() {
     await stop();
     await start();
     check(/MUTANTS_READY/.test(log), 'After a restart the plugin is ready again', (log.match(/MUTANTS_READY[^\n]*/) || [''])[0]);
+    const chatMark = seen.chat.length;
     bot = await join();
-    await cmd('tp ' + NAME + ' 0 5 0', /Teleported|teleport/i); await sleep(4000);
+    await cmd('tp ' + NAME + ' 0 5 0', /Teleported|teleport/i); await sleep(7000);
+    check(!seen.chat.slice(chatMark).some(m => m.includes('licenses.html')), 'A player already told is not told again, even after a restart', seen.chat.slice(chatMark).join(' | '));
     const after = (await cmd('mprobe count', /PROBE_COUNT/)).line;
     check(after.replace(/^.*PROBE_COUNT /, '') === before.replace(/^.*PROBE_COUNT /, ''), 'Every mutant is still there after the restart (registered before the worlds load)', before + ' -> ' + after);
     check(!/Skipping Entity with id mutantbeasts|Unknown entity|MUTANTS_HOOK_FAILED|MUTANTS_TRACKER_REFLECTION_FAILED|MUTANTS_LOOT_INJECT_FAILED|MUTANTS_ADVANCEMENTS_FAILED/.test(fs.readdirSync(RUN).filter(f => f.startsWith('phase-')).map(f => fs.readFileSync(path.join(RUN, f), 'utf8')).join('\n')), 'No skipped entity, hook, tracker, loot or advancement failure in any phase');

@@ -9,7 +9,7 @@ distributed under the same licence.
 Origin of the files:
 - src/chumbanotz/mutantbeasts/...: the mod's common (server-side) classes, copied unchanged except where
   Paper cannot run Forge code; every such change is marked "// JasperCraft port: <why>" in the source and
-  listed in PORT_NOTES.md. Client-only classes (rendering, models, GUI, particles) are not part of this
+  summarised in MUTANTS_PORT_NOTES.md (repository root). Client-only classes (rendering, models, GUI, particles) are not part of this
   server plugin; the client stage JASPR_MUTANTS ports them.
 - resources/assets/mutantbeasts/{loot_tables,recipes,advancements,lang}: the mod's data files, unchanged.
 - src/net/minecraftforge/...: a JasperCraft shim with the subset of the Forge/FML API this mod uses,
@@ -21,5 +21,7 @@ Origin of the files:
 Not included: the newer Mutant Skeleton sounds (sounds/entity/mutant_skeleton/*.ogg outside legacy/) are
 All Rights Reserved (the mod's LICENSE_ASSETS); this port defaults to the mod's legacy skeleton sounds.
 
-Players can obtain the complete corresponding source of this plugin from the JasperCraft repository
-(server/custom-plugins/JasprMutants) as required by AGPL-3.0 section 13.
+Players can obtain the complete corresponding source of this plugin from the public JasperCraft repository
+(https://github.com/bnwo32324-boop/jaspercraft, server/custom-plugins/JasprMutants; the client part in client-mods/mutants)
+as required by AGPL-3.0 section 13. The offer: every player is told once in chat (SourceOffer.java) about the page
+https://jaspr.chat/jaspercraft/licenses.html (site/licenses.html), which links to that source.

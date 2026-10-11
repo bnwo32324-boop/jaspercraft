@@ -1,5 +1,5 @@
 name: JasprMutants
-version: 1.0.0
+version: 1.0.1
 main: chat.jaspr.mutants.JasprMutants
 load: STARTUP
 loadbefore: [JasprApocalypse, JasprAtlas, JasprBackrooms, JasprBlight, JasprBounties, JasprClientBudget, JasprDaylight, JasprDisasters, JasprDungeon, JasprEnchantments, JasprFeral, JasprFinder, JasprGear, JasprGraves, JasprHorrorBiomes, JasprImportedWorldgen, JasprInvasions, JasprLostCities, JasprMuseMaps, JasprMuseMapsPack, JasprNether, JasprPerfTweaks, JasprRPG, JasprRevive, JasprRuins, JasprTanks, JasprVoiceChat, JasprWorldReset, TestServerControl]

@@ -60,4 +60,5 @@ replaces its own fenced lang block and `jaspr.mutants.*` sound events, so it can
 ## Licence
 
 AGPL-3.0 (`client-mods/mutants/assets/LICENSE`, `ASSETS_LICENSE.txt`; the plugin carries the same). Players can get the
-source: it is this repository (AGPL section 13 offer on the client's About/credits page, owned by the lead).
+source: it is this public repository. The AGPL section 13 offer: every player is told once in chat (plugin
+`SourceOffer.java`, log `MUTANTS_SOURCE_OFFERED`) about https://jaspr.chat/jaspercraft/licenses.html (`site/licenses.html`).

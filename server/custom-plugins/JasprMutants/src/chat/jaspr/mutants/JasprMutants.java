@@ -145,6 +145,8 @@ public final class JasprMutants extends JavaPlugin implements Listener {
             Bukkit.getPluginManager().registerEvents(this.bridge, this);
             Bukkit.getPluginManager().registerEvents(this.enchanting, this);
             Bukkit.getPluginManager().registerEvents(this.clients, this);
+            // AGPL-3.0 section 13: each player is told once where the source of this port is.
+            Bukkit.getPluginManager().registerEvents(new SourceOffer(this), this);
             for (World w : Bukkit.getWorlds()) this.installTracker(w);
             for (Player p : Bukkit.getOnlinePlayers()) this.clients.inject(p);
             Bukkit.getScheduler().runTaskTimer(this, () -> this.bridge.tick(Bukkit.getOnlinePlayers()), 1L, 1L);
