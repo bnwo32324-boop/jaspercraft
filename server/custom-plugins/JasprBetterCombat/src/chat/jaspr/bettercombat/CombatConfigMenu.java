@@ -129,6 +129,6 @@ final class CombatConfigMenu implements Listener {
         });
     }
     @EventHandler public void quit(PlayerQuitEvent e){edits.remove(e.getPlayer().getUniqueId());resetConfirm.remove(e.getPlayer().getUniqueId());}
-    private void persist(){plugin.saveConfig();plugin.settings=new Settings(plugin.getConfig());}
+    private void persist(){plugin.saveConfig();plugin.settings=new Settings(plugin.getConfig());plugin.settingsChanged();}
     private void later(Runnable r){Bukkit.getScheduler().runTask(plugin,r);}
 }
