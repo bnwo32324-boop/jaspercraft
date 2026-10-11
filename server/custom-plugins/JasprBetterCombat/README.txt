@@ -3,11 +3,20 @@ JASPR BETTER COMBAT - Better Combat Rebirth 1.5.6 Paper/browser port
 This directory is the production build source for JasprBetterCombat.jar. It is
 separate from the other plugins; it does not load arbitrary Forge JARs.
 See THIRD_PARTY_NOTICES.txt for original attribution and per-file licenses.
-Current live release: plugin 1.5.6-port.3, browser 20260930-bettercombat3,
-September 30, 2026 at 20:27 CDT. Includes original hand switching and mirrored
-off-hand sweep, class-list inheritance support, and an in-game settings panel.
-The bettercombat2 sword-NBT crash fix remains. Never restore bettercombat1.
+Release history: plugin 1.5.6-port.3 / browser bettercombat3 (September 30,
+2026), 1.5.6-port.4 / bettercombat4-8 (first-person melee motion). Candidate
+1.5.6-port.5 / bettercombat9 (2026-10-11, combat rework workstream A): the
+dual-wield fixes and the per-attack server verdict protocol listed in
+../../../DUAL_WIELD_FIXES.md. The bettercombat2 sword-NBT crash fix remains.
+Never restore bettercombat1.
 See PARITY-1.5.6.txt for original source mappings and platform adaptations.
+
+BUILD 1.5.6-port.5 / bettercombat9 (the current way)
+  javac --release 8 against server/cache/patched_1.12.2.jar (see DUAL_WIELD_FIXES.md),
+  jar into server/plugins/JasprBetterCombat.jar
+  node scripts/build-bettercombat-client.cjs   (LIVE classes.js -> candidate/bettercombat,
+  replaces only the head region; client/bettercombat.js and scripts/build-client.cjs
+  below are the older 20260930 builders and are stale)
 
 BUILD FROM THIS DIRECTORY (Java 17, bytecode target Java 8; Node.js)
   powershell -File scripts/build.ps1

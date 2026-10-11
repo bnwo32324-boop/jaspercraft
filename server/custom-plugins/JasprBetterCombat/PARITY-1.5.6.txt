@@ -79,6 +79,24 @@ NECESSARY PLATFORM / SAFETY ADAPTATIONS (NOT HIDDEN)
 - Named/enchanted/Unbreakable/custom-melee NBT remains intact. The real DaN NBT
   helper is used, not the unrelated JSONObject.has helper that caused the first crash.
 
+1.5.6-port.5 / bettercombat9 (2026-10-11) - CORRECTIONS TOWARD 1.5.6, AND PLATFORM ADDITIONS
+- Back to 1.5.6: an off-hand hit into the target's ten-tick off-hand timer spends the
+  off-hand energy and sounds "no damage" (port.4 returned silently). A shield block is
+  not a hit (vanilla returns false; CraftBukkit returns true and reports a BLOCKING
+  modifier): no hit sounds, knockback, weapon wear or stats on blocked hits. Bare-hand
+  hits no longer call ItemStack.hitEntity on the empty stack (1.5.6 checks isEmpty).
+- Right click: Forge's MouseEvent never cancelled the right click, so 1.5.6 ran the
+  off-hand attack AND vanilla's right click. The browser cannot do both without double
+  actions, so the client runs vanilla's right click for the main hand first (the engine's
+  own per-hand code), then the off-hand attack only if the main hand passed, else
+  vanilla's off-hand step. Only a press attacks (Forge's MouseEvent fired once per press;
+  vanilla's held-button repeat stays vanilla). Blacklisted entities and the player's
+  own pets keep their interaction on the client, as 1.5.6's shouldAttack did.
+- Protocol 2 on jaspr:combat (backward compatible both ways): "attack M|O <seq>", a
+  per-attack verdict {"res":...} and static {"cfg":...} data. The server additionally
+  refuses an off-hand attack in the same tick as a plugin item ability that claimed the
+  main hand's air click, or a plugin-handled right click on that player (revive, tank).
+
 EVIDENCE
 Source/formula tests and runtime scenarios live under tests/. Runtime reports record
 artifact hashes and the isolated world path. Browser tests use actual mouse/keyboard
