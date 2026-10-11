@@ -7,7 +7,8 @@
 // would draw at those ticks.
 //
 //   node scripts/gunfx-preview.cjs [outDir] [scenario ...]
-// scenarios: shots (one shot per gun class), auto (sustained fire), reload (every reload style), portal, paths
+// scenarios: shots (one shot per gun class), auto (sustained fire), reload (every reload style), portal, sprites (dungeon
+// guns and casters), trace (pose channels over time), mosaic (rest / flash / peak / recovery per gun), paths
 const fs = require('node:fs'), path = require('node:path'), zlib = require('node:zlib'), os = require('node:os');
 try { os.setPriority(os.constants.priority.PRIORITY_LOW); } catch (e) { /* best effort: stay out of the game's way */ }
 const R = require('./melee-preview-render.cjs');
@@ -210,6 +211,12 @@ function main() {
     }
     frames.forEach((p, i) => { if (p && p.flash) c.dot(10 + times[i] * sx, 12, 1, [255, 255, 255]); });
     const file = path.join(OUT, 'trace-' + id + '.png'); R.save(c, file); written.push(file);
+  }
+  if (run('mosaic')) {
+    // one row per gun at a glance: rest, the first frame (flash), the kick at its peak, recovering
+    const ids = ['sepulcher', 'magnum44', 'rifle', 'lockjaw', 'gallows', 'watchtower', 'pallbearer', 'railgun', 'witchlight', 'bellringer'], out = [];
+    for (const id of ids) { const { frames } = sim(id, [[1, { rounds: 19 }]], 6, 0.25); for (const i of [0, 4, 7, 20]) out.push(frame(id, frames[i], { width: 400, height: 225 })); }
+    const file = path.join(OUT, 'mosaic.png'); R.save(R.sheet(out, 4), file); written.push(file);
   }
   if (run('sprites')) for (const [id, script, total] of [['BELFRY_REPEATER', [[1, { rounds: 17 }]], 34], ['FOUNDRY_CANNON', [[1, { rounds: 19 }]], 20],
     ['OPAL_PRISM', [[1, { readyAt: 5000 }]], 20], ['SUNLESS_BRAND', [[1, { readyAt: 5000 }]], 20]]) {
