@@ -1,50 +1,46 @@
 'use strict';
-// Renders first-person melee clips offline: a strip of frames per clip and a path plot (grip and blade tip on screen
-// at equal time steps; wide spacing = fast). Usage: node scripts/melee-preview.cjs [outDir] [clip ...]
+// Renders first-person melee moves offline through the real timeline (bind, click, combat feed, frame, poseFor, trail):
+// a strip of frames per move with its blade trail and hit-stop, and a path plot (blade tip on screen at equal time steps,
+// yellow wind-up, orange loaded pause, red stroke, blue recovery; wide spacing = fast).
+// Usage: node scripts/melee-preview.cjs [outDir] [move ...] [--item <art or apocalypse id>] [--miss]
 const fs = require('node:fs'), path = require('node:path');
-const R = require('./melee-preview-render.cjs');
-const motion = require('../client-mods/melee/melee-motion.js');
-const out = process.argv[2] || path.join(__dirname, '../candidate/melee-preview/out');
-const textures = path.join(__dirname, '../candidate/melee-preview/assets/textures/items');
-// the item textures come from the game's own assets.epk (EPK v2: header, entry count, compression flag, entries)
-if (!fs.existsSync(textures)) extractTextures(process.env.JASPR_ASSETS_EPK || 'C:/Users/AM/Documents/Eaglercraft-1.12.2-Tailscale/site/assets.epk', textures);
-function extractTextures(file, dir) {
-  const zlib = require('node:zlib'), bytes = fs.readFileSync(file);
-  let at = 8; at += 1 + bytes[at]; at += 1 + bytes[at]; at += 2 + bytes.readUInt16BE(at); at += 8;
-  const count = bytes.readUInt32BE(at); at += 4; const mode = String.fromCharCode(bytes[at++]), packed = bytes.subarray(at, -8);
-  const data = mode === 'G' ? zlib.gunzipSync(packed) : mode === 'Z' ? zlib.inflateSync(packed) : packed;
-  fs.mkdirSync(dir, { recursive: true });
-  for (let i = 0, p = 0; i < count; i++) {
-    const type = data.subarray(p, p + 4).toString(); p += 4;
-    const n = data[p++], name = data.subarray(p, p + n).toString(); p += n;
-    const size = data.readUInt32BE(p); p += 4;
-    if (type === 'FILE') { const value = data.subarray(p + 4, p + size - 1); p += size;
-      const m = name.match(/textures\/items\/([a-z_]+)\.png$/); if (m) fs.writeFileSync(path.join(dir, m[1] + '.png'), value); }
-    else p += size;
-    p++;   // '>'
-  }
-}
+const R = require('./melee-preview-render.cjs'), S = require('./melee-preview-sim.cjs');
+const args = process.argv.slice(2), opt = n => { const i = args.indexOf(n); return i >= 0 ? args.splice(i, 2)[1] : null; };
+const flag = n => { const i = args.indexOf(n); if (i >= 0) { args.splice(i, 1); return true; } return false; };
+const itemArg = opt('--item'), miss = flag('--miss');
+const out = args[0] || path.join(__dirname, '../candidate/melee-preview/out');
+const L0 = require('../client-mods/melee/melee-load.cjs').load(), M0 = L0.JasprMeleeMotion;
+const names = args.length > 1 ? args.slice(1) : M0.clipNames;
 fs.mkdirSync(out, { recursive: true });
-const item = { sword: 'diamond_sword', axe: 'iron_axe', heavy: 'iron_axe', spear: 'iron_sword', hook: 'iron_hoe', dagger: 'iron_sword', tool: 'iron_pickaxe', fist: 'iron_sword' };
-const meshes = {};
-function mesh(name) { return meshes[name] || (meshes[name] = R.itemMesh(R.decodePNG(fs.readFileSync(path.join(textures, name + '.png'))))); }
-const family = n => Object.keys(motion.groups).find(g => motion.groups[g].includes(n));
-const clips = process.argv.length > 3 ? process.argv.slice(3) : motion.clipNames.filter(n => !n.startsWith('fist'));
-const W = 320, H = 180, N = 14;
-for (const name of clips) {
-  const m = mesh(item[family(name)]), frames = [], marks = [];
-  for (let i = 0; i < N; i++) { const p = i / (N - 1) * 0.999; frames.push(R.frame({ width: W, height: H, items: [{ mesh: m, side: 1, motion: motion.pose(name, p, true) }] })); marks.push(p); }
-  R.save(R.sheet(frames, 7, marks), path.join(out, name + '.png'));
-  // path plot at 2x
-  const c = R.frame({ width: W * 2, height: H * 2, items: [{ mesh: m, side: 1, motion: null }] }), proj = R.M.perspective(70, W / H, 0.05, 50);
-  const colors = { windup: [255, 220, 0], stroke: [230, 40, 40], recover: [40, 90, 255] };
-  for (let i = 0; i <= 90; i++) {
-    const p = i / 90 * 0.999, pose = motion.pose(name, p, true), hm = R.handMatrix(1, pose);
-    const tip = R.project(proj, hm, [0.93, 0.93, 0.5], W * 2, H * 2), grip = R.project(proj, hm, [0.22, 0.2, 0.5], W * 2, H * 2);
-    const col = colors[pose.phase] || [255, 255, 255];
-    if (!tip.behind) c.dot(tip.x, tip.y, 2, col);
-    if (!grip.behind) c.dot(grip.x, grip.y, 1, [255, 255, 255]);
+const W = 320, H = 180;
+for (const name of names) {
+  const mv = M0.moves[name]; if (!mv) { console.log('no move', name); continue; }
+  const cls = M0.classes[mv.cls];
+  const apoc = itemArg && /^apocalypse_|^[a-z_]+$/.test(itemArg) && M0.describe(276, '{JasprApocalypse:{id:"' + itemArg.replace(/^apocalypse_/, '') + '"}}', 0).cls ? itemArg.replace(/^apocalypse_/, '') : null;
+  const main = apoc ? { id: 276, nbt: '{JasprApocalypse:{id:"' + apoc + '"}}', art: 'apocalypse_' + apoc } : { cls: mv.cls, art: itemArg || cls.preview };
+  const sim = S.play({ main, clicks: [{ hand: 'M', tick: 0, move: name, result: miss ? 'miss' : 'hit', target: miss ? -1 : 7 }], ticks: 0, step: 0.25 });
+  const clip = sim.M._test.hands()[0].strike || sim.M._test.hands()[0].recent && sim.M._test.hands()[0].recent[0];
+  const dur = clip ? clip.realDur + 0.5 : 14;
+  const sim2 = S.play({ main, clicks: [{ hand: 'M', tick: 0, move: name, result: miss ? 'miss' : 'hit', target: miss ? -1 : 7 }], ticks: dur, step: 0.25 });
+  const item = R.previewItem(sim2.main.art);
+  const N = 16, frames = [], marks = [];
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1) * dur, f = sim2.frames[Math.min(sim2.frames.length - 1, Math.round(t / 0.25))];
+    frames.push(R.frame({ width: W, height: H, items: f.poses[0] ? [{ ...item, side: 1, motion: f.poses[0] }] : [{ ...item, side: 1, motion: null }], trails: [f.trails[0]] }));
+    marks.push(t / dur);
+  }
+  R.save(R.sheet(frames, 8, marks), path.join(out, name + '.png'));
+  // path plot at 2x: the tip of the blade on screen every 0.25 tick
+  const c = R.frame({ width: W * 2, height: H * 2, items: [{ ...item, side: 1, motion: null }] }), proj = R.M.perspective(70, W / H, 0.05, 50);
+  const colors = { windup: [255, 220, 0], hold: [255, 140, 0], stroke: [230, 40, 40], recover: [40, 90, 255] };
+  const table = require('../client-mods/melee/melee-models.js'), mt = apoc && table[apoc];
+  const tipLocal = item.mesh.model && mt ? mt.tip.map(v => v / 16) : [0.93, 0.93, 0.5];
+  for (const f of sim2.frames) {
+    const pose = f.poses[0]; if (!pose) continue;
+    const hm = R.handMatrix(1, pose, 0, item.display), tip = R.project(proj, R.M.mul(hm, R.M.id()), tipLocal, W * 2, H * 2);
+    if (!tip.behind) c.dot(tip.x, tip.y, 2, colors[pose.phase] || [255, 255, 255]);
   }
   R.save(c, path.join(out, name + '-path.png'));
+  const fx = sim2.effects.filter(e => e.kind === 'impact');
+  console.log(name.padEnd(20), 'dur', dur.toFixed(1), 'contact', clip ? clip.contact.toFixed(2) : '-', 'impacts', fx.length, fx[0] ? 'kick ' + JSON.stringify(fx[0].kick) : '');
 }
-console.log('wrote', clips.length, 'clips to', out);

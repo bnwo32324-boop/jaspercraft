@@ -1,351 +1,523 @@
-/* JasperCraft first-person melee motion (v4, 2026-10-02).
- * Places the held weapon in first person as if a real arm swung it: the grip travels on arcs around a virtual shoulder,
- * a cut keeps the blade in its swing plane so the edge leads the motion, the wrist cocks before the strike and turns
- * over through it, and the reversal points (top of the wind-up, end of the follow-through) slow to a stop the way a
- * real swing does. Clocked by simulation ticks (player ticks + partial ticks), never by wall time. Third-person attack
- * poses are Mo' Bends' job; nothing here touches the player model. No camera shake, no gameplay, timing or packet
- * change: only the first-person held-item matrix (one translate and one axis-angle rotate) is produced.
+/* JasperCraft first-person melee motion v5 (2026-10-11): per-hand timelines, combos, dual-wield choreography, hit-stop
+ * and the effect intents (impacts, trails) the JASPR_COMBATFX stage turns into camera kicks, sparks and blade trails.
+ *
+ * Everything is clocked by simulation ticks (player ticks + partial ticks), never by wall time alone, and is a pure
+ * function of the swings observed so far and the tick being drawn, so it is deterministic and testable offline.
+ * Visual only: damage, reach, cooldowns and packets are untouched; the only engine-facing output is the first-person
+ * held-item matrix (one translate and one axis-angle rotate per hand) and the effect intents.
+ *
+ * A strike is a move of the weapon's class: wind-up (anticipation, an optional loaded pause at the top), a fast
+ * committed stroke whose edge leads, and a recovery (follow-through, optional twirl, settle back to the vanilla rest).
+ * Strike sources: JasprMeleeMotion.mark (the Better Combat head's markSwing), the combat feed's 'swing' events
+ * (JasprCombatFeed, workstream A) and, as a fallback, JasprBetterCombat.motion(); the three are merged per hand.
+ * While dual wielding, the hand that is not striking plays a support track tied to the striking hand's timeline (guard,
+ * cock, counter, flow, tuck, brace, ready, duck), so both weapons move as one body; see melee-dual.js.
  */
-var JasprMeleeMotion = (function () {
+var JasprMeleeMotion = (function (C, MV, IT, DU) {
   'use strict';
-  var DEG = Math.PI / 180;
+  var ZERO = C.ZERO, REST = C.REST;
+  var COMBO_WINDOW = 26;      // ticks after a stroke ends within which the next strike continues the combo chain
+  var BOTH_WINDOW = 4.5;      // ticks: a strike of the other hand this soon after one hand's click is a joint move
+  var MERGE_MS = 320;         // observations of one swing from different sources (mark, feed, poll) are merged
+  var MAX_EFFECTS = 16, MAX_FEED = 64;
 
-  // ---------------------------------------------------------------- vectors and quaternions ([x, y, z, w])
-  function add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
-  function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
-  function mul(a, s) { return [a[0] * s, a[1] * s, a[2] * s]; }
-  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
-  function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
-  function len(a) { return Math.sqrt(dot(a, a)); }
-  function unit(a) { var l = len(a); return l > 1e-12 ? mul(a, 1 / l) : [0, 0, 0]; }
-  function lerp(a, b, t) { return a + (b - a) * t; }
-  function lerp3(a, b, t) { return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]; }
-  function qmul(a, b) {
-    return [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
-      a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]];
-  }
-  function qconj(q) { return [-q[0], -q[1], -q[2], q[3]]; }
-  function qnorm(q) { var l = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]) || 1; return [q[0] / l, q[1] / l, q[2] / l, q[3] / l]; }
-  function qaxis(axis, angle) { var a = unit(axis), s = Math.sin(angle / 2); return [a[0] * s, a[1] * s, a[2] * s, Math.cos(angle / 2)]; }
-  function qrot(q, v) { var r = qmul(qmul(q, [v[0], v[1], v[2], 0]), qconj(q)); return [r[0], r[1], r[2]]; }
-  // rotation vector (axis * angle) of a unit quaternion, shortest arc
-  function qlog(q) {
-    if (q[3] < 0) q = [-q[0], -q[1], -q[2], -q[3]];
-    var s = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2]);
-    if (s < 1e-9) return [q[0] * 2, q[1] * 2, q[2] * 2];
-    var angle = 2 * Math.atan2(s, q[3]);
-    return [q[0] / s * angle, q[1] / s * angle, q[2] / s * angle];
-  }
-  function qexp(v) { var angle = len(v); return angle < 1e-12 ? [v[0] / 2, v[1] / 2, v[2] / 2, 1] : qaxis(v, angle); }
-  // rotation taking the orthonormal frame (a1, b1) onto (a2, b2)
-  function qframes(a1, b1, a2, b2) {
-    var c1 = cross(a1, b1), c2 = cross(a2, b2), m = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-    for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) m[i][j] = a2[i] * a1[j] + b2[i] * b1[j] + c2[i] * c1[j];
-    var tr = m[0][0] + m[1][1] + m[2][2], q;
-    if (tr > 0) { var s = Math.sqrt(tr + 1) * 2; q = [(m[2][1] - m[1][2]) / s, (m[0][2] - m[2][0]) / s, (m[1][0] - m[0][1]) / s, s / 4]; }
-    else if (m[0][0] > m[1][1] && m[0][0] > m[2][2]) { var s0 = Math.sqrt(1 + m[0][0] - m[1][1] - m[2][2]) * 2; q = [s0 / 4, (m[0][1] + m[1][0]) / s0, (m[0][2] + m[2][0]) / s0, (m[2][1] - m[1][2]) / s0]; }
-    else if (m[1][1] > m[2][2]) { var s1 = Math.sqrt(1 + m[1][1] - m[0][0] - m[2][2]) * 2; q = [(m[0][1] + m[1][0]) / s1, s1 / 4, (m[1][2] + m[2][1]) / s1, (m[0][2] - m[2][0]) / s1]; }
-    else { var s2 = Math.sqrt(1 + m[2][2] - m[0][0] - m[1][1]) * 2; q = [(m[0][2] + m[2][0]) / s2, (m[1][2] + m[2][1]) / s2, s2 / 4, (m[1][0] - m[0][1]) / s2]; }
-    return qnorm(q);
-  }
-  // cubic Hermite basis on [0, 1] for value pairs and slopes already scaled by the span
-  function hermite(p0, p1, m0, m1, t) {
-    var t2 = t * t, t3 = t2 * t;
-    return (2 * t3 - 3 * t2 + 1) * p0 + (t3 - 2 * t2 + t) * m0 + (-2 * t3 + 3 * t2) * p1 + (t3 - t2) * m1;
-  }
-  function hermite3(p0, p1, m0, m1, t) { return [hermite(p0[0], p1[0], m0[0], m1[0], t), hermite(p0[1], p1[1], m0[1], m1[1], t), hermite(p0[2], p1[2], m0[2], m1[2], t)]; }
+  var knobs = { motion: true, hitstop: 1, amplitude: true, support: true, impacts: true, trails: true, dual: true, trailTicks: 1.8, trailSamples: 10 };
+  var stats = { draws: 0, marks: 0, observed: 0, merged: 0, strikes: 0, chained: 0, queued: 0, supports: 0, joint: 0, impacts: 0,
+    stops: 0, late: 0, upgrades: 0, feedEvents: 0, polled: 0, effectsDropped: 0, dropped: 0, errors: 0, last: null, clips: {} };
 
-  // ---------------------------------------------------------------- the resting weapon (vanilla first person)
-  // transformSideFirstPerson puts the right hand's pivot at (0.56, -0.52, -0.72); item/handheld's
-  // firstperson_righthand (translate 1.13/3.2/1.13 px, rotate 0/-90/25, scale 0.68) then holds the sprite.
-  var PIVOT = [0.56, -0.52, -0.72];
-  function display(v, direction) {
-    var x = (v[0] - (direction ? 0 : 0.5)) * 0.68, y = (v[1] - (direction ? 0 : 0.5)) * 0.68, z = (v[2] - (direction ? 0 : 0.5)) * 0.68;
-    var c = Math.cos(25 * DEG), s = Math.sin(25 * DEG), x1 = x * c - y * s, y1 = x * s + y * c;
-    var out = [-z, y1, x1];   // rotate -90 degrees about Y: (x, y, z) -> (-z, y, x)
-    return direction ? unit(out) : add(out, [1.13 / 16, 3.2 / 16, 1.13 / 16]);
+  // ---------------------------------------------------------------- clips
+  // Phase lengths are authored in ticks at the class's nominal cooldown; the real cooldown of the held weapon scales
+  // them: the anticipation and stroke gently (snappy stays snappy), the recovery fully, so a weapon is back at rest
+  // about when it is recharged.
+  function timing(move, cls, period) {
+    var P = cls.period || 12.5, p = period > 0 && Number.isFinite(period) ? period : P, s = C.clamp(p / P, 0.7, 1.6), f = Math.pow(s, 0.4);
+    return { tw: move.w * f, th: (move.h || 0) * f, ts: move.s * f, tr: Math.max(2.5, move.r * s) };
   }
-  var GRIP_LOCAL = display([0.22, 0.20, 0.5]);          // where the hand holds the handle, relative to the pivot
-  var TIP_LOCAL = display([0.93, 0.93, 0.5]);
-  var GRIP = add(PIVOT, GRIP_LOCAL);                   // grip at rest, view space (blocks)
-  var BLADE = unit(sub(TIP_LOCAL, GRIP_LOCAL));        // rest blade direction: up and a little toward the eye
-  var FLAT = display([0, 0, 1], true);                 // rest normal of the blade's flat: (-1, 0, 0)
-  var EDGE = unit(cross(BLADE, FLAT));                 // rest forward edge direction
-
-  var REST = { g: GRIP, q: [0, 0, 0, 1] };
-
-  // ---------------------------------------------------------------- strokes
-  // Positions are given the way they look: (screen x, screen y, depth) with x and y from -1 to 1 across a 16:9 view
-  // seen through the hand's fixed 70 degree field of view, and depth in blocks in front of the eye.
-  var TAN_V = Math.tan(35 * DEG), TAN_H = TAN_V * 16 / 9;
-  function view(p) { return [p[0] * TAN_H * p[2], p[1] * TAN_V * p[2], -p[2]]; }
-  function smooth(t) { return t * t * (3 - 2 * t); }
-  // shape-preserving cubic through (0, v0), (k, v1), (1, v2): no overshoot, flat at a turning point
-  function curve(v0, v1, v2, k, u) {
-    var s0 = (v1 - v0) / k, s1 = (v2 - v1) / (1 - k), m = 0;
-    if (s0 * s1 > 0) { var w1 = 2 * (1 - k) + k, w2 = (1 - k) + 2 * k; m = (w1 + w2) / (w1 / s0 + w2 / s1); }
-    var m0 = (3 * s0 - m) / 2, m2 = (3 * s1 - m) / 2;
-    if (m0 * s0 <= 0) m0 = 0; if (m2 * s1 <= 0) m2 = 0;
-    return u <= k ? hermite(v0, v1, m0 * k, m * k, u / k) : hermite(v1, v2, m * (1 - k), m2 * (1 - k), (u - k) / (1 - k));
+  // amplitude from the energy at the click: a full-energy strike swings the full arc, a spammed one a shorter arc
+  // around the same contact point (it looks as weak as it hits)
+  function amplitude(energy) { return !knobs.amplitude || !Number.isFinite(energy) ? 1 : C.clamp(0.6 + 0.4 * Math.pow(C.clamp(energy, 0, 1), 0.7), 0.6, 1); }
+  function makeClip(move, cls, o) {
+    var tm = timing(move, cls, o.period), st = move.stroke, ks = C.strokeKeys(st), ci = move.contactKey == null ? 1 : move.contactKey;
+    if (o.delay > 0) tm.th += o.delay;   // a joining strike held cocked so it lands just after the other hand's
+    var kc = ks[Math.min(ci, ks.length - 1)], a = o.amp == null ? 1 : o.amp, u0 = kc * (1 - a), u1 = kc + (1 - kc) * a;
+    var tc = C.strokeTimeOf((kc - u0) / Math.max(1e-6, u1 - u0), move.peak, move.lead, move.top);
+    var clip = { move: move, name: move.name, cls: cls.name, tw: tm.tw, th: tm.th, ts: tm.ts, tr: tm.tr, u0: u0, u1: u1, kc: kc, amp: a,
+      tick: o.tick, start: o.start || null, hand: o.hand, seq: o.seq || 0, variant: o.variant || null, joint: !!o.joint,
+      target: -1, result: null, crit: false, sweep: false, fatal: false, impactDone: false, impactFired: false, upgraded: false,
+      stop: null, keysW: null, keysH: null, keysR: null, at: o.at || 0 };
+    clip.dur = clip.tw + clip.th + clip.ts + clip.tr;
+    clip.strokeEnd = clip.tw + clip.th + clip.ts;
+    clip.contact = clip.tw + clip.th + clip.ts * tc;
+    clip.realDur = clip.dur;
+    return clip;
   }
-  function curve3(a, b, c, k, u) { return [curve(a[0], b[0], c[0], k, u), curve(a[1], b[1], c[1], k, u), curve(a[2], b[2], c[2], k, u)]; }
-  // in-plane axes: yp is "up" seen in the plane ("forward" for a level plane), xp is to its right
-  function planeBasis(n) {
-    var ref = Math.abs(n[1]) > 0.95 ? [0, 0, -1] : [0, 1, 0], yp = unit(sub(ref, mul(n, dot(ref, n))));
-    return { n: n, yp: yp, xp: cross(yp, n) };
+  function cockedPose(clip) {
+    var m = clip.move;
+    if (!(clip.th > 0)) return C.strokePose(m.stroke, clip.u0);
+    // arrive a little into the stroke, then draw back during the pause: the loaded moment before a heavy blow
+    return C.strokePose(m.stroke, Math.min(clip.kc, clip.u0 + (m.tense == null ? 0.07 : m.tense)));
   }
-  function planeNormal(tilt) { var y = (tilt ? tilt[0] : 0) * DEG, x = (tilt ? tilt[1] : 0) * DEG; return [Math.sin(y) * Math.cos(x), Math.sin(x), Math.cos(y) * Math.cos(x)]; }
-  // cut: the blade turns inside one plane that faces the eye (its normal tipped by plane = [yaw, pitch] degrees from
-  // the line of sight), like cutting through a sheet hung in front of you, so the edge always leads the motion.
-  // grip: the hand at the start of the stroke, at contact and at the end; blade: the blade's angle in that plane at
-  // the same moments (0 = pointing right, 90 = up, 180 = left, 270 = down); flip turns the other face to the eye.
-  function cutPose(c, u) {
-    var B = planeBasis(planeNormal(c.plane)), n = B.n, yp = B.yp, xp = B.xp, k = c.contact;
-    var g = curve3(view(c.grip[0]), view(c.grip[1]), view(c.grip[2]), k, u);
-    var th = curve(c.blade[0], c.blade[1], c.blade[2], k, u) * DEG;
-    var d = add(mul(xp, Math.cos(th)), mul(yp, Math.sin(th)));
-    return { g: g, q: qframes(BLADE, FLAT, d, c.flip ? mul(n, -1) : n) };
-  }
-  // thrust: the hand drives from grip[0] to grip[1] while the blade points at the aim point (screen x, y, depth),
-  // its flat turned `roll` degrees from upright.
-  function thrustPose(c, u) {
-    var t = smooth(u), g = lerp3(view(c.grip[0]), view(c.grip[1]), t), aim = view(c.aim || [0, 0, 2.4]);
-    var d = unit(sub(aim, g)), up = unit(sub([0, 1, 0], mul(d, d[1]))), side = cross(d, up), r = (c.roll || 0) * DEG;
-    var flat = add(mul(side, Math.cos(r)), mul(up, Math.sin(r)));
-    return { g: g, q: qframes(BLADE, FLAT, d, flat) };
-  }
-
-  // Every clip: wind-up into the stroke's first pose, the stroke itself, recovery to the guard. Times are fractions
-  // of the clip; the stroke's speed profile peaks at `peak` (fraction of the stroke) and is zero at both ends.
-  var clips = {
-    // Swords. From the guard: a falling diagonal forehand, a cut straight down and a level slash; once the blade is
-    // over on the left (a quick follow-up), a rising backhand brings it back across.
-    'sword-forehand': { side: 'right', windup: 0.13, stroke: 0.30, peak: 0.40,
-      cut: { plane: [0, -20], grip: [[0.80, 0.30, 0.55], [0.28, -0.32, 0.62], [-0.50, -0.85, 0.55]], blade: [80, 165, 230], contact: 0.45 }, recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'sword-overhead': { side: 'right', windup: 0.15, stroke: 0.30, peak: 0.42,
-      cut: { plane: [-40, -5], grip: [[0.38, 1.05, 0.45], [0.18, -0.10, 0.60], [0.02, -0.75, 0.55]], blade: [75, 165, 240], contact: 0.47 }, recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'sword-sweep': { side: 'right', windup: 0.14, stroke: 0.30, peak: 0.40,
-      cut: { plane: [0, 72], grip: [[0.95, -0.25, 0.50], [0.20, -0.40, 0.66], [-0.75, -0.50, 0.50]], blade: [20, 120, 195], contact: 0.45 },
-      recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'sword-backhand': { side: 'left', windup: 0.16, stroke: 0.30, peak: 0.40,
-      cut: { plane: [0, -15], grip: [[-0.55, -0.55, 0.55], [0.05, -0.30, 0.62], [0.80, -0.15, 0.55]], blade: [165, 40, -10], contact: 0.45 } },
-    // Axes: a cocked wind-up over the shoulder and a steep chop, a diagonal cleave, a backhand cleave from the left.
-    'axe-chop': { side: 'right', windup: 0.20, stroke: 0.28, peak: 0.45,
-      cut: { plane: [-30, -10], grip: [[0.55, 0.95, 0.48], [0.22, -0.20, 0.62], [-0.10, -0.70, 0.52]], blade: [75, 175, 240], contact: 0.48 }, recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'axe-cleave': { side: 'right', windup: 0.18, stroke: 0.28, peak: 0.42,
-      cut: { plane: [0, -10], grip: [[0.85, 0.20, 0.52], [0.25, -0.30, 0.62], [-0.50, -0.65, 0.55]], blade: [60, 160, 220], contact: 0.46 }, recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'axe-backhand': { side: 'left', windup: 0.20, stroke: 0.28, peak: 0.42,
-      cut: { plane: [0, -10], grip: [[-0.60, -0.40, 0.55], [0.05, -0.28, 0.62], [0.85, -0.10, 0.55]], blade: [160, 45, -15], contact: 0.46, flip: true } },
-    // Mauls, hammers, greatswords: slow and big. An overhead smash, a wide level sweep, a backhand return.
-    'heavy-smash': { side: 'right', windup: 0.26, stroke: 0.26, peak: 0.48,
-      cut: { plane: [-40, -5], grip: [[0.35, 1.20, 0.45], [0.14, -0.22, 0.62], [0.02, -0.75, 0.55]], blade: [60, 175, 250], contact: 0.50 }, recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'heavy-sweep': { side: 'right', windup: 0.24, stroke: 0.27, peak: 0.45,
-      cut: { plane: [0, 68], grip: [[1.05, -0.20, 0.48], [0.15, -0.42, 0.66], [-0.75, -0.40, 0.50]], blade: [10, 120, 200], contact: 0.48 },
-      recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'heavy-return': { side: 'left', windup: 0.20, stroke: 0.27, peak: 0.45,
-      cut: { plane: [0, -10], grip: [[-0.65, -0.45, 0.55], [0.05, -0.30, 0.64], [0.90, -0.10, 0.55]], blade: [160, 45, -20], contact: 0.48, flip: true } },
-    // Spears, lances, rapiers: drawn back, then driven at the crosshair; a quicker jab.
-    'spear-drive': { side: 'right', windup: 0.34, stroke: 0.16, thrust: { grip: [[0.80, -0.66, 0.36], [0.28, -0.34, 0.74]], aim: [0, 0, 2.6] } },
-    'spear-jab': { side: 'right', windup: 0.30, stroke: 0.14, thrust: { grip: [[0.74, -0.60, 0.42], [0.34, -0.38, 0.68]], aim: [0, 0, 2.6] } },
-    // Scythes, sickles, halberds, whips: wide reaping sweeps that pull back toward the body.
-    'hook-reap': { side: 'right', windup: 0.20, stroke: 0.30, peak: 0.44,
-      cut: { plane: [0, 55], grip: [[1.00, 0.05, 0.55], [0.20, -0.35, 0.70], [-0.55, -0.45, 0.48]], blade: [30, 140, 210], contact: 0.46 },
-      recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'hook-return': { side: 'left', windup: 0.18, stroke: 0.30, peak: 0.44,
-      cut: { plane: [0, 55], grip: [[-0.70, -0.50, 0.50], [0.05, -0.35, 0.68], [0.90, -0.15, 0.50]], blade: [170, 60, 0], contact: 0.46, flip: true } },
-    // Daggers: short, quick cuts close to the body and a stab.
-    'dagger-slash': { side: 'right', windup: 0.12, stroke: 0.30, peak: 0.38,
-      cut: { plane: [0, -15], grip: [[0.70, 0.05, 0.50], [0.25, -0.35, 0.58], [-0.30, -0.70, 0.52]], blade: [75, 160, 215], contact: 0.42 }, recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'dagger-stab': { side: 'right', windup: 0.30, stroke: 0.16, thrust: { grip: [[0.74, -0.72, 0.38], [0.30, -0.38, 0.62]], aim: [0, 0, 2.2] } },
-    'dagger-backhand': { side: 'left', windup: 0.16, stroke: 0.30, peak: 0.38,
-      cut: { plane: [0, -15], grip: [[-0.40, -0.60, 0.50], [0.05, -0.35, 0.58], [0.65, -0.15, 0.52]], blade: [175, 50, 0], contact: 0.42 } },
-    // Pickaxes, shovels, hoes used as weapons: an overhand hack, a short side swipe, a backhand return.
-    'tool-hack': { side: 'right', windup: 0.18, stroke: 0.30, peak: 0.45,
-      cut: { plane: [-45, -10], grip: [[0.45, 0.85, 0.48], [0.20, -0.22, 0.62], [0.05, -0.90, 0.52]], blade: [70, 170, 245], contact: 0.48 } },
-    'tool-swipe': { side: 'right', windup: 0.15, stroke: 0.30, peak: 0.42,
-      cut: { plane: [0, -15], grip: [[0.80, 0.15, 0.52], [0.25, -0.30, 0.62], [-0.45, -0.75, 0.55]], blade: [70, 160, 225], contact: 0.45 }, recover: [{ at: 0.45, grip: [0.55, -0.82, 0.58], blade: [0.70, -0.10, -0.70], flat: [-0.55, 0.10, 0.83] }] },
-    'tool-backhand': { side: 'left', windup: 0.16, stroke: 0.30, peak: 0.42,
-      cut: { plane: [0, -15], grip: [[-0.50, -0.55, 0.55], [0.05, -0.30, 0.62], [0.75, -0.15, 0.55]], blade: [165, 45, -5], contact: 0.45 } }
-  };
-  var groups = { sword: ['sword-forehand', 'sword-overhead', 'sword-sweep', 'sword-backhand'], axe: ['axe-chop', 'axe-cleave', 'axe-backhand'],
-    heavy: ['heavy-smash', 'heavy-sweep', 'heavy-return'], spear: ['spear-drive', 'spear-jab'], hook: ['hook-reap', 'hook-return'],
-    dagger: ['dagger-slash', 'dagger-stab', 'dagger-backhand'], tool: ['tool-hack', 'tool-swipe', 'tool-backhand'] };
-  var durations = { sword: 9, axe: 12, heavy: 14, spear: 9, hook: 12, dagger: 7, tool: 10, fist: 7 };
-
-  function strokePose(clip, u) { return clip.cut ? cutPose(clip.cut, u) : thrustPose(clip.thrust, u); }
-  // stroke progress with zero speed at both ends and the fastest point at `peak`
-  function strokeProgress(t, peak) {
-    // piecewise Hermite through (0,0) slope 0, (peak, peak + 0.06) at its top speed, (1,1) slope 0
-    var k = Math.max(0.2, Math.min(0.8, peak || 0.45)), mid = Math.min(0.92, k + 0.06), v = 1.9;
-    if (t <= k) return hermite(0, mid, 0, v * k, t / k);
-    return hermite(mid, 1, v * (1 - k), 0, (t - k) / (1 - k));
-  }
-
-  // Pose tracks: keys {t, g, q} with optional grip velocity v and world angular velocity w (both per unit of clip
-  // progress). Missing velocities are averaged from the neighbouring segments; the first and last key default to
-  // rest. Orientation is a cubic Hermite in the tangent space of each segment's first key, so a key can be passed
-  // through at speed instead of stopping at it.
-  var ZERO = [0, 0, 0];
-  function keyed(keys, t) {
-    var i = 0; while (i < keys.length - 2 && t > keys[i + 1].t) i++;
-    var a = keys[i], b = keys[i + 1], h = Math.max(1e-6, b.t - a.t), u = Math.max(0, Math.min(1, (t - a.t) / h));
-    var delta = segment(a, b), wa = qrot(qconj(a.q), spin(keys, i)), wb = qrot(qconj(a.q), spin(keys, i + 1));
-    var g = hermite3(a.g, b.g, mul(speed(keys, i), h), mul(speed(keys, i + 1), h), u);
-    var r = hermite3(ZERO, delta, mul(wa, h), mul(wb, h), u);
-    return { g: g, q: qnorm(qmul(a.q, qexp(r))) };
-  }
-  function segment(a, b) { return qlog(qmul(qconj(a.q), b.q)); }
-  function speed(keys, i) {
-    var k = keys[i]; if (k.v) return k.v; if (i === 0 || i === keys.length - 1) return ZERO;
-    return mul(sub(keys[i + 1].g, keys[i - 1].g), 1 / (keys[i + 1].t - keys[i - 1].t));
-  }
-  function spin(keys, i) {
-    var k = keys[i]; if (k.w) return k.w; if (i === 0 || i === keys.length - 1) return ZERO;
-    var p = keys[i - 1], n = keys[i + 1];
-    var w0 = mul(qrot(p.q, segment(p, k)), 1 / (k.t - p.t)), w1 = mul(qrot(k.q, segment(k, n)), 1 / (n.t - k.t));
-    return mul(add(w0, w1), 0.5);
-  }
-  // a via key inside a clip: grip position (screen x, y, depth) and the blade's angle in the stroke's plane
-  function via(clip, at, key) {
-    if (typeof key.blade !== 'number') {
-      var b = unit(key.blade), f0 = key.flat || FLAT, f = unit(sub(f0, mul(b, dot(f0, b))));
-      return { t: at, g: view(key.grip), q: qframes(BLADE, FLAT, b, f) };
+  function viaKey(clip, at, k) {
+    var st = clip.move.stroke;
+    if (typeof k.blade === 'number' && st.kind !== 'thrust') {
+      var pb = C.planeBasis(C.planeNormal(st.plane)), th = k.blade * C.DEG, d = C.add(C.mul(pb.xp, Math.cos(th)), C.mul(pb.yp, Math.sin(th)));
+      var flat = st.flip ? C.mul(pb.n, -1) : pb.n;
+      if (k.roll) flat = C.rotateAbout(flat, d, k.roll * C.DEG);
+      return { t: at, g: C.view(k.grip), q: C.qframes(st.reverse || k.reverse ? C.mul(C.BLADE, -1) : C.BLADE, C.FLAT, d, flat) };
     }
-    var c = clip.cut || clip.thrust, B = planeBasis(planeNormal(c.plane)), n = B.n, yp = B.yp, xp = B.xp, th = key.blade * DEG;
-    var d = add(mul(xp, Math.cos(th)), mul(yp, Math.sin(th)));
-    return { t: at, g: view(key.grip), q: qframes(BLADE, FLAT, d, c.flip ? mul(n, -1) : n) };
+    var p = k.pose || (k.pose = poseOf(k));
+    return k.still ? { t: at, g: p.g, q: p.q, v: ZERO, w: ZERO } : { t: at, g: p.g, q: p.q };
   }
-  function recoveryKeys(clip) {
-    if (clip.recoveryKeys) return clip.recoveryKeys;
-    var t0 = clip.windup + clip.stroke, last = strokePose(clip, 1), keys = [{ t: t0, g: last.g, q: last.q, v: ZERO, w: ZERO }];
-    (clip.recover || []).forEach(function (k) { keys.push(via(clip, t0 + (1 - t0) * k.at, k)); });
-    keys.push({ t: 1, g: REST.g, q: REST.q, v: ZERO, w: ZERO });
-    return (clip.recoveryKeys = keys);
+  // a free key: grip (screen x, y, depth), aim [yaw, pitch] of the blade, roll of the flat about the blade (degrees);
+  // or, for swipes, rot [axis x, y, z, degrees] relative to the resting item
+  function poseOf(k) {
+    if (k.rot) return { g: C.view(k.grip), q: C.qexp(C.rotVec(k.rot)) };
+    var dir = k.dir || C.aimDir(k.aim[0], k.aim[1]), ref = k.flat || [-1, 0, 0];
+    var f = C.sub(ref, C.mul(dir, C.dot(ref, dir)));
+    if (C.len(f) < 1e-3) f = C.cross(dir, [0, 0, 1]);
+    f = C.unit(f);
+    if (k.roll) f = C.rotateAbout(f, dir, k.roll * C.DEG);
+    return C.freePose(k.grip, dir, f, k.reverse);
   }
-  function windupKeys(swing, clip, T) {
-    if (swing.windupKeys && swing.windupClip === swing.clip) return swing.windupKeys;
-    var from = swing.start, first = strokePose(clip, 0), keys;
-    keys = [from ? { t: 0, g: from.g, q: from.q, v: mul(from.v, T), w: mul(from.w, T) } : { t: 0, g: REST.g, q: REST.q, v: ZERO, w: ZERO }];
-    (from ? [] : clip.ready || []).forEach(function (k) { keys.push(via(clip, clip.windup * k.at, k)); });
-    keys.push({ t: clip.windup, g: first.g, q: first.q, v: ZERO, w: ZERO });
-    swing.windupClip = swing.clip;
-    return (swing.windupKeys = keys);
+  function windupKeys(clip) {
+    if (clip.keysW) return clip.keysW;
+    var from = clip.start, m = clip.move, first = cockedPose(clip), keys;
+    keys = [from ? { t: 0, g: from.g, q: from.q, v: from.v, w: from.w } : { t: 0, g: REST.g, q: REST.q, v: ZERO, w: ZERO }];
+    (m.ready || []).forEach(function (k) { if (!from || k.always || nearRest(from)) keys.push(viaKey(clip, clip.tw * k.at, k)); });
+    keys.push({ t: clip.tw, g: first.g, q: first.q, v: ZERO, w: ZERO });
+    return (clip.keysW = keys);
   }
-  // A swing in progress: `start` is where the weapon was (pose and velocity per tick) when the attack began, so a
-  // combo or a quick re-click flows out of the previous motion instead of snapping to the guard first.
-  function evaluate(swing, tick) {
-    var clip = clips[swing.clip];
-    if (!clip) return { g: REST.g, q: REST.q, phase: 'rest' };
-    var T = swing.duration, p = Math.max(0, Math.min(1, tick / T)), w = clip.windup, s = clip.stroke, pose;
-    if (p < w) { pose = keyed(windupKeys(swing, clip, T), p); pose.phase = 'windup'; return pose; }
-    if (p < w + s) { pose = strokePose(clip, strokeProgress((p - w) / s, clip.peak)); pose.phase = 'stroke'; return pose; }
-    pose = keyed(recoveryKeys(clip), p); pose.phase = 'recover'; return pose;
+  function nearRest(s) { return C.len(C.sub(s.g, REST.g)) < 0.06 && C.qangle(s.q, REST.q) < 0.2 && C.len(s.v) < 0.02; }
+  function holdKeys(clip) {
+    if (clip.keysH) return clip.keysH;
+    var a = cockedPose(clip), b = C.strokePose(clip.move.stroke, clip.u0);
+    return (clip.keysH = [{ t: clip.tw, g: a.g, q: a.q, v: ZERO, w: ZERO }, { t: clip.tw + clip.th, g: b.g, q: b.q, v: ZERO, w: ZERO }]);
   }
-  function velocity(swing, tick) {
-    var h = 0.02, t0 = Math.max(0, tick - h), a = evaluate(swing, t0), b = evaluate(swing, tick + h), dt = tick + h - t0;
-    return { v: mul(sub(b.g, a.g), 1 / dt), w: mul(qrot(a.q, qlog(qmul(qconj(a.q), b.q))), 1 / dt) };
+  function recoverKeys(clip) {
+    if (clip.keysR) return clip.keysR;
+    var m = clip.move, t0 = clip.strokeEnd, last = C.strokePose(m.stroke, clip.u1), keys = [{ t: t0, g: last.g, q: last.q, v: ZERO, w: ZERO }];
+    (m.recover || []).forEach(function (k) { keys.push(viaKey(clip, t0 + clip.tr * k.at, k)); });
+    keys.push({ t: clip.dur, g: REST.g, q: REST.q, v: ZERO, w: ZERO });
+    return (clip.keysR = keys);
   }
-  function screenX(g) { return g[2] < -1e-3 ? g[0] / -g[2] / TAN_H : 0; }
+  // A flourish: whole turns of the weapon about one of its own axes, layered on a phase (the fingers spinning a dagger,
+  // a staff whirled overhead, a rapier's wrist roll). Whole turns end exactly where they began, so phases still meet.
+  var TWIRL_AXES = { flat: C.FLAT, blade: C.BLADE, edge: C.EDGE };
+  function spinOf(tw, t, a, b, pose) {
+    if (!tw || t <= a) return pose;
+    var f = t >= b ? 1 : C.smooth((t - a) / (b - a)), angle = 2 * Math.PI * Math.round(tw.turns) * f;
+    return { g: pose.g, q: C.qnorm(C.qmul(pose.q, C.qaxis(TWIRL_AXES[tw.axis] || C.FLAT, angle))) };
+  }
+  function twirl(clip, pose, t) { var tw = clip.move.twirl; return tw ? spinOf(tw, t, clip.strokeEnd + clip.tr * tw.from, clip.strokeEnd + clip.tr * tw.to, pose) : pose; }
+  function windTwirl(clip, pose, t) { var tw = clip.move.windTwirl; return tw ? spinOf(tw, t, clip.tw * tw.from, clip.tw * tw.to, pose) : pose; }
+  // Hit-stop: at contact the stroke all but stops for `len` ticks, then catches up over the follow-through, so the
+  // clip still ends when it would have (the cooldown picture stays true).
+  function warp(clip, t) {
+    var s = clip.stop; if (!s || t <= s.at) return t;
+    if (t < s.at + s.len) return s.at + (t - s.at) * s.creep;
+    var x = (t - s.at - s.len) / s.catchup; if (x >= 1) return t;
+    return t - s.len * (1 - s.creep) * (1 - C.smooth(x));
+  }
+  function evalClip(clip, t) {
+    var m = clip.move, pose, phase;
+    if (t < clip.tw) { var t0 = Math.max(0, t); pose = windTwirl(clip, C.keyed(windupKeys(clip), t0), t0); phase = 'windup'; }
+    else if (t < clip.tw + clip.th) { pose = C.keyed(holdKeys(clip), t); phase = 'hold'; }
+    else if (t < clip.strokeEnd) {
+      var u = clip.u0 + (clip.u1 - clip.u0) * C.strokeProgress((t - clip.tw - clip.th) / clip.ts, m.peak, m.lead, m.top);
+      pose = C.strokePose(m.stroke, u); phase = 'stroke';
+    } else { var tt = Math.min(t, clip.dur); pose = twirl(clip, C.keyed(recoverKeys(clip), tt), tt); phase = t >= clip.dur ? 'rest' : 'recover'; }
+    pose.phase = phase;
+    return pose;
+  }
+  function clipAt(clip, T) { return evalClip(clip, warp(clip, T - clip.tick)); }
+  function clipActive(clip, T) { return !!clip && T >= clip.tick && T - clip.tick < clip.realDur; }
 
-  // The native transform after transformSideFirstPerson: translate, then one axis-angle rotation, so that the
-  // rest grip lands on the pose's grip and the weapon takes the pose's orientation. Left hands mirror X.
-  function toNative(pose, right, name, progress) {
-    var q = qnorm(pose.q), g = pose.g, t = sub(sub(g, PIVOT), qrot(q, GRIP_LOCAL));
-    var s = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2]), angle = 2 * Math.atan2(s, q[3]) / DEG;
-    var axis = s > 1e-10 ? [q[0] / s, q[1] / s, q[2] / s] : [0, 0, 1];
-    if (!right) { t = [-t[0], t[1], t[2]]; axis = [axis[0], -axis[1], -axis[2]]; }
-    return { clip: name, progress: progress, tx: t[0], ty: t[1], tz: t[2], rotation: { angle: angle, x: axis[0], y: axis[1], z: axis[2] }, phase: pose.phase };
+  // ---------------------------------------------------------------- support tracks (the hand that is not striking)
+  // Key poses come from melee-dual.js for the pair; they are timed to the leader's wind-up end, contact, stroke end and
+  // end, and evaluated on the leader's own (hit-stop warped) clock, so the two hands stay locked together.
+  function makeSupport(leader, style, cls, start, hi) {
+    var keys = [start ? { t: 0, g: start.g, q: start.q, v: start.v, w: start.w } : { t: 0, g: REST.g, q: REST.q, v: ZERO, w: ZERO }];
+    var poses = DU.supportPoses(style, cls, leader.cls, leader.move);
+    var times = [leader.tw + leader.th * 0.5, leader.contact, leader.strokeEnd + leader.tr * 0.25];
+    for (var i = 0; i < poses.length && i < times.length; i++) if (poses[i]) { var p = poses[i]; keys.push({ t: times[i], g: p.g, q: p.q }); }
+    keys.push({ t: leader.dur, g: REST.g, q: REST.q, v: ZERO, w: ZERO });
+    // keys must increase in time
+    for (var j = 1; j < keys.length; j++) if (keys[j].t <= keys[j - 1].t) keys[j].t = keys[j - 1].t + 0.05;
+    stats.supports++;
+    return { leader: leader, style: style, keys: keys, hand: hi, tick: leader.tick };
   }
+  function supportAt(sup, T) {
+    var lt = warp(sup.leader, T - sup.leader.tick), last = sup.keys[sup.keys.length - 1].t;
+    var pose = C.keyed(sup.keys, C.clamp(lt, 0, last));
+    pose.phase = lt >= last ? 'rest' : 'support';
+    return pose;
+  }
+  function supportActive(sup, T) { return !!sup && T >= sup.tick && warp(sup.leader, T - sup.leader.tick) < sup.keys[sup.keys.length - 1].t; }
 
-  // ---------------------------------------------------------------- items -> families (vanilla ids + custom metadata)
-  function family(id) {
-    return id === 0 ? 'fist' : [267, 268, 272, 276, 283].indexOf(id) >= 0 ? 'sword' : [258, 271, 275, 279, 286].indexOf(id) >= 0 ? 'axe'
-      : [256, 257, 269, 270, 273, 274, 277, 278, 284, 285, 290, 291, 292, 293, 294].indexOf(id) >= 0 ? 'tool' : null;
+  // ---------------------------------------------------------------- hands
+  function newHand(i) { return { index: i, strike: null, queued: null, support: null, pending: [], seq: 0, lastEnd: -1e9, lastSide: 'right', desc: null, boundAt: -1e9, right: i === 0, energy: 1, period: 0, lastPoll: 0 }; }
+  var hands = [newHand(0), newHand(1)], effects = [], feedSeq = -1, feedOverride = null, lastFrameT = null, lastNow = 0;
+  var player = { sprint: false, ground: true, falling: false, at: -1e9 };
+
+  function poseOfHand(h, T) {
+    if (clipActive(h.strike, T)) return clipAt(h.strike, T);
+    if (supportActive(h.support, T)) return supportAt(h.support, T);
+    return null;
   }
-  function describe(id, nbt) {
-    var type = family(id), key = 'vanilla:' + id, part = typeof nbt === 'string' ? nbt.match(/(?:^|[,{])JasprApocalypse:\{([^{}]*)\}/) : null;
-    var name = part && part[1].match(/(?:^|,)id:(?:"([a-z0-9_]+)"|([a-z0-9_]+))(?:,|$)/);
-    if (name && type) {
-      key = name[1] || name[2];
-      type = /spear|lance|rapier/.test(key) ? 'spear' : /dagger|dirk|trench_blade|gravespike/.test(key) ? 'dagger' : /scythe|sickle|glaive|halberd|whip/.test(key) ? 'hook'
-        : /axe|cleaver/.test(key) ? 'axe' : /maul|hammer|mallet|mace|flail|greatsword|rebar_sword|execution_sword/.test(key) ? 'heavy' : type;
+  // pose and velocity (per tick) of a hand right now: where a new strike or support track starts from
+  function stateOf(h, T) {
+    var p = poseOfHand(h, T);
+    if (!p) return null;
+    var e = 0.03, a = poseOfHand(h, T - e) || p, b = poseOfHand(h, T + e) || { g: REST.g, q: REST.q };
+    return { g: p.g, q: p.q, v: C.mul(C.sub(b.g, a.g), 1 / (2 * e)), w: C.mul(C.qrot(a.q, C.qlog(C.qmul(C.qconj(a.q), b.q))), 1 / (2 * e)) };
+  }
+  function sideOf(state) { if (!state) return 'right'; var s = C.screen(state.g); return s[0] < -0.12 ? 'left' : s[1] > 0.25 ? 'high' : 'right'; }
+
+  // ---------------------------------------------------------------- observing swings
+  // A swing can be reported by markSwing (tick known), by the feed ('swing', wall time) or by polling motion(); the
+  // reports of one swing are merged, each new swing becomes a pending strike resolved at the hand's next draw.
+  function observe(hi, o) {
+    var h = hands[hi], now = o.at;
+    stats.observed++;
+    var list = h.pending.concat(h.strike ? [h.strike] : [], h.queued ? [h.queued] : []);
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i];
+      if (s.sources && !s.sources[o.source] && Math.abs((s.at || 0) - now) <= MERGE_MS) {
+        s.sources[o.source] = true; stats.merged++;
+        if (o.target != null && o.target >= 0) s.target = o.target;
+        if (o.source === 'mark' && Number.isFinite(o.tick) && s.tickFrom !== 'mark') { s.tickFrom = 'mark'; }
+        return s;
+      }
     }
-    return { family: type, key: key, id: id };
+    if (h.pending.length >= 3) h.pending.shift();
+    var p = { at: now, tick: o.tick, tickFrom: o.source, id: o.id, target: o.target != null ? o.target : -1, sources: {}, energy: o.energy,
+      period: o.period, sprint: player.sprint && lastNow - player.at < 400, airborne: !player.ground && player.falling && lastNow - player.at < 400 };
+    p.sources[o.source] = true;
+    h.pending.push(p);
+    return p;
   }
-
-  // ---------------------------------------------------------------- per-hand timelines
-  // Each hand plays one swing and holds at most one more. A click during a wind-up or strike never cuts the stroke
-  // off: the next move waits for that stroke to finish and flows out of its follow-through, so even fast clicking
-  // alternates forehand and backhand like a real combo. A click during the recovery starts at once, out of the
-  // weapon's current pose and velocity. Damage is untouched: this only decides what the first-person weapon shows.
-  var hands = [null, null], descriptors = new WeakMap();
-  var stats = { draws: 0, marks: 0, chained: 0, queued: 0, last: null, clips: {} };
-  // moves that start where the weapon is: a backhand only begins once the blade is already over on the left
-  var fitting = {};   // per family and side, built once (restyle runs every frame)
-  function choose(type, sequence, side) {
-    var names = groups[type]; if (!names) return null;
-    var key = type + '/' + side, fits = fitting[key];
-    if (!fits) { fits = names.filter(function (n) { return (clips[n].side || 'right') === side; }); if (!fits.length) fits = names; fitting[key] = fits; }
-    return fits[(sequence - 1) % fits.length];
-  }
-  function strokeEnd(swing) { var c = clips[swing.clip]; return swing.tick + (c.windup + c.stroke) * swing.duration; }
-  function stateAt(swing, tick) { var at = tick - swing.tick, pose = evaluate(swing, at), vel = velocity(swing, at); return { g: pose.g, q: pose.q, v: vel.v, w: vel.w }; }
   function mark(off, id, now, tick) {
-    var type = family(id), index = off ? 1 : 0, hand = hands[index];
-    if (!type || !groups[type]) { hands[index] = null; return; }   // fists keep the vanilla arm
+    if (!knobs.motion) return;
     stats.marks++;
-    var same = hand && hand.id === id && now >= hand.at && now - hand.at <= 1300 && Number.isFinite(tick) && hand.tick !== null && tick >= hand.tick;
-    if (same && tick < strokeEnd(hand)) {
-      if (!hand.queued) { hand.queued = { sequence: hand.sequence + 1 }; stats.queued++; }
-      hand.at = now;
+    var hi = off ? 1 : 0, h = hands[hi];
+    // the click is handled before the player's tick count advances: the swing starts at the next tick boundary
+    var t = Number.isFinite(tick) ? tick + 1 : lastFrameT;
+    if (!Number.isFinite(t)) return;
+    observe(hi, { source: 'mark', at: Number.isFinite(now) ? now : Date.now(), tick: t, id: id, energy: h.energy, period: h.period });
+  }
+
+  // ---------------------------------------------------------------- the combat feed (workstream A), optional
+  function feed() {
+    if (feedOverride) return feedOverride;
+    try { return typeof JasprCombatFeed !== 'undefined' && JasprCombatFeed && typeof JasprCombatFeed.since === 'function' ? JasprCombatFeed : null; } catch (e) { return null; }
+  }
+  function syncFeed(T, now) {
+    var f = feed(); if (!f) return;
+    var list; try { list = f.since(feedSeq); } catch (e) { return; }
+    if (!list || !list.length) return;
+    var n = 0;
+    for (var i = 0; i < list.length && n < MAX_FEED; i++) {
+      var e = list[i]; if (!e || !(e.seq > feedSeq)) continue;
+      feedSeq = e.seq; n++; stats.feedEvents++;
+      var hi = e.hand === 'O' ? 1 : 0, at = Number.isFinite(e.at) ? e.at : now;
+      if (e.kind === 'swing') {
+        // the player's tick count at the click when the feed carries it (the click comes before the tick advances)
+        var tick = Number.isFinite(e.tick) && e.tick >= 0 && Math.abs(e.tick + 1 - T) < 40 ? e.tick + 1 : T - Math.max(0, now - at) / 50;
+        var s = observe(hi, { source: 'feed', at: at, tick: tick, id: e.item, target: Number.isFinite(e.target) ? e.target : -1, energy: hands[hi].energy, period: hands[hi].period });
+        if (s) { if (Number.isFinite(e.target)) s.target = e.target; s.feedRef = e.seq; }
+      } else if (e.kind === 'hit' || e.kind === 'blocked' || e.kind === 'miss') confirm(hi, e, T, at, e.kind);
+      // a server refusal after a swing (ref set) is no hit: like a miss; a click consumed without a swing has no strike
+      else if (e.kind === 'denied' && e.ref > 0) confirm(hi, e, T, at, 'miss');
+    }
+  }
+  // the server's verdict on a swing: upgrades a predicted impact, or fires a late one the client did not predict. The
+  // feed's ref names the swing; without it the nearest unanswered swing of that hand (same target first) is taken.
+  function confirm(hi, e, T, at, kind) {
+    var h = hands[hi], cands = [h.queued, h.strike].concat(h.pending).concat(h.recent || []), best = null;
+    for (var i = 0; i < cands.length; i++) {
+      var s = cands[i]; if (!s || s.result) continue;
+      if (e.ref > 0) { if (s.feedRef === e.ref) { best = s; break; } continue; }
+      if (at - (s.at || 0) > 1500 || (s.at || 0) - at > 120) continue;
+      if (!best || (s.target === e.target && best.target !== e.target) || ((s.target === e.target) === (best.target === e.target) && (s.at || 0) < (best.at || 0))) best = s;
+    }
+    if (!best) return;
+    best.result = kind || e.kind; best.crit = !!e.crit; best.sweep = !!e.sweep; best.fatal = !!e.fatal;
+    if (Number.isFinite(e.target) && e.target >= 0 && best.target < 0) best.target = e.target;
+    if (best.move && best.impactDone) {
+      if (!best.impactFired && best.result !== 'miss' && T - (best.tick + best.contact) < 6) { fireImpact(hands[hi], best, T, false); stats.late++; }
+      else if (best.impactFired && !best.upgraded && best.result !== 'miss' && (best.crit || best.fatal || best.sweep || best.result === 'blocked')) { best.upgraded = true; pushEffect(impactEffect(hands[hi], best, 'upgrade')); stats.upgrades++; }
+    }
+  }
+  // fallback for a head that neither calls mark() nor writes a feed: JasprBetterCombat.motion(main) -> {at, sequence}
+  function pollMotion(T, now) {
+    try {
+      if (typeof JasprBetterCombat === 'undefined' || !JasprBetterCombat || typeof JasprBetterCombat.motion !== 'function') return;
+      for (var hi = 0; hi < 2; hi++) {
+        var m = JasprBetterCombat.motion(hi === 0), h = hands[hi];
+        if (!m || !(m.sequence > h.lastPoll)) continue;
+        h.lastPoll = m.sequence; stats.polled++;
+        observe(hi, { source: 'poll', at: m.at, tick: T - Math.max(0, now - m.at) / 50, energy: h.energy, period: h.period });
+      }
+    } catch (e) {}
+  }
+
+  // ---------------------------------------------------------------- resolving strikes
+  var FRESH_MS = 450;
+  function fresh(h) { return !!h.desc && lastNow - h.boundAt <= FRESH_MS; }
+  function classOf(h) { return fresh(h) && h.desc.cls && MV.classes[h.desc.cls] ? MV.classes[h.desc.cls] : null; }
+  function pairOf() {
+    if (!knobs.dual) return null;
+    var a = classOf(hands[0]), b = classOf(hands[1]);
+    return a && b && hands[1].dualOk !== false ? DU.pair(a.name, b.name) : null;
+  }
+  function resolve(h, T) {
+    if (!h.pending.length) return;
+    var cls = classOf(h);
+    if (!cls) {
+      // bound to a fist or a non-melee item: the vanilla arm stays; never bound yet: wait a little for the first draw
+      if (fresh(h) || lastNow - (h.pending[0].at || 0) > 600) { stats.dropped += h.pending.length; h.pending.length = 0; }
       return;
     }
-    var swing = { id: id, at: now, tick: Number.isFinite(tick) ? tick : null, sequence: same ? hand.sequence + 1 : 1, type: same ? hand.type : type,
-      key: same ? hand.key : null, bound: same ? hand.bound : false, side: 'right', duration: 0, start: null, queued: null };
-    if (same && tick < hand.tick + hand.duration) {
-      swing.start = stateAt(hand, tick); stats.chained++;
-      if (screenX(swing.start.g) < -0.15) swing.side = 'left';
+    while (h.pending.length) {
+      var p = h.pending.shift();
+      if (!Number.isFinite(p.tick) || p.tick > T + 2 || T - p.tick > 30) { stats.dropped++; continue; }
+      request(h, p, cls, T);
     }
-    swing.duration = durations[swing.type];
-    swing.clip = choose(swing.type, swing.sequence, swing.side);
-    hands[index] = swing.clip ? swing : null;
   }
-  // the waiting move takes over when the playing stroke has finished, starting exactly where that stroke ended
-  function promote(hand) {
-    var at = strokeEnd(hand), start = stateAt(hand, at);
-    hand.sequence = hand.queued.sequence; hand.queued = null; hand.tick = at; hand.start = start; hand.windupKeys = null;
-    hand.side = screenX(start.g) < -0.15 ? 'left' : 'right';
-    hand.clip = choose(hand.type, hand.sequence, hand.side); hand.duration = durations[hand.type];
-    stats.chained++;
+  function request(h, p, cls, T) {
+    var cur = h.strike;
+    // a click during a wind-up or stroke never cuts the stroke off: one move waits and flows out of its follow-through
+    if (cur && clipActive(cur, p.tick) && warp(cur, p.tick - cur.tick) < cur.strokeEnd) {
+      if (!h.queued) { h.queued = p; stats.queued++; } else { h.queued.at = p.at; }
+      return;
+    }
+    startStrike(h, p, cls, p.tick, T);
   }
-  // The real item decides the family (a custom spear on a vanilla id is a spear); a different custom item cancels.
-  function restyle(stamp, descriptor) {
-    if (!stamp || !descriptor.family) return null;
-    if (stamp.bound && stamp.key !== descriptor.key) return null;
-    if (stamp.key && stamp.key !== descriptor.key) { stamp.sequence = 1; stamp.start = null; stamp.queued = null; }
-    stamp.key = descriptor.key; stamp.bound = true; stamp.type = descriptor.family;
-    stamp.clip = choose(stamp.type, stamp.sequence, stamp.side || 'right'); stamp.duration = durations[stamp.type];
-    if (!stamp.clip) return null;
-    if (stamp.windupClip !== stamp.clip) stamp.windupKeys = null;
-    return stamp;
+  var forced = [null, null];   // previews and tests: the next move of a hand
+  function chooseMove(h, cls, p, start, tick, pair) {
+    var other = hands[1 - h.index], side = sideOf(start), name = null, joint = false;
+    if (forced[h.index] && MV.moves[forced[h.index]]) { var f = forced[h.index]; forced[h.index] = null; return { move: MV.moves[f], joint: false, delay: 0 }; }
+    if (tick - h.lastEnd > COMBO_WINDOW || h.lastCls !== cls.name) h.seq = 0;
+    // a joint move: the other hand clicked just before and is still winding up or striking
+    var delay = 0;
+    if (pair && other.strike && clipActive(other.strike, p.tick) && p.tick - other.strike.tick <= BOTH_WINDOW && other.strike.contact > p.tick - other.strike.tick - 1) {
+      name = DU.jointMove(pair, h.index === 0 ? 'main' : 'off', other.strike, cls.name);
+      joint = !!name;
+      if (joint) delay = DU.jointDelay(pair, h.index === 0 ? 'main' : 'off');
+    }
+    if (!name && p.airborne && cls.jump) name = cls.jump;
+    else if (!name && p.sprint && cls.sprint) name = cls.sprint;
+    if (!name) {
+      var chain = (pair && DU.chain(pair, h.index === 0 ? 'main' : 'off')) || cls.chain, n = chain.length;
+      for (var k = 0; k < n; k++) {
+        var cand = chain[(h.seq + k) % n], mv = MV.moves[cand];
+        if (!mv) continue;
+        if (mv.from === 'any' || mv.from === side || (side === 'high' && mv.from === 'right')) { name = cand; h.seq = (h.seq + k) % n + 1; break; }
+      }
+      if (!name) { name = chain[0]; h.seq = 1; }
+    }
+    return { move: MV.moves[name], joint: joint, delay: delay };
   }
-  function current(main, id, now) { var s = hands[main ? 0 : 1]; return s && s.id === id && now >= s.at && now - s.at < 1600 ? s : null; }
-  function phase(stamp, tick) {
-    if (!stamp || !Number.isFinite(tick) || stamp.tick === null) return null;
-    if (stamp.queued && tick >= strokeEnd(stamp)) promote(stamp);
-    return Math.max(0, (tick - stamp.tick) / stamp.duration);
+  function retire(h, clip) { if (clip) h.recent = [clip].concat(h.recent || []).slice(0, 2); }
+  function startStrike(h, p, cls, tick, T) {
+    var start = stateOf(h, tick), pair = pairOf();
+    if (h.strike) h.lastEnd = Math.max(h.lastEnd, Math.min(tick, realTimeOf(h.strike, h.strike.strokeEnd)));
+    var pick = chooseMove(h, cls, p, start, tick, pair);
+    if (!pick.move) return;
+    var clip = makeClip(pick.move, cls, { tick: tick, start: start, hand: h.index, seq: h.seq, period: Math.max(p.period || h.period || 0, h.desc && h.desc.period || 0),
+      amp: amplitude(p.energy), variant: p.airborne ? 'jump' : p.sprint ? 'sprint' : null, joint: pick.joint, at: p.at, delay: pick.delay });
+    clip.sources = p.sources; clip.target = p.target; clip.id = p.id; clip.feedRef = p.feedRef;
+    clip.result = p.result || null; clip.crit = !!p.crit; clip.sweep = !!p.sweep; clip.fatal = !!p.fatal;
+    if (h.strike) { retire(h, h.strike); if (start) stats.chained++; }
+    h.strike = clip; h.queued = null; h.support = null; h.lastCls = cls.name; h.lastSide = sideOf(start);
+    stats.strikes++; if (pick.joint) stats.joint++;
+    stats.clips[clip.name] = (stats.clips[clip.name] || 0) + 1;
+    // the other hand answers: a support track tied to this strike, unless it is winding up or striking itself (its
+    // recovery is taken over: the support starts where the weapon is, at its current speed)
+    var other = hands[1 - h.index], ocls = classOf(other);
+    if (!knobs.support || !pair || pick.joint || !ocls) return;
+    var busy = other.strike && clipActive(other.strike, tick) && warp(other.strike, tick - other.strike.tick) < other.strike.strokeEnd;
+    if (busy) return;
+    var style = DU.supportStyle(pair, h.index === 0 ? 'main' : 'off');
+    if (!style) return;
+    var os = stateOf(other, tick);
+    retire(other, other.strike); other.strike = null; other.queued = null;
+    other.support = makeSupport(clip, style, ocls.name, os, other.index);
   }
-  function sample(stamp, progress, right) { return toNative(evaluate(stamp, progress * stamp.duration), right, stamp.clip, progress); }
-  function pose(name, progress, right) {
-    var type = null; for (var g in groups) if (groups[g].indexOf(name) >= 0) type = g;
-    return toNative(evaluate({ clip: name, duration: durations[type] || 9, start: null }, progress * (durations[type] || 9)), right, name, progress);
+  // the waiting move takes over when the playing stroke has finished
+  function promote(h, T) {
+    var cur = h.strike, q = h.queued; if (!cur || !q) return;
+    var endReal = realTimeOf(cur, cur.strokeEnd);
+    if (T < endReal) return;
+    h.lastEnd = endReal;
+    var cls = classOf(h); if (!cls) { h.queued = null; return; }
+    q.tick = endReal; startStrike(h, q, cls, endReal, T); stats.chained++;
   }
-  function clear() { hands = [null, null]; stats.last = null; }
-  function record(p, main, id, sequence) { stats.draws++; stats.clips[p.clip] = (stats.clips[p.clip] || 0) + 1; stats.last = { clip: p.clip, progress: p.progress, main: main, id: id, sequence: sequence }; }
+  // the real (unwarped) local time at which the clip's warped time reaches tw
+  function realTimeOf(clip, tw) {
+    var s = clip.stop; if (!s || tw <= s.at) return clip.tick + tw;
+    var lo = tw, hi = tw + s.len + s.catchup + 1;
+    for (var i = 0; i < 30; i++) { var m = (lo + hi) / 2; if (warp(clip, m) < tw) lo = m; else hi = m; }
+    return clip.tick + (lo + hi) / 2;
+  }
 
-  return { family: family, describe: describe, mark: mark, restyle: restyle, current: current, phase: phase, sample: sample, pose: pose,
-    clear: clear, record: record, stats: stats, descriptors: descriptors, durations: durations, groups: groups, clipNames: Object.keys(clips), partial: 0,
-    _test: { evaluate: evaluate, velocity: velocity, keyed: keyed, screenX: screenX, clips: clips, strokePose: strokePose, REST: REST, GRIP: GRIP, GRIP_LOCAL: GRIP_LOCAL, PIVOT: PIVOT,
-      BLADE: BLADE, FLAT: FLAT, EDGE: EDGE, view: view, qrot: qrot, toNative: toNative, hands: function () { return hands; } } };
-}());
+  // ---------------------------------------------------------------- impacts and effect intents
+  function pushEffect(e) { if (effects.length >= MAX_EFFECTS) { effects.shift(); stats.effectsDropped++; } effects.push(e); }
+  function impactEffect(h, clip, kind) {
+    var cls = MV.classes[clip.cls] || {}, m = clip.move, k = m.kick || cls.kick || { pitch: 0.4, yaw: 0, roll: 0.4 };
+    var mult = (clip.crit ? 1.5 : 1) * (clip.fatal ? 1.25 : 1) * (clip.result === 'blocked' ? 0.6 : 1) * (0.55 + 0.45 * clip.amp) * (kind === 'upgrade' ? 0.5 : 1);
+    var mirror = h.right === false ? -1 : 1;   // a left-hand swing kicks the other way
+    return { kind: kind, hand: h.index === 0 ? 'M' : 'O', cls: clip.cls, move: clip.name, target: clip.target, crit: clip.crit, sweep: clip.sweep,
+      fatal: clip.fatal, blocked: clip.result === 'blocked', confirmed: clip.result === 'hit' || clip.result === 'blocked',
+      kick: { pitch: k.pitch * mult, yaw: (k.yaw || 0) * mult * mirror, roll: (k.roll || 0) * mult * mirror, back: (k.back || 0) * mult, ms: (cls.kickMs || 120) * (clip.crit ? 1.2 : 1), curve: k.curve || 'punch' },
+      sparks: m.sparks || cls.sparks || 'blade', dir: m.dir ? [m.dir[0] * mirror, m.dir[1]] : [-mirror, -0.3], tint: h.desc && h.desc.tint || cls.color, at: lastNow };
+  }
+  function hitstopTicks(clip) {
+    var cls = MV.classes[clip.cls] || {}, ms = (cls.hitstop || 45) + (clip.crit ? 25 : 0) + (clip.fatal ? 20 : 0);
+    if (clip.result === 'blocked') ms = Math.min(ms, 45);
+    return ms / 50 * knobs.hitstop;
+  }
+  function fireImpact(h, clip, T, withStop) {
+    clip.impactFired = true; stats.impacts++;
+    if (withStop && knobs.hitstop > 0) {
+      var len = hitstopTicks(clip), room = clip.dur - clip.contact - len;
+      if (len > 0.1 && room > 1) { clip.stop = { at: clip.contact, len: len, creep: 0.03, catchup: Math.min(4, room - 0.2) }; clip.realDur = clip.dur; stats.stops++; }
+    }
+    if (knobs.impacts) pushEffect(impactEffect(h, clip, 'impact'));
+  }
+  function impacts(T) {
+    for (var hi = 0; hi < 2; hi++) {
+      var h = hands[hi], c = h.strike;
+      if (!c || c.impactDone || T < c.tick + c.contact) continue;
+      c.impactDone = true;
+      var predicted = c.target >= 0 && c.result !== 'miss', confirmed = c.result === 'hit' || c.result === 'blocked';
+      if (predicted || confirmed) fireImpact(h, c, T, true);
+    }
+  }
+
+  // ---------------------------------------------------------------- per frame
+  function frame(T, now) {
+    if (!Number.isFinite(T)) return;
+    if (T === lastFrameT) return;
+    if (lastFrameT !== null && T < lastFrameT - 2) clear();   // respawn or a new world: the tick count restarted
+    lastFrameT = T; lastNow = Number.isFinite(now) ? now : Date.now();
+    syncFeed(T, lastNow);
+    pollMotion(T, lastNow);
+    for (var hi = 0; hi < 2; hi++) {
+      var h = hands[hi];
+      resolve(h, T);
+      promote(h, T);
+      if (h.strike && T > h.strike.tick && !clipActive(h.strike, T)) {
+        h.lastEnd = Math.max(h.lastEnd, realTimeOf(h.strike, h.strike.strokeEnd));
+        retire(h, h.strike); h.strike = null;
+      }
+      if (h.support && T > h.support.tick && !supportActive(h.support, T)) h.support = null;
+    }
+    impacts(T);
+  }
+  // A hand's item for this frame (from the real stack, JasprMeleeDescriptor; cls null = not a melee weapon), which side
+  // it is drawn on, and whether the off hand's attacks are enabled (dual wielding).
+  function bind(hi, desc, right, now, dualOk) {
+    var h = hands[hi], key = desc && desc.cls ? desc.key : null;
+    if ((h.desc && h.desc.cls ? h.desc.key : null) !== key && (h.strike || h.support || h.queued)) {
+      // another weapon (or none): the old swing is stale
+      retire(h, h.strike); h.strike = null; h.queued = null; h.support = null; h.seq = 0;
+    }
+    h.desc = desc || { cls: null, key: null }; h.right = right !== false; h.boundAt = Number.isFinite(now) ? now : lastNow;
+    if (dualOk !== undefined) h.dualOk = !!dualOk;
+  }
+  function sample(hi, energy, period) { var h = hands[hi]; if (Number.isFinite(energy)) h.energy = C.clamp(energy, 0, 1); if (period > 0 && Number.isFinite(period)) h.period = period; }
+  function samplePlayer(sprint, ground, falling, now) { player.sprint = !!sprint; player.ground = !!ground; player.falling = !!falling; player.at = Number.isFinite(now) ? now : lastNow; }
+  // The native pose for a hand at tick T, or null for the vanilla path. The engine asks twice per hand and frame (the
+  // swing-offset hook and the transform hook), so the answer is kept for the frame.
+  var poseCache = [{ T: NaN }, { T: NaN }];
+  function poseFor(hi, T, right) {
+    var h = hands[hi], cache = poseCache[hi];
+    right = right !== false;
+    if (cache.T === T && cache.right === right && cache.strike === h.strike && cache.support === h.support && cache.desc === h.desc) return cache.value;
+    resolve(h, T); promote(h, T);
+    var p = poseOfHand(h, T), out = null;
+    if (p && p.phase !== 'rest') {
+      var src = clipActive(h.strike, T) ? h.strike : h.support ? h.support.leader : null;
+      var name = clipActive(h.strike, T) ? h.strike.name : 'support:' + (h.support ? h.support.style : '');
+      var progress = src ? C.clamp((T - src.tick) / src.realDur, 0, 1) : 0;
+      out = C.toNative(p, right, name, progress, p.phase, frameOf(h));
+    }
+    cache.T = T; cache.right = right; cache.strike = h.strike; cache.support = h.support; cache.desc = h.desc; cache.value = out;
+    return out;
+  }
+  function sequence(hi) { var s = hands[hi].strike; return s ? s.seq : 0; }
+  // keep the main grip fully raised (no vanilla cooldown dip) while the main hand holds a melee weapon
+  function equipFull(id) { return !!(classOf(hands[0]) || IT.VANILLA[id] || IT.MUTANTS[id]); }
+  function frameOf(h) { var f = h.desc && h.desc.frame; return f ? C.modelFrame(f) : null; }
+
+  // ---------------------------------------------------------------- blade trails (geometry for JASPR_COMBATFX)
+  // Samples the edge over the last trailTicks of the hand's own (warped) motion: a frame-rate independent ribbon that
+  // follows the blade exactly, frozen (not collapsed) during hit-stop. Points are view space, right-hand convention.
+  function trail(hi, T) {
+    var h = hands[hi], c = h.strike;
+    if (!knobs.trails || !clipActive(c, T)) return null;
+    var cls = MV.classes[c.cls]; if (!cls || cls.trail === false) return null;
+    var lt = warp(c, T - c.tick), from = c.tw + c.th - 0.2, to = c.strokeEnd + c.tr * 0.45;
+    if (lt < from || lt > to + knobs.trailTicks) return null;
+    var tr = c.move.trail || cls.trail || {}, a = tr.from || [0.45, 0.45, 0.5], b = tr.to || [0.93, 0.93, 0.5];
+    var fr = frameOf(h), local = !!fr;
+    if (fr) { a = fr.a; b = fr.b; }
+    var N = knobs.trailSamples, L = knobs.trailTicks * (c.sweep ? 1.5 : 1) * (tr.len || 1), dt = L / N, pts = [], alive = 0, tips = [], bases = [];
+    var flash = c.impactFired && c.stop ? C.clamp(1.4 - (lt - c.stop.at) / 3, 1, 1.4) : 1;
+    for (var i = 0; i <= N + 1; i++) {
+      var tw = Math.min(lt - dt * (i - 1), to);
+      var pose = evalClip(c, Math.max(tw, 0));
+      bases.push(C.framedPoint(pose, fr, a, local)); tips.push(C.framedPoint(pose, fr, b, local));
+    }
+    for (var j = 1; j <= N + 1; j++) {
+      if (lt - dt * (j - 1) < from) break;
+      // speed of the tip around this sample (blocks per tick): slow parts of the motion leave no trail
+      var sp = C.len(C.sub(tips[j - 1], tips[Math.min(j + 1, N + 1)])) / (dt * (Math.min(j + 1, N + 1) - (j - 1)));
+      var speedA = C.clamp((sp - 0.06) / 0.22, 0, 1);
+      var alpha = (1 - (j - 1) / N) * speedA * flash * (c.crit ? 1.25 : 1) * (tr.alpha || 1);
+      if (alpha > 0.02) alive++;
+      var bp = bases[j], tp = tips[j];
+      pts.push(bp[0], bp[1], bp[2], tp[0], tp[1], tp[2], C.clamp(alpha, 0, 1));
+    }
+    if (pts.length < 14 || !alive) return null;
+    return { hand: hi, right: h.right !== false, n: pts.length / 7, pts: pts, color: (h.desc && h.desc.tint) || cls.color || [1, 1, 1],
+      width: (tr.width || 1) * (c.sweep ? 1.7 : 1), crit: c.crit, sweep: c.sweep, cls: c.cls };
+  }
+
+  // ---------------------------------------------------------------- compatibility and diagnostics
+  function family(id) { return IT.family(id); }
+  function describe(id, nbt, damage) { return IT.describe(id, nbt, damage); }
+  function clear() { hands = [newHand(0), newHand(1)]; effects.length = 0; stats.last = null; lastFrameT = null; }
+  function record(p, main, id, sequence) {
+    stats.draws++; stats.last = { clip: p.clip, progress: p.progress, phase: p.phase, main: main, id: id, sequence: sequence };
+  }
+  function drain() { var out = effects.slice(); effects.length = 0; return out; }
+  function status() {
+    var o = {}; for (var k in stats) o[k] = stats[k];
+    o.hands = hands.map(function (h) { return { cls: h.desc ? h.desc.cls : null, strike: h.strike ? h.strike.name : null, support: h.support ? h.support.style : null, queued: !!h.queued, pending: h.pending.length, seq: h.seq }; });
+    o.feed = !!feed(); o.feedSeq = feedSeq; o.knobs = knobs;
+    return o;
+  }
+  // offline evaluation of one move from rest (previews and tests)
+  function pose(name, progress, right, opts) {
+    var mv = MV.moves[name]; if (!mv) return null;
+    var cls = MV.classes[mv.cls], clip = makeClip(mv, cls, { tick: 0, period: opts && opts.period, amp: opts && opts.amp });
+    var p = evalClip(clip, C.clamp(progress, 0, 1) * clip.dur), f = opts && opts.frame ? C.modelFrame(opts.frame) : null;
+    return C.toNative(p, right !== false, name, progress, p.phase, f);
+  }
+
+  return { mark: mark, frame: frame, bind: bind, sample: sample, samplePlayer: samplePlayer, poseFor: poseFor, trail: trail, drain: drain,
+    effects: effects, family: family, describe: describe, clear: clear, record: record, status: status, pose: pose, stats: stats,
+    sequence: sequence, equipFull: equipFull, sampledAt: NaN,
+    knobs: knobs, partial: 0, descriptors: new WeakMap(), moves: MV.moves, classes: MV.classes,
+    clipNames: Object.keys(MV.moves),
+    _test: { makeClip: makeClip, evalClip: evalClip, clipAt: clipAt, warp: warp, realTimeOf: realTimeOf, stateOf: stateOf, sideOf: sideOf,
+      hands: function () { return hands; }, setFeed: function (f) { feedOverride = f; feedSeq = -1; }, makeSupport: makeSupport, supportAt: supportAt,
+      force: function (hi, name) { forced[hi] = name; },
+      timing: timing, amplitude: amplitude, player: player, observe: observe, constants: { COMBO_WINDOW: COMBO_WINDOW, BOTH_WINDOW: BOTH_WINDOW, MERGE_MS: MERGE_MS } } };
+}(typeof JasprMeleeCore !== 'undefined' ? JasprMeleeCore : require('./melee-core.js'),
+  typeof JasprMeleeMoves !== 'undefined' ? JasprMeleeMoves : require('./melee-moves.js'),
+  typeof JasprMeleeItems !== 'undefined' ? JasprMeleeItems : require('./melee-items.js'),
+  typeof JasprMeleeDual !== 'undefined' ? JasprMeleeDual : require('./melee-dual.js')));
 if (typeof module !== 'undefined' && module.exports) module.exports = JasprMeleeMotion;

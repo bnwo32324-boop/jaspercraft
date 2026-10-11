@@ -1,24 +1,22 @@
 'use strict';
-// Renders a combo the way the game plays it: each attack starts from the weapon's current pose and velocity.
-// Usage: node scripts/melee-preview-chain.cjs <out.png> <family> <clickTick,clickTick,...> [ticksTotal]
-const fs = require('node:fs'), path = require('node:path');
-const R = require('./melee-preview-render.cjs');
-const motion = require('../client-mods/melee/melee-motion.js');
-const [outFile, family, clicksArg, totalArg] = process.argv.slice(2);
-const clicks = clicksArg.split(',').map(Number), total = Number(totalArg || clicks[clicks.length - 1] + 12);
-const item = { sword: 'diamond_sword', axe: 'iron_axe', heavy: 'iron_axe', spear: 'iron_sword', hook: 'iron_hoe', dagger: 'iron_sword', tool: 'iron_pickaxe' }[family];
-const mesh = R.itemMesh(R.decodePNG(fs.readFileSync(path.join(__dirname, '../candidate/melee-preview/assets/textures/items', item + '.png'))));
-const id = { sword: 276, axe: 258, heavy: 258, spear: 267, hook: 292, dagger: 267, tool: 257 }[family];
-motion.clear();
-const frames = [], marks = [], step = 0.5, names = [];
-let next = 0;
-for (let t = 0; t <= total; t += step) {
-  while (next < clicks.length && clicks[next] <= t + 1e-9) { motion.mark(false, id, clicks[next] * 50, clicks[next]); const h = motion._test.hands()[0]; if (family !== motion.family(id)) motion.restyle(h, { family, key: 'preview-' + family, id }); names.push(h.clip); next++; }
-  const h = motion._test.hands()[0];
-  let pose = null;
-  if (h) { const p = motion.phase(h, t); if (p !== null && p < 1) pose = motion.sample(h, p, true); }
-  frames.push(R.frame({ width: 240, height: 135, items: [{ mesh, side: 1, motion: pose }] }));
-  marks.push(t / total);
+// Renders a combo the way the game plays it (real timeline: each strike flows out of the weapon's current pose and
+// speed; trails and hit-stop included). Usage:
+//   node scripts/melee-preview-chain.cjs <out.png> <class> <clickTick,clickTick,...> [ticksTotal] [--off <class> <ticks,...>]
+const R = require('./melee-preview-render.cjs'), S = require('./melee-preview-sim.cjs');
+const args = process.argv.slice(2), oi = args.indexOf('--off');
+const off = oi >= 0 ? args.splice(oi, 3).slice(1) : null;
+const [outFile, cls, clicksArg, totalArg] = args;
+const clicks = clicksArg.split(',').map(Number).map(t => ({ hand: 'M', tick: t, result: 'hit' }));
+if (off) for (const t of off[1].split(',').map(Number)) clicks.push({ hand: 'O', tick: t, result: 'hit' });
+const last = Math.max(...clicks.map(c => c.tick)), total = Number(totalArg || last + 16);
+const sim = S.play({ main: { cls }, off: off ? { cls: off[0] } : null, clicks, ticks: total, step: 0.5 });
+const a = R.previewItem(sim.main.art), b = sim.off ? R.previewItem(sim.off.art) : null, frames = [], marks = [], names = [];
+for (const f of sim.frames) {
+  const items = [{ ...a, side: 1, motion: f.poses[0] }];
+  if (b) items.push({ ...b, side: -1, motion: f.poses[1] });
+  frames.push(R.frame({ width: 240, height: 135, items, trails: f.trails }));
+  marks.push(f.t / total);
+  for (const n of f.names) if (n && names[names.length - 1] !== n) names.push(n);
 }
 R.save(R.sheet(frames, 10, marks), outFile);
-console.log(names.join(' -> '), 'frames', frames.length, 'chained', motion.stats.chained);
+console.log(names.join(' -> '), '| frames', frames.length, '| impacts', sim.effects.filter(e => e.kind === 'impact').length);

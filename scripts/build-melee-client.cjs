@@ -1,66 +1,75 @@
 'use strict';
-// JasperCraft first-person melee rework (BetterCombat client stage "bettercombat8", owner request 2026-10-02).
-// Replaces the BetterCombat 7 melee rig module (JASPR_MELEE_RIG) with the new first-person motion
-// (client-mods/melee), drops the rig's third-person layer -- Mo' Bends owns third-person attacks -- and puts the
-// native ModelBiped.setRotationAngles (DGZ) and the animation-packet handler (FKv) back exactly as they were.
-// Input: the LIVE classes.js. Mo' Bends is the outermost stage, so it is taken off first; the output has no Mo' Bends:
-// run scripts/build-mobends-client.cjs on candidate/melee-client/classes.js afterwards.
+// JasperCraft first-person melee v5 (owner request 2026-10-11): replaces ONLY the JASPR_MELEE_FP module region nested in
+// the Better Combat head of the LIVE classes.js (read only) with client-mods/melee (core, model frames, items, moves,
+// dual choreography, motion, native bridges). Every byte outside the region stays as it is: no other stage (Mo' Bends,
+// the outer stages, the Better Combat head itself) needs to come off for a module swap. The builder checks the engine
+// call sites and the native names the module uses, parses the result (vm.Script) and proves that putting the previous
+// module back gives the input byte for byte. latin1 in and out; output goes to candidate/melee-client/.
+// Usage: node scripts/build-melee-client.cjs [input classes.js]      (default: the live site/classes.js)
+//        node scripts/build-melee-client.cjs --restore <built classes.js> <previous-module.js>
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), vm = require('node:vm');
-const mobends = require('./build-mobends-client.cjs');
+const loader = require('../client-mods/melee/melee-load.cjs');
+const { declared } = require('./build-mutants-client.cjs');
+const { engineNames } = require('./stage-names.cjs');
 const root = path.resolve(__dirname, '..');
-const RIG_BEGIN = '/* JASPR_MELEE_RIG_BEGIN */', RIG_END = '/* JASPR_MELEE_RIG_END */';
 const BEGIN = '/* JASPR_MELEE_FP_BEGIN */', END = '/* JASPR_MELEE_FP_END */';
-const RIG_SHA = '74fa6f50364a987845b498c067c09330c20796602e3c0be5dc6b89c231a3c71a';
+const LIVE = 'C:/Users/AM/Documents/Eaglercraft-1.12.2-Tailscale/site/classes.js';
 const sha = s => crypto.createHash('sha256').update(s, 'latin1').digest('hex');
-function fnText(s, name) {
-  const at = s.indexOf('function ' + name + '('); if (at < 0) throw Error('missing native function ' + name);
-  const next = s.indexOf('\nfunction ', at + 9); return s.slice(at, next < 0 ? s.length : next);
-}
-function once(s, a, b) { const n = s.split(a).length - 1; if (n !== 1) throw Error('expected exactly one "' + a.slice(0, 90) + '", found ' + n); return s.replace(a, () => b); }
+// what the engine and the Better Combat head call in this module (signatures fixed by their call sites)
+const EXPORTS = ['JasprEpicSwingOffset', 'JasprEpicEquipMatch', 'JasprEpicEquipFull', 'JasprMeleeEmptyArm', 'JasprMeleeDescriptor', 'JasprEpicPose'];
+const CALL_SITES = ['JasprMeleeMotion.partial=c;', 'JasprEpicSwingOffset(a,j,f,g,i,c,r,s)', 'JasprCombatTransform(a,j,f,g,i)', 'JasprMeleeEmptyArm(a,h,f,j)',
+  'JasprEpicEquipMatch(b,f,g,1)', 'JasprEpicEquipFull(b,g)', 'JasprEpicEquipMatch(b,f,j,0)'];
+// names the module may use that the module region itself or the Better Combat head provide
+const OWN = new Set(['JasprMeleeCore', 'JasprMeleeModelTable', 'JasprMeleeItems', 'JasprMeleeMoves', 'JasprMeleeDual', 'JasprMeleeMotion',
+  'JasprCombatFeed', 'JasprBetterCombat', 'JasprCombatSpecial', 'require', 'module', '$rt_globals', '$rt_str', '$rt_ustr'].concat(EXPORTS));
 function moduleText() {
-  const read = f => fs.readFileSync(path.join(root, 'client-mods/melee', f), 'utf8');
-  const body = read('melee-motion.js').replace(/\nif \(typeof module[^\n]+\n?$/, '\n') + '\n' + read('melee-native.js');
-  return BEGIN + ' // ' + JSON.stringify({ sha256: sha(body) }) + '\n' + body + '\n' + END;
+  const body = loader.body();
+  if (/[^\x00-\x7f]/.test(body)) throw Error('the melee module must be ASCII');
+  return BEGIN + ' // ' + JSON.stringify({ v: 5, sha256: sha(body) }) + '\n' + body + '\n' + END;
+}
+function region(s) {
+  const a = s.indexOf(BEGIN), b = a < 0 ? -1 : s.indexOf(END, a);
+  if (a < 0 || b < 0) throw Error('the first-person melee module region was not found');
+  if (s.indexOf(BEGIN, a + 1) >= 0 || s.indexOf(END, b + 1) >= 0) throw Error('more than one first-person melee module region');
+  return [a, b + END.length];
 }
 function build(input) {
-  let s = mobends.unpatch(input);
-  if (s.includes(BEGIN)) {
-    // an earlier build of this stage: only the module changes
-    const a = s.indexOf(BEGIN), b = s.indexOf(END, a);
-    if (b < 0) throw Error('incomplete first-person melee module');
-    s = s.slice(0, a) + moduleText() + s.slice(b + END.length);
-  } else {
-    if (!s.includes("build:'bettercombat7'")) throw Error('expected the BetterCombat 7 client (melee rig)');
-    const a = s.indexOf(RIG_BEGIN), b = s.indexOf(RIG_END, a);
-    if (a < 0 || b < 0) throw Error('melee rig module not found');
-    const header = JSON.parse(s.slice(a + RIG_BEGIN.length, s.indexOf('\n', a)).trim().replace(/^\/\/\s*/, ''));
-    if (header.sha256 !== RIG_SHA) throw Error('the melee rig module changed since it was audited: inspect before replacing');
-    s = s.slice(0, a) + moduleText() + s.slice(b + RIG_END.length);
-    // the rig renamed the native setRotationAngles and wrapped it; its wrapper lived in the module just replaced
-    const original = fnText(s, 'JasprMeleeOriginalBiped');
-    if (!original.includes('0.6661999821662903') || !original.includes('AGZ(a.lA,a.Ea);return;')) throw Error('ModelBiped.setRotationAngles mapping changed');
-    s = once(s, 'function JasprMeleeOriginalBiped(', 'function DGZ(');
-    // the animation-packet handler loses the rig's remote observation; vanilla swingArm runs as before
-    s = once(s, 'JasprMeleeRemoteSwing(b,true);', '');
-    s = once(s, 'JasprMeleeRemoteSwing(b,false);', '');
-    s = once(s, "build:'bettercombat7',ticks", "build:'bettercombat8',ticks");
-    s = once(s, "setAttribute('data-jaspr-combat-build','bettercombat7')", "setAttribute('data-jaspr-combat-build','bettercombat8')");
-  }
-  for (const gone of ['JasprMeleeThirdPlan', 'JasprMeleeApplyBody', 'JasprMeleeRemoteSwing', 'JasprMeleeOriginalBiped', RIG_BEGIN])
-    if (s.includes(gone)) throw Error('third-person rig left over: ' + gone);
-  if (s.split('function DGZ(').length !== 2) throw Error('expected one native DGZ');
-  for (const name of ['JasprCombatTransform', 'JasprEpicPose', 'JasprEpicSwingOffset', 'JasprEpicEquipMatch', 'JasprEpicEquipFull', 'JasprMeleeEmptyArm', 'JasprMeleeDescriptor'])
-    fnText(s, name);
-  new vm.Script(s, { filename: 'classes.js' });
-  return s;
+  const [a, b] = region(input), previous = input.slice(a, b), text = moduleText();
+  for (const site of CALL_SITES) if (!input.includes(site)) throw Error('engine call site changed: ' + site);
+  const output = input.slice(0, a) + text + input.slice(b);
+  // the module defines what the engine calls, and every other name it uses exists in this client
+  for (const name of EXPORTS) if (!new RegExp('\\nfunction ' + name + '\\(').test(text)) throw Error('module lacks ' + name);
+  const outside = output.slice(0, a) + output.slice(a + text.length);
+  const missing = engineNames(text).filter(n => !OWN.has(n) && !declared(outside, n));
+  if (missing.length) throw Error('native names missing from this client: ' + missing.join(', '));
+  new vm.Script(output, { filename: 'classes.js' });
+  if (restore(output, previous) !== input) throw Error('reversibility check failed');
+  return { output, previous, natives: engineNames(text).filter(n => !OWN.has(n)) };
+}
+// puts a previous module back (the inverse of build)
+function restore(output, previous) {
+  const [a, b] = region(output);
+  if (!previous.startsWith(BEGIN) || !previous.endsWith(END)) throw Error('not a module region');
+  return output.slice(0, a) + previous + output.slice(b);
 }
 if (require.main === module) {
-  const inputPath = process.argv[2] || 'C:/Users/AM/Documents/Eaglercraft-1.12.2-Tailscale/site/classes.js';
-  const input = fs.readFileSync(inputPath, 'latin1'), output = build(input), dir = path.join(root, 'candidate/melee-client');
+  const dir = path.join(root, 'candidate/melee-client');
   fs.mkdirSync(dir, { recursive: true });
+  if (process.argv[2] === '--restore') {
+    const out = restore(fs.readFileSync(process.argv[3], 'latin1'), fs.readFileSync(process.argv[4], 'latin1'));
+    new vm.Script(out, { filename: 'classes.js' });
+    fs.writeFileSync(path.join(dir, 'classes.restored.js'), out, 'latin1');
+    console.log('restored: ' + path.join(dir, 'classes.restored.js') + ' sha256 ' + sha(out));
+    process.exit(0);
+  }
+  const inputPath = process.argv[2] || LIVE, input = fs.readFileSync(inputPath, 'latin1');
+  const { output, previous, natives } = build(input);
   fs.writeFileSync(path.join(dir, 'classes.js'), output, 'latin1');
-  const manifest = { inputSHA256: sha(input), sha256: sha(output), bytes: Buffer.byteLength(output, 'latin1'), builtAt: new Date().toISOString(), next: 'node scripts/build-mobends-client.cjs candidate/melee-client/classes.js' };
+  fs.writeFileSync(path.join(dir, 'previous-module.js'), previous, 'latin1');
+  const manifest = { input: inputPath, inputSHA256: sha(input), sha256: sha(output), bytes: Buffer.byteLength(output, 'latin1'),
+    moduleBytes: Buffer.byteLength(moduleText(), 'latin1'), previousSHA256: sha(previous), natives: natives.length, builtAt: new Date().toISOString(),
+    next: 'node scripts/build-combatfx-client.cjs candidate/melee-client/classes.js' };
   fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-  console.log('Without Mo\' Bends: ' + path.join(dir, 'classes.js') + '\n' + JSON.stringify(manifest));
+  console.log('Candidate only: ' + path.join(dir, 'classes.js') + '\n' + JSON.stringify(manifest));
 }
-module.exports = { build, BEGIN, END, RIG_SHA, moduleText };
+module.exports = { build, restore, moduleText, region, BEGIN, END, EXPORTS, CALL_SITES, LIVE, sha };

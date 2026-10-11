@@ -1,12 +1,31 @@
 'use strict';
-// One row of 10 small frames per clip, for several clips at once. Usage: node scripts/melee-preview-overview.cjs out.png clip...
-const fs = require('node:fs'), path = require('node:path');
-const R = require('./melee-preview-render.cjs');
-const motion = require('../client-mods/melee/melee-motion.js');
-const [outFile, ...names] = process.argv.slice(2);
-const item = { sword: 'diamond_sword', axe: 'iron_axe', heavy: 'iron_axe', spear: 'iron_sword', hook: 'iron_hoe', dagger: 'iron_sword', tool: 'iron_pickaxe' };
-const meshes = {}, mesh = n => meshes[n] || (meshes[n] = R.itemMesh(R.decodePNG(fs.readFileSync(path.join(__dirname, '../candidate/melee-preview/assets/textures/items', n + '.png')))));
-const family = n => Object.keys(motion.groups).find(g => motion.groups[g].includes(n));
+// One row of small frames per move (real timeline, trails and hit-stop included), for many moves at once.
+// Usage: node scripts/melee-preview-overview.cjs out.png <move|class:<name>> ... [--item <art>] [--cols 12]
+const path = require('node:path');
+const R = require('./melee-preview-render.cjs'), S = require('./melee-preview-sim.cjs');
+const args = process.argv.slice(2), opt = n => { const i = args.indexOf(n); return i >= 0 ? args.splice(i, 2)[1] : null; };
+const itemArg = opt('--item'), cols = Number(opt('--cols') || 12);
+const [outFile, ...specs] = args;
+const M0 = require('../client-mods/melee/melee-load.cjs').load().JasprMeleeMotion;
+const names = [];
+for (const s of specs) {
+  if (s.startsWith('class:')) { const c = s.slice(6); for (const n of M0.clipNames) if (M0.moves[n].cls === c) names.push(n); }
+  else names.push(s);
+}
 const frames = [], marks = [];
-for (const name of names) for (let i = 0; i < 10; i++) { const p = i / 9 * 0.999; frames.push(R.frame({ width: 192, height: 108, items: [{ mesh: mesh(item[family(name)]), side: 1, motion: motion.pose(name, p, true) }] })); marks.push(p); }
-R.save(R.sheet(frames, 10, marks), outFile);
+for (const name of names) {
+  const mv = M0.moves[name], cls = M0.classes[mv.cls];
+  const apoc = itemArg && M0.describe(276, '{JasprApocalypse:{id:"' + itemArg.replace(/^apocalypse_/, '') + '"}}', 0).cls ? itemArg.replace(/^apocalypse_/, '') : null;
+  const main = apoc ? { id: 276, nbt: '{JasprApocalypse:{id:"' + apoc + '"}}', art: 'apocalypse_' + apoc } : { cls: mv.cls, art: itemArg || cls.preview };
+  const probe = S.play({ main, clicks: [{ tick: 0, move: name, result: 'hit' }], ticks: 0.5, step: 0.25 });
+  const dur = probe.M._test.hands()[0].strike.realDur;
+  const sim = S.play({ main, clicks: [{ tick: 0, move: name, result: 'hit' }], ticks: dur + 0.25, step: 0.25 });
+  const item = R.previewItem(sim.main.art);
+  for (let i = 0; i < cols; i++) {
+    const t = i / (cols - 1) * dur, f = sim.frames[Math.min(sim.frames.length - 1, Math.round(t / 0.25))];
+    frames.push(R.frame({ width: 192, height: 108, items: [{ ...item, side: 1, motion: f.poses[0] }], trails: [f.trails[0]] }));
+    marks.push(t / dur);
+  }
+}
+R.save(R.sheet(frames, cols, marks), outFile);
+console.log('wrote', outFile, names.length, 'moves');

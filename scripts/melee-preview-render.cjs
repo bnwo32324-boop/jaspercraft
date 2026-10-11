@@ -89,6 +89,31 @@ function itemMesh(tex) {
   return { tex, quads };
 }
 
+// ------------------------------------------------------------------ cuboid item models (JSON "elements", block textures)
+// Faces as the 1.12 model baker lays them out (uv in 0..16 texture pixels; no element rotations: the frame table
+// rejects them). Vertices are in block units (model px / 16), centred later by the display matrix's translate(-0.5).
+const FACE = {
+  north: { n: [0, 0, -1], v: (f, t) => [[t[0], f[1], f[2]], [f[0], f[1], f[2]], [f[0], t[1], f[2]], [t[0], t[1], f[2]]] },
+  south: { n: [0, 0, 1], v: (f, t) => [[f[0], f[1], t[2]], [t[0], f[1], t[2]], [t[0], t[1], t[2]], [f[0], t[1], t[2]]] },
+  west: { n: [-1, 0, 0], v: (f, t) => [[f[0], f[1], f[2]], [f[0], f[1], t[2]], [f[0], t[1], t[2]], [f[0], t[1], f[2]]] },
+  east: { n: [1, 0, 0], v: (f, t) => [[t[0], f[1], t[2]], [t[0], f[1], f[2]], [t[0], t[1], f[2]], [t[0], t[1], t[2]]] },
+  up: { n: [0, 1, 0], v: (f, t) => [[f[0], t[1], t[2]], [t[0], t[1], t[2]], [t[0], t[1], f[2]], [f[0], t[1], f[2]]] },
+  down: { n: [0, -1, 0], v: (f, t) => [[f[0], f[1], f[2]], [t[0], f[1], f[2]], [t[0], f[1], t[2]], [f[0], f[1], t[2]]] }
+};
+function modelMesh(json, texture) {
+  const quads = [];
+  for (const e of json.elements || []) {
+    const f = e.from.map(v => v / 16), t = e.to.map(v => v / 16);
+    for (const [name, face] of Object.entries(e.faces || {})) {
+      const spec = FACE[name]; if (!spec) continue;
+      const ref = String(face.texture || '').replace(/^#/, ''), tex = texture(json.textures && json.textures[ref] || ref);
+      const uv = face.uv || [0, 0, 16, 16], u0 = uv[0] / 16, v0 = uv[1] / 16, u1 = uv[2] / 16, v1 = uv[3] / 16;
+      quads.push({ tex: !!tex, texObj: tex, c: tex ? null : [200, 200, 200], v: spec.v(f, t), uv: [[u0, v1], [u1, v1], [u1, v0], [u0, v0]], n: spec.n });
+    }
+  }
+  return { tex: null, quads, model: true };
+}
+
 // ------------------------------------------------------------------ rasterizer
 function Canvas(W, H) {
   this.W = W; this.H = H; this.rgb = Buffer.alloc(W * H * 3); this.depth = new Float32Array(W * H).fill(Infinity);
@@ -134,6 +159,33 @@ Canvas.prototype.triangle = function (a, b, c, shade, tex, solid) {
     this.rgb[o * 3] = Math.min(255, col[0] * shade); this.rgb[o * 3 + 1] = Math.min(255, col[1] * shade); this.rgb[o * 3 + 2] = Math.min(255, col[2] * shade);
   }
 };
+// alpha-blended triangle with per-vertex alpha (blade trails): depth-tested against what is drawn, never writes depth
+Canvas.prototype.blendPolygon = function (proj, pts, color) {
+  const near = 0.05, out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], ina = a.p[2] <= -near, inb = b.p[2] <= -near;
+    if (ina) out.push(a);
+    if (ina !== inb) { const t = (-near - a.p[2]) / (b.p[2] - a.p[2]); out.push({ p: a.p.map((v, k) => v + (b.p[k] - v) * t), a: a.a + (b.a - a.a) * t }); }
+  }
+  if (out.length < 3) return;
+  const sv = out.map(v => { const c = M.apply(proj, v.p), w = c[3]; return { x: (c[0] / w * 0.5 + 0.5) * this.W, y: (0.5 - c[1] / w * 0.5) * this.H, z: c[2] / w, a: v.a }; });
+  for (let i = 1; i + 1 < sv.length; i++) {
+    const A = sv[0], B = sv[i], Cc = sv[i + 1];
+    const minX = Math.max(0, Math.floor(Math.min(A.x, B.x, Cc.x))), maxX = Math.min(this.W - 1, Math.ceil(Math.max(A.x, B.x, Cc.x)));
+    const minY = Math.max(0, Math.floor(Math.min(A.y, B.y, Cc.y))), maxY = Math.min(this.H - 1, Math.ceil(Math.max(A.y, B.y, Cc.y)));
+    const area = (B.x - A.x) * (Cc.y - A.y) - (B.y - A.y) * (Cc.x - A.x);
+    if (Math.abs(area) < 1e-9) continue;
+    for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
+      const px = x + 0.5, py = y + 0.5;
+      const w0 = ((B.x - px) * (Cc.y - py) - (B.y - py) * (Cc.x - px)) / area, w1 = ((Cc.x - px) * (A.y - py) - (Cc.y - py) * (A.x - px)) / area, w2 = 1 - w0 - w1;
+      if (w0 < 0 || w1 < 0 || w2 < 0) continue;
+      const z = w0 * A.z + w1 * B.z + w2 * Cc.z, o = y * this.W + x;
+      if (z > this.depth[o]) continue;
+      const al = Math.max(0, Math.min(1, w0 * A.a + w1 * B.a + w2 * Cc.a));
+      for (let k = 0; k < 3; k++) this.rgb[o * 3 + k] = Math.round(this.rgb[o * 3 + k] * (1 - al) + color[k] * al);
+    }
+  }
+};
 Canvas.prototype.line = function (x0, y0, x1, y1, c) {
   const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))) || 1;
   for (let i = 0; i <= n; i++) this.pixel(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), c);
@@ -145,10 +197,13 @@ const LIGHT0 = norm([0.2, 1.0, -0.7]), LIGHT1 = norm([-0.2, 1.0, 0.7]);
 function norm(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
 // "firstperson_righthand" of item/handheld (swords, axes, tools): DqX applies translate, Rx, Ry, Rz, scale
 const HANDHELD = { rotation: [0, -90, 25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68] };
+// ItemTransformVec3f.apply(leftHand): x translation negated and the Y and Z rotations negated. A display may carry its
+// own left-hand JSON entry (`left`); item/handheld's is the mirror [0, 90, -25], so its applied left equals the right.
 function displayMatrix(display, left) {
-  const d = left ? -1 : 1, t = display.translation.map(v => Math.max(-80, Math.min(80, v)) / 16), r = display.rotation.slice();
-  // the left-hand JSON entry is the mirror of the right one and DqX negates Y and Z again for the left hand
-  return M.chain(M.translate(d * t[0], t[1], t[2]), M.rotate(r[0], 1, 0, 0), M.rotate(r[1], 0, 1, 0), M.rotate(r[2], 0, 0, 1), M.scale(...display.scale), M.translate(-0.5, -0.5, -0.5));
+  const e = left && display.left ? display.left : left ? { rotation: [display.rotation[0], -display.rotation[1], -display.rotation[2]], translation: display.translation, scale: display.scale } : display;
+  const t = e.translation.map(v => Math.max(-80, Math.min(80, v)) / 16), r = e.rotation.slice();
+  if (left) { r[1] = -r[1]; r[2] = -r[2]; t[0] = -t[0]; }
+  return M.chain(M.translate(t[0], t[1], t[2]), M.rotate(r[0], 1, 0, 0), M.rotate(r[1], 0, 1, 0), M.rotate(r[2], 0, 0, 1), M.scale(...e.scale), M.translate(-0.5, -0.5, -0.5));
 }
 // side: +1 right hand, -1 left hand; motion: {tx,ty,tz, rotation:{angle,x,y,z}} or null; equip: 0 = fully raised
 function handMatrix(side, motion, equip = 0, display = HANDHELD) {
@@ -162,7 +217,19 @@ function drawItem(canvas, proj, mesh, model) {
     const pts = q.v.map((v, i) => ({ p: M.apply(model, v), uv: q.uv ? q.uv[i] : null }));
     const n = norm(M.apply(nm, [q.n[0], q.n[1], q.n[2], 0]));
     const light = Math.min(1, 0.4 + 0.6 * (Math.max(0, n[0] * LIGHT0[0] + n[1] * LIGHT0[1] + n[2] * LIGHT0[2]) + Math.max(0, n[0] * LIGHT1[0] + n[1] * LIGHT1[1] + n[2] * LIGHT1[2])));
-    canvas.polygon(proj, pts, light, q.tex ? mesh.tex : null, q.c || null);
+    canvas.polygon(proj, pts, light, q.tex ? (q.texObj || mesh.tex) : null, q.c || null);
+  }
+}
+// a blade trail (JasprMeleeMotion.trail output, view space, right-hand convention) as a ribbon of blended quads
+function drawTrail(canvas, proj, trail) {
+  if (!trail) return;
+  const p = trail.pts, s = trail.right ? 1 : -1, col = (trail.color || [1, 1, 1]).map(v => Math.round(Math.min(1, v) * 255));
+  for (let i = 0; i + 1 < trail.n; i++) {
+    // the same ribbon JASPR_COMBATFX draws: brightest along the edge's path, fading toward the hilt and the tail
+    const a = i * 7, b = (i + 1) * 7, aa = p[a + 6] * 0.62, ab = p[b + 6] * 0.62;
+    if (aa < 0.01 && ab < 0.01) continue;
+    const P = k => [p[k] * s, p[k + 1], p[k + 2]], T = k => [p[k + 3] * s, p[k + 4], p[k + 5]];
+    canvas.blendPolygon(proj, [{ p: P(a), a: aa * 0.08 }, { p: T(a), a: aa }, { p: T(b), a: ab }, { p: P(b), a: ab * 0.08 }], col);
   }
 }
 // A flat world for scale: sky, a grass plain with a block grid, and a zombie-sized target 2.2 blocks ahead.
@@ -198,8 +265,55 @@ function frame(opts) {
   drawWorld(canvas, aspect);
   const proj = M.perspective(70, aspect, 0.05, 50);
   for (const item of opts.items) drawItem(canvas, proj, item.mesh, handMatrix(item.side, item.motion, item.equip || 0, item.display));
+  for (const t of opts.trails || []) drawTrail(canvas, proj, t);
   crosshair(canvas);
   return canvas;
+}
+
+// ------------------------------------------------------------------ assets from the game's own assets.epk
+// EPK v2: header, entry count, compression flag, entries. Extracts item textures (incl. sub-folders) and block textures.
+const ROOT = require('node:path').join(__dirname, '..');
+const ASSETS = require('node:path').join(ROOT, 'candidate/melee-preview/assets');
+function extractAssets(file) {
+  const path = require('node:path'), marker = path.join(ASSETS, '.extracted-v2');
+  if (fs.existsSync(marker)) return;
+  const bytes = fs.readFileSync(file || process.env.JASPR_ASSETS_EPK || 'C:/Users/AM/Documents/Eaglercraft-1.12.2-Tailscale/site/assets.epk');
+  let at = 8; at += 1 + bytes[at]; at += 1 + bytes[at]; at += 2 + bytes.readUInt16BE(at); at += 8;
+  const count = bytes.readUInt32BE(at); at += 4; const mode = String.fromCharCode(bytes[at++]), packed = bytes.subarray(at, -8);
+  const data = mode === 'G' ? zlib.gunzipSync(packed) : mode === 'Z' ? zlib.inflateSync(packed) : packed;
+  for (let i = 0, p = 0; i < count; i++) {
+    const type = data.subarray(p, p + 4).toString(); p += 4;
+    const n = data[p++], name = data.subarray(p, p + n).toString(); p += n;
+    const size = data.readUInt32BE(p); p += 4;
+    if (type === 'FILE') {
+      const m = name.match(/textures\/(items|blocks)\/([a-z0-9_/]+)\.png$/);
+      if (m) { const out = path.join(ASSETS, 'textures', m[1], m[2] + '.png'); fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, data.subarray(p + 4, p + size - 1)); }
+    }
+    p += size; p++;
+  }
+  fs.writeFileSync(marker, new Date().toISOString());
+}
+const texCache = new Map();
+function texture(kind, name) {
+  const key = kind + '/' + name;
+  if (texCache.has(key)) return texCache.get(key);
+  const file = require('node:path').join(ASSETS, 'textures', kind, name + '.png');
+  const t = fs.existsSync(file) ? decodePNG(fs.readFileSync(file)) : null;
+  texCache.set(key, t);
+  return t;
+}
+// an item for previews: a sprite (items/<name>) or a JasprApocalypse 3D model from the checked-in pack
+function previewItem(name) {
+  extractAssets();
+  const path = require('node:path');
+  if (/^apocalypse_/.test(name)) {
+    const json = JSON.parse(fs.readFileSync(path.join(ROOT, 'apocalypse-pack/assets/minecraft/models/item', name + '.json'), 'utf8'));
+    const mesh = modelMesh(json, ref => texture('blocks', String(ref).replace(/^(minecraft:)?blocks\//, '')));
+    const d = json.display.firstperson_righthand, l = json.display.firstperson_lefthand;
+    return { mesh, display: { rotation: d.rotation, translation: d.translation, scale: d.scale, left: l } };
+  }
+  const tex = texture('items', name) || texture('items', 'iron_sword');
+  return { mesh: itemMesh(tex), display: HANDHELD };
 }
 function sheet(canvases, cols, labels) {
   const W = canvases[0].W, H = canvases[0].H, rows = Math.ceil(canvases.length / cols), out = new Canvas(cols * W + (cols - 1) * 2, rows * H + (rows - 1) * 2);
@@ -214,4 +328,5 @@ function label(canvas, x, y, fraction) {
 }
 function save(canvas, file) { fs.writeFileSync(file, encodePNG(canvas.W, canvas.H, canvas.rgb)); }
 
-module.exports = { decodePNG, encodePNG, M, itemMesh, Canvas, frame, sheet, save, handMatrix, displayMatrix, project, HANDHELD, drawWorld, drawItem, crosshair, label };
+module.exports = { decodePNG, encodePNG, M, itemMesh, modelMesh, Canvas, frame, sheet, save, handMatrix, displayMatrix, project, HANDHELD, drawWorld, drawItem,
+  drawTrail, crosshair, label, extractAssets, texture, previewItem };
