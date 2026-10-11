@@ -1,0 +1,13 @@
+name: JasprBetterCombat
+version: 1.5.6-port.4
+main: chat.jaspr.bettercombat.BetterCombatPlugin
+author: JasperCraft contributors
+description: Source-based Paper/browser port of Better Combat Rebirth 1.5.6
+softdepend: [AuthMe, JasprApocalypse, JasprEnchantments, JasprGear, JasprRevive]
+commands:
+  bettercombat:
+    description: Show combat status or settings; administrators can edit or reload.
+    usage: /bettercombat [settings|reload]
+permissions:
+  jasprbettercombat.admin:
+    default: op

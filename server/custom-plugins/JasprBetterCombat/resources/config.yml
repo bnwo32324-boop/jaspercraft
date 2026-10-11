@@ -1,0 +1,22 @@
+# Defaults from the supplied BetterCombat-1.12.2-1.5.6.jar (configuration version 4).
+enabled: true
+longer-attack: true
+wider-attack: true
+wider-attack-width: 1.5
+random-crits: true
+crit-chance: 0.3
+refund-energy-on-miss: true
+weaker-offhand: true
+offhand-efficiency: 0.5
+require-full-energy: false
+attack-and-sprint: true
+more-sweep-animation: true
+additional-hit-sound: true
+additional-crit-sound: true
+enable-offhand-attacks: true
+# Bukkit entity names corresponding to the original off-hand blacklist.
+offhand-entity-blacklist: [HORSE, ARMOR_STAND, VILLAGER]
+# Defaults are all five original vanilla weapon/tool classes. Jasper special-use hoes
+# (guns, portal devices, trinkets) are excluded independently to preserve their actions.
+offhand-item-classes: [SWORD, AXE, SPADE, PICKAXE, HOE]
+offhand-item-whitelist: []

@@ -1,0 +1,22 @@
+{
+    "player.swordslash":
+    {
+       "sounds": 
+       [
+           {
+               "name": "bettercombatmod:swordslash",
+               "stream": false
+           }
+       ]
+   },
+   "player.criticalstrike":
+    {
+       "sounds": 
+       [
+           {
+               "name": "bettercombatmod:criticalstrike",
+               "stream": false
+           }
+       ]
+   }
+}

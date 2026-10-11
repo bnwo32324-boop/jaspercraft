@@ -1,0 +1,39 @@
+BETTER COMBAT REBIRTH PORT - THIRD-PARTY NOTICES
+
+Primary reference supplied by the user:
+  BetterCombat-1.12.2-1.5.6.jar
+  SHA-256 363d6bb59973f438a077fa6bc018240bbed13b55b95dbd8eedb1d001fa5fb8b4
+  BetterCombatRebirth-master source archive/directory
+
+Upstream: https://github.com/SanAndreaP/BetterCombatRebirth
+Original Better Combat: Ironfists; continuation: SanAndreasP and contributors.
+The supplied README describes the project as MIT licensed. Preserve that README.
+
+IMPORTANT PER-FILE NOTICE
+The supplied src/main/java/bettercombat/mod/util/Helpers.java explicitly says:
+  Authors:   SanAndreasP
+  Copyright: SanAndreasP
+  License:   Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+             http://creativecommons.org/licenses/by-nc-sa/4.0/
+
+The strike/damage/cooldown algorithm in src/chat/jaspr/bettercombat/BetterCombatPlugin.java
+and CombatRules.java is adapted from that implementation. This port retains that
+attribution and notice, rather than asserting that the README removes its per-file
+conditions. Other original notices remain in reference/BetterCombatRebirth. Resolve
+the upstream notice discrepancy before commercial redistribution of derived code.
+No endorsement by upstream authors is implied.
+
+Changes: Paper 1.12.2 event/NMS adapter; authenticated, bounded server-authoritative
+networking; per-player cooldowns; Eaglercraft/TeaVM client input and HUD integration;
+compatibility with JasperCraft equipment; original sound files registered through
+scoped aliases under the browser resource pack's supported minecraft namespace.
+The two OGG files are byte-for-byte copies of the supplied release, not replacements.
+The HUD adapts GuiCrosshairsBC's native icon coordinates and cooldown layout.
+
+CFR 0.152 (Lee Benfield, https://www.benf.org/other/cfr/) was used as a development
+inspection tool to resolve differences between the supplied release JAR and master
+source. CFR is not bundled inside the plugin or browser payload.
+
+JasperCraft's existing client, resource pack, plugins, Paper and Minecraft assets
+remain their respective owners' work. This isolated candidate does not relicense
+them. The test fixture and test worlds are NOT production deliverables.

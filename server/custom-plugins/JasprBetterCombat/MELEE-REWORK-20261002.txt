@@ -1,0 +1,9 @@
+FIRST-PERSON MELEE REWORK - 2026-10-02 (owner request)
+
+The melee rig in melee-rig/ (BetterCombat 7) is no longer what is deployed. The live client is "bettercombat8":
+- First-person weapon motion: client-mods/melee/melee-motion.js and melee-native.js (committed in git).
+- Third person: the rig's layer is removed; native DGZ (ModelBiped.setRotationAngles) and FKv (swing packets) are
+  restored as before the rig. Third-person attacks are animated only by Mo' Bends (owner: "always Mo' Bends").
+- Build: node scripts/build-melee-client.cjs, then node scripts/build-mobends-client.cjs candidate/melee-client/classes.js
+  (Mo' Bends is the outermost client stage). Notes: MELEE_UPDATE.md at the repository root.
+Gameplay, the plugin jar and its settings (including "JasperCraft melee animations") are unchanged.

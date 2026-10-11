@@ -1,0 +1,92 @@
+BETTER COMBAT REBIRTH 1.12.2 / 1.5.6 - SOURCE PARITY RECORD
+
+Reference: user's supplied BetterCombat-1.12.2-1.5.6.jar and complete source in
+reference/BetterCombatRebirth. JAR SHA-256:
+363d6bb59973f438a077fa6bc018240bbed13b55b95dbd8eedb1d001fa5fb8b4
+Upstream: https://github.com/SanAndreaP/BetterCombatRebirth
+
+This is a source-based platform port. Paper does not load Forge classes, and the
+browser cannot execute this JVM JAR. The mod's combat algorithms, effect math,
+original audio and defaults are adapted to Paper / the existing TeaVM renderer.
+The JAR is the shipped-behavior baseline. The supplied master directory has later
+changes despite its matching version string. This is NOT the modern Better Combat
+mod, nor a new animation pack pretending to be the supplied 1.12.2 release.
+
+ANIMATIONS
+- EventHandlersClient.onMouseLeftClick and DefaultImplOffHandAttack.swingOffHand:
+  set isSwingInProgress and swingingHand directly. The prior port used vanilla
+  swingArm, which can discard a switch of hands in the first half of an animation.
+  The revised adapter sets the original fields for entity hits / off-hand swings;
+  main-hand misses retain the original vanilla animation. Native animation length,
+  item transforms, left-handed player preference and potion timing remain native.
+- ScheduledPacketTask.run -> ClientProxy.spawnSweep -> EntitySweepAttack2FX:
+  exact original mirrored UVs, negative scale, floating-point V coordinate,
+  grayscale color, four-tick life, full particle lightmap, vertex geometry and
+  texture. The existing sweep.png is used as upstream did. A native particle
+  instance gets its own source-derived render method; vanilla particles are not
+  globally modified. Server off-hand cooldown acknowledgements trigger the effect
+  once, not once per timer update. Initial connections do not replay old effects.
+- More swipe animation also applies to non-swords. Swords keep their off-hand
+  sweep with that option disabled, exactly as ScheduledPacketTask specifies.
+- Multiplayer main/off-hand SPacketAnimation IDs 0/3 remain native. The custom
+  off-hand particle goes to the attacking client, as upstream's sendTo() does.
+- Original player.spawnSweepParticles yaw/height placement is retained for ordinary
+  and successful sweeping-attack particles.
+
+COMBAT / AUDIO / HUD
+- Helpers: quadratic cooldown scaling, separate main/off-hand energy, default
+  half-strength off hand, attribute-based attack speed/damage, 30% random crits,
+  sprint crit exclusion, optional sprint retention, miss refund and full-energy gate.
+- Critical damage multiplies base damage, not the enchantment addition. Random
+  crits may occur at low energy in the shipped release. Disabling random crits does
+  NOT restore falling crits in that JAR (master adds this later). No silent mix of
+  the two incompatible definitions was made.
+- Extended five-block / ordinary four-block entity reach; configurable horizontal
+  hitboxes; nearest target with real block obstruction. Block mining reach unchanged.
+- DefaultImplSecondHurtTimer: independent ten-tick off-hand victim immunity; selected
+  hand temporarily exposed to damage/enchantment hooks and restored in finally.
+- Sword sweep, knockback, Fire Aspect, durability/breakage, shield disabling odds,
+  critical/enchantment effects, hit/no-hit sounds, exhaustion and damage statistics.
+- Original swordslash.ogg and criticalstrike.ogg are copied byte-for-byte. Shovels
+  exclude those extra sounds, as upstream specifies. Native sounds remain native.
+- GuiCrosshairsBC native icon UVs: main bar on the left, off-hand bar on the right,
+  only while charging. Native attack-indicator, F1/debug/spectator conditions remain.
+
+CONFIGURATION
+- All shipped scalar options, item-class whitelist, item-ID whitelist and entity
+  blacklist remain editable. Original net.minecraft class names are translated to
+  native Paper class equivalents; instanceof checks preserve subclass matching.
+  Existing aliases (SWORD, AXE, etc. and Bukkit entity names) stay compatible.
+- New Options > Better Combat button opens a native server inventory configuration
+  panel. All players can inspect it. Authenticated administrators may toggle values,
+  adjust numbers, type exact numbers/lists in chat, and restore shipped defaults.
+  Reset requires two clicks; edits persist in the plugin configuration.
+- This is the functional platform equivalent of Forge GuiConfig, not a claim that
+  its Forge window class runs in a browser. Combat settings are server-wide, not
+  exploitable per-client damage/reach controls. Console YAML/reload remains available.
+
+NECESSARY PLATFORM / SAFETY ADAPTATIONS (NOT HIDDEN)
+- Bounded authenticated plugin messages replace Forge's SimpleNetworkWrapper.
+  Server computes target, damage, energy and permissions; clients cannot choose
+  arbitrary target IDs, damage values or energy refunds.
+- Cooldowns are per player. The original shared pending-cooldown variable and the
+  wrong-target off-hand sweep capability lookup are not copied as multiplayer bugs.
+- Paper damage, combustion, enchantment and protection hooks replace Forge events.
+  Absent Forge-only classes (e.g. Tinkers' Construct SwordCore) cannot be loaded;
+  their original whitelist strings cannot conjure items not installed in JasperCraft.
+- JasperCraft gun/portal/gear hosts retain native use. Owned pets and blacklisted
+  entities are excluded from off-hand attacks. Container/use-item priority is kept.
+- Named/enchanted/Unbreakable/custom-melee NBT remains intact. The real DaN NBT
+  helper is used, not the unrelated JSONObject.has helper that caused the first crash.
+
+EVIDENCE
+Source/formula tests and runtime scenarios live under tests/. Runtime reports record
+artifact hashes and the isolated world path. Browser tests use actual mouse/keyboard
+input, one actual browser client plus a protocol observer, and the real current
+JasperCraft client. Read the current release report for executed results; this
+parity description is not itself evidence that every scenario passed.
+
+Not claimed: a native Forge-vs-browser pixel-perfect A/B run, Safari/mobile coverage,
+every third-party enchantment/protection combination, high latency/large-player soaks,
+or a universal Forge loader. The supplied release does not add weapon models,
+new crafting recipes or a modern combo-animation library.
