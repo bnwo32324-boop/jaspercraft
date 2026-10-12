@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const [file, target] = process.argv.slice(2);
 const TOP = +(process.argv.includes('--top') ? process.argv[process.argv.indexOf('--top') + 1] : 40);
 const CLASSES = 'C:/Users/AM/Documents/Eaglercraft-1.12.2-Tailscale/site/classes.js';
-const FNINDEX = 'C:/Users/AM/AppData/Local/Temp/claude/C--Users-AM-Desktop-Curser-Test-Jaspergers/4b6b9621-a7d3-4936-bfd4-485905c41eac/scratchpad/mutants/idx/fnindex.json';
+// optional source-line index (TeaVM name -> Java method), e.g. from the Mutants port tooling; names fall back to the name table
+const FNINDEX = process.env.FPS_FNINDEX || require('node:path').join(__dirname, '..', 'candidate', 'fnindex.json');
 const src = fs.readFileSync(CLASSES, 'latin1');
 const table = new Map();
 for (const m of src.matchAll(/"([A-Za-z_$][\w$]{0,4})","([a-zA-Z_][\w]*)"/g)) if (!table.has(m[1])) table.set(m[1], m[2]);
