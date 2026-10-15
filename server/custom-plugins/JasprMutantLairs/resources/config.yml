@@ -1,0 +1,15 @@
+# JasprMutantLairs
+enabled: true
+# the overworld the lairs are built in
+world: world
+# no lair centre within this many blocks of the world spawn
+spawn-exclusion: 400
+# nothing is built or scanned while a player is within this many blocks of a lair's land
+player-margin: 160
+# land somebody has spent time in (chunk inhabited time over this, in ticks: 6000 = five minutes) never gets a lair;
+# passing through costs a chunk well under that, a home or a camp far more
+max-inhabited-ticks: 6000
+# the boss's health: the mutant's own times this
+boss-health-multiplier: 2.0
+# after a boss falls it rests this long before the lair can wake it again
+boss-rest-minutes: 30

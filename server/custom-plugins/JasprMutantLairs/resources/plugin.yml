@@ -1,0 +1,9 @@
+name: JasprMutantLairs
+version: 1.0.0
+main: chat.jaspr.lairs.LairsPlugin
+softdepend: [JasprHorrorBiomes, JasprMutants, JasprMuseMaps, JasprImportedWorldgen, JasprLostCities, JasprGear]
+description: Twelve mutant boss lairs in the overworld, three for each of Mutant Creatures' hostile mutants.
+commands:
+  lairs:
+    description: The mutant lairs you have found (operators - status, list, build).
+    usage: /lairs [status|list|near|check [key]|build <design> [rotation] | build <design> <x> <z> [rotation]]
