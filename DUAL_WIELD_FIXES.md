@@ -3,7 +3,7 @@
 The owner: dual wielding "broke on a programmatic level. There are some bugs, and it's finicky. Make sure it's in working
 order before you apply the animations."
 
-Plugin `JasprBetterCombat` **1.5.6-port.5** (`server/plugins/JasprBetterCombat.jar`) and Better Combat client head
+Plugin `JasprBetterCombat` **1.5.6-port.5** (2026-10-14: **1.5.6-port.6**, fix S8) (`server/plugins/JasprBetterCombat.jar`) and Better Combat client head
 **bettercombat9** (`client-mods/bettercombat/bettercombat-head.js`, built into the LIVE `classes.js` by
 `scripts/build-bettercombat-client.cjs`, which replaces only the head region). Better Combat Rebirth 1.5.6's combat
 rules and the settings panel are kept; where the port had drifted from 1.5.6, it is back on 1.5.6.
@@ -35,6 +35,7 @@ Each line: symptom; cause; fix; the test that proves it (before = the head live 
 | S5 | (with the new right click, see C5) an off-hand attack on top of a plugin's main-hand item ability, or on a player a plugin was handling (reviving, boarding a tank) | -- | refused (`denied used` / `denied interact`) in the same tick as a main-hand air click a plugin claimed (`useItemInHand=DENY`), or a cancelled right click on that player | server S13-S16 |
 | S6 | After a plugin reload, connected clients kept sending attacks into nothing | no notice on disable | `onDisable` sends `enabled:false` | server S25 |
 | S7 | A settings-panel edit did not reach the clients' item / entity lists | -- | the static `cfg` is re-sent to connected clients on every change / reload | server S19 |
+| S8 | (2026-10-14, **1.5.6-port.6**) An axe and a sword in the two hands sometimes both showed as swords (first person, hotbar, F5) until the next main-hand blow | an off-hand blow swaps the hands on the server for a moment (so enchantments and plugins see the attacking weapon as the main hand, as in 1.5.6); JasprRPG rewrites the "main hand" in that moment (armament XP on every blow and kill), CraftBukkit sends that slot to the client at once, and the swap back is invisible to the inventory's change tracking | after every off-hand blow both hand slots are sent as they really are and the container's last-sent copies follow; covers every plugin that writes a hand (or calls updateInventory) during the blow | server S27, S28 (fixture `rewrite` = a plugin that rewrites the main hand on every blow) |
 
 ### Client (head)
 | # | Symptom | Cause | Fix | Test |

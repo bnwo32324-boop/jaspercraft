@@ -60,7 +60,10 @@ function encode(s) { const b = Buffer.from(s), n = []; let v = b.length; do { le
 function decode(buf) { let i = 0; while (buf[i++] & 128) {} return JSON.parse(buf.subarray(i).toString('utf8')); }
 function bot(username) {
   const c = protocol.createClient({ host: '127.0.0.1', port: PORT, username, version: '1.12.2', auth: 'offline' });
-  const b = { client: c, messages: [], states: [], cfgs: [], results: [], entityId: -1 };
+  const b = { client: c, messages: [], states: [], cfgs: [], results: [], entityId: -1, slots: new Map() };
+  // what this client believes its inventory holds (window 0: 36-44 hotbar, 45 off hand)
+  c.on('window_items', p => { if (p.windowId === 0) p.items.forEach((it, i) => b.slots.set(i, it)); });
+  c.on('set_slot', p => { if (p.windowId === 0) b.slots.set(p.slot, p.item); });
   c.on('error', e => console.log(username + ' error ' + e.message));
   c.on('login', p => { b.entityId = p.entityId; });
   c.on('position', p => { c.write('teleport_confirm', { teleportId: p.teleportId }); c.write('position_look', { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, onGround: true }); });
@@ -201,6 +204,20 @@ async function main() {
   for (const bad of ['attack O 0', 'attack O 12345678901', 'attack X 5', 'attack O 5 x', 'attack O -1', 'attack M 01']) A.send(bad);
   await delay(500); rep = await report();
   check('S24 forged / malformed attack messages do nothing and get no verdict', rep.health === 1000 && rep.events === 0 && A.results.length === resultsBefore, { rep });
+
+  // owner 2026-10-14: an axe and a sword in the two hands sometimes both showed as swords. An off-hand blow swaps the hands
+  // on the server for a moment; a plugin that rewrote the main hand in that moment (JasprRPG's armament XP) sent the client
+  // the off-hand sword for the main-hand slot, and the swap back was never sent.
+  await fixture('setup CombatBot 4 ZOMBIE', 'FIXTURE_READY'); await fixture('equip CombatBot M IRON_AXE'); await fixture('equip CombatBot O IRON_SWORD');
+  await fixture('rewrite CombatBot on'); await delay(900);
+  r = await attack('O'); await delay(400);
+  let seen = { main: A.slots.get(36), off: A.slots.get(45) };
+  check('S27 BUG axe + sword: after an off-hand blow that a plugin rewrote, the client still sees the axe in the main hand and the sword in the off hand',
+    r.k === 'hit' && r.h === 'O' && seen.main && seen.main.blockId === 258 && seen.off && seen.off.blockId === 267, { r, seen });
+  await delay(700); r = await attack('M'); await delay(400);
+  seen = { main: A.slots.get(36), off: A.slots.get(45) };
+  check('S28 and a main-hand blow after it keeps both hands as they are', r.k === 'hit' && r.h === 'M' && seen.main && seen.main.blockId === 258 && seen.off && seen.off.blockId === 267, { r, seen });
+  await fixture('rewrite CombatBot off');
 
   // shutting the plugin down tells connected clients to stop intercepting at once
   const statesBefore = A.states.length;

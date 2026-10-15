@@ -275,8 +275,28 @@ public final class BetterCombatPlugin extends JavaPlugin implements Listener, Pl
         // An off-hand hit on a target still in its ten-tick off-hand immunity spends the energy and sounds "no damage"
         // (DefaultImplSecondHurtTimer, as in 1.5.6) instead of a silent swing; damage() refuses the damage itself.
         if(off) consumeOff(n,s); else n.ds();
-        Strike r=strike(p,n,victim,off,strength);
+        Strike r;
+        try { r=strike(p,n,victim,off,strength); }
+        finally { if(off) resyncHands(n); }
         return new Outcome(r.kind,null,victim.getId(),item,r.crit,r.sweep,r.fatal,true);
+    }
+    /**
+     * An off-hand blow swaps the hands for a moment (damage(), the enchantment callbacks, ignite()) so enchantments and the
+     * other plugins see the attacking weapon as the main hand, as in 1.5.6. A plugin that writes a hand inside that moment
+     * (JasprRPG's armament XP on every blow and kill, a reward, updateInventory ...) sends the client that slot at once, and
+     * the swap back is invisible to the inventory's change tracking: the client went on showing the off-hand weapon in the
+     * main hand (an axe and a sword looked like two swords, owner 2026-10-14) until the main hand was rewritten again.
+     * After every off-hand blow both hand slots are sent as they really are, and the last-sent copies follow them.
+     */
+    void resyncHands(EntityPlayer p) {
+        if(p.playerConnection==null || p.defaultContainer==null) return;
+        sendSlot(p,36+p.inventory.itemInHandIndex,p.getItemInMainHand());
+        sendSlot(p,45,p.getItemInOffHand());
+    }
+    private void sendSlot(EntityPlayer p,int slot,ItemStack stack) {
+        ItemStack copy=stack.isEmpty()?ItemStack.a:stack.cloneItemStack();
+        p.playerConnection.sendPacket(new PacketPlayOutSetSlot(p.defaultContainer.windowId,slot,copy));
+        if(slot<p.defaultContainer.items.size()) p.defaultContainer.items.set(slot,copy);
     }
     private void consumeOff(EntityPlayer p,State state) {
         state.offUntil=tick+offPeriod(p);

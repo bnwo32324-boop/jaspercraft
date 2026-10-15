@@ -31,6 +31,8 @@ public final class CombatFixture extends JavaPlugin implements Listener {
     Material claim;
     boolean guard;
     int claims, guarded;
+    boolean rewrite;
+    int rewrites;
     @Override public void onEnable(){Bukkit.getPluginManager().registerEvents(this,this);}
     @EventHandler public void join(PlayerJoinEvent e){
         e.getPlayer().teleport(new Location(e.getPlayer().getWorld(),.5,64,.5,0,0));
@@ -41,6 +43,14 @@ public final class CombatFixture extends JavaPlugin implements Listener {
         if(e.getEntity()==victim){lastBase=e.getDamage();events++;if(cancel)e.setCancelled(true);}
     }
     @EventHandler public void use(PlayerInteractEvent e){if(e.getAction().name().startsWith("RIGHT_CLICK"))uses++;}
+    /** Like JasprRPG's armament XP: every blow rewrites the attacker's main-hand weapon (CraftBukkit sends that slot at once). */
+    @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true) public void rewriteHand(EntityDamageByEntityEvent e){
+        if(!rewrite||!(e.getDamager() instanceof Player))return;
+        Player a=(Player)e.getDamager();ItemStack w=a.getInventory().getItemInMainHand();
+        if(w==null||w.getType()==Material.AIR)return;
+        ItemStack c=w.clone();org.bukkit.inventory.meta.ItemMeta m=c.getItemMeta();m.setLore(Arrays.asList("blows "+(++rewrites)));c.setItemMeta(m);
+        a.getInventory().setItemInMainHand(c);
+    }
     /** Like a staff / wand / trinket handler: claims the main hand's right click in the air. */
     @EventHandler(priority=EventPriority.HIGH) public void claimUse(PlayerInteractEvent e){
         if(claim!=null&&e.getAction()==Action.RIGHT_CLICK_AIR&&e.getItem()!=null&&e.getItem().getType()==claim){e.setCancelled(true);claims++;}
@@ -85,6 +95,7 @@ public final class CombatFixture extends JavaPlugin implements Listener {
                 getLogger().info("FIXTURE_READY "+p.getName()+" "+victim.getUniqueId());
             }else if(args[0].equals("claim")){claim=args[2].equals("off")?null:Material.valueOf(args[2]);claims=0;
             }else if(args[0].equals("guard")){guard=args[2].equals("on");guarded=0;
+            }else if(args[0].equals("rewrite")){rewrite=args[2].equals("on");rewrites=0;
             }else if(args[0].equals("gm")){p.setGameMode(GameMode.valueOf(args[2]));
             }else if(args[0].equals("health")){victim.setHealth(Double.parseDouble(args[2]));
             }else if(args[0].equals("pvp")){
